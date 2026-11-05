@@ -2,7 +2,7 @@
   "name": "styled-markdown",
   "displayName": "Styled Markdown (now Semantic Markdown)",
   "description": "Styled Markdown is now Semantic Markdown. This update installs the Semantic Markdown extension; then you can uninstall this one.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "publisher": "bislink360",
   "license": "MIT",
   "icon": "icon.png",

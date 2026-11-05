@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.1.0 — 2026-11-05
+
+### ⚠️ Breaking changes
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Fixed
+
 ## 3.0.0 — 2026-11-05
 
 Styled Markdown is now **Semantic Markdown**. The name says what the format is for: Markdown whose decisions, risks, tasks and agent instructions tools can read. The format doesn't change. `.smd` files, the `smd` command and its flags, `smd: 2`, the `smd.*` settings, commands and keybindings, diagnostic codes and the `smd-*` CSS classes all stay the same, so documents, CI checks and editor setups keep working. What changes are the published names. Each old name gets one last 3.0.0 release that moves you to the new one. See [Moving from Styled Markdown](../docs/INSTALL.md#moving-from-styled-markdown).

@@ -6,14 +6,14 @@ build-backend = "hatchling.build"
 # registers the plugin as `styled-markdown`, so existing mkdocs.yml files keep working.
 [project]
 name = "mkdocs-styled-markdown"
-version = "3.0.0"
+version = "3.1.0"
 description = "Renamed to mkdocs-semantic-markdown. This release installs it."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [{ name = "Roshan Alwis" }]
 classifiers = ["Development Status :: 7 - Inactive", "Framework :: MkDocs"]
-dependencies = ["mkdocs-semantic-markdown==3.0.0"]
+dependencies = ["mkdocs-semantic-markdown==3.1.0"]
 
 [project.urls]
 Homepage = "https://github.com/bislink360/semantic-markdown/tree/main/integrations/mkdocs"
