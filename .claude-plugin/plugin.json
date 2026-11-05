@@ -1,17 +1,17 @@
 {
-  "name": "styled-markdown",
-  "displayName": "Styled Markdown",
+  "name": "semantic-markdown",
+  "displayName": "Semantic Markdown",
   "version": "3.0.0",
-  "description": "Read and write Styled Markdown (.smd) specs, PRDs, ADRs, runbooks and plans with fewer tokens: the reader and writer skills plus the smd MCP server (read, tasks, query, validate).",
+  "description": "Read and write Semantic Markdown (.smd) specs, PRDs, ADRs, runbooks and plans with fewer tokens: the reader and writer skills plus the smd MCP server (read, tasks, query, validate).",
   "author": {
     "name": "Roshan Alwis",
     "url": "https://github.com/roshanmadhushanka"
   },
-  "homepage": "https://github.com/bislink360/styled-markdown#readme",
-  "repository": "https://github.com/bislink360/styled-markdown",
+  "homepage": "https://github.com/bislink360/semantic-markdown#readme",
+  "repository": "https://github.com/bislink360/semantic-markdown",
   "license": "MIT",
   "keywords": [
-    "styled-markdown",
+    "semantic-markdown",
     "smd",
     "markdown",
     "specs",
@@ -23,7 +23,7 @@
     "smd": {
       "command": "node",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/skills/styled-markdown-reader/scripts/smd.cjs",
+        "${CLAUDE_PLUGIN_ROOT}/skills/semantic-markdown-reader/scripts/smd.cjs",
         "mcp"
       ]
     }

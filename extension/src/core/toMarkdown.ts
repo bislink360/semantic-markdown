@@ -128,7 +128,7 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
   return headingAnchors(text, out.join('\n').replace(/\n{3,}/g, '\n\n'), options);
 }
 
-/** A heading of the converted text with the id Styled Markdown gives it and the one GitHub gives it. */
+/** A heading of the converted text with the id Semantic Markdown gives it and the one GitHub gives it. */
 interface HeadingIds extends MarkdownHeading { smd: string; github: string }
 
 /** The heading ids of the last conversion with these options, for githubHeadingIds. */
@@ -173,7 +173,7 @@ function withoutFrontMatter(markdown: string): string {
 }
 
 /**
- * The lines that go before a heading for its Styled Markdown id: the anchor, inside the same blockquotes as the
+ * The lines that go before a heading for its Semantic Markdown id: the anchor, inside the same blockquotes as the
  * heading. A blank line keeps it out of a paragraph or table just above, and out of a setext heading's text.
  */
 function anchorLines(lines: string[], heading: HeadingIds): string[] {

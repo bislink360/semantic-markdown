@@ -1,4 +1,4 @@
-# Styled Markdown playground
+# Semantic Markdown playground
 
 A static web page for trying `.smd` without installing anything: edit on the left; the **Preview**, **Agent view** (with its token estimate), **Diagnostics** and **Markdown** export update on the right as you type. **Copy link** puts the whole document in the link, so a document can be shared without a server.
 
@@ -21,7 +21,7 @@ This writes `extension/dist/playground/`. Open `index.html` from there directly 
 | `vendor/mermaid-source.js` | Mermaid (3.5 MB), loaded only when a document has a diagram |
 | `vendor/*.LICENSE` | Licenses of the bundled KaTeX and Mermaid |
 
-Hosting it (for example on GitHub Pages) is a separate maintainer decision and is not set up in this repository. Each GitHub Release attaches the built folder as `styled-markdown-playground.zip`.
+Hosting it (for example on GitHub Pages) is a separate maintainer decision and is not set up in this repository. Each GitHub Release attaches the built folder as `semantic-markdown-playground.zip`.
 
 ## Sharing by link
 

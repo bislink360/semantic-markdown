@@ -1,4 +1,4 @@
-/* Styled Markdown Block Editor (Preview).
+/* Semantic Markdown Block Editor (Preview).
  *
  * Loaded twice: by the page, for the blocks around the rendered document (smd.css styles the document itself), and
  * inside each closed shadow root of the editor's controls. The controls' rules start with :host, which matches

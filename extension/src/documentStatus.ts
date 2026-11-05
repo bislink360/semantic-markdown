@@ -98,7 +98,7 @@ export function statusBarText(state: DocumentStatus): StatusBarText {
  */
 export function statusBarItem(state: DocumentStatus, spec: SpecVersion): StatusBarText {
   const bar = statusBarText(state);
-  return spec === 1 ? bar : { ...bar, tooltip: `${bar.tooltip}\nStyled Markdown spec v${spec} (smd: ${spec})` };
+  return spec === 1 ? bar : { ...bar, tooltip: `${bar.tooltip}\nSemantic Markdown spec v${spec} (smd: ${spec})` };
 }
 
 export interface StatusChoice {

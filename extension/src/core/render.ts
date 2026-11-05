@@ -272,7 +272,7 @@ export function pageHtml(page: PageParts): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Styled Markdown">
+<meta name="generator" content="Semantic Markdown">
 <title>${escapeHtml(page.title)}</title>
 ${katex}<style>
 ${page.css}

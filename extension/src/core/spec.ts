@@ -1,5 +1,5 @@
 /**
- * The Styled Markdown vocabulary. Everything the renderer, validator,
+ * The Semantic Markdown vocabulary. Everything the renderer, validator,
  * completion provider and converters know about lives here, so the format
  * has exactly one source of truth.
  *
@@ -207,7 +207,7 @@ export const VARIABLE_SYNTAX = {
 
 /** Known front-matter keys. Unknown keys are allowed but reported as hints. */
 export const FRONTMATTER_KEYS: Readonly<Record<string, string>> = {
-  smd: 'Styled Markdown spec version: 1, or 2 for the spec v2 rules (a document without it is version 1)',
+  smd: 'Semantic Markdown spec version: 1, or 2 for the spec v2 rules (a document without it is version 1)',
   title: 'Document title',
   summary: 'One or two sentence summary — agents read this first',
   status: 'draft | review | approved | deprecated | archived',

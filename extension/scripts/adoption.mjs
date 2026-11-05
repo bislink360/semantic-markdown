@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Adoption numbers for Styled Markdown, from public sources. Read-only: it changes nothing anywhere.
+// Adoption numbers for Semantic Markdown, from public sources. Read-only: it changes nothing anywhere.
 //
 //   node extension/scripts/adoption.mjs [--json] [--repo owner/name] [--maintainers login,login]
 //
@@ -16,16 +16,16 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
-const NPM_PACKAGE = 'styled-markdown';
-const EXTENSION_ID = 'bislink360.styled-markdown';
-const PYPI_PACKAGE = 'mkdocs-styled-markdown';
+const NPM_PACKAGE = 'semantic-markdown';
+const EXTENSION_ID = 'bislink360.semantic-markdown';
+const PYPI_PACKAGE = 'mkdocs-semantic-markdown';
 const NOT_LISTED = 'not listed';
 
 /** Authors whose issues and pull requests don't count as outside contributions. */
 const INSIDER_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 
 export function parseArgs(argv) {
-  const options = { json: false, repo: 'bislink360/styled-markdown', maintainers: [] };
+  const options = { json: false, repo: 'bislink360/semantic-markdown', maintainers: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--json') options.json = true;
@@ -51,7 +51,7 @@ function ghApi(path, { paginate = false } = {}) {
 
 /** fetch() as JSON; 404 (and an empty registry answer) means "not listed". */
 async function getJson(url, init) {
-  const response = await fetch(url, { ...init, headers: { 'User-Agent': 'styled-markdown-adoption-script', ...init?.headers } });
+  const response = await fetch(url, { ...init, headers: { 'User-Agent': 'semantic-markdown-adoption-script', ...init?.headers } });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`${new URL(url).host} answered ${response.status} ${response.statusText}`);
   return response.json();
@@ -225,7 +225,7 @@ export function markdownReport(data) {
     row('PyPI (MkDocs plugin)', 'Downloads, last week', fmt(p.lastWeek));
     row('PyPI (MkDocs plugin)', 'Downloads, last month', fmt(p.lastMonth));
   }
-  return [`### Styled Markdown adoption, ${data.date}`, '', '| Source | Metric | Value |', '|---|---|---:|', ...rows, ''].join('\n');
+  return [`### Semantic Markdown adoption, ${data.date}`, '', '| Source | Metric | Value |', '|---|---|---:|', ...rows, ''].join('\n');
 }
 
 async function main(argv) {

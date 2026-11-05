@@ -78,11 +78,11 @@ if (watch) {
 
 // Keep the repository's skills self-contained: each skill ships the bundled CLI.
 if (!watch) {
-  for (const skill of ['styled-markdown-reader', 'styled-markdown-writer']) {
+  for (const skill of ['semantic-markdown-reader', 'semantic-markdown-writer']) {
     const dir = join(root, '..', 'skills', skill, 'scripts');
     mkdirSync(dir, { recursive: true });
     cpSync(join(root, 'dist', 'cli.js'), join(dir, 'smd.cjs'));
   }
   // The MkDocs plugin's Python package ships the bridge (CI checks that the committed copy is up to date).
-  cpSync(join(root, 'dist', 'mkdocs-bridge.cjs'), join(root, '..', 'integrations', 'mkdocs', 'mkdocs_styled_markdown', 'bridge.cjs'));
+  cpSync(join(root, 'dist', 'mkdocs-bridge.cjs'), join(root, '..', 'integrations', 'mkdocs', 'mkdocs_semantic_markdown', 'bridge.cjs'));
 }

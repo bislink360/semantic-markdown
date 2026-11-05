@@ -1,4 +1,4 @@
-# Installing Styled Markdown
+# Installing Semantic Markdown
 
 This guide covers **AI agent setup** (the Claude Code plugin, `smd init --agent` and the MCP server), the **VS Code extension**, the **`smd` command-line tool**, the **MkDocs plugin**, the **Obsidian plugin**, the **JetBrains plugin**, and building from source. The agent skills have their own guide: [SKILLS.md](SKILLS.md).
 
@@ -17,6 +17,7 @@ This guide covers **AI agent setup** (the Claude Code plugin, `smd init --agent`
 - [Obsidian plugin](#obsidian-plugin)
 - [JetBrains IDEs](#jetbrains-ides)
 - [Update or uninstall](#update-or-uninstall)
+- [Moving from Styled Markdown](#moving-from-styled-markdown)
 - [Upgrading to 2.0](#upgrading-to-20)
 - [Build from source](#build-from-source)
 - [Troubleshooting](#troubleshooting)
@@ -43,67 +44,67 @@ Agents read `.smd` documents through the CLI or the MCP server instead of readin
 In Claude Code (2.1 or later), add this repository as a plugin marketplace and install the plugin:
 
 ```text
-/plugin marketplace add bislink360/styled-markdown
-/plugin install styled-markdown@styled-markdown
+/plugin marketplace add bislink360/semantic-markdown
+/plugin install semantic-markdown@semantic-markdown
 ```
 
-From a shell, the same is `claude plugin marketplace add bislink360/styled-markdown` and `claude plugin install styled-markdown@styled-markdown`. The plugin brings:
+From a shell, the same is `claude plugin marketplace add bislink360/semantic-markdown` and `claude plugin install semantic-markdown@semantic-markdown`. The plugin brings:
 
-- the **`styled-markdown-reader`** and **`styled-markdown-writer`** skills (as `styled-markdown:styled-markdown-reader` and `styled-markdown:styled-markdown-writer`), each with the `smd` CLI bundled;
+- the **`semantic-markdown-reader`** and **`semantic-markdown-writer`** skills (as `semantic-markdown:semantic-markdown-reader` and `semantic-markdown:semantic-markdown-writer`), each with the `smd` CLI bundled;
 - the **`smd` MCP server**, read-only: it serves the `.smd` files under the folder it is started in, your project when you run Claude Code from its root.
 
-It needs Node.js 22 or newer on the `PATH`. The plugin's version is the release's: after a release, `claude plugin marketplace update styled-markdown` and `claude plugin update styled-markdown@styled-markdown` bring it up to date. The two skill descriptions add about 320 tokens to each session; a skill's full instructions load only when a task needs them.
+It needs Node.js 22 or newer on the `PATH`. The plugin's version is the release's: after a release, `claude plugin marketplace update semantic-markdown` and `claude plugin update semantic-markdown@semantic-markdown` bring it up to date. The two skill descriptions add about 320 tokens to each session; a skill's full instructions load only when a task needs them.
 
 ### One command for a project: `smd init --agent`
 
 From your project's root, one command installs everything an agent needs and can be committed for the whole team:
 
 ```bash
-npx styled-markdown init --agent claude     # or cursor, copilot, agents
+npx semantic-markdown init --agent claude     # or cursor, copilot, agents
 ```
 
 | `--agent` | Writes |
 |---|---|
 | `claude` | The skills in `.claude/skills/`, the MCP server in `.mcp.json` |
-| `cursor` | `.cursor/rules/styled-markdown.mdc`, the MCP server in `.cursor/mcp.json` |
-| `copilot` | `.github/instructions/styled-markdown.instructions.md`, the MCP server in `.vscode/mcp.json` |
-| `agents` | A Styled Markdown section in `AGENTS.md` (Codex, Windsurf and other agents that read it) |
+| `cursor` | `.cursor/rules/semantic-markdown.mdc`, the MCP server in `.cursor/mcp.json` |
+| `copilot` | `.github/instructions/semantic-markdown.instructions.md`, the MCP server in `.vscode/mcp.json` |
+| `agents` | A Semantic Markdown section in `AGENTS.md` (Codex, Windsurf and other agents that read it) |
 
 Every target also gets the CLI at `.smd/smd.cjs` and the `AGENTS.md` snippet. `--dir <project>` sets the project folder. Running it again updates the files in place; MCP config files that already exist are merged, so your other servers stay.
 
-`npx styled-markdown` works once the package is on the npm registry. Until then, use the CLI from a release: `node smd.cjs init --agent claude` with the single file from [Install the `smd` CLI](#install-the-smd-cli), or `smd init --agent claude` after installing the release's `.tgz`. The older `smd skills install --target claude,cursor,copilot,agents` still works and installs the skills or rules without the MCP config ([SKILLS.md](SKILLS.md)).
+`npx semantic-markdown` works once the package is on the npm registry. Until then, use the CLI from a release: `node smd.cjs init --agent claude` with the single file from [Install the `smd` CLI](#install-the-smd-cli), or `smd init --agent claude` after installing the release's `.tgz`. The older `smd skills install --target claude,cursor,copilot,agents` still works and installs the skills or rules without the MCP config ([SKILLS.md](SKILLS.md)).
 
 ### MCP server only
 
 `smd mcp` serves the reading tools (`read`, `tasks`, `query`, `validate`) over stdio to any MCP client, without shell access:
 
 ```bash
-claude mcp add smd -- npx -y -p styled-markdown smd mcp
+claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 ```
 
 `smd mcp --allow-write` adds tools that change documents, each checked by the validator and kept inside the root folder: `check_task` (tick or untick a task), `set_status` (the front matter `status`) and `add_decision` (a `:::decision` at the end of a section). Setup for Cursor, VS Code and Claude Desktop, and every tool's arguments: [AGENTS.md](AGENTS.md#mcp-server).
 
 ## Install the VS Code extension
 
-**From the Visual Studio Marketplace (VS Code):** search for **Styled Markdown** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`), or run:
+**From the Visual Studio Marketplace (VS Code):** search for **Semantic Markdown** in the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`), or run:
 
 ```bash
-code --install-extension bislink360.styled-markdown
+code --install-extension bislink360.semantic-markdown
 ```
 
-VS Code then keeps it up to date. The [Marketplace page](https://marketplace.visualstudio.com/items?itemName=bislink360.styled-markdown) lists the versions.
+VS Code then keeps it up to date. The [Marketplace page](https://marketplace.visualstudio.com/items?itemName=bislink360.semantic-markdown) lists the versions.
 
 > **Open VSX:** coming once published. [Open VSX](https://open-vsx.org) is the extension registry of VSCodium, Cursor, Windsurf and Gitpod. Until the listing is live, those editors install the `.vsix` from the GitHub release (Option A).
 
 ### Option A — from the release file
 
-1. Open the [latest release](https://github.com/bislink360/styled-markdown/releases/latest) and download **`styled-markdown-2.4.0.vsix`**.
+1. Open the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest) and download **`semantic-markdown-3.0.0.vsix`**.
 2. Install it with **one** of these methods.
 
    **From the terminal:**
 
    ```bash
-   code --install-extension styled-markdown-2.4.0.vsix
+   code --install-extension semantic-markdown-3.0.0.vsix
    ```
 
    **From VS Code:**
@@ -114,22 +115,22 @@ VS Code then keeps it up to date. The [Marketplace page](https://marketplace.vis
    **Drag and drop:** drag the `.vsix` file onto the Extensions view.
 3. If VS Code was already open, run **Developer: Reload Window** from the Command Palette.
 
-> Cursor, VSCodium and Windsurf use the same steps (`cursor --install-extension …`, `codium --install-extension …`). Once the Open VSX listing is live, they can also install **Styled Markdown** from their Extensions view.
+> Cursor, VSCodium and Windsurf use the same steps (`cursor --install-extension …`, `codium --install-extension …`). Once the Open VSX listing is live, they can also install **Semantic Markdown** from their Extensions view.
 
 ### Option B — build and install from source
 
 ```bash
-git clone https://github.com/bislink360/styled-markdown.git
-cd styled-markdown/extension
+git clone https://github.com/bislink360/semantic-markdown.git
+cd semantic-markdown/extension
 npm install
 npm run package
-code --install-extension styled-markdown-2.4.0.vsix
+code --install-extension semantic-markdown-3.0.0.vsix
 ```
 
 ## Verify the installation
 
 1. Open [`examples/showcase.smd`](../examples/showcase.smd) (or create any file ending in `.smd`).
-2. The language mode in the status bar shows **Styled Markdown**, and the file has the Styled Markdown icon in the Explorer.
+2. The language mode in the status bar shows **Semantic Markdown**, and the file has the Semantic Markdown icon in the Explorer.
 3. Press **`Ctrl+K V`** (`Cmd+K V` on macOS). A live preview opens beside the editor with callouts, diagrams and math rendered.
 4. Type `:::warnign` on a new line. A squiggle appears; press `Ctrl+.` and choose **Change to ":::warning"**.
 5. Click the **🤖** button in the editor title bar. The agent view opens, showing what an AI agent reads. The status bar shows the estimated token count.
@@ -156,7 +157,7 @@ Keyboard shortcuts:
 | Quick fix | `Ctrl+.` | `Cmd+.` |
 | Trigger suggestions | `Ctrl+Space` | `Ctrl+Space` |
 
-All commands are in the Command Palette under **Styled Markdown:**. They cover opening the preview, opening the Block Editor (and **Reopen in Text Editor**), showing the (brief) agent view, copying the agent view or selected sections, exporting to HTML, Markdown, Confluence (storage format), Notion (JSON) or Word (.docx), converting a Markdown file to `.smd`, validating the whole workspace, **Migrate to Spec v2** and **Preview Migration to Spec v2**, **Set Document Status…**, setting up spell checking, and grouping, showing or hiding tasks in the SMD Tasks view.
+All commands are in the Command Palette under **Semantic Markdown:**. They cover opening the preview, opening the Block Editor (and **Reopen in Text Editor**), showing the (brief) agent view, copying the agent view or selected sections, exporting to HTML, Markdown, Confluence (storage format), Notion (JSON) or Word (.docx), converting a Markdown file to `.smd`, validating the whole workspace, **Migrate to Spec v2** and **Preview Migration to Spec v2**, **Set Document Status…**, setting up spell checking, and grouping, showing or hiding tasks in the SMD Tasks view.
 
 ## Install the `smd` CLI
 
@@ -165,33 +166,33 @@ The CLI is a **single self-contained file** with no dependencies. Pick one metho
 **From the release's npm package (recommended):** npm installs straight from the tarball attached to the release. The npm registry listing is coming soon.
 
 ```bash
-npm install -g https://github.com/bislink360/styled-markdown/releases/download/v2.4.0/styled-markdown-2.4.0.tgz
-smd --version       # smd 2.4.0 (Styled Markdown spec v2)
+npm install -g https://github.com/bislink360/semantic-markdown/releases/download/v3.0.0/semantic-markdown-3.0.0.tgz
+smd --version       # smd 3.0.0 (Semantic Markdown spec v2)
 ```
 
-The same package is also a library (`npm install https://github.com/bislink360/styled-markdown/releases/download/v2.4.0/styled-markdown-2.4.0.tgz`); see [Use the npm library](#use-the-npm-library) and [npm/README.md](../npm/README.md).
+The same package is also a library (`npm install https://github.com/bislink360/semantic-markdown/releases/download/v3.0.0/semantic-markdown-3.0.0.tgz`); see [Use the npm library](#use-the-npm-library) and [npm/README.md](../npm/README.md).
 
 **Download the single file (no install):**
 
 ```bash
-curl -sLo smd.cjs https://raw.githubusercontent.com/bislink360/styled-markdown/v2.4.0/skills/styled-markdown-reader/scripts/smd.cjs
+curl -sLo smd.cjs https://raw.githubusercontent.com/bislink360/semantic-markdown/v3.0.0/skills/semantic-markdown-reader/scripts/smd.cjs
 node smd.cjs --version
 ```
 
 **Use the copy bundled with the skills (no build needed):**
 
 ```bash
-git clone https://github.com/bislink360/styled-markdown.git
-node styled-markdown/skills/styled-markdown-reader/scripts/smd.cjs --version
+git clone https://github.com/bislink360/semantic-markdown.git
+node semantic-markdown/skills/semantic-markdown-reader/scripts/smd.cjs --version
 ```
 
 **Put `smd` on your PATH:**
 
 ```bash
-cd styled-markdown/extension
+cd semantic-markdown/extension
 npm install && npm run build
 npm link            # now `smd` works everywhere
-smd --version       # smd 2.4.0 (Styled Markdown spec v2)
+smd --version       # smd 3.0.0 (Semantic Markdown spec v2)
 ```
 
 **Without linking:** `node extension/dist/cli.js <command>`.
@@ -203,21 +204,21 @@ smd --version       # smd 2.4.0 (Styled Markdown spec v2)
 The package renders, validates and converts documents in your own code, with zero dependencies:
 
 ```ts
-import { renderSmd, validateSmd, agentView } from 'styled-markdown';
+import { renderSmd, validateSmd, agentView } from 'semantic-markdown';
 ```
 
-Already render Markdown with markdown-it (a docs site, a static site generator, a chat UI)? Add the syntax to your own instance with the plugin, and style it with `styled-markdown/smd.css`:
+Already render Markdown with markdown-it (a docs site, a static site generator, a chat UI)? Add the syntax to your own instance with the plugin, and style it with `semantic-markdown/smd.css`:
 
 ```ts
-import smd from 'styled-markdown/markdown-it';
+import smd from 'semantic-markdown/markdown-it';
 md.use(smd);
 ```
 
-**Static sites (Astro, Docusaurus, Next.js):** `styled-markdown/remark` and `styled-markdown/rehype` are unified plugins that render documents exactly as `smd export --to html` does, inside remark/rehype pipelines:
+**Static sites (Astro, Docusaurus, Next.js):** `semantic-markdown/remark` and `semantic-markdown/rehype` are unified plugins that render documents exactly as `smd export --to html` does, inside remark/rehype pipelines:
 
 ```js
 // astro.config.mjs
-import { remarkSmd } from 'styled-markdown/remark';
+import { remarkSmd } from 'semantic-markdown/remark';
 export default { markdown: { remarkPlugins: [remarkSmd] } };
 ```
 
@@ -254,7 +255,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bislink360/styled-markdown/validate@v2.4.0
+      - uses: bislink360/semantic-markdown/validate@v3.0.0
         with:
           paths: |
             docs
@@ -273,14 +274,14 @@ It runs the `smd` CLI bundled in the repository with the runner's Node.js (22 or
 | `mermaid` | `true` | `false` skips Mermaid syntax checks |
 | `stale-after` | | Days before a document's `updated` date counts as stale (`0`: off; default 180) |
 | `summary` | `true` | Write the job summary |
-| `cli` | | Run another `smd` CLI, e.g. `node_modules/styled-markdown/dist/cli.js` |
+| `cli` | | Run another `smd` CLI, e.g. `node_modules/semantic-markdown/dist/cli.js` |
 
 Errors become `::error`, warnings `::warning` and info diagnostics `::notice` annotations; hints are left out. The bundled CLI has no Mermaid parser, so diagram syntax is only checked when `cli` points at the npm package's CLI (installed with `npm ci` in an earlier step).
 
 ### Any CI
 
 ```bash
-curl -sSLo smd.cjs https://raw.githubusercontent.com/bislink360/styled-markdown/v2.4.0/skills/styled-markdown-reader/scripts/smd.cjs
+curl -sSLo smd.cjs https://raw.githubusercontent.com/bislink360/semantic-markdown/v3.0.0/skills/semantic-markdown-reader/scripts/smd.cjs
 node smd.cjs validate docs/ --strict
 ```
 
@@ -290,7 +291,7 @@ Once your documents are on spec v2, `node smd.cjs migrate docs/ --to 2 --check` 
 
 ### Reading `.smd` files on GitHub
 
-GitHub shows `.smd` files as source, not as pages. [GITHUB.md](GITHUB.md) compares the ways around it: Styled Markdown syntax in `.md` files, `.md` copies generated in CI with `smd export --to md` (a complete workflow), and a pull request comment with the changed sections in the agent view.
+GitHub shows `.smd` files as source, not as pages. [GITHUB.md](GITHUB.md) compares the ways around it: Semantic Markdown syntax in `.md` files, `.md` copies generated in CI with `smd export --to md` (a complete workflow), and a pull request comment with the changed sections in the agent view.
 
 ## Pre-commit hooks
 
@@ -302,7 +303,7 @@ Check `.smd` files before they are committed. `smd validate` and `smd fmt` take 
 
 ```yaml
 repos:
-  - repo: https://github.com/bislink360/styled-markdown
+  - repo: https://github.com/bislink360/semantic-markdown
     rev: v2.4.0
     hooks:
       - id: smd-fmt
@@ -320,14 +321,14 @@ Then run `pre-commit install` once. The hooks (from v1.5.0):
 
 Other `args` are passed to the command, e.g. `[--config, docs/smd.config.json]` or `[--stale-after, '0']` for `smd-validate`.
 
-The hooks use `language: node`: pre-commit installs this repository's root `package.json`, whose only file is the bundled single-file CLI (`skills/styled-markdown-reader/scripts/smd.cjs`), so there are no dependencies and nothing comes from the npm registry. On macOS and Linux pre-commit uses the `node` (22 or newer) and `npm` on your PATH; without them, and always on Windows, it downloads a private Node.js once. The single-file CLI doesn't include the Mermaid parser, so the hooks don't report `mermaid/syntax`; run `smd validate` from the npm package in CI for that.
+The hooks use `language: node`: pre-commit installs this repository's root `package.json`, whose only file is the bundled single-file CLI (`skills/semantic-markdown-reader/scripts/smd.cjs`), so there are no dependencies and nothing comes from the npm registry. On macOS and Linux pre-commit uses the `node` (22 or newer) and `npm` on your PATH; without them, and always on Windows, it downloads a private Node.js once. The single-file CLI doesn't include the Mermaid parser, so the hooks don't report `mermaid/syntax`; run `smd validate` from the npm package in CI for that.
 
 ### With lint-staged and husky
 
-For JavaScript projects. The `styled-markdown` package isn't on the npm registry yet, so install it from the release's `.tgz`, which also gives you the Mermaid parser:
+For JavaScript projects. The `semantic-markdown` package isn't on the npm registry yet, so install it from the release's `.tgz`, which also gives you the Mermaid parser:
 
 ```bash
-npm install --save-dev https://github.com/bislink360/styled-markdown/releases/download/v2.4.0/styled-markdown-2.4.0.tgz
+npm install --save-dev https://github.com/bislink360/semantic-markdown/releases/download/v3.0.0/semantic-markdown-3.0.0.tgz
 npm install --save-dev lint-staged husky
 npx husky init
 echo "npx lint-staged" > .husky/pre-commit
@@ -343,7 +344,7 @@ and in `package.json`:
 }
 ```
 
-lint-staged appends the staged files to each command, runs them in order and stages the formatting changes. Add `--strict` to `smd validate` to fail on warnings. To use the single-file CLI instead of the package, download it into the repository (`curl -sSLo tools/smd.cjs https://raw.githubusercontent.com/bislink360/styled-markdown/v2.4.0/skills/styled-markdown-reader/scripts/smd.cjs`) and use `"node tools/smd.cjs fmt"` and `"node tools/smd.cjs validate"`.
+lint-staged appends the staged files to each command, runs them in order and stages the formatting changes. Add `--strict` to `smd validate` to fail on warnings. To use the single-file CLI instead of the package, download it into the repository (`curl -sSLo tools/smd.cjs https://raw.githubusercontent.com/bislink360/semantic-markdown/v3.0.0/skills/semantic-markdown-reader/scripts/smd.cjs`) and use `"node tools/smd.cjs fmt"` and `"node tools/smd.cjs validate"`.
 
 ### With a plain Git hook
 
@@ -362,12 +363,12 @@ It checks the files as they are in the working tree and doesn't change them; `--
 
 ## MkDocs plugin
 
-`mkdocs-styled-markdown` makes the `.smd` files in an [MkDocs](https://www.mkdocs.org) site's `docs_dir` pages, rendered by the same engine as `smd export --to html`, inside the site's theme. It is a Python package that ships the engine as a Node.js script, so the machine that builds the site needs Node.js 22+ on `PATH` (no npm install).
+`mkdocs-semantic-markdown` makes the `.smd` files in an [MkDocs](https://www.mkdocs.org) site's `docs_dir` pages, rendered by the same engine as `smd export --to html`, inside the site's theme. It is a Python package that ships the engine as a Node.js script, so the machine that builds the site needs Node.js 22+ on `PATH` (no npm install).
 
-Until it is on PyPI, install the wheel from the GitHub release (each release attaches `mkdocs_styled_markdown-X.Y.Z-py3-none-any.whl` and the `.tar.gz` source):
+Until it is on PyPI, install the wheel from the GitHub release (each release attaches `mkdocs_semantic_markdown-X.Y.Z-py3-none-any.whl` and the `.tar.gz` source):
 
 ```bash
-pip install https://github.com/bislink360/styled-markdown/releases/download/v2.4.0/mkdocs_styled_markdown-2.4.0-py3-none-any.whl
+pip install https://github.com/bislink360/semantic-markdown/releases/download/v3.0.0/mkdocs_semantic_markdown-3.0.0-py3-none-any.whl
 ```
 
 Then add it to `mkdocs.yml`:
@@ -375,7 +376,7 @@ Then add it to `mkdocs.yml`:
 ```yaml
 plugins:
   - search
-  - styled-markdown:
+  - semantic-markdown:
       validate: true      # smd errors become MkDocs warnings (mkdocs build --strict fails on them)
       md_syntax: false    # true: .md pages may use .smd syntax too
 ```
@@ -386,40 +387,56 @@ Options, links, the table of contents, dark mode and includes: [plugin README](.
 
 The playground needs no installation: it is a static page that runs the engine in the browser (see [FEATURES.md §19](FEATURES.md#19-web-playground)).
 
-- **From a release:** download `styled-markdown-playground.zip`, unzip it and open `index.html` in a browser.
+- **From a release:** download `semantic-markdown-playground.zip`, unzip it and open `index.html` in a browser.
 - **From source:** `cd extension && npm ci && npm run build:playground`, then open `extension/dist/playground/index.html`.
 
-It works from `file://` and from any static web server. It needs a current browser (Chrome or Edge 103+, Firefox 113+, Safari 16.4+) for the compressed share links. The latest release's playground is also hosted at [bislink360.github.io/styled-markdown/playground/](https://bislink360.github.io/styled-markdown/playground/), published from `main` by the Pages workflow.
+It works from `file://` and from any static web server. It needs a current browser (Chrome or Edge 103+, Firefox 113+, Safari 16.4+) for the compressed share links. The latest release's playground is also hosted at [bislink360.github.io/semantic-markdown/playground/](https://bislink360.github.io/semantic-markdown/playground/), published from `main` by the Pages workflow.
 
 ## Obsidian plugin
 
-The Styled Markdown plugin for [Obsidian](https://obsidian.md) renders `.smd` syntax in your notes' reading view: `:::` containers, inline directives such as `:badge[…]` and `:status[…]`, and `[text]{color=…}` spans, styled to follow your theme in light and dark mode. ```` ```smd ```` code blocks render in Live Preview too, and `.smd` files open as notes. The engine is bundled into the plugin, so nothing else needs installing.
+The Semantic Markdown plugin for [Obsidian](https://obsidian.md) renders `.smd` syntax in your notes' reading view: `:::` containers, inline directives such as `:badge[…]` and `:status[…]`, and `[text]{color=…}` spans, styled to follow your theme in light and dark mode. ```` ```smd ```` code blocks render in Live Preview too, and `.smd` files open as notes. The engine is bundled into the plugin, so nothing else needs installing.
 
 Until it is in Obsidian's community plugin list, install it from the GitHub release:
 
-1. Download `styled-markdown-obsidian-X.Y.Z.zip` from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest).
+1. Download `semantic-markdown-obsidian-X.Y.Z.zip` from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest).
 2. Unzip it into your vault's `.obsidian/plugins/` folder, which gives `.obsidian/plugins/styled-markdown/` with `main.js`, `manifest.json` and `styles.css`.
-3. In Obsidian, **Settings → Community plugins**: turn off Restricted mode if it is on, reload the list of installed plugins and turn on **Styled Markdown**.
+3. In Obsidian, **Settings → Community plugins**: turn off Restricted mode if it is on, reload the list of installed plugins and turn on **Semantic Markdown**.
 
 To update, replace the three files and reload the plugin. Settings, what renders where, and the limitations (Live Preview, wikilinks and embeds inside containers, `.smd` files and Obsidian's index): [plugin README](../integrations/obsidian/README.md).
 
 ## JetBrains IDEs
 
-The Styled Markdown plugin for JetBrains IDEs highlights `.smd` files with the VS Code extension's grammar and runs the Styled Markdown language server, which ships with the plugin: problems as you type with quick fixes, completion, hover, go to definition, the outline, workspace symbols and formatting. Since 2.2.0 `.smd` files open with a live preview beside the editor; **Open Styled Markdown Preview in Browser** (editor right-click menu, or **Tools**) shows the page in your browser.
+The Semantic Markdown plugin for JetBrains IDEs highlights `.smd` files with the VS Code extension's grammar and runs the Semantic Markdown language server, which ships with the plugin: problems as you type with quick fixes, completion, hover, go to definition, the outline, workspace symbols and formatting. Since 2.2.0 `.smd` files open with a live preview beside the editor; **Open Semantic Markdown Preview in Browser** (editor right-click menu, or **Tools**) shows the page in your browser.
 
 Until it is on the JetBrains Marketplace, install it from the GitHub release:
 
-1. Download `styled-markdown-jetbrains-X.Y.Z.zip` from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest). Don't unzip it.
+1. Download `semantic-markdown-jetbrains-X.Y.Z.zip` from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest). Don't unzip it.
 2. In the IDE, **Settings → Plugins → ⚙ → Install Plugin from Disk…**, choose the zip, and restart the IDE when asked.
-3. Open a `.smd` file. The language server needs **Node.js 22 or newer**: `node` on the `PATH`, or its path in **Settings → Languages & Frameworks → Styled Markdown**. Without Node.js, highlighting still works, and the IDE says what is missing.
+3. Open a `.smd` file. The language server needs **Node.js 22 or newer**: `node` on the `PATH`, or its path in **Settings → Languages & Frameworks → Semantic Markdown**. Without Node.js, highlighting still works, and the IDE says what is missing.
 
 To update, install the new zip the same way. Settings, what the plugin does and doesn't do, and building it: [plugin README](../integrations/jetbrains/README.md).
 
 ## Update or uninstall
 
 - **Update:** install the newer `.vsix` the same way. VS Code replaces the old version (add `--force` on the command line to reinstall the same version).
-- **Uninstall:** Extensions view → Styled Markdown → **Uninstall**, or `code --uninstall-extension bislink360.styled-markdown`.
-- **Check the installed version:** `code --list-extensions --show-versions | grep styled`.
+- **Uninstall:** Extensions view → Semantic Markdown → **Uninstall**, or `code --uninstall-extension bislink360.semantic-markdown`.
+- **Check the installed version:** `code --list-extensions --show-versions | grep semantic`.
+
+## Moving from Styled Markdown
+
+Styled Markdown became Semantic Markdown in 3.0. The format is the same: `.smd` files, the `smd` command, `smd: 2`, the `smd.*` settings, commands and keybindings, and the diagnostic codes don't change. Only the published names do. Each old name got one last 3.0.0 release that moves you over, and gets no updates after that.
+
+| What | Before 3.0 | From 3.0 | What to do |
+|---|---|---|---|
+| VS Code extension | `bislink360.styled-markdown` | `bislink360.semantic-markdown` | Nothing: the old entry's last update installs the new one. Then uninstall the old entry. |
+| npm package | `styled-markdown` | `semantic-markdown` | `npm install semantic-markdown`, and change imports to `semantic-markdown/…` |
+| MkDocs plugin | `mkdocs-styled-markdown` | `mkdocs-semantic-markdown` | `pip install mkdocs-semantic-markdown`. `plugins: [styled-markdown]` in `mkdocs.yml` keeps working. |
+| Agent skills | `styled-markdown-reader`, `-writer` | `semantic-markdown-reader`, `-writer` | Re-run `smd skills install`. It removes the old copies it installed. |
+| Cursor, Copilot and `AGENTS.md` rules | `styled-markdown.mdc`, `styled-markdown.instructions.md`, `<!-- styled-markdown:start -->` | the same with `semantic-markdown` | Re-run `smd skills install --target …`. It replaces the old files and section. |
+| MCP server | `styled-markdown` | `semantic-markdown` | Re-run `smd init --agent …`, and rename `mcp__styled-markdown__…` in permission rules |
+| Claude Code plugin | `styled-markdown@styled-markdown` | `semantic-markdown@semantic-markdown` | `/plugin marketplace add bislink360/semantic-markdown`, then `/plugin install semantic-markdown@semantic-markdown` |
+| Repository and website | `bislink360/styled-markdown`, `bislink360.github.io/styled-markdown` | `bislink360/semantic-markdown`, `bislink360.github.io/semantic-markdown` | GitHub redirects the repository (clones and `uses:` lines included). The old website address doesn't redirect. |
+| JetBrains and Obsidian plugins | — | — | Nothing: they keep their IDs and update in place. |
 
 ## Upgrading to 2.0
 
@@ -428,7 +445,7 @@ To update, install the new zip the same way. Settings, what the plugin does and 
 - **Platform:** Node.js 22 or newer for the CLI, the npm package, the GitHub Action, the pre-commit hooks and the MkDocs plugin, and VS Code 1.97 or newer (or Cursor, VSCodium, Windsurf based on it) for the extension. Older editors keep the 1.x extension.
 - **Your documents keep their meaning.** A document without `smd: 2`, and every `.md` file, is read with the spec v1 rules, as in 1.x.
 - **Stricter checks, in every document.** Duplicate attributes (`[x]{color=red color=blue}`), a container titled both by `title=` and by text (`:::note{title="A"} B`), a Mermaid syntax error and an invalid figure `kind` are now errors, so `smd validate` fails on them. Front matter that can't be read is shown in a red "Front matter could not be read" block instead of hiding the text above it. `smd validate --fix` repairs the duplicates, the title conflicts and a misspelt `kind`; fix a Mermaid error, and front matter that can't be read (often a missing closing `---`), by hand.
-- **VS Code's `.md` preview is opt-in.** VS Code's built-in Markdown preview shows `.smd` syntax only in `.md` files whose front matter has an `smd:` key (`smd: 1` keeps the v1 rules). Set `smd.markdownPreview.enabled` to `always` for the 1.x behaviour, or `never`. `.smd` files and the Styled Markdown preview are unaffected.
+- **VS Code's `.md` preview is opt-in.** VS Code's built-in Markdown preview shows `.smd` syntax only in `.md` files whose front matter has an `smd:` key (`smd: 1` keeps the v1 rules). Set `smd.markdownPreview.enabled` to `always` for the 1.x behaviour, or `never`. `.smd` files and the Semantic Markdown preview are unaffected.
 - **New documents are `smd: 2`:** `smd init`, `smd from-md`, **Convert Markdown File to .smd** and the other writers write it. Spec v2 differs from v1 in:
   - text shown as written: straight quotes, `--`, `...` and `(c)` stay as typed unless the front matter says `typography: true`;
   - links: only GFM autolinks (`https://…`, `www.…`, e-mail addresses); a bare `example.com` is text;
@@ -454,7 +471,7 @@ npm run build          # esbuild bundles dist/extension.js and dist/cli.js, copi
                        # and refreshes skills/*/scripts/smd.cjs and the MkDocs plugin's bridge.cjs
 npm test               # unit tests
 npm run test:vscode    # integration tests in a real VS Code (uses your installed VS Code, isolated profile)
-npm run package        # styled-markdown-2.4.0.vsix
+npm run package        # semantic-markdown-3.0.0.vsix
 ```
 
 Press **F5** with the `extension/` folder open to start an Extension Development Host with the examples loaded.
@@ -465,7 +482,7 @@ The Obsidian plugin builds with the same toolchain: after `npm install` in `exte
 
 | Problem | Fix |
 |---|---|
-| `.smd` opens as plain text | Reload the window. Check that the language mode (bottom right) is *Styled Markdown*; if not, click it and choose **Configure File Association for '.smd'** → Styled Markdown. |
+| `.smd` opens as plain text | Reload the window. Check that the language mode (bottom right) is *Semantic Markdown*; if not, click it and choose **Configure File Association for '.smd'** → Semantic Markdown. |
 | Preview shows diagram source instead of a diagram | The diagram has a syntax error, shown under the diagram, or its type isn't a Mermaid type (the Problems panel reports this). |
 | Exported HTML has no diagrams or math offline | The HTML export loads Mermaid and KaTeX from a CDN, so open it with internet access. The in-editor preview works offline. |
 | Embedded code shows "Cannot read …" | The path is relative to the `.smd` file and must stay inside the workspace (or the document's folder). |

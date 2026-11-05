@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 from mkdocs.exceptions import PluginError
 
-from mkdocs_styled_markdown import bridge as bridge_module
-from mkdocs_styled_markdown.bridge import NodeBridge
-from mkdocs_styled_markdown.plugin import toc_tokens
+from mkdocs_semantic_markdown import bridge as bridge_module
+from mkdocs_semantic_markdown.bridge import NodeBridge
+from mkdocs_semantic_markdown.plugin import toc_tokens
 
 BROKEN = """\
 ---
@@ -94,12 +94,12 @@ def test_toc_tokens_nest_by_level():
 def test_assets_are_added_and_ordered(site):
     ok(site.build())
     page = site.page("index.html")
-    assert page.index("assets/styled-markdown/smd.css") < page.index("assets/styled-markdown/mkdocs.css")
-    assert page.index("assets/styled-markdown/mkdocs.js") < page.index("assets/styled-markdown/runtime.js")
-    css = (site.out / "assets" / "styled-markdown" / "smd.css").read_text(encoding="utf-8")
+    assert page.index("assets/semantic-markdown/smd.css") < page.index("assets/semantic-markdown/mkdocs.css")
+    assert page.index("assets/semantic-markdown/mkdocs.js") < page.index("assets/semantic-markdown/runtime.js")
+    css = (site.out / "assets" / "semantic-markdown" / "smd.css").read_text(encoding="utf-8")
     assert ".smd-code .hljs" in css
     assert not re.search(r"^\.hljs", css, re.MULTILINE), "code colors stay inside .smd code frames"
-    script = (site.out / "assets" / "styled-markdown" / "mkdocs.js").read_text(encoding="utf-8")
+    script = (site.out / "assets" / "semantic-markdown" / "mkdocs.js").read_text(encoding="utf-8")
     # Reads the theme's mode and writes data-smd-theme-pref, which runtime.js follows.
     assert "dataset.bsTheme" in script
     assert "dataset.mdColorScheme" in script
@@ -120,8 +120,8 @@ def test_validate_reports_errors_as_warnings(site):
     site.config(validate=True)
     result = site.build()
     ok(result)
-    assert re.search(r"WARNING\s+-\s+mkdocs_styled_markdown: broken\.smd:7:1: .* is never closed\..*\[container/unclosed\]", result.stderr), result.stderr
-    assert re.search(r"INFO\s+-\s+mkdocs_styled_markdown: broken\.smd:10:11: .*\[link/missing-file\]", result.stderr), result.stderr
+    assert re.search(r"WARNING\s+-\s+mkdocs_semantic_markdown: broken\.smd:7:1: .* is never closed\..*\[container/unclosed\]", result.stderr), result.stderr
+    assert re.search(r"INFO\s+-\s+mkdocs_semantic_markdown: broken\.smd:10:11: .*\[link/missing-file\]", result.stderr), result.stderr
 
 
 def test_strict_build_fails_on_smd_errors(site):
@@ -197,6 +197,18 @@ def test_package_version_matches_the_bundled_engine():
 
     bridge = NodeBridge()
     try:
-        assert bridge.info["version"] == version("mkdocs-styled-markdown")
+        assert bridge.info["version"] == version("mkdocs-semantic-markdown")
     finally:
         bridge.close()
+
+
+def test_the_old_plugin_name_still_registers_the_plugin() -> None:
+    """mkdocs.yml files written before 3.0 list the plugin as `styled-markdown`."""
+    text = (Path(__file__).parent.parent / "pyproject.toml").read_text(encoding="utf-8")
+    section = text.split('[project.entry-points."mkdocs.plugins"]', 1)[1].split("\n[", 1)[0]
+    target = '"mkdocs_semantic_markdown.plugin:SemanticMarkdownPlugin"'
+    assert f"semantic-markdown = {target}" in section
+    assert f"styled-markdown = {target}" in section
+    from mkdocs_semantic_markdown import SemanticMarkdownPlugin, StyledMarkdownPlugin
+
+    assert StyledMarkdownPlugin is SemanticMarkdownPlugin

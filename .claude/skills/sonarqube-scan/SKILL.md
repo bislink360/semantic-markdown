@@ -1,6 +1,6 @@
 ---
 name: sonarqube-scan
-description: Run static code analysis on the Styled Markdown repository with a local SonarQube server in Docker Compose, and gate releases on its results — bugs, vulnerabilities, security hotspots, code smells, duplication, maintainability and coverage. Use this skill before every release (on the release branch, before tagging and before marking the tracking PR ready), before opening a feature PR, and whenever the user asks for a code-quality, static-analysis, SonarQube/Sonar, lint, "code smells", security-scan or maintainability check, or asks whether the code is clean enough to ship. Use together with the smd-release skill, which calls for this gate in its release steps.
+description: Run static code analysis on the Semantic Markdown repository with a local SonarQube server in Docker Compose, and gate releases on its results — bugs, vulnerabilities, security hotspots, code smells, duplication, maintainability and coverage. Use this skill before every release (on the release branch, before tagging and before marking the tracking PR ready), before opening a feature PR, and whenever the user asks for a code-quality, static-analysis, SonarQube/Sonar, lint, "code smells", security-scan or maintainability check, or asks whether the code is clean enough to ship. Use together with the smd-release skill, which calls for this gate in its release steps.
 ---
 
 # SonarQube gate

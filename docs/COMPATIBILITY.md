@@ -1,6 +1,6 @@
-# Styled Markdown compatibility policy
+# Semantic Markdown compatibility policy
 
-What you can rely on when you write Styled Markdown documents, run `smd` in CI, build on the npm package or point an agent at the tools, and what each kind of release may change.
+What you can rely on when you write Semantic Markdown documents, run `smd` in CI, build on the npm package or point an agent at the tools, and what each kind of release may change.
 
 ## The spec is versioned apart from the tools
 
@@ -8,8 +8,8 @@ There are two version numbers:
 
 | Version | Example | What it names | Where you see it |
 |---|---|---|---|
-| **Spec version** | `2` | The format: which syntax exists and what it means | `smd: 2` in a document's front matter; `smd --version` prints `smd 2.5.0 (Styled Markdown spec v2)` |
-| **Tools version** | `2.5.0` | One release of everything: the VS Code extension, the `smd` CLI, the npm package `styled-markdown`, the agent skills, the MCP server, the GitHub Action and the other integrations | The release tag `v2.5.0`, package versions |
+| **Spec version** | `2` | The format: which syntax exists and what it means | `smd: 2` in a document's front matter; `smd --version` prints `smd 2.5.0 (Semantic Markdown spec v2)` |
+| **Tools version** | `2.5.0` | One release of everything: the VS Code extension, the `smd` CLI, the npm package `semantic-markdown`, the agent skills, the MCP server, the GitHub Action and the other integrations | The release tag `v2.5.0`, package versions |
 
 The tools move often; the spec rarely. Tools 2.5.0 read spec v2 documents and spec v1 documents (those with `smd: 1` or no `smd` key, which includes every `.md` file) exactly as earlier 2.x tools did. A document says which rules it is written for, so a newer tool never changes what an older document means.
 
@@ -36,8 +36,8 @@ The tools follow semantic versioning, applied to everything a user or a pipeline
 - **Agent view:** the tags and labels agents read (`<agent-instructions>`, `<warning>`, `<decision …>`, `[L42]` line references, `[section omitted: …]`). `:::agent` blocks are always included, and `:::human` and `{agent=skip}` content is never added without an opt-in flag.
 - **MCP server:** tool names and their arguments. Tools that 2.5.0 no longer lists by default (`outline`, `section`, `agent`) still answer when called, and `smd mcp --legacy-tools` lists them, until 3.0. Write tools exist only with `--allow-write`.
 - **npm package:** exports, entry points and `bin` commands; options are only widened, and result fields only added.
-- **VS Code extension:** the extension id `bislink360.styled-markdown`, command ids, setting keys and the `.smd` language.
-- **Agent skills:** the skill names `styled-markdown-reader` and `styled-markdown-writer` and the paths other tools reference.
+- **VS Code extension:** the extension id `bislink360.semantic-markdown`, command ids, setting keys and the `.smd` language.
+- **Agent skills:** the skill names `semantic-markdown-reader` and `semantic-markdown-writer` and the paths other tools reference.
 - **HTML and CSS:** the `smd-*` classes and `--smd-*` variables that custom themes target.
 
 Features marked **Preview** (today: the Block Editor) may change their look and keys in a minor release.

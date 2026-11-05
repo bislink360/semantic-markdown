@@ -74,14 +74,14 @@ export const RULE_CODES: Record<string, string> = {
 };
 
 /**
- * Codes Styled Markdown 2.0 removed, with the code that reports their problems now and what changed. A rule setting
+ * Codes Semantic Markdown 2.0 removed, with the code that reports their problems now and what changed. A rule setting
  * or suppression comment that names one is reported as `rules/unknown` with this explanation (a comment gets a fix
  * to the new code), rather than as a code that never existed.
  */
 const REMOVED_CODES: Readonly<Record<string, { code: string; why: string }>> = {
-  'figure/kind': { code: 'attrs/value', why: 'was merged into "attrs/value" in Styled Markdown 2.0: an invalid kind on a ":::figure" is an "attrs/value" error' },
+  'figure/kind': { code: 'attrs/value', why: 'was merged into "attrs/value" in Semantic Markdown 2.0: an invalid kind on a ":::figure" is an "attrs/value" error' },
   'deprecated/agent-priority': {
-    code: 'attrs/unknown', why: 'was removed in Styled Markdown 2.0 with "priority" on ":::agent", which is now reported as "attrs/unknown"',
+    code: 'attrs/unknown', why: 'was removed in Semantic Markdown 2.0 with "priority" on ":::agent", which is now reported as "attrs/unknown"',
   },
 };
 
@@ -95,7 +95,7 @@ export function removedRule(pattern: string): { code: string; why: string } | un
   const removed = Object.keys(REMOVED_CODES).filter((c) => c.startsWith(pattern.slice(0, -1)));
   if (!removed.length) return undefined;
   const codes = [...new Set(removed.map((c) => REMOVED_CODES[c].code))];
-  return { code: codes.join(', '), why: `names only codes removed in Styled Markdown 2.0 (${removed.map((c) => `"${c}"`).join(', ')})` };
+  return { code: codes.join(', '), why: `names only codes removed in Semantic Markdown 2.0 (${removed.map((c) => `"${c}"`).join(', ')})` };
 }
 
 /** The `rules/unknown` message for a pattern that names no known code. */

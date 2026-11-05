@@ -4,7 +4,7 @@ import { LATEST_SPEC, readSpec, type SpecVersion } from './specVersion';
 import type { Fix, Severity } from './validate';
 
 /**
- * What spec v2 (Styled Markdown 2.0) rejects or reads differently. The 1.10 notices are hints (an info where noted);
+ * What spec v2 (Semantic Markdown 2.0) rejects or reads differently. The 1.10 notices are hints (an info where noted);
  * since 2.0, duplicate attributes and conflicting container titles are errors in every document (RFC proposal 4),
  * rendered as v1 resolves them, `priority` on `:::agent` is an unknown attribute (proposal 12), and the spec version
  * check (checkSmdVersion) reports warnings. Each fix keeps how the document renders now.
@@ -17,7 +17,7 @@ const HINT: Severity = 'hint';
 const ERROR: Severity = 'error';
 
 /** The message of `priority` on `:::agent` (an `attrs/unknown` warning since 2.0), which `smd migrate` looks for. */
-export const AGENT_PRIORITY_REMOVED = 'Unknown attribute "priority" on ":::agent". It was removed in Styled Markdown 2.0, since no tool read it. Remove it.';
+export const AGENT_PRIORITY_REMOVED = 'Unknown attribute "priority" on ":::agent". It was removed in Semantic Markdown 2.0, since no tool read it. Remove it.';
 
 // ---------------------------------------------------------------------------
 // Attribute list items
@@ -235,7 +235,7 @@ export function checkSmdVersion(value: unknown, line: number, lines: string[], p
   const reading = readSpec(value);
   if (reading.status === 'newer') {
     push(line, 0, end, 'warning', VERSION_CODE,
-      `Styled Markdown version ${reading.declared} is newer than this tool knows, so it reads the document with the version ${LATEST_SPEC} rules. Update Styled Markdown, or write "smd: ${LATEST_SPEC}".`);
+      `Semantic Markdown version ${reading.declared} is newer than this tool knows, so it reads the document with the version ${LATEST_SPEC} rules. Update Semantic Markdown, or write "smd: ${LATEST_SPEC}".`);
     return;
   }
   const written = writtenValue(line > 0 ? lines[line] : '');

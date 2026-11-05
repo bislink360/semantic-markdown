@@ -14,7 +14,7 @@ import { writeFileAtomic, type AtomicWriteIo } from '../src/migrateCommand';
 import { migrationEdit, migrationNotes, planCounts } from '../src/migrateReport';
 
 /**
- * Styled Markdown 2.0: `smd migrate --to 2` writes (spec v2 RFC, "Rollout and migration"), the editor's "Migrate to
+ * Semantic Markdown 2.0: `smd migrate --to 2` writes (spec v2 RFC, "Rollout and migration"), the editor's "Migrate to
  * Spec v2" applies the same plan as one edit, and the writers of new documents write `smd: 2`.
  */
 
@@ -400,7 +400,7 @@ test('every tracked v1 document, migrated by the CLI, renders under spec v2 as i
 // Writers write smd: 2
 // ---------------------------------------------------------------------------
 
-const TEMPLATE_DIR = path.join(root, 'skills', 'styled-markdown-writer', 'assets', 'templates');
+const TEMPLATE_DIR = path.join(root, 'skills', 'semantic-markdown-writer', 'assets', 'templates');
 const templates = () => fs.readdirSync(TEMPLATE_DIR).filter((f) => f.endsWith('.smd')).sort((a, b) => a.localeCompare(b));
 
 test('every writer of new documents writes smd: 2', () => {

@@ -69,15 +69,15 @@ test('codes removed in 2.0 (figure/kind, deprecated/agent-priority) say where th
   const { rules, problems } = readRuleConfig({ rules: { 'figure/kind': 'off', 'deprecated/agent-priority': 'off', 'deprecated/*': 'off', 'attrs/value': 'warning' } });
   assert.deepEqual(rules, { 'attrs/value': 'warning' }, 'a removed code sets nothing, so attrs/value is not turned off by accident');
   assert.deepEqual(problems, [
-    'Rule "figure/kind" was merged into "attrs/value" in Styled Markdown 2.0: an invalid kind on a ":::figure" is an "attrs/value" error. Name "attrs/value" instead.',
-    'Rule "deprecated/agent-priority" was removed in Styled Markdown 2.0 with "priority" on ":::agent", which is now reported as "attrs/unknown". Name "attrs/unknown" instead.',
-    'Rule "deprecated/*" names only codes removed in Styled Markdown 2.0 ("deprecated/agent-priority"). Name "attrs/unknown" instead.',
+    'Rule "figure/kind" was merged into "attrs/value" in Semantic Markdown 2.0: an invalid kind on a ":::figure" is an "attrs/value" error. Name "attrs/value" instead.',
+    'Rule "deprecated/agent-priority" was removed in Semantic Markdown 2.0 with "priority" on ":::agent", which is now reported as "attrs/unknown". Name "attrs/unknown" instead.',
+    'Rule "deprecated/*" names only codes removed in Semantic Markdown 2.0 ("deprecated/agent-priority"). Name "attrs/unknown" instead.',
   ]);
 
   const text = '<!-- smd-disable-next-line figure/kind -->\n:::figure{kind=tabel}\nx\n:::\n';
   const diags = validateSmd(text);
   assert.deepEqual(found(diags), ['0:rules/unknown:warning', '1:attrs/value:error'], 'the comment silences nothing');
-  assert.equal(diags[0].message, 'Rule "figure/kind" in suppression comment was merged into "attrs/value" in Styled Markdown 2.0: an invalid kind on a ":::figure" is an "attrs/value" error. Name "attrs/value" instead.');
+  assert.equal(diags[0].message, 'Rule "figure/kind" in suppression comment was merged into "attrs/value" in Semantic Markdown 2.0: an invalid kind on a ":::figure" is an "attrs/value" error. Name "attrs/value" instead.');
   const fixed = applyFixes(text, diags.filter((d) => d.code === 'rules/unknown')).text;
   assert.equal(fixed.split('\n')[0], '<!-- smd-disable-next-line attrs/value -->');
   assert.deepEqual(validateSmd(fixed), []);

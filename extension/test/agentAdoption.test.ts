@@ -54,15 +54,20 @@ test('agent setup: MCP config per agent, merged into existing files', () => {
   assert.equal(mcpConfigFor('agents'), undefined);
   const spec = mcpConfigFor('claude')!;
   const fresh = JSON.parse(mergeMcpConfig(undefined, spec));
-  assert.deepEqual(Object.keys(fresh.mcpServers), ['styled-markdown']);
+  assert.deepEqual(Object.keys(fresh.mcpServers), ['semantic-markdown']);
   const existing = '{\r\n    "mcpServers": {\r\n        "other": { "command": "x" }\r\n    },\r\n    "extra": 1\r\n}\r\n';
   const merged = mergeMcpConfig(existing, spec);
   assert.ok(merged.includes('\r\n        "other"'), 'keeps indentation and line endings');
-  assert.deepEqual(Object.keys(JSON.parse(merged).mcpServers), ['other', 'styled-markdown']);
+  assert.deepEqual(Object.keys(JSON.parse(merged).mcpServers), ['other', 'semantic-markdown']);
   assert.equal(JSON.parse(merged).extra, 1);
   assert.equal(mergeMcpConfig(merged, spec), merged, 'idempotent');
   assert.throws(() => mergeMcpConfig('{ // comment\n}', spec), McpConfigError);
   assert.throws(() => mergeMcpConfig('{"mcpServers": []}', spec), McpConfigError);
+  // A pre-3.0 "styled-markdown" entry that runs the bundled CLI is replaced; one that runs something else stays.
+  const legacy = JSON.stringify({ mcpServers: { 'styled-markdown': { command: 'node', args: ['.claude/skills/styled-markdown-reader/scripts/smd.cjs', 'mcp'] } } });
+  assert.deepEqual(Object.keys(JSON.parse(mergeMcpConfig(legacy, spec)).mcpServers), ['semantic-markdown']);
+  const foreign = JSON.stringify({ mcpServers: { 'styled-markdown': { command: 'my-server' } } });
+  assert.deepEqual(Object.keys(JSON.parse(mergeMcpConfig(foreign, spec)).mcpServers), ['styled-markdown', 'semantic-markdown']);
 });
 
 // MCP: a root folder with documents.
@@ -169,13 +174,13 @@ test('CLI: smd init --agent sets up skills, rules and MCP configs', { skip: !exi
   writeFileSync(join(project, '.vscode', 'mcp.json'), '{\n  "servers": { "mine": { "command": "x" } }\n}\n');
   const out = smd('init', '--agent', 'claude,cursor,copilot,agents', '--dir', project);
   assert.equal(out.status, 0, out.stderr);
-  for (const file of ['.claude/skills/styled-markdown-reader/SKILL.md', '.claude/skills/styled-markdown-reader/scripts/smd.cjs', '.smd/smd.cjs',
-    '.cursor/rules/styled-markdown.mdc', '.github/instructions/styled-markdown.instructions.md', 'AGENTS.md', '.mcp.json', '.cursor/mcp.json']) {
+  for (const file of ['.claude/skills/semantic-markdown-reader/SKILL.md', '.claude/skills/semantic-markdown-reader/scripts/smd.cjs', '.smd/smd.cjs',
+    '.cursor/rules/semantic-markdown.mdc', '.github/instructions/semantic-markdown.instructions.md', 'AGENTS.md', '.mcp.json', '.cursor/mcp.json']) {
     assert.ok(existsSync(join(project, file)), file);
   }
   const vscode = JSON.parse(readFileSync(join(project, '.vscode', 'mcp.json'), 'utf8'));
-  assert.deepEqual(Object.keys(vscode.servers), ['mine', 'styled-markdown']);
-  assert.equal(JSON.parse(readFileSync(join(project, '.mcp.json'), 'utf8')).mcpServers['styled-markdown'].args[0], CLAUDE_SKILL_CLI);
+  assert.deepEqual(Object.keys(vscode.servers), ['mine', 'semantic-markdown']);
+  assert.equal(JSON.parse(readFileSync(join(project, '.mcp.json'), 'utf8')).mcpServers['semantic-markdown'].args[0], CLAUDE_SKILL_CLI);
   assert.match(smd('init', '--agent', 'claude', '--dir', project).stdout, /Unchanged .*\.mcp\.json/);
   assert.equal(smd('init', '--agent', 'nope').status, 2);
   assert.equal(smd('init', 'doc.smd', '--agent', 'claude').status, 2);

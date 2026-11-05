@@ -1,6 +1,6 @@
 ---
 smd: 2
-title: Welcome to the Styled Markdown playground
+title: Welcome to the Semantic Markdown playground
 summary: Edit on the left. The **Preview**, **Agent view**, **Diagnostics** and **Markdown** tabs update as you type.
 status: draft
 owners: ["@you"]
@@ -39,12 +39,12 @@ $$
 ::::tabs
 :::tab npm
 ```bash
-npm install -g styled-markdown
+npm install -g semantic-markdown
 ```
 :::
 :::tab VS Code
 ```bash
-code --install-extension bislink360.styled-markdown
+code --install-extension bislink360.semantic-markdown
 ```
 :::
 ::::

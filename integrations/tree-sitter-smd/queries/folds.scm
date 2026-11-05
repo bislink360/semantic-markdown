@@ -1,4 +1,4 @@
-; Styled Markdown (.smd) folds: blocks that span lines. Markdown sections fold through the
+; Semantic Markdown (.smd) folds: blocks that span lines. Markdown sections fold through the
 ; injected markdown grammar's own folds query, where the editor supports injected folds.
 [
   (front_matter)

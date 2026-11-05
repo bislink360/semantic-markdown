@@ -1,9 +1,9 @@
 # tree-sitter-smd
 
-A [Tree-sitter](https://tree-sitter.github.io/) grammar for **Styled Markdown** (`.smd`), with highlight, injection and fold queries. It gives `.smd` files syntax highlighting in editors that use Tree-sitter: Neovim, Helix, Zed and Emacs 29+. The VS Code extension doesn't use it (VS Code highlights with its TextMate grammar).
+A [Tree-sitter](https://tree-sitter.github.io/) grammar for **Semantic Markdown** (`.smd`), with highlight, injection and fold queries. It gives `.smd` files syntax highlighting in editors that use Tree-sitter: Neovim, Helix, Zed and Emacs 29+. The VS Code extension doesn't use it (VS Code highlights with its TextMate grammar).
 
 > [!WARNING]
-> The grammar is tested with `tree-sitter test`, and every `.smd` file in this repository parses without errors. The editor setups below were written from each editor's documented configuration. **They have not been tested in those editors here.** If one doesn't work for you, please [open an issue](https://github.com/bislink360/styled-markdown/issues) with your editor's version.
+> The grammar is tested with `tree-sitter test`, and every `.smd` file in this repository parses without errors. The editor setups below were written from each editor's documented configuration. **They have not been tested in those editors here.** If one doesn't work for you, please [open an issue](https://github.com/bislink360/semantic-markdown/issues) with your editor's version.
 
 ## How it works
 
@@ -76,7 +76,7 @@ vim.api.nvim_create_autocmd('User', {
   callback = function()
     require('nvim-treesitter.parsers').smd = {
       install_info = {
-        url = 'https://github.com/bislink360/styled-markdown',
+        url = 'https://github.com/bislink360/semantic-markdown',
         revision = 'v2.4.0',
         location = 'integrations/tree-sitter-smd',
         queries = 'integrations/tree-sitter-smd/queries',
@@ -103,7 +103,7 @@ Then run `:TSInstall smd markdown markdown_inline yaml latex`.
 local parsers = require('nvim-treesitter.parsers').get_parser_configs()
 parsers.smd = {
   install_info = {
-    url = 'https://github.com/bislink360/styled-markdown',
+    url = 'https://github.com/bislink360/semantic-markdown',
     revision = 'v2.4.0',
     location = 'integrations/tree-sitter-smd',
     files = { 'src/parser.c', 'src/scanner.c' },
@@ -139,7 +139,7 @@ indent = { tab-width = 2, unit = "  " }
 
 [[grammar]]
 name = "smd"
-source = { git = "https://github.com/bislink360/styled-markdown", rev = "v2.4.0", subpath = "integrations/tree-sitter-smd" }
+source = { git = "https://github.com/bislink360/semantic-markdown", rev = "v2.4.0", subpath = "integrations/tree-sitter-smd" }
 ```
 
 Then:
@@ -159,7 +159,7 @@ Zed reads grammars from extensions, so the grammar goes into a small extension l
 
 ```toml
 [grammars.smd]
-repository = "https://github.com/bislink360/styled-markdown"
+repository = "https://github.com/bislink360/semantic-markdown"
 rev = "<the commit of a release tag, v1.7.0 or later>"
 path = "integrations/tree-sitter-smd"
 ```

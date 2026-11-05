@@ -1,4 +1,4 @@
-/* Styled Markdown static site (smd build): layout around rendered documents. Uses the theme variables of smd.css. */
+/* Semantic Markdown static site (smd build): layout around rendered documents. Uses the theme variables of smd.css. */
 
 body.smd-site { padding: 0; }
 .smd-site-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

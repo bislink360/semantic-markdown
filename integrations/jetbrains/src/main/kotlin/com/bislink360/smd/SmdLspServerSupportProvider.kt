@@ -21,7 +21,7 @@ import org.eclipse.lsp4j.services.LanguageServer
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Starts the Styled Markdown language server (`smd lsp`, docs/EDITORS.md) when a `.smd` file opens. The server
+ * Starts the Semantic Markdown language server (`smd lsp`, docs/EDITORS.md) when a `.smd` file opens. The server
  * gives diagnostics with quick fixes, completion, hover, go to definition, the outline, workspace symbols and
  * formatting; the IDE's LSP support shows them.
  *
@@ -41,7 +41,7 @@ class SmdLspServerSupportProvider : LspServerSupportProvider {
     companion object {
         private val warned = AtomicBoolean(false)
 
-        /** The project's running Styled Markdown server, if any (the preview asks it to render). */
+        /** The project's running Semantic Markdown server, if any (the preview asks it to render). */
         fun runningServer(project: Project): LspServer? =
             LspServerManager.getInstance(project).getServersForProvider(SmdLspServerSupportProvider::class.java)
                 .firstOrNull { it.state == LspServerState.Running }
@@ -59,9 +59,9 @@ class SmdLspServerSupportProvider : LspServerSupportProvider {
             if (!warned.compareAndSet(false, true)) return
             NotificationGroupManager.getInstance().getNotificationGroup(SmdPlugin.NOTIFICATIONS)
                 .createNotification(
-                    "Styled Markdown needs Node.js",
-                    "The Styled Markdown language server runs on Node.js 22 or newer, which was not found on the PATH. " +
-                        "Install it, or set its path in the Styled Markdown settings. Highlighting works without it.",
+                    "Semantic Markdown needs Node.js",
+                    "The Semantic Markdown language server runs on Node.js 22 or newer, which was not found on the PATH. " +
+                        "Install it, or set its path in the Semantic Markdown settings. Highlighting works without it.",
                     NotificationType.WARNING,
                 )
                 .addAction(NotificationAction.createSimpleExpiring("Open settings") {
@@ -72,7 +72,7 @@ class SmdLspServerSupportProvider : LspServerSupportProvider {
     }
 }
 
-private class SmdLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor(project, "Styled Markdown") {
+private class SmdLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor(project, "Semantic Markdown") {
     override fun isSupportedFile(file: VirtualFile): Boolean = file.isSmd()
 
     // The server's requests beyond LSP, such as smd/renderHtml for the preview.
@@ -81,6 +81,6 @@ private class SmdLspServerDescriptor(project: Project) : ProjectWideLspServerDes
     override fun createCommandLine(): GeneralCommandLine {
         val root = project.basePath?.let { java.nio.file.Path.of(it) }
         return SmdPlugin.command(root, "lsp", "--stdio")
-            ?: throw ExecutionException("Styled Markdown: Node.js or the smd CLI (${SmdPlugin.cli()}) was not found")
+            ?: throw ExecutionException("Semantic Markdown: Node.js or the smd CLI (${SmdPlugin.cli()}) was not found")
     }
 }

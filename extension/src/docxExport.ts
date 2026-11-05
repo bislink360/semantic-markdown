@@ -64,7 +64,7 @@ async function engineOrHelp(): Promise<DocxEngine | undefined> {
     if (!(err instanceof DocxError)) throw err;
     const message = configured
       ? `Pandoc was not found at ${configured} (${PANDOC_SETTING}).`
-      : `Export to Word is set to use Pandoc (${ENGINE_SETTING}), which Styled Markdown does not bundle. Install it, `
+      : `Export to Word is set to use Pandoc (${ENGINE_SETTING}), which Semantic Markdown does not bundle. Install it, `
         + `set its path in ${PANDOC_SETTING} if it is installed but not on the PATH, or set ${ENGINE_SETTING} to auto.`;
     const choice = await vscode.window.showErrorMessage(message, 'Install Pandoc', 'Open Settings');
     if (choice === 'Install Pandoc') await vscode.env.openExternal(vscode.Uri.parse(PANDOC_INSTALL_URL));

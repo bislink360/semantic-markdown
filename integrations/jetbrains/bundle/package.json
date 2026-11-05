@@ -1,12 +1,12 @@
 {
-  "name": "styled-markdown",
-  "displayName": "Styled Markdown",
+  "name": "semantic-markdown",
+  "displayName": "Semantic Markdown",
   "description": "TextMate highlighting for .smd files, for the IDE's TextMate support. syntaxes/smd.tmLanguage.json is generated from the VS Code extension's grammars (scripts/bundle-grammar.mjs); syntaxes/markdown.tmLanguage.json is VS Code's Markdown grammar (MIT, see syntaxes/markdown.LICENSE.txt) under its own scope. The build copies language-configuration.json from extension/.",
   "contributes": {
     "languages": [
       {
         "id": "smd",
-        "aliases": ["Styled Markdown", "smd"],
+        "aliases": ["Semantic Markdown", "smd"],
         "extensions": [".smd"],
         "configuration": "./language-configuration.json"
       }

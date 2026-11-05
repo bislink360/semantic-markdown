@@ -1,9 +1,9 @@
 ---
-name: styled-markdown-writer
-description: Create and edit Styled Markdown (.smd) documents (PRDs, ADRs, RFCs/design docs, runbooks, API references, status reports, meeting notes, postmortems, release notes, OKRs, onboarding guides, test plans, PR descriptions, specs and plans) with templates and a validator that fixes mistakes. Use it whenever the user asks to write, draft, create, convert, restructure or update a .smd file, asks for a spec/PRD/ADR/runbook/status report "in smd" or "styled markdown", wants a Markdown doc converted to .smd, or wants a document that both people and AI agents will read.
+name: semantic-markdown-writer
+description: Create and edit Semantic Markdown (.smd) documents (PRDs, ADRs, RFCs/design docs, runbooks, API references, status reports, meeting notes, postmortems, release notes, OKRs, onboarding guides, test plans, PR descriptions, specs and plans) with templates and a validator that fixes mistakes. Use it whenever the user asks to write, draft, create, convert, restructure or update a .smd file, asks for a spec/PRD/ADR/runbook/status report "in smd" or "semantic markdown", wants a Markdown doc converted to .smd, or wants a document that both people and AI agents will read.
 ---
 
-# Writing Styled Markdown (.smd)
+# Writing Semantic Markdown (.smd)
 
 `.smd` is Markdown plus a small, validated vocabulary: callouts, decisions, risks, API blocks, tasks with owners and due dates, KPIs, diagrams, and audience blocks. **People** read it in a styled preview, **AI agents** through a compact "agent view". Write for both.
 

@@ -1,4 +1,4 @@
-# Spec-driven work with Styled Markdown
+# Spec-driven work with Semantic Markdown
 
 A coding agent does better work from a written spec than from a chat message, and better still when the spec, the plan and the task list are documents it can read cheaply, query and check off. This guide sets up that loop with three templates and the `smd` CLI: **spec → plan → tasks**, with `smd tasks` as the agent's work queue and `smd validate` as the gate.
 

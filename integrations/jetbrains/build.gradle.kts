@@ -6,7 +6,7 @@ plugins {
     id("org.jetbrains.intellij.platform")
 }
 
-// One version for every Styled Markdown artifact: the extension's (extension/package.json).
+// One version for every Semantic Markdown artifact: the extension's (extension/package.json).
 val repoRoot: File = rootDir.resolve("../..").normalize()
 val smdVersion = (JsonSlurper().parse(repoRoot.resolve("extension/package.json")) as Map<*, *>)["version"] as String
 
@@ -61,7 +61,7 @@ intellijPlatform {
 val pluginFolder = rootProject.name // the plugin's folder in the sandbox and the zip
 
 tasks.prepareSandbox {
-    from(repoRoot.resolve("skills/styled-markdown-reader/scripts/smd.cjs")) {
+    from(repoRoot.resolve("skills/semantic-markdown-reader/scripts/smd.cjs")) {
         into("$pluginFolder/server")
     }
     from(layout.projectDirectory.dir("bundle")) {

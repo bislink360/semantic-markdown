@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Styled Markdown config (smd.config.json / .smdrc)",
+  "title": "Semantic Markdown config (smd.config.json / .smdrc)",
   "type": "object",
   "properties": {
     "$schema": {

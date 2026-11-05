@@ -4,7 +4,7 @@ import { own } from './util';
 
 /**
  * JSON Schema (draft-07) for .smd front matter. The validator and editor completion read it, and
- * it is published as schemas/smd-frontmatter.schema.json (and `styled-markdown/frontmatter.schema.json`
+ * it is published as schemas/smd-frontmatter.schema.json (and `semantic-markdown/frontmatter.schema.json`
  * on npm) for YAML tooling and pipelines that check document metadata. Keys it does not list are
  * allowed as custom metadata.
  */
@@ -59,8 +59,8 @@ const PROPERTIES: Record<string, FrontMatterProperty> = {
 
 export const FRONTMATTER_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://raw.githubusercontent.com/bislink360/styled-markdown/main/extension/schemas/smd-frontmatter.schema.json',
-  title: 'Styled Markdown (.smd) front matter',
+  $id: 'https://raw.githubusercontent.com/bislink360/semantic-markdown/main/extension/schemas/smd-frontmatter.schema.json',
+  title: 'Semantic Markdown (.smd) front matter',
   description: 'YAML front matter at the top of a .smd document. Keys not listed here are kept as custom metadata.',
   type: 'object',
   properties: PROPERTIES,

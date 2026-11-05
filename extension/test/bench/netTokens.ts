@@ -54,9 +54,9 @@ function frontMatter(text: string): string {
 
 export async function fixedCosts(count: (t: string) => number): Promise<FixedCosts> {
   const skill = (name: string, rel = 'SKILL.md') => fs.readFileSync(path.join(repo, 'skills', name, rel), 'utf8');
-  const reader = skill('styled-markdown-reader');
-  const writer = skill('styled-markdown-writer');
-  const topicsDir = path.join(repo, 'skills', 'styled-markdown-writer', 'references', 'syntax');
+  const reader = skill('semantic-markdown-reader');
+  const writer = skill('semantic-markdown-writer');
+  const topicsDir = path.join(repo, 'skills', 'semantic-markdown-writer', 'references', 'syntax');
   const topics = fs.existsSync(topicsDir) ? fs.readdirSync(topicsDir).map((f) => count(fs.readFileSync(path.join(topicsDir, f), 'utf8'))) : [];
   const { tokens, source } = await mcpCost(count);
   return {
@@ -67,9 +67,9 @@ export async function fixedCosts(count: (t: string) => number): Promise<FixedCos
     mcpSource: source,
     writer: {
       skill: count(writer),
-      syntaxIndex: count(skill('styled-markdown-writer', 'references/syntax.md')),
+      syntaxIndex: count(skill('semantic-markdown-writer', 'references/syntax.md')),
       syntaxTopicMedian: topics.length ? median(topics) : 0,
-      styleGuide: count(skill('styled-markdown-writer', 'references/style-guide.md')),
+      styleGuide: count(skill('semantic-markdown-writer', 'references/style-guide.md')),
     },
   };
 }
@@ -95,7 +95,7 @@ async function mcpCost(count: (t: string) => number): Promise<{ tokens: number; 
       return { tokens: count(JSON.stringify(list.tools)) + count(instructions), source: 'dist/cli.js mcp: tools/list + instructions' };
     }
   }
-  const server = new McpServer({ name: 'styled-markdown', version: '0', tools: smdTools(new Sandbox(repo)) });
+  const server = new McpServer({ name: 'semantic-markdown', version: '0', tools: smdTools(new Sandbox(repo)) });
   const reply = await server.handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) as { result: { tools: unknown } };
   return { tokens: count(JSON.stringify(reply.result.tools)), source: 'smdTools in process: tools/list only (run npm run build to add the instructions)' };
 }

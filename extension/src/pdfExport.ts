@@ -67,7 +67,7 @@ async function engineOrHelp(doc: vscode.TextDocument): Promise<PdfEngine | undef
     if (!(err instanceof PdfError)) throw err;
     const message = configured
       ? `No browser was found at ${configured} (${BROWSER_SETTING}).`
-      : 'Export to PDF needs Google Chrome, Microsoft Edge, Chromium or Brave, which Styled Markdown does not bundle. '
+      : 'Export to PDF needs Google Chrome, Microsoft Edge, Chromium or Brave, which Semantic Markdown does not bundle. '
         + `Install one, or set its path in ${BROWSER_SETTING}. Or use Export to HTML and print the page from your browser.`;
     const choice = await vscode.window.showErrorMessage(message, 'Open Settings', 'Export to HTML');
     if (choice === 'Open Settings') await vscode.commands.executeCommand('workbench.action.openSettings', BROWSER_SETTING);

@@ -1,4 +1,4 @@
-# Styled Markdown examples
+# Semantic Markdown examples
 
 Every example is a valid `.smd` file with a rendered `.html` file next to it. Download the HTML and open it in a browser to see the result without VS Code.
 
@@ -18,7 +18,7 @@ Every example is a valid `.smd` file with a rendered `.html` file next to it. Do
 
 ```bash
 # from the repository root (or use `smd` if it's on your PATH)
-SMD="node skills/styled-markdown-reader/scripts/smd.cjs"
+SMD="node skills/semantic-markdown-reader/scripts/smd.cjs"
 
 $SMD outline examples/checkout-redesign.smd
 $SMD agent examples/checkout-redesign.smd --section requirements

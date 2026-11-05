@@ -1,6 +1,6 @@
 # Token cost: when the smd tools pay off
 
-Styled Markdown's agent tools save tokens by reading less of a document. They also cost tokens: the skill descriptions, the reader skill, the agent rules and the MCP tool definitions all sit in the agent's context. This page measures both, so you can see the **net** effect and the document size from which the tools pay off.
+Semantic Markdown's agent tools save tokens by reading less of a document. They also cost tokens: the skill descriptions, the reader skill, the agent rules and the MCP tool definitions all sit in the agent's context. This page measures both, so you can see the **net** effect and the document size from which the tools pay off.
 
 Short answer, measured in 2.5.0:
 
@@ -145,6 +145,6 @@ npm run bench:tokens -- --tokenizer o200k_base # exact OpenAI counts (needs js-t
 npm run bench:tokens -- --json                 # raw numbers
 ```
 
-The output is Markdown with the same tables as this page. The 2.4.0 rows came from the same script run with the 2.4.0 versions of `skills/agent-rules.md`, `skills/styled-markdown-reader/SKILL.md`, `skills/styled-markdown-writer/SKILL.md` and `references/syntax.md` checked out.
+The output is Markdown with the same tables as this page. The 2.4.0 rows came from the same script run with the 2.4.0 versions of `skills/agent-rules.md`, `skills/semantic-markdown-reader/SKILL.md`, `skills/semantic-markdown-writer/SKILL.md` and `references/syntax.md` checked out.
 
 For your own documents, `smd outline FILE` prints the raw and agent-view cost of one document and of each section, and `smd savings docs/` reports the raw, agent-view and `--brief` tokens of every document in a folder, with the saving in tokens and dollars.

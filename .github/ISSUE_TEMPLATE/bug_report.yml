@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Styled Markdown doesn't work as documented (CLI, VS Code extension, npm package, MCP server, agent skills, playground, GitHub Action or another integration).
+description: Something in Semantic Markdown doesn't work as documented (CLI, VS Code extension, npm package, MCP server, agent skills, playground, GitHub Action or another integration).
 title: "bug: "
 labels: [bug]
 body:
@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for reporting a bug. A small document that shows the problem is the most useful thing you can add.
-        Found a security problem? Don't open an issue: report it privately as [SECURITY.md](https://github.com/bislink360/styled-markdown/blob/main/SECURITY.md) explains.
+        Found a security problem? Don't open an issue: report it privately as [SECURITY.md](https://github.com/bislink360/semantic-markdown/blob/main/SECURITY.md) explains.
   - type: dropdown
     id: component
     attributes:
@@ -17,7 +17,7 @@ body:
         - VS Code extension (or Cursor, VSCodium, Windsurf)
         - npm library (renderSmd, validateSmd, agentView, markdown-it / remark / rehype plugins)
         - MCP server (smd mcp)
-        - Agent skills (styled-markdown-reader, styled-markdown-writer) or the Claude Code plugin
+        - Agent skills (semantic-markdown-reader, semantic-markdown-writer) or the Claude Code plugin
         - Web playground
         - GitHub Action (validate/) or pre-commit hooks
         - Language server, JetBrains, Obsidian, MkDocs or Tree-sitter
@@ -30,7 +30,7 @@ body:
     attributes:
       label: Version
       description: "`smd --version`, the extension's version in VS Code, or the release you downloaded."
-      placeholder: smd 2.5.0 (Styled Markdown spec v2)
+      placeholder: smd 2.5.0 (Semantic Markdown spec v2)
     validations:
       required: true
   - type: input

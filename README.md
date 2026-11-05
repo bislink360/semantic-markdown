@@ -1,16 +1,18 @@
 <p align="center">
-  <img src="docs/images/icon.png" width="112" alt="Styled Markdown icon">
+  <img src="docs/images/icon.png" width="112" alt="Semantic Markdown icon">
 </p>
 
-<h1 align="center">Styled Markdown (<code>.smd</code>)</h1>
+<h1 align="center">Semantic Markdown (<code>.smd</code>)</h1>
 
 <p align="center">
-  <b>Styled Markdown is Markdown for the specs, plans and docs that AI coding agents and people both read.</b><br>
+  <b>Semantic Markdown is Markdown for the specs, plans and docs that AI coding agents and people both read.</b><br>
   Decisions, risks, tasks and agent instructions that tools understand, validated in CI, and read by agents a section at a time.
 </p>
 
+<p align="center"><sub>Formerly <b>Styled Markdown</b>. Same format, new name: see <a href="docs/INSTALL.md#moving-from-styled-markdown">moving from Styled Markdown</a>.</sub></p>
+
 <p align="center">
-  <a href="https://github.com/bislink360/styled-markdown/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/bislink360/styled-markdown?label=release&color=4f46e5"></a>
+  <a href="https://github.com/bislink360/semantic-markdown/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/bislink360/semantic-markdown?label=release&color=4f46e5"></a>
   <a href="docs/COMPATIBILITY.md"><img alt="Spec: smd v2, stable" src="https://img.shields.io/badge/spec-smd%20v2%20stable-7c3aed"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
 </p>
@@ -18,14 +20,14 @@
 <p align="center">
   <a href="#install">Install</a> ·
   <a href="#for-ai-agents">For agents</a> ·
-  <a href="https://bislink360.github.io/styled-markdown/playground/">Playground</a> ·
+  <a href="https://bislink360.github.io/semantic-markdown/playground/">Playground</a> ·
   <a href="docs/FEATURES.md">Feature guide</a> ·
   <a href="examples/">Examples</a> ·
   <a href="docs/SPEC.md">Specification</a>
 </p>
 
 <p align="center">
-  <a href="https://bislink360.github.io/styled-markdown/playground/"><img src="docs/images/playground.gif" width="800" alt="Writing a short .smd document in the playground: the preview shows a decision, a risk and tasks as they are typed; the agent view gives an agent the same document in about half the tokens, without the people-only notes; Diagnostics catches a misspelled status."></a>
+  <a href="https://bislink360.github.io/semantic-markdown/playground/"><img src="docs/images/playground.gif" width="800" alt="Writing a short .smd document in the playground: the preview shows a decision, a risk and tasks as they are typed; the agent view gives an agent the same document in about half the tokens, without the people-only notes; Diagnostics catches a misspelled status."></a>
 </p>
 
 ---
@@ -35,34 +37,34 @@
 **Claude Code:** the plugin brings the reading and writing skills and the `smd` MCP server.
 
 ```text
-/plugin marketplace add bislink360/styled-markdown
-/plugin install styled-markdown@styled-markdown
+/plugin marketplace add bislink360/semantic-markdown
+/plugin install semantic-markdown@semantic-markdown
 ```
 
 **Any agent, one project:** run this in your repository and commit the result. It installs the skills (Claude Code) or a rules file (Cursor, Copilot, `AGENTS.md`), the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet.
 
 ```bash
-npx styled-markdown init --agent claude      # or cursor, copilot, agents
+npx semantic-markdown init --agent claude      # or cursor, copilot, agents
 ```
 
-**VS Code:** install **Styled Markdown** from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.styled-markdown), or `code --install-extension bislink360.styled-markdown`. **Cursor, VSCodium, Windsurf:** download **`styled-markdown-2.4.0.vsix`** from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest), then `cursor --install-extension styled-markdown-2.4.0.vsix` (`codium …` for VSCodium), or **Install from VSIX…** in the Extensions view. Open a `.smd` file and press **`Ctrl+K V`** (**`Cmd+K V`** on macOS) for the live preview.
+**VS Code:** install **Semantic Markdown** from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.semantic-markdown), or `code --install-extension bislink360.semantic-markdown`. **Cursor, VSCodium, Windsurf:** download **`semantic-markdown-3.0.0.vsix`** from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest), then `cursor --install-extension semantic-markdown-3.0.0.vsix` (`codium …` for VSCodium), or **Install from VSIX…** in the Extensions view. Open a `.smd` file and press **`Ctrl+K V`** (**`Cmd+K V`** on macOS) for the live preview.
 
 **CLI and library** (Node.js 22+):
 
 ```bash
-npm install -g https://github.com/bislink360/styled-markdown/releases/download/v2.4.0/styled-markdown-2.4.0.tgz   # the smd command
+npm install -g https://github.com/bislink360/semantic-markdown/releases/download/v3.0.0/semantic-markdown-3.0.0.tgz   # the smd command
 smd validate docs/
 ```
 
-> The npm registry and Open VSX listings are coming. Until the package is on npm, `npx styled-markdown …` doesn't work yet: use the files from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest), or `node smd.cjs init --agent claude` with the [single-file CLI](docs/INSTALL.md#install-the-smd-cli).
+> The npm registry and Open VSX listings are coming. Until the package is on npm, `npx semantic-markdown …` doesn't work yet: use the files from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest), or `node smd.cjs init --agent claude` with the [single-file CLI](docs/INSTALL.md#install-the-smd-cli).
 
-Everything else (the MCP server on its own, JetBrains, Obsidian, MkDocs, Neovim and other editors, the GitHub Action, pre-commit hooks, Astro and Docusaurus): **[docs/INSTALL.md](docs/INSTALL.md)**. Or try it first in the **[web playground](https://bislink360.github.io/styled-markdown/playground/)**, nothing to install.
+Everything else (the MCP server on its own, JetBrains, Obsidian, MkDocs, Neovim and other editors, the GitHub Action, pre-commit hooks, Astro and Docusaurus): **[docs/INSTALL.md](docs/INSTALL.md)**. Or try it first in the **[web playground](https://bislink360.github.io/semantic-markdown/playground/)**, nothing to install.
 
-![A Styled Markdown document rendered in the preview](docs/images/01-overview.png)
+![A Semantic Markdown document rendered in the preview](docs/images/01-overview.png)
 
 ## For AI agents
 
-Styled Markdown makes the meaning of a document explicit, so an agent can tell an accepted decision from a proposal, a hard constraint from a side note, and its own instructions (`:::agent`) from content for people. The tools let it read only what a task needs:
+Semantic Markdown makes the meaning of a document explicit, so an agent can tell an accepted decision from a proposal, a hard constraint from a side note, and its own instructions (`:::agent`) from content for people. The tools let it read only what a task needs:
 
 | Command (CLI) or tool (MCP) | Gives the agent |
 |---|---|
@@ -87,7 +89,7 @@ Measured on [`examples/checkout-redesign.smd`](examples/checkout-redesign.smd), 
 
 **Spec-driven work:** `spec`, `plan` and `tasks` templates turn a feature into three linked documents an agent works through, with `smd tasks` as its queue and `smd validate` as the gate: [docs/SPEC-DRIVEN.md](docs/SPEC-DRIVEN.md). Setup for each agent: [docs/SKILLS.md](docs/SKILLS.md) and [docs/AGENTS.md](docs/AGENTS.md).
 
-## Why Styled Markdown?
+## Why Semantic Markdown?
 
 Markdown is the lingua franca of engineering docs, but teams keep stretching it. `**IMPORTANT:**` stands in for warnings, raw HTML for color and layout, and nobody finds a broken diagram until someone opens the file. AI agents reading those docs spend tokens on decoration and history, and can't tell a hard constraint from a side note.
 
@@ -157,10 +159,10 @@ Every construct, with what it renders, what an agent reads and its plain-Markdow
 
 ## On GitHub
 
-GitHub renders `.md` files but shows `.smd` files as source. You can write Styled Markdown syntax in `.md` files, generate `.md` copies in CI with `smd export --to md`, or post the changed sections on pull requests: **[docs/GITHUB.md](docs/GITHUB.md)** compares them, with complete workflows. To check documents on every pull request, with each problem annotated on its line:
+GitHub renders `.md` files but shows `.smd` files as source. You can write Semantic Markdown syntax in `.md` files, generate `.md` copies in CI with `smd export --to md`, or post the changed sections on pull requests: **[docs/GITHUB.md](docs/GITHUB.md)** compares them, with complete workflows. To check documents on every pull request, with each problem annotated on its line:
 
 ```yaml
-- uses: bislink360/styled-markdown/validate@v2.4.0
+- uses: bislink360/semantic-markdown/validate@v3.0.0
   with:
     paths: docs
 ```
@@ -196,7 +198,7 @@ Each has a rendered `.html` version next to it that you can open in a browser. M
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the repository layout and good first issues, and [Discussions](https://github.com/bislink360/styled-markdown/discussions) for questions. To build and test:
+Bug reports, ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the repository layout and good first issues, and [Discussions](https://github.com/bislink360/semantic-markdown/discussions) for questions. To build and test:
 
 ```bash
 cd extension
@@ -204,7 +206,7 @@ npm install
 npm run build          # bundle extension + CLI; refresh the CLI bundled in skills/*/scripts
 npm test               # unit tests
 npm run test:vscode    # integration checks inside a real VS Code
-npm run package        # → styled-markdown-2.4.0.vsix
+npm run package        # → semantic-markdown-3.0.0.vsix
 npm run build:npm      # → ../npm/dist (the npm package)
 npm run build:playground  # → dist/playground (the web playground; open its index.html)
 ```

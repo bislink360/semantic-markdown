@@ -3,7 +3,7 @@ import type { Token } from 'markdown-it';
 
 /**
  * The ids GitHub gives headings, for links written GitHub's way (`#foo_bar`) and for `smd to-md` output.
- * Internal to core: Styled Markdown's own ids come from `slugify` (sections.ts) and do not change.
+ * Internal to core: Semantic Markdown's own ids come from `slugify` (sections.ts) and do not change.
  *
  * GitHub (and github-slugger, which reimplements it) lower-cases the heading's text, removes every
  * character that is not a letter, mark, decimal digit, connector punctuation (`_`), space or hyphen,

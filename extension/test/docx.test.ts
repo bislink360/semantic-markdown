@@ -269,7 +269,7 @@ test('CLI: smd docx without Pandoc writes with the built-in writer; --engine pan
       assert.equal(builtin.status, 0, builtin.stderr);
       assert.match(builtin.stderr, /Wrote .*built\.docx \(written by the built-in writer\)/);
       const document = unzip(built).get('word/document.xml') ?? '';
-      assert.ok(paragraphs(document).some((p) => p.style === 'Title' && p.text === 'Styled Markdown Showcase'));
+      assert.ok(paragraphs(document).some((p) => p.style === 'Title' && p.text === 'Semantic Markdown Showcase'));
       // A reference document's styles: here, the file just written.
       const styled = join(dir, 'styled.docx');
       assert.equal(run(['docx', showcase, '--engine', 'builtin', '--reference-doc', built, '-o', styled]).status, 0);
@@ -299,7 +299,7 @@ test('CLI: smd docx without Pandoc writes with the built-in writer; --engine pan
 
       const html = run(['docx', showcase, '--html-only'], envWithPath(dir));
       assert.equal(html.status, 0);
-      assert.match(html.stdout, /^<!DOCTYPE html>\n<html lang="en">[\s\S]*<title>Styled Markdown Showcase<\/title>[\s\S]*<figcaption>Figure 1: Writing, checking and exporting a document<\/figcaption>/);
+      assert.match(html.stdout, /^<!DOCTYPE html>\n<html lang="en">[\s\S]*<title>Semantic Markdown Showcase<\/title>[\s\S]*<figcaption>Figure 1: Writing, checking and exporting a document<\/figcaption>/);
       const page = join(dir, 'page.html');
       assert.equal(run(['docx', showcase, '--html-only', '-o', page]).status, 0);
       assert.equal(readFileSync(page, 'utf8'), html.stdout);
@@ -360,7 +360,7 @@ test('integration: Pandoc turns the showcase into a .docx with headings, tables,
       const files = unzip(out);
       const document = files.get('word/document.xml') ?? '';
       const paras = paragraphs(document);
-      assert.ok(paras.some((p) => p.style === 'Title' && p.text === 'Styled Markdown Showcase'));
+      assert.ok(paras.some((p) => p.style === 'Title' && p.text === 'Semantic Markdown Showcase'));
       for (const heading of ['Callouts', 'Diagrams', 'Math', 'For developers']) {
         assert.ok(paras.some((p) => p.style === 'Heading2' && p.text === heading), `heading ${heading}`);
       }

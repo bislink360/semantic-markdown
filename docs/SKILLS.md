@@ -1,11 +1,11 @@
 # Agent skills: import guide
 
-Styled Markdown ships two **agent skills**: folders of instructions, references, templates and a bundled tool that an AI agent loads when a task needs them.
+Semantic Markdown ships two **agent skills**: folders of instructions, references, templates and a bundled tool that an AI agent loads when a task needs them.
 
 | Skill | The agent learns to… | Contents |
 |---|---|---|
-| **`styled-markdown-writer`** | **Create and edit `.smd` that follows the rules.** It picks the right template, uses only valid blocks and values, validates and auto-fixes, and writes meaning (decisions, risks, tasks, agent rules) rather than styling, so documents stay cheap to write and to read. | `SKILL.md`, `references/syntax.md` (an index of the syntax topics), `references/syntax/*.md` (the complete syntax in 8 topic files), `references/style-guide.md` (authoring rules), `assets/templates/*.smd` (16 templates), `scripts/smd.cjs` |
-| **`styled-markdown-reader`** | **Read `.smd` with minimal tokens**, focusing only on meaningful content: small files directly, otherwise `smd read` (the agent view, or the outline of a large document), then only the relevant sections, and raw lines only when editing. | `SKILL.md`, `references/reading.md` (every marker of the agent view, commands across many documents, reading without Node.js), `scripts/smd.cjs` |
+| **`semantic-markdown-writer`** | **Create and edit `.smd` that follows the rules.** It picks the right template, uses only valid blocks and values, validates and auto-fixes, and writes meaning (decisions, risks, tasks, agent rules) rather than styling, so documents stay cheap to write and to read. | `SKILL.md`, `references/syntax.md` (an index of the syntax topics), `references/syntax/*.md` (the complete syntax in 8 topic files), `references/style-guide.md` (authoring rules), `assets/templates/*.smd` (16 templates), `scripts/smd.cjs` |
+| **`semantic-markdown-reader`** | **Read `.smd` with minimal tokens**, focusing only on meaningful content: small files directly, otherwise `smd read` (the agent view, or the outline of a large document), then only the relevant sections, and raw lines only when editing. | `SKILL.md`, `references/reading.md` (every marker of the agent view, commands across many documents, reading without Node.js), `scripts/smd.cjs` |
 
 `scripts/smd.cjs` is the complete `smd` CLI in one file (Node.js 22+, no `npm install`).
 
@@ -37,7 +37,7 @@ Claude Code discovers skills in two places:
 
 ```bash
 # Get the CLI (a single file, pinned to the release)
-curl -sLo smd.cjs https://raw.githubusercontent.com/bislink360/styled-markdown/v1.1.0/skills/styled-markdown-reader/scripts/smd.cjs
+curl -sLo smd.cjs https://raw.githubusercontent.com/bislink360/semantic-markdown/v3.0.0/skills/semantic-markdown-reader/scripts/smd.cjs
 
 # Personal: all your projects
 node smd.cjs skills install --global
@@ -46,13 +46,13 @@ node smd.cjs skills install --global
 node smd.cjs skills install
 ```
 
-From a clone of this repository, use the bundled copy instead: `node skills/styled-markdown-reader/scripts/smd.cjs skills install --global`.
+From a clone of this repository, use the bundled copy instead: `node skills/semantic-markdown-reader/scripts/smd.cjs skills install --global`.
 
 Output:
 
 ```text
-Installed styled-markdown-reader  → …/.claude/skills/styled-markdown-reader  (read .smd token-efficiently …)
-Installed styled-markdown-writer  → …/.claude/skills/styled-markdown-writer  (create and edit .smd following the rules …)
+Installed semantic-markdown-reader  → …/.claude/skills/semantic-markdown-reader  (read .smd token-efficiently …)
+Installed semantic-markdown-writer  → …/.claude/skills/semantic-markdown-writer  (create and edit .smd following the rules …)
 ```
 
 Options:
@@ -61,17 +61,17 @@ Options:
 
 ### Option 2 — copy the folders
 
-Copy `skills/styled-markdown-reader/` and `skills/styled-markdown-writer/` from this repository into `.claude/skills/` (project) or `~/.claude/skills/` (personal). Each folder is self-contained.
+Copy `skills/semantic-markdown-reader/` and `skills/semantic-markdown-writer/` from this repository into `.claude/skills/` (project) or `~/.claude/skills/` (personal). Each folder is self-contained.
 
 ### Option 3 — download from the release
 
-Download `styled-markdown-reader.zip` and `styled-markdown-writer.zip` from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest) and unzip them into a skills folder.
+Download `semantic-markdown-reader.zip` and `semantic-markdown-writer.zip` from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest) and unzip them into a skills folder.
 
 Start a new Claude Code session after installing. Skills load automatically when a task matches their description; you don't need to mention them.
 
 ## Claude.ai and the Claude desktop app
 
-1. Download **`styled-markdown-writer.zip`** and **`styled-markdown-reader.zip`** from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest). Each zip contains one skill folder.
+1. Download **`semantic-markdown-writer.zip`** and **`semantic-markdown-reader.zip`** from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest). Each zip contains one skill folder.
 2. In Claude, open **Settings → Capabilities** and make sure **code execution** is enabled; the skills run their bundled Node.js tool.
 3. Under **Skills**, choose **Upload skill** and upload each zip.
 4. Start a new chat and attach or paste a `.smd` document, or ask Claude to write one.
@@ -99,9 +99,9 @@ node smd.cjs skills install --target cursor,copilot,agents
 
 | `--target` | Writes | Loaded by the agent |
 |---|---|---|
-| `cursor` | `.cursor/rules/styled-markdown.mdc` | When a `.smd` file is in context (`globs: **/*.smd`) |
-| `copilot` | `.github/instructions/styled-markdown.instructions.md` | When Copilot works on a `.smd` file (`applyTo: "**/*.smd"`) |
-| `agents` | A section in `AGENTS.md` between `<!-- styled-markdown:start -->` and `<!-- styled-markdown:end -->` | Always, by OpenAI Codex and other agents that read `AGENTS.md` |
+| `cursor` | `.cursor/rules/semantic-markdown.mdc` | When a `.smd` file is in context (`globs: **/*.smd`) |
+| `copilot` | `.github/instructions/semantic-markdown.instructions.md` | When Copilot works on a `.smd` file (`applyTo: "**/*.smd"`) |
+| `agents` | A section in `AGENTS.md` between `<!-- semantic-markdown:start -->` and `<!-- semantic-markdown:end -->` | Always, by OpenAI Codex and other agents that read `AGENTS.md` |
 | `claude` | The Claude Code skills (the default) | See [Claude Code](#claude-code) |
 
 Pick any combination: repeat `--target` or separate targets with commas. Each run also copies the CLI to `.smd/smd.cjs`, and the rules tell the agent to run `node .smd/smd.cjs read <file>` and so on, so the agent needs Node.js 22+ and nothing else. The rules are short (≈280 tokens) because `AGENTS.md` is in context in every session.
@@ -110,13 +110,13 @@ Output:
 
 ```text
 Installed smd CLI → …/.smd/smd.cjs  (agents run it as: node .smd/smd.cjs)
-Created …/.cursor/rules/styled-markdown.mdc  (Cursor rule for **/*.smd)
-Created …/.github/instructions/styled-markdown.instructions.md  (Copilot instructions for **/*.smd)
-Updated …/AGENTS.md  (styled-markdown section)
+Created …/.cursor/rules/semantic-markdown.mdc  (Cursor rule for **/*.smd)
+Created …/.github/instructions/semantic-markdown.instructions.md  (Copilot instructions for **/*.smd)
+Updated …/AGENTS.md  (semantic-markdown section)
 ```
 
 Notes:
-- `AGENTS.md` is created if it's missing. If it exists, only the styled-markdown section is added or replaced; the rest of the file is kept, and re-running never adds a second section.
+- `AGENTS.md` is created if it's missing. If it exists, only the semantic-markdown section is added or replaced; the rest of the file is kept, and re-running never adds a second section.
 - The rule file, the instructions file and the section all have the same content, a short version of [docs/AGENTS.md](AGENTS.md).
 - `--dir <project>` writes into another project root. `--global` and `--only` apply to the Claude skills only, and `--dir` means the skills folder for `claude`, so install `claude` and the other targets in separate runs when you use `--dir`.
 
@@ -124,7 +124,7 @@ Notes:
 
 For other agents, or to customize the text:
 
-1. Make the CLI available in the repository, for example by committing `.smd/smd.cjs` (copied from `skills/styled-markdown-reader/scripts/smd.cjs`) or installing it with `npm link`.
+1. Make the CLI available in the repository, for example by committing `.smd/smd.cjs` (copied from `skills/semantic-markdown-reader/scripts/smd.cjs`) or installing it with `npm link`.
 2. Add the one-page guide [docs/AGENTS.md](AGENTS.md) to the agent's instructions, either by copying it or by referencing it:
 
    | Agent | Instruction file |
@@ -138,8 +138,8 @@ For other agents, or to customize the text:
    A minimal snippet:
 
    ```markdown
-   ## Styled Markdown (.smd)
-   Project docs use Styled Markdown. Follow docs/AGENTS.md.
+   ## Semantic Markdown (.smd)
+   Project docs use Semantic Markdown. Follow docs/AGENTS.md.
    - Reading: run `node .smd/smd.cjs read <file>`, then `node .smd/smd.cjs agent <file> --section "<heading>"`
      if it printed the outline. Read files under ≈6 KB directly.
    - Writing: start from `node .smd/smd.cjs init <file> --template prd|adr|rfc|runbook|api|status-report|meeting-notes|postmortem|release-notes|okrs|onboarding|test-plan|pr-description|spec|plan|tasks`,
@@ -220,4 +220,4 @@ The writer skill applies these rules automatically. Humans can follow them too:
 ## Update or remove
 
 - **Update:** run `smd skills install` again, with the same `--target` values (it overwrites the files and replaces the `AGENTS.md` section), or re-copy the folders or zips from the newer release.
-- **Remove:** delete the `styled-markdown-reader` and `styled-markdown-writer` folders from your skills directory, or remove them in Claude.ai under **Settings → Capabilities → Skills**. For other agents, delete `.smd/`, `.cursor/rules/styled-markdown.mdc`, `.github/instructions/styled-markdown.instructions.md` and the styled-markdown section of `AGENTS.md` (markers included).
+- **Remove:** delete the `semantic-markdown-reader` and `semantic-markdown-writer` folders from your skills directory, or remove them in Claude.ai under **Settings → Capabilities → Skills**. For other agents, delete `.smd/`, `.cursor/rules/semantic-markdown.mdc`, `.github/instructions/semantic-markdown.instructions.md` and the semantic-markdown section of `AGENTS.md` (markers included).

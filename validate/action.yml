@@ -1,11 +1,11 @@
-name: Styled Markdown validate (smd)
-description: Validate Styled Markdown (.smd) files, annotate problems inline on pull requests and write a job summary.
+name: Semantic Markdown validate (smd)
+description: Validate Semantic Markdown (.smd) files, annotate problems inline on pull requests and write a job summary.
 author: Bislink360
 branding:
   icon: check-circle
   color: purple
 
-# Runs the smd CLI bundled in this repository (skills/styled-markdown-reader/scripts/smd.cjs) with the
+# Runs the smd CLI bundled in this repository (skills/semantic-markdown-reader/scripts/smd.cjs) with the
 # runner's Node.js (22+; add actions/setup-node first if the runner's is older). Nothing is installed or downloaded.
 inputs:
   paths:
@@ -37,7 +37,7 @@ inputs:
     required: false
     default: "true"
   cli:
-    description: "Path to another smd CLI to run, e.g. node_modules/styled-markdown/dist/cli.js (which includes the Mermaid parser). Default: the bundled one."
+    description: "Path to another smd CLI to run, e.g. node_modules/semantic-markdown/dist/cli.js (which includes the Mermaid parser). Default: the bundled one."
     required: false
     default: ""
 

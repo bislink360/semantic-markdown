@@ -74,7 +74,7 @@ export interface SmdIndexEntry {
 export interface SmdIndex {
   format: typeof INDEX_FORMAT;
   version: number;
-  /** The newest Styled Markdown spec version the tool that wrote the catalog knows; each entry has its document's. */
+  /** The newest Semantic Markdown spec version the tool that wrote the catalog knows; each entry has its document's. */
   smd: number;
   /** The tool that wrote the catalog, e.g. `smd 1.3.0`, when known. */
   generator?: string;

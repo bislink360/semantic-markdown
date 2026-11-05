@@ -23,7 +23,7 @@ const checks = {
     const doc = await vscode.workspace.openTextDocument(path.join(examples, 'showcase.smd'));
     await vscode.window.showTextDocument(doc);
     assert.equal(doc.languageId, 'smd');
-    const ext = vscode.extensions.getExtension('bislink360.styled-markdown');
+    const ext = vscode.extensions.getExtension('bislink360.semantic-markdown');
     assert.ok(ext, 'extension is installed');
     await waitFor(() => ext.isActive, 'activation');
   },
@@ -580,7 +580,7 @@ const checks = {
   },
 
   async 'the built-in Markdown preview renders .smd syntax in .md files that opt in with smd'() {
-    const ext = vscode.extensions.getExtension('bislink360.styled-markdown');
+    const ext = vscode.extensions.getExtension('bislink360.semantic-markdown');
     const contributes = ext.packageJSON.contributes;
     assert.equal(contributes['markdown.markdownItPlugins'], true);
     for (const file of [...contributes['markdown.previewStyles'], ...contributes['markdown.previewScripts']]) {

@@ -118,7 +118,7 @@ Git runs a custom merge driver for files whose `.gitattributes` say `merge=<name
 
 ```ini title=".git/config (local, per clone)"
 [merge "smd"]
-	name = Styled Markdown block merge
+	name = Semantic Markdown block merge
 	driver = smd merge %O %A %B %L %P
 ```
 

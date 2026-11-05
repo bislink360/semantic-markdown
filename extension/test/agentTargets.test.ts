@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  copilotInstructions, cursorRule, parseTargets, rulesBody, upsertSection, SECTION_END, SECTION_START,
+  copilotInstructions, cursorRule, isGenerated, parseTargets, rulesBody, upsertSection, LEGACY_SECTION_END, LEGACY_SECTION_START, SECTION_END, SECTION_START,
 } from '../src/agentTargets';
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
@@ -33,7 +33,7 @@ test('parseTargets: default, commas, repeats, duplicates and unknown names', () 
 
 test('rules body: one source, CLI command filled in', () => {
   assert.doesNotMatch(body, /\{\{smd\}\}/);
-  assert.match(body, /^## Styled Markdown \(\.smd\)/);
+  assert.match(body, /^## Semantic Markdown \(\.smd\)/);
   assert.match(body, /`node \.smd\/smd\.cjs read <file>`/);
   assert.match(body, /`node \.smd\/smd\.cjs validate <file> --fix`/);
   assert.ok(cursorRule(body).endsWith(body));
@@ -42,10 +42,10 @@ test('rules body: one source, CLI command filled in', () => {
 
 test('cursor and copilot files have the expected front matter', () => {
   assert.deepEqual(frontMatter(cursorRule(body)), [
-    'description: Read and write Styled Markdown (.smd) files with the smd CLI', 'globs: **/*.smd', 'alwaysApply: false',
+    'description: Read and write Semantic Markdown (.smd) files with the smd CLI', 'globs: **/*.smd', 'alwaysApply: false',
   ]);
   assert.deepEqual(frontMatter(copilotInstructions(body)), [
-    'description: "Read and write Styled Markdown (.smd) files with the smd CLI"', 'applyTo: "**/*.smd"',
+    'description: "Read and write Semantic Markdown (.smd) files with the smd CLI"', 'applyTo: "**/*.smd"',
   ]);
 });
 
@@ -56,7 +56,7 @@ test('AGENTS.md section: created, appended, replaced in place, never duplicated'
 
   const user = '# My agents\n\nUse pnpm.\n';
   const appended = upsertSection(user, body);
-  assert.ok(appended.startsWith('# My agents\n\nUse pnpm.\n\n<!-- styled-markdown:start -->'));
+  assert.ok(appended.startsWith('# My agents\n\nUse pnpm.\n\n<!-- semantic-markdown:start -->'));
 
   const edited = appended.replace('Use pnpm.', 'Use pnpm.\n\nMore rules.') + '\n## Later\n\nKept.\n';
   const stale = edited.replace('### Reading', '### Old reading');
@@ -70,8 +70,8 @@ test('AGENTS.md section: created, appended, replaced in place, never duplicated'
 test('AGENTS.md section keeps CRLF line endings and rejects broken markers', () => {
   const crlf = upsertSection('# Rules\r\n\r\nBe nice.\r\n', body);
   assert.doesNotMatch(crlf.replace(/\r\n/g, ''), /\n/);
-  assert.throws(() => upsertSection(`x\n${SECTION_START}\nhalf\n`, body), /broken styled-markdown section/);
-  assert.throws(() => upsertSection(`${SECTION_END}\n${SECTION_START}\n`, body), /broken styled-markdown section/);
+  assert.throws(() => upsertSection(`x\n${SECTION_START}\nhalf\n`, body), /broken semantic-markdown section/);
+  assert.throws(() => upsertSection(`${SECTION_END}\n${SECTION_START}\n`, body), /broken semantic-markdown section/);
 });
 
 test('CLI: skills install --target writes each target and the shared CLI', { skip }, () => {
@@ -79,10 +79,10 @@ test('CLI: skills install --target writes each target and the shared CLI', { ski
   const res = run(root, '--target', 'cursor,copilot', '--target', 'agents');
   assert.equal(res.status, 0, res.stderr);
   assert.match(res.stdout, /Installed smd CLI → .*smd\.cjs/);
-  assert.match(res.stdout, /Created .*styled-markdown\.mdc {2}\(Cursor rule for \*\*\/\*\.smd\)/);
-  assert.match(res.stdout, /Created .*AGENTS\.md {2}\(styled-markdown section\)/);
-  assert.equal(readFileSync(join(root, '.cursor', 'rules', 'styled-markdown.mdc'), 'utf8'), cursorRule(body));
-  assert.equal(readFileSync(join(root, '.github', 'instructions', 'styled-markdown.instructions.md'), 'utf8'), copilotInstructions(body));
+  assert.match(res.stdout, /Created .*semantic-markdown\.mdc {2}\(Cursor rule for \*\*\/\*\.smd\)/);
+  assert.match(res.stdout, /Created .*AGENTS\.md {2}\(semantic-markdown section\)/);
+  assert.equal(readFileSync(join(root, '.cursor', 'rules', 'semantic-markdown.mdc'), 'utf8'), cursorRule(body));
+  assert.equal(readFileSync(join(root, '.github', 'instructions', 'semantic-markdown.instructions.md'), 'utf8'), copilotInstructions(body));
   assert.equal(readFileSync(join(root, 'AGENTS.md'), 'utf8'), upsertSection(undefined, body));
   assert.ok(!existsSync(join(root, '.claude')), 'no Claude skills unless asked');
   const version = execFileSync(process.execPath, [join(root, '.smd', 'smd.cjs'), '--version'], { encoding: 'utf8' });
@@ -108,7 +108,7 @@ test('CLI: --dir sets the project root for other targets', { skip }, () => {
   const project = join(cwd, 'project');
   mkdirSync(project);
   assert.equal(run(cwd, '--target', 'copilot', '--dir', 'project').status, 0);
-  assert.ok(existsSync(join(project, '.github', 'instructions', 'styled-markdown.instructions.md')));
+  assert.ok(existsSync(join(project, '.github', 'instructions', 'semantic-markdown.instructions.md')));
   assert.ok(existsSync(join(project, '.smd', 'smd.cjs')));
   assert.deepEqual(readdirSync(cwd), ['project']);
 });
@@ -118,7 +118,7 @@ test('CLI: default and --target claude install the Claude skills as before', { s
     const root = mkdtempSync(join(tmpdir(), 'smd-claude-'));
     const res = run(root, ...extra);
     assert.equal(res.status, 0, res.stderr);
-    assert.deepEqual(readdirSync(join(root, '.claude', 'skills')).sort(), ['styled-markdown-reader', 'styled-markdown-writer']);
+    assert.deepEqual(readdirSync(join(root, '.claude', 'skills')).sort(), ['semantic-markdown-reader', 'semantic-markdown-writer']);
     assert.deepEqual(readdirSync(root), ['.claude']);
     assert.doesNotMatch(res.stdout, /smd CLI|Created/);
   }
@@ -128,8 +128,8 @@ test('CLI: claude plus other targets installs both', { skip }, () => {
   const root = mkdtempSync(join(tmpdir(), 'smd-both-'));
   const res = run(root, '--target', 'claude,cursor', '--only', 'reader');
   assert.equal(res.status, 0, res.stderr);
-  assert.deepEqual(readdirSync(join(root, '.claude', 'skills')), ['styled-markdown-reader']);
-  assert.ok(existsSync(join(root, '.cursor', 'rules', 'styled-markdown.mdc')));
+  assert.deepEqual(readdirSync(join(root, '.claude', 'skills')), ['semantic-markdown-reader']);
+  assert.ok(existsSync(join(root, '.cursor', 'rules', 'semantic-markdown.mdc')));
 });
 
 test('CLI: unknown targets and conflicting options are usage errors', { skip }, () => {
@@ -146,4 +146,47 @@ test('CLI: unknown targets and conflicting options are usage errors', { skip }, 
     assert.match(res.stderr, message);
   }
   assert.deepEqual(readdirSync(root), [], 'nothing written');
+});
+
+test('upsertSection: replaces a pre-3.0 styled-markdown section with the new one', () => {
+  const old = `# My agents\n\nUse pnpm.\n\n${LEGACY_SECTION_START}\nold rules\n${LEGACY_SECTION_END}\n\nMore notes.\n`;
+  const text = upsertSection(old, body);
+  assert.equal(count(text, LEGACY_SECTION_START), 0);
+  assert.equal(count(text, SECTION_START), 1);
+  assert.ok(text.startsWith('# My agents\n\nUse pnpm.\n\n' + SECTION_START));
+  assert.ok(text.endsWith(`${SECTION_END}\n\nMore notes.\n`));
+  assert.doesNotMatch(text, /old rules/);
+  assert.throws(() => upsertSection(`${LEGACY_SECTION_START}\nno end\n`, body), /needs <!-- styled-markdown:start -->/);
+});
+
+test('CLI: an install replaces the rules files written under their pre-3.0 names', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'smd-legacy-'));
+  mkdirSync(join(root, '.cursor', 'rules'), { recursive: true });
+  mkdirSync(join(root, '.github', 'instructions'), { recursive: true });
+  const oldCursor = join(root, '.cursor', 'rules', 'styled-markdown.mdc');
+  const oldCopilot = join(root, '.github', 'instructions', 'styled-markdown.instructions.md');
+  writeFileSync(oldCursor, cursorRule('old rules\n'));
+  writeFileSync(oldCopilot, 'Rules I wrote myself.\n');
+  assert.ok(isGenerated(readFileSync(oldCursor, 'utf8')));
+  const res = run(root, '--target', 'cursor,copilot');
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(!existsSync(oldCursor), 'the generated old Cursor rule is removed');
+  assert.match(res.stdout, /Removed .*styled-markdown\.mdc/);
+  assert.ok(existsSync(oldCopilot), 'a hand-written file is kept');
+  assert.match(res.stdout, /Kept .*styled-markdown\.instructions\.md/);
+  assert.ok(existsSync(join(root, '.cursor', 'rules', 'semantic-markdown.mdc')));
+});
+
+test('CLI: installing the skills removes their pre-3.0 copies', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'smd-legacy-skills-'));
+  const skills = join(root, '.claude', 'skills');
+  mkdirSync(join(skills, 'styled-markdown-reader', 'scripts'), { recursive: true });
+  writeFileSync(join(skills, 'styled-markdown-reader', 'SKILL.md'), '---\nname: styled-markdown-reader\n---\nOld skill.\n');
+  mkdirSync(join(skills, 'styled-markdown-writer'), { recursive: true });
+  writeFileSync(join(skills, 'styled-markdown-writer', 'SKILL.md'), '---\nname: my-own-writer\n---\nNot ours.\n');
+  const res = run(root);
+  assert.equal(res.status, 0, res.stderr);
+  assert.deepEqual(readdirSync(skills).sort(), ['semantic-markdown-reader', 'semantic-markdown-writer', 'styled-markdown-writer']);
+  assert.match(res.stdout, /Removed .*styled-markdown-reader/);
+  assert.match(res.stdout, /Kept .*styled-markdown-writer/);
 });

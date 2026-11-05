@@ -243,7 +243,7 @@ function pageShell(site: Site, page: SitePage, body: string, backlinks: string, 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="Styled Markdown">
+<meta name="generator" content="Semantic Markdown">
 <title>${escapeHtml(title)}</title>
 ${katex}<link rel="stylesheet" href="${href(`${ASSET_DIR}/smd.css`)}">
 <link rel="stylesheet" href="${href(`${ASSET_DIR}/site.css`)}">
