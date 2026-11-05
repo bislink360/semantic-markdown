@@ -1002,6 +1002,7 @@ Every export of a document is one command, **`smd export <file> --to <format> [-
 ```bash
 smd build docs --out site                       # open site/index.html, or serve the folder
 smd build docs --out site --md --title "Handbook" --base /handbook/ --clean
+smd build docs --out site --url https://example.com/handbook/ --image card.png   # for search engines and link previews
 ```
 
 - **Pages:** every `.smd` file under the folder becomes a page in the same place (`docs/guide/setup.smd` → `site/guide/setup.html`); `--md` adds `.md` files. The home page (`index.html`) is the folder's `index.smd`, else its `README.smd`/`README.md`, else a generated index of every document with its summary and status.
@@ -1010,6 +1011,7 @@ smd build docs --out site --md --title "Handbook" --base /handbook/ --clean
 - **Search:** a search box on every page searches titles, headings, summaries and an excerpt of every section, in the browser. The index (`_smd/search-index.js`) is built with the site; nothing is sent anywhere.
 - **Backlinks:** each page lists the pages that link to it (links and front matter `related:`).
 - **Dashboard:** `dashboard.html` collects open tasks (overdue first, then by priority and due date), decisions (newest first) and open risks (with the impact × likelihood matrix) from every document, each linked to its section. `--today YYYY-MM-DD` sets the date for overdue tasks.
+- **Search engines, link previews and AI tools:** each page has a meta description from its front matter `summary:` and Open Graph and Twitter card tags, so a shared link shows its title and summary. The site gets an `llms.txt` ([llmstxt.org](https://llmstxt.org)) listing every document with its summary. With `--url https://example.com/docs/` (the address the site is served from; an absolute `--base` counts too) pages also get a canonical link and `og:url`, and the site a `sitemap.xml` to submit to Google Search Console or Bing Webmaster Tools. A site served from the root of its host also gets a `robots.txt` naming the sitemap (crawlers ignore one in a subfolder, such as a GitHub project page). `--image` sets the preview image (`og:image`): a URL, or a path under `--url`, ideally 1200×630. Links between pages stay relative with `--url`. A home document whose title differs from `--title` is named in the home page's `<title>` (`Handbook · Getting started`).
 - **Offline:** the stylesheet and scripts are written once to `_smd/`. Only pages with Mermaid diagrams or math load Mermaid and the KaTeX stylesheet from a CDN, as `smd export --to html` does.
 - **Safe output:** `--out` (default `site`) must be outside the source folder and must not contain it. An existing folder is only written to when it is empty or a previous build, which `smd build` recognizes by the `.smd-site.json` it writes (the list of files it created). `--clean` first deletes exactly those files, never anything else; without it, files of documents you removed stay until the next `--clean`.
 
@@ -1214,7 +1216,7 @@ smd export <file> --to pdf [-o out.pdf] [--format A4|Letter] [--landscape] [--br
 smd export <file> --to docx [-o out.docx] [--engine builtin|pandoc] [--pandoc <path>] [--reference-doc <file.docx>] [--html-only]   Word; Pandoc if installed, else built in
 smd export <file> --to confluence|notion [-o <file>]   Confluence storage format or Notion API blocks
                  older names, still working: smd render (--to html), smd to-md, smd pdf, smd docx
-smd build <dir> [--out site] [--title "…"] [--base /docs/] [--md] [--clean] [--today YYYY-MM-DD]
+smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD]
                  static docs site: pages, sidebar, search, backlinks, dashboard (section 16)
 smd from-md <file.md> [-o out.smd]
 smd init <file> [--template <name>] [--title "…"]

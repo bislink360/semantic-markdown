@@ -5,8 +5,12 @@
 ### ⚠️ Breaking changes
 
 ### Added
+- **`smd build` sites are ready for search engines, link previews and AI tools.** Every page gets a meta description from its front matter `summary:`, and Open Graph and Twitter card tags. The site gets an `llms.txt` ([llmstxt.org](https://llmstxt.org)) listing its documents with their summaries. The new `--url https://example.com/docs/` (or an absolute `--base`) adds canonical links, `og:url` and a `sitemap.xml`, plus a `robots.txt` naming the sitemap when the site is at the root of its host. The new `--image` sets the link-preview image. Links between pages stay relative with `--url`. A linked file of the same name in the documents (such as your own `llms.txt`) is copied instead of the generated one.
+- **More store keywords** for the VS Code extension and the npm package (MCP, Claude Code, Cursor, Copilot, AGENTS.md, specs, runbooks, docs as code), so people searching for those find them.
 
 ### Changed
+- **The home page's `<title>` names the home document when its title differs from the site title** (`--title "Handbook"` with a home document titled "Getting started" gives `Handbook · Getting started`). When they are the same, as without `--title`, nothing changes.
+- **The website's home page** is titled "Markdown for AI agents and people" and is built with `--url`, so it has a sitemap, canonical links and link previews.
 
 ### Deprecated
 

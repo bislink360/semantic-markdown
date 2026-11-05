@@ -35,7 +35,17 @@
     "unified",
     "remark-plugin",
     "lsp",
-    "language-server"
+    "language-server",
+    "mcp",
+    "mcp-server",
+    "claude",
+    "claude-code",
+    "cursor",
+    "agents-md",
+    "spec-driven-development",
+    "docs-as-code",
+    "static-site-generator",
+    "llms-txt"
   ],
   "type": "commonjs",
   "main": "./dist/index.cjs",

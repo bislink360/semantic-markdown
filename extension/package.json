@@ -41,7 +41,22 @@
     "adr",
     "ai agents",
     "llm",
-    "tokens"
+    "tokens",
+    "mcp",
+    "claude",
+    "claude code",
+    "cursor",
+    "copilot",
+    "agents.md",
+    "spec",
+    "specification",
+    "rfc",
+    "runbook",
+    "callouts",
+    "admonitions",
+    "docs as code",
+    "technical writing",
+    "validation"
   ],
   "main": "./dist/extension.js",
   "bin": {

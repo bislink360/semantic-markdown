@@ -23,6 +23,7 @@ import { runSavings } from './savings';
 import { runLanguageServer } from './lsp';
 import { runIssues, type GhResult, type IssuesOptions } from './issueSync';
 import { runBuild } from './siteBuild';
+import { isHttpUrl } from './core/siteMeta';
 import { AGENT_RULES, fillTemplate, SKILLS, TEMPLATES } from './skillsBundle';
 import {
   isGenerated, parseTargets, rulesBody, SHARED_CLI_COMMAND, SHARED_CLI_PATH, TARGET_FILES, type AgentTarget, type RulesTarget, type TargetFile,
@@ -145,12 +146,17 @@ Checking and converting:
       validate and fmt take any number of files: use them as a pre-commit hook (see docs/INSTALL.md).
       After --, every argument is a file, even one that starts with "-".
 ${MIGRATE_HELP}${EXPORT_HELP}
-  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
+  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
       Static docs site: a page per .smd file in the same folders (links between documents rewritten,
       linked images copied), a sidebar, breadcrumbs, previous/next, backlinks, client-side search and
       a dashboard of open tasks, decisions and open risks. Opens from disk or any static web server.
       --out    the site folder (default: site): must be outside <dir>, and new, empty or a previous build
       --base   deployment path for absolute links, e.g. /docs/ (default: relative links)
+      --url    the site's public address, e.g. https://example.com/docs/: canonical links, og:url and
+               sitemap.xml (and robots.txt at the root of a host). Default: --base when it is a URL
+      --image  the image link previews show (og:image): a URL, or a path under --url
+               Every page gets a meta description (front matter "summary:") and Open Graph tags,
+               and the site an llms.txt listing its documents for AI tools.
       --md     also publish .md files; the home page is <dir>/index.smd or README, else a generated index
       --clean  first delete the files of the previous build (only those listed in its .smd-site.json)
       --lang   language of the navigation, search and dashboard, and of documents without "lang:"
@@ -199,7 +205,7 @@ interface Args { command?: string; positional: string[]; flags: Set<string>; val
 
 const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
-  '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base',
+  '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command',
 ]);
 
@@ -690,11 +696,15 @@ function build(positional: string[], args: Args): number {
   const value = (name: string) => args.values.get(name)?.[0];
   const lang = langOption(value('--lang'));
   if (lang === null) return fail(LANG_USAGE);
+  const url = value('--url');
+  if (url !== undefined && !isHttpUrl(url)) return fail('--url must be an http(s) address, e.g. https://example.com/docs/');
   return runBuild({
     dir: positional[0],
     out: value('--out') ?? 'site',
     title: value('--title'),
     base: value('--base'),
+    url,
+    image: value('--image'),
     today: value('--today'),
     lang,
     md: args.flags.has('--md'),
