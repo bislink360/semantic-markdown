@@ -1,12 +1,12 @@
-# Styled Markdown (`.smd`) — Specification v2
+# Semantic Markdown (`.smd`) — Specification v2
 
-Styled Markdown is a **strict superset of CommonMark + GitHub-Flavored Markdown**. It adds a small, validated vocabulary for styling, layout, diagrams, math and audience-aware content, so a single file works well for developers, product managers and AI agents.
+Semantic Markdown is a **strict superset of CommonMark + GitHub-Flavored Markdown**. It adds a small, validated vocabulary for styling, layout, diagrams, math and audience-aware content, so a single file works well for developers, product managers and AI agents.
 
 - File extension: `.smd`
 - Author: Roshan Alwis
-- Media type (suggested): `text/x-styled-markdown`
+- Media type (suggested): `text/x-semantic-markdown` (`text/x-styled-markdown` before 3.0, still accepted as the same format)
 - Encoding: UTF-8
-- Spec version: `2` (declared in front matter as `smd: 2`). A document without `smd: 2` follows spec v1, which Styled Markdown 2.x keeps in full. Where the two differ, a rule says so: see §10
+- Spec version: `2` (declared in front matter as `smd: 2`). A document without `smd: 2` follows spec v1, which Semantic Markdown 2.x keeps in full. Where the two differ, a rule says so: see §10
 - Status: **stable**. Spec v2 gets no breaking change; a change that reads existing documents differently needs a spec v3 RFC. The spec is versioned apart from the tools (tools 2.5.0 implement spec v2): see the [compatibility policy](COMPATIBILITY.md)
 
 ---
@@ -36,7 +36,7 @@ Styled Markdown is a **strict superset of CommonMark + GitHub-Flavored Markdown*
 │ ---                         │
 ├─────────────────────────────┤
 │ Markdown body               │  CommonMark + GFM
-│   + containers  :::name     │  + Styled Markdown extensions
+│   + containers  :::name     │  + Semantic Markdown extensions
 │   + inline      :name[…]{…} │
 │   + spans       […]{…}      │
 └─────────────────────────────┘
@@ -73,7 +73,7 @@ Unknown keys are allowed and preserved (reported as *hints* so typos are caught,
 
 Any key, standard or custom, can be shown in the text with `{{key}}` (§4.7).
 
-The table is published as a JSON Schema: [`extension/schemas/smd-frontmatter.schema.json`](https://raw.githubusercontent.com/bislink360/styled-markdown/main/extension/schemas/smd-frontmatter.schema.json), also shipped on npm as `styled-markdown/frontmatter.schema.json`. The validator and editor completion read the same schema, and YAML tools or pipelines can use it to check document metadata.
+The table is published as a JSON Schema: [`extension/schemas/smd-frontmatter.schema.json`](https://raw.githubusercontent.com/bislink360/semantic-markdown/main/extension/schemas/smd-frontmatter.schema.json), also shipped on npm as `semantic-markdown/frontmatter.schema.json`. The validator and editor completion read the same schema, and YAML tools or pipelines can use it to check document metadata.
 
 A document is **stale** when `updated` is more than 180 days before today (tools may make this configurable) and `status` is not `archived` or `deprecated`.
 
@@ -266,7 +266,7 @@ The quoted text, any Markdown.
 > Rotate the keys before you deploy.
 ```
 
-A blockquote written as a [GitHub alert](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) renders as the matching callout, so a document reads the same in Styled Markdown and on GitHub:
+A blockquote written as a [GitHub alert](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) renders as the matching callout, so a document reads the same in Semantic Markdown and on GitHub:
 
 | Alert | Callout |
 |---|---|
@@ -281,7 +281,7 @@ A blockquote written as a [GitHub alert](https://docs.github.com/en/get-started/
 - **Rendering:** exactly the callout's HTML and accessible structure, as if the body were written in `:::warning` … `:::`. Exports (Confluence, Notion, Word, PDF) show it as that callout too.
 - **Agent view:** the callout's tags, `<warning>` … `</warning>`, around the body without its `>` markers (§8a).
 - **Plain Markdown (`smd to-md`):** kept as written, the same GitHub alert (§8). `smd from-md` turns an alert into the matching `:::` callout.
-- **The markdown-it plugin** renders alerts with its `containers` option (on by default), so `.md` previews with Styled Markdown syntax show them too.
+- **The markdown-it plugin** renders alerts with its `containers` option (on by default), so `.md` previews with Semantic Markdown syntax show them too.
 
 Tools before 1.10 render an alert as a blockquote whose first line is the `[!WARNING]` marker. Alerts add no diagnostics.
 
@@ -436,7 +436,7 @@ Retries are capped at five[^retries], as the SRE review asked[^SRE].
   ```
 
   Ids use the footnote's number: `fn-1`, `fnref-1`, and `fnref-1-2` for the second reference to the same footnote, whose back link reads `↩︎²` ("Back to reference 1-2"). The "Footnotes" heading is visually hidden; it labels the references for screen readers. Heading ids and outlines are unchanged: a reference in a heading counts as its text as written, as it did before 1.6.
-- **Older renderers** (Styled Markdown before 1.6, and Markdown renderers without footnotes) show the syntax as written: `[^1]` stays text and a definition is a plain paragraph — except a definition whose text is a single word, such as `[^1]: Note`, which CommonMark reads as a link reference definition, so `[^1]` then renders as a link labelled `^1` pointing at `Note`. Write definitions as sentences to keep that degradation readable. Conversely, a document that used `[^label]: url` as a link reference definition now gets a footnote; GitHub reads it the same way.
+- **Older renderers** (Semantic Markdown before 1.6, and Markdown renderers without footnotes) show the syntax as written: `[^1]` stays text and a definition is a plain paragraph — except a definition whose text is a single word, such as `[^1]: Note`, which CommonMark reads as a link reference definition, so `[^1]` then renders as a link labelled `^1` pointing at `Note`. Write definitions as sentences to keep that degradation readable. Conversely, a document that used `[^label]: url` as a link reference definition now gets a footnote; GitHub reads it the same way.
 
 ### 4.7 Front matter variables
 
@@ -695,12 +695,12 @@ The front matter key `smd` is the document's **spec version**: it selects the ru
 |---|---|---|
 | `2`, `"2"` | spec v2 | — |
 | `1`, `"1"`; no `smd` key; no front matter, or front matter that doesn't parse | spec v1 | an info when the key is missing (fix: add `smd: 1`) |
-| A whole number above 2, e.g. `3` | the newest rules the tool knows (v2 in Styled Markdown 2.x), so the document stays readable | warning |
+| A whole number above 2, e.g. `3` | the newest rules the tool knows (v2 in Semantic Markdown 2.x), so the document stays readable | warning |
 | Anything else: a boolean, a list, a decimal, a string that isn't digits, zero (`true`, `[2]`, `1.5`, `"v2"`, `0`) | spec v1 | warning (an info in 1.10); fix: `smd: 1` |
 
 The value as YAML reads it decides, so `smd: 2.0`, the number 2, is spec v2, with a warning that asks for `smd: 2`. A missing key means spec v1 throughout 2.x, which covers every existing document and every `.md` file; 2.x tools keep a complete v1 mode, and the default is revisited in 3.0. Tools before 2.0 warn about `smd: 2` and read the document with the v1 rules.
 
-**New documents are spec v2.** Since Styled Markdown 2.0, tools that write a new document write `smd: 2`: `smd init` (its templates), `smd from-md`, `smd decisions --md`, `smd report`, `smd tasks --gantt --smd` and the editor's front matter snippet. A tool that adds front matter to an existing document never changes the rules it is read with: the `frontmatter/version` fix writes `smd: 1`, and VS Code's Set Document Status writes `smd: 2` only when spec v2 reads the document as v1 does. Write `smd: 1` to keep the v1 rules in a new document; `smd migrate --to 2` (§10.1) moves an existing one.
+**New documents are spec v2.** Since Semantic Markdown 2.0, tools that write a new document write `smd: 2`: `smd init` (its templates), `smd from-md`, `smd decisions --md`, `smd report`, `smd tasks --gantt --smd` and the editor's front matter snippet. A tool that adds front matter to an existing document never changes the rules it is read with: the `frontmatter/version` fix writes `smd: 1`, and VS Code's Set Document Status writes `smd: 2` only when spec v2 reads the document as v1 does. Write `smd: 1` to keep the v1 rules in a new document; `smd migrate --to 2` (§10.1) moves an existing one.
 
 **Hosts that can't see the front matter.** `renderSmd`, the markdown-it plugin and the remark and rehype plugins take a `spec: 1 | 2` option for documents that don't say. **The document's front matter wins:** when it has an `smd` key, the key decides, even when its value is invalid (then it is v1); the option only decides for a document without one. The markdown-it plugin reads the front matter from the source, or from `env.smdVariables` when the host removed it and passes it along, and puts the version on the render's env as `smdSpec`. An included file (§3.4) is read with the version of the document that includes it.
 
@@ -736,7 +736,7 @@ How an inline directive that a reader doesn't know reads (spec v2 RFC, proposal 
 
 | Reader | `:abbr[HTML]{.term}` in a document with `smd: 2` |
 |---|---|
-| Styled Markdown 2.x | `<span class="smd-directive smd-directive-abbr smd-u-term">HTML</span>`; `HTML` in the agent view, `smd to-md` and the exports; a `directive/unknown` warning |
+| Semantic Markdown 2.x | `<span class="smd-directive smd-directive-abbr smd-u-term">HTML</span>`; `HTML` in the agent view, `smd to-md` and the exports; a `directive/unknown` warning |
 | A 2.x tool that knows `abbr` (a later release) | The directive as that release defines it |
 | `.smd` tools before 2.0, which read `smd: 2` with the v1 rules (and warn `frontmatter/version`) | `:abbr` as text, then `[HTML]{.term}` as a styled span: "`:abbrHTML`" in the render, the agent view and `smd to-md`. Without an attribute list, `:abbr[HTML]` as written. A mixed-case known name (`:Badge[x]`) is text too |
 | GitHub and other Markdown renderers | The text as written, `:abbr[HTML]{.term}` |
@@ -770,7 +770,7 @@ Localized labels (§2.2) degrade to English: tools before 1.6 don't know `lang`,
 
 ### 10.1 Migrating to spec v2
 
-Spec v2 (`smd: 2`, Styled Markdown 2.0) reads a few things differently; the accepted changes are in the spec v2 RFC, [SPEC-V2-PROPOSALS.smd](SPEC-V2-PROPOSALS.smd). A document opts in by saying `smd: 2`. `smd migrate --to 2` plans what a document needs so that it means the same under v2 as it does today. It is a command of its own, because it changes text that `smd fmt`, which only changes layout, never touches. 1.10 only reported the plan (`--dry-run`); since 2.0, `smd migrate <files|dirs> --to 2` writes it, and VS Code's **Migrate to Spec v2** applies it to the open document as one undoable edit.
+Spec v2 (`smd: 2`, Semantic Markdown 2.0) reads a few things differently; the accepted changes are in the spec v2 RFC, [SPEC-V2-PROPOSALS.smd](SPEC-V2-PROPOSALS.smd). A document opts in by saying `smd: 2`. `smd migrate --to 2` plans what a document needs so that it means the same under v2 as it does today. It is a command of its own, because it changes text that `smd fmt`, which only changes layout, never touches. 1.10 only reported the plan (`--dry-run`); since 2.0, `smd migrate <files|dirs> --to 2` writes it, and VS Code's **Migrate to Spec v2** applies it to the open document as one undoable edit.
 
 For example, this v1 document:
 
@@ -833,7 +833,7 @@ What is deprecated still works, and is removed in a later major. What 1.10 depre
 
 ### 11.1 Deprecated tool names
 
-Styled Markdown 2.0 gathers the CLI's exports under one command, `smd export <file> --to <format>`. The older command names stay as aliases with the same options, output and exit codes, and print no warning (scripts that read stderr keep working). They may be removed in 3.0.
+Semantic Markdown 2.0 gathers the CLI's exports under one command, `smd export <file> --to <format>`. The older command names stay as aliases with the same options, output and exit codes, and print no warning (scripts that read stderr keep working). They may be removed in 3.0.
 
 | Deprecated | Since | Instead |
 |---|---|---|
@@ -844,7 +844,7 @@ Styled Markdown 2.0 gathers the CLI's exports under one command, `smd export <fi
 
 ### 11.2 Removed in 2.0
 
-Deprecated in 1.10, with a hint (or a note in the message), and removed in Styled Markdown 2.0 for every document, whatever its `smd` value.
+Deprecated in 1.10, with a hint (or a note in the message), and removed in Semantic Markdown 2.0 for every document, whatever its `smd` value.
 
 | Removed | Deprecated in | What 2.0 does | Migration |
 |---|---|---|---|

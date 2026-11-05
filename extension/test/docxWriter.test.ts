@@ -105,7 +105,7 @@ test('docx: a package Word opens: content types, relationships, styles, numberin
   for (const target of ['styles.xml', 'numbering.xml', 'settings.xml']) assert.ok(rels.includes(`Target="${target}"`), target);
   // Every r:id the document uses has a relationship.
   for (const [, id] of files.get('word/document.xml')!.matchAll(/r:(?:id|embed)="([^"]+)"/g)) assert.ok(rels.includes(`Id="${id}"`), id);
-  assert.match(files.get('docProps/core.xml')!, /<dc:title>Styled Markdown Showcase<\/dc:title><dc:language>en<\/dc:language>/);
+  assert.match(files.get('docProps/core.xml')!, /<dc:title>Semantic Markdown Showcase<\/dc:title><dc:language>en<\/dc:language>/);
   // Word 2013+ mode, not compatibility mode.
   assert.match(files.get('word/settings.xml')!, /w:name="compatibilityMode" w:uri="http:\/\/schemas\.microsoft\.com\/office\/word" w:val="15"/);
 });

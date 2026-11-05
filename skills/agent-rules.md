@@ -1,4 +1,4 @@
-## Styled Markdown (.smd)
+## Semantic Markdown (.smd)
 
 `.smd` is Markdown plus `:::` blocks, `{…}` attributes and `:name[…]` directives. CLI: `{{smd}} <command>` (Node 22+).
 
@@ -12,4 +12,4 @@
 
 - Start with `{{smd}} init <file> --template <name>` (`{{smd}} templates`), or front matter `smd: 2`, `title`, `summary`, `status: draft`.
 - Write meaning (`:::decision{status=…}`, `:::risk`, `- [ ] task @owner`, `:::agent`), not colors or layout.
-- Finish with `{{smd}} validate <file> --fix` until 0 errors. Syntax: https://github.com/bislink360/styled-markdown/blob/main/docs/SPEC.md
+- Finish with `{{smd}} validate <file> --fix` until 0 errors. Syntax: https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md

@@ -11,7 +11,7 @@ Leave a checkbox empty if it doesn't apply, or if you're not sure: that's fine, 
 
 ## Compatibility
 
-<!-- Styled Markdown keeps existing documents, CLI flags, MCP tools and settings working (docs/COMPATIBILITY.md). -->
+<!-- Semantic Markdown keeps existing documents, CLI flags, MCP tools and settings working (docs/COMPATIBILITY.md). -->
 
 - [ ] Existing documents keep their meaning, and no command, flag, setting, template or MCP tool was removed or renamed
 - [ ] Breaking changes: <!-- none, or a list with migration notes -->

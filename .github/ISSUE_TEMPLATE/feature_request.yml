@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the idea. Open questions and "how do I…?" fit better in [Discussions](https://github.com/bislink360/styled-markdown/discussions).
-        Styled Markdown keeps documents working across releases: new syntax is added, and existing syntax keeps its meaning ([compatibility policy](https://github.com/bislink360/styled-markdown/blob/main/docs/COMPATIBILITY.md)).
+        Thanks for the idea. Open questions and "how do I…?" fit better in [Discussions](https://github.com/bislink360/semantic-markdown/discussions).
+        Semantic Markdown keeps documents working across releases: new syntax is added, and existing syntax keeps its meaning ([compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/COMPATIBILITY.md)).
   - type: textarea
     id: problem
     attributes:

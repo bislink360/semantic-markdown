@@ -39,7 +39,7 @@ test('CLI: smd merge --install, then git merge resolves edits to neighbouring it
     const install = smd('--install');
     assert.equal(install.status, 0, install.stderr);
     assert.match(install.stdout, /driver = node ".*cli\.js" merge %O %A %B %L %P/);
-    assert.equal(git('config', '--local', 'merge.smd.name').trim(), 'Styled Markdown block merge');
+    assert.equal(git('config', '--local', 'merge.smd.name').trim(), 'Semantic Markdown block merge');
     assert.equal(readFileSync(join(dir, '.gitattributes'), 'utf8'), '*.png binary\r\n*.smd merge=smd\r\n');
     assert.equal(smd('--install').status, 0); // idempotent
     assert.equal(readFileSync(join(dir, '.gitattributes'), 'utf8'), '*.png binary\r\n*.smd merge=smd\r\n');

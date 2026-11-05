@@ -18,6 +18,6 @@ class SmdSplitEditorProvider : TextEditorWithPreviewProvider(SmdPreviewEditorPro
 class SmdPreviewEditorProvider : FileEditorProvider, DumbAware {
     override fun accept(project: Project, file: VirtualFile): Boolean = file.isSmd()
     override fun createEditor(project: Project, file: VirtualFile): FileEditor = SmdPreviewEditor(project, file)
-    override fun getEditorTypeId(): String = "styled-markdown-preview"
+    override fun getEditorTypeId(): String = "semantic-markdown-preview"
     override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.PLACE_AFTER_DEFAULT_EDITOR
 }

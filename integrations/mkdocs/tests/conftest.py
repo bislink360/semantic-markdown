@@ -75,7 +75,7 @@ exclude_docs: |
   _partials/
 plugins:
   - search
-  - styled-markdown{options}
+  - semantic-markdown{options}
 """
 
 

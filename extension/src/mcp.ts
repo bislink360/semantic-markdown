@@ -277,7 +277,7 @@ export async function runMcpServer(settings: McpServerSettings): Promise<void> {
   console.log = console.info = console.debug = console.warn = console.error;
   const box = new Sandbox(settings.root);
   const tools = smdTools(box, settings);
-  const server = new McpServer({ name: 'styled-markdown', version: settings.version, tools, instructions: serverInstructions(settings) });
+  const server = new McpServer({ name: 'semantic-markdown', version: settings.version, tools, instructions: serverInstructions(settings) });
   const write = settings.allowWrite ? ', write tools on' : '';
   console.error(`[smd mcp] serving ${box.root} over stdio${write}`);
   await serveLines(server, process.stdin, (line) => process.stdout.write(line));

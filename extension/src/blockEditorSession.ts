@@ -697,7 +697,7 @@ const COLOR_KEYS = ['color', 'bg', 'border'];
 const COLOR_ATTRS = new Set(['accent', ...COLOR_KEYS]);
 const LABELS: Readonly<Record<string, string>> = { color: 'Text color', bg: 'Background', border: 'Border', accent: 'Accent color', title: 'Title' };
 const FRONT_MATTER_LABELS: Readonly<Record<string, string>> = {
-  toc: 'Table of contents', smd: 'Styled Markdown version', lang: 'Language', related: 'Related documents', accent: 'Accent color',
+  toc: 'Table of contents', smd: 'Semantic Markdown version', lang: 'Language', related: 'Related documents', accent: 'Accent color',
 };
 const SEVERITY_RANK:Readonly<Record<DiagnosticSeverity, number>> = { error: 0, warning: 1, info: 2 };
 const NOT_FOUND = 'That block is no longer in the document.';

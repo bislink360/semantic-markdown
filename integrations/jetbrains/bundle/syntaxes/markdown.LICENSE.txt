@@ -1,6 +1,6 @@
 markdown.tmLanguage.json is the Markdown grammar of Visual Studio Code, from
 https://github.com/microsoft/vscode-markdown-tm-grammar (commit f75d5f55730e72ee7ff386841949048b2395e440, as
-shipped in the JetBrains IDEs' markdown-basics TextMate bundle). The Styled Markdown plugin changes only its scope
+shipped in the JetBrains IDEs' markdown-basics TextMate bundle). The Semantic Markdown plugin changes only its scope
 name, from text.html.markdown to text.html.markdown.smd, so that it doesn't depend on, or clash with, the IDE's
 own Markdown bundle. Its license:
 

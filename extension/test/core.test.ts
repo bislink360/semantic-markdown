@@ -134,7 +134,7 @@ test('conversion from Markdown adds front matter and callouts', () => {
 
 test('document info summarises the file for agents', () => {
   const info = getDocumentInfo(showcase);
-  assert.equal(info.title, 'Styled Markdown Showcase');
+  assert.equal(info.title, 'Semantic Markdown Showcase');
   assert.equal(info.tasks.total, 10);
   assert.equal(info.agentBlocks.length, 1);
   assert.match(info.agentBlocks[0].content, /Do not change the public API/);

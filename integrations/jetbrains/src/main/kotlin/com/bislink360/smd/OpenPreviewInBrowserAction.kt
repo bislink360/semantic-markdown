@@ -39,7 +39,7 @@ class OpenPreviewInBrowserAction : AnAction() {
             override fun run(indicator: ProgressIndicator) {
                 val out = FileUtil.createTempDirectory("smd-preview", null).toPath().resolve("${file.nameWithoutExtension}.html")
                 val command = SmdPlugin.command(source.parent, "export", source.toString(), "--to", "html", "-o", out.toString())
-                if (command == null) return fail(project, "Node.js or the smd CLI was not found. Check the Styled Markdown settings.")
+                if (command == null) return fail(project, "Node.js or the smd CLI was not found. Check the Semantic Markdown settings.")
                 val result = CapturingProcessHandler(command).runProcess(60_000)
                 if (result.exitCode != 0 || result.isTimeout) {
                     return fail(project, result.stderr.ifBlank { result.stdout }.ifBlank { "smd export exited with ${result.exitCode}" })
@@ -53,7 +53,7 @@ class OpenPreviewInBrowserAction : AnAction() {
 
     private fun fail(project: Project, message: String) {
         NotificationGroupManager.getInstance().getNotificationGroup(SmdPlugin.NOTIFICATIONS)
-            .createNotification("Styled Markdown preview failed", message.take(2000), NotificationType.ERROR)
+            .createNotification("Semantic Markdown preview failed", message.take(2000), NotificationType.ERROR)
             .notify(project)
     }
 

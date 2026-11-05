@@ -14,7 +14,7 @@ import { githubHeadingIds } from '../src/core/toMarkdown';
 const ids = (body: string) => renderSmd(body).headings.map((h) => h.slug);
 
 // ---------------------------------------------------------------------------
-// Styled Markdown's own ids (SPEC §4.2.3): pinned, since links depend on them
+// Semantic Markdown's own ids (SPEC §4.2.3): pinned, since links depend on them
 // ---------------------------------------------------------------------------
 
 test('slugify: lower-case, punctuation and `_` removed, whitespace runs to one hyphen, hyphens collapsed', () => {
@@ -173,7 +173,7 @@ test('validate: a link by GitHub id is info, with a fix to the heading id; never
   const diags = validateSmd(src);
   assert.deepEqual(diags.map((d) => `${d.line}:${d.code}:${d.severity}`), ['7:link/github-anchor:info', '7:link/github-anchor:info']);
   assert.equal(diags[0].message,
-    '"#foo_bar" is the id GitHub gives the heading "foo_bar" in this document; its Styled Markdown id is "#foobar". The link works on GitHub, but not in the preview or rendered HTML.');
+    '"#foo_bar" is the id GitHub gives the heading "foo_bar" in this document; its Semantic Markdown id is "#foobar". The link works on GitHub, but not in the preview or rendered HTML.');
   assert.deepEqual(diags[0].fix, { line: 7, column: 8, endColumn: 16, replacement: '#foobar', title: 'Change to "#foobar"' });
   assert.equal(diags[1].fix?.replacement, '#120-2026-03-01');
   // A link that is neither id still warns.
@@ -221,7 +221,7 @@ test('to-md: lone carriage returns get no anchors rather than misplaced ones (fu
 });
 
 test('to-md: GitHub numbers repeats over the converted headings, included ones too', () => {
-  // GitHub gives the third heading `a-1-1`; Styled Markdown gives it `a-1`.
+  // GitHub gives the third heading `a-1-1`; Semantic Markdown gives it `a-1`.
   assert.equal(smdToMarkdown('## A\n\n## A\n\n## A-1\n'), '## A\n\n## A\n\n<a id="a-1"></a>\n## A-1\n');
   const files: Record<string, string> = { 'part.smd': '## foo_bar\n\nIncluded.\n' };
   const md = smdToMarkdown('## Intro\n\n:::include{file="part.smd"}\n:::\n', { readFile: (p) => files[p] });

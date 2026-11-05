@@ -21,7 +21,7 @@ class StatusBar implements vscode.Disposable {
   private visible = false;
 
   constructor() {
-    this.item.name = 'Styled Markdown Document Status';
+    this.item.name = 'Semantic Markdown Document Status';
     this.item.command = 'smd.setStatus';
   }
 
@@ -74,7 +74,7 @@ async function applyStatus(doc: vscode.TextDocument, status: string): Promise<bo
   const eol = doc.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
   const result = setStatusEdits(doc.getText(), status, { eol, today: updateDate ? todayUtc() : undefined });
   if (!result.ok) {
-    vscode.window.showWarningMessage(`Styled Markdown: ${result.reason}`);
+    vscode.window.showWarningMessage(`Semantic Markdown: ${result.reason}`);
     return false;
   }
   if (!result.edits.length) return true;
@@ -93,7 +93,7 @@ async function setStatus(status?: unknown, uri?: unknown): Promise<boolean> {
     return false;
   }
   if (typeof status === 'string' && !isStatus(status)) {
-    vscode.window.showWarningMessage(`Styled Markdown: "${status}" is not a document status. Use one of ${STATUS_VALUES.join(', ')}.`);
+    vscode.window.showWarningMessage(`Semantic Markdown: "${status}" is not a document status. Use one of ${STATUS_VALUES.join(', ')}.`);
     return false;
   }
   const chosen = isStatus(status) ? status : await pickStatus(doc);

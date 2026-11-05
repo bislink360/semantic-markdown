@@ -1,9 +1,9 @@
-# Styled Markdown in other editors
+# Semantic Markdown in other editors
 
 The VS Code extension is the full experience (live preview, agent view, tasks view). For other editors, `smd lsp` is a **language server** that brings the editing features of the extension to any [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) client: Neovim, Helix, Zed, Sublime Text, Emacs and others. For syntax highlighting of the `.smd` syntax itself (containers, directives, spans, math…) in editors that use Tree-sitter, there is also a [Tree-sitter grammar](#syntax-highlighting-with-tree-sitter).
 
 > [!WARNING]
-> The setups below were written from each editor's documented configuration format and checked against the server's own protocol tests. **They have not been tested in those editors here.** If one doesn't work for you, please [open an issue](https://github.com/bislink360/styled-markdown/issues) with your editor's version and log.
+> The setups below were written from each editor's documented configuration format and checked against the server's own protocol tests. **They have not been tested in those editors here.** If one doesn't work for you, please [open an issue](https://github.com/bislink360/semantic-markdown/issues) with your editor's version and log.
 
 ## Contents
 
@@ -41,12 +41,12 @@ Technical details: stdio only (`--stdio`; `--socket`, `--pipe` and `--node-ipc` 
 
 ## Install
 
-The server is part of the `smd` command, from version 1.5.0. Install the npm package once (Node.js 22+), from the npm registry or from the tarball attached to the [GitHub release](https://github.com/bislink360/styled-markdown/releases):
+The server is part of the `smd` command, from version 1.5.0. Install the npm package once (Node.js 22+), from the npm registry or from the tarball attached to the [GitHub release](https://github.com/bislink360/semantic-markdown/releases):
 
 ```bash
-npm install -g styled-markdown
+npm install -g semantic-markdown
 # or
-npm install -g https://github.com/bislink360/styled-markdown/releases/download/v2.4.0/styled-markdown-2.4.0.tgz
+npm install -g https://github.com/bislink360/semantic-markdown/releases/download/v3.0.0/semantic-markdown-3.0.0.tgz
 ```
 
 This puts two commands on your `PATH`:
@@ -56,7 +56,7 @@ This puts two commands on your `PATH`:
 | `smd lsp --stdio` | the language server, as a subcommand of the CLI |
 | `smd-language-server --stdio` | the same server under its own name, for editor configs |
 
-Without a global install, use `npx -y -p styled-markdown smd-language-server --stdio` as the command (slower to start). A copy of the single-file CLI also works: `node path/to/smd.cjs lsp --stdio` (it is bundled in the agent skills and installed to `.smd/smd.cjs` by `smd skills install --target …`).
+Without a global install, use `npx -y -p semantic-markdown smd-language-server --stdio` as the command (slower to start). A copy of the single-file CLI also works: `node path/to/smd.cjs lsp --stdio` (it is bundled in the agent skills and installed to `.smd/smd.cjs` by `smd skills install --target …`).
 
 Check it starts (it waits for a client on stdin; press Ctrl+C to stop):
 
@@ -192,16 +192,16 @@ smd-zed/
 `extension.toml`:
 
 ```toml
-id = "styled-markdown"
-name = "Styled Markdown"
+id = "semantic-markdown"
+name = "Semantic Markdown"
 version = "0.0.1"
 schema_version = 1
 authors = ["You <you@example.com>"]
-description = "Styled Markdown (.smd) with smd-language-server"
+description = "Semantic Markdown (.smd) with smd-language-server"
 
 [language_servers.smd-language-server]
 name = "smd-language-server"
-languages = ["Styled Markdown"]
+languages = ["Semantic Markdown"]
 
 [grammars.markdown]
 repository = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
@@ -212,7 +212,7 @@ path = "tree-sitter-markdown"
 `languages/smd/config.toml`:
 
 ```toml
-name = "Styled Markdown"
+name = "Semantic Markdown"
 grammar = "markdown"
 path_suffixes = ["smd"]
 ```
@@ -247,7 +247,7 @@ impl zed::Extension for SmdExtension {
     fn language_server_command(&mut self, _id: &LanguageServerId, worktree: &zed::Worktree) -> Result<zed::Command> {
         let command = worktree
             .which("smd-language-server")
-            .ok_or("smd-language-server is not on PATH: run npm install -g styled-markdown")?;
+            .ok_or("smd-language-server is not on PATH: run npm install -g semantic-markdown")?;
         Ok(zed::Command { command, args: vec!["--stdio".into()], env: Default::default() })
     }
 }
@@ -281,7 +281,7 @@ Editors build the grammar from this repository's URL, the `integrations/tree-sit
 
 ## JetBrains IDEs
 
-IntelliJ IDEA, PyCharm, WebStorm and the other JetBrains IDEs don't need any of the setup above: the [Styled Markdown plugin](../integrations/jetbrains/README.md) (since 2.1.0) runs this language server itself, with the `smd` CLI shipped inside the plugin, and highlights `.smd` files with the VS Code extension's TextMate grammar. It needs an IDE with the LSP API (IntelliJ IDEA 2025.3 or newer, the others 2025.1 or newer) and Node.js 22 or newer. Install it from the GitHub release: [docs/INSTALL.md](INSTALL.md#jetbrains-ides).
+IntelliJ IDEA, PyCharm, WebStorm and the other JetBrains IDEs don't need any of the setup above: the [Semantic Markdown plugin](../integrations/jetbrains/README.md) (since 2.1.0) runs this language server itself, with the `smd` CLI shipped inside the plugin, and highlights `.smd` files with the VS Code extension's TextMate grammar. It needs an IDE with the LSP API (IntelliJ IDEA 2025.3 or newer, the others 2025.1 or newer) and Node.js 22 or newer. Install it from the GitHub release: [docs/INSTALL.md](INSTALL.md#jetbrains-ides).
 
 ## Other editors
 

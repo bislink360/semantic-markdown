@@ -45,7 +45,7 @@ class ExportDocxAction : AnAction() {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
                 val command = SmdPlugin.command(source.parent, *arguments(source, out, SmdSettings.getInstance()).toTypedArray())
-                    ?: return notify(project, "Node.js or the smd CLI was not found. Check the Styled Markdown settings.", NotificationType.ERROR)
+                    ?: return notify(project, "Node.js or the smd CLI was not found. Check the Semantic Markdown settings.", NotificationType.ERROR)
                 val result = CapturingProcessHandler(command).runProcess(TIMEOUT_MS)
                 if (result.isTimeout) return notify(project, "smd export did not finish within ${TIMEOUT_MS / 1000} s.", NotificationType.ERROR)
                 if (result.exitCode != 0) {
@@ -66,7 +66,7 @@ class ExportDocxAction : AnAction() {
 
     private fun notify(project: Project, message: String, type: NotificationType) {
         NotificationGroupManager.getInstance().getNotificationGroup(SmdPlugin.NOTIFICATIONS)
-            .createNotification("Styled Markdown export to Word failed", message.take(2000), type)
+            .createNotification("Semantic Markdown export to Word failed", message.take(2000), type)
             .notify(project)
     }
 

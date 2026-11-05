@@ -1,4 +1,4 @@
-// What a Styled Markdown webview (the preview, the Block Editor) asks the extension to do for it.
+// What a Semantic Markdown webview (the preview, the Block Editor) asks the extension to do for it.
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { taskCheckbox } from './editing';
@@ -35,6 +35,6 @@ export async function openLink(document: vscode.TextDocument, href: string): Pro
     await vscode.workspace.fs.stat(target);
     await vscode.commands.executeCommand('vscode.open', target, vscode.ViewColumn.One);
   } catch {
-    vscode.window.showWarningMessage(`Styled Markdown: "${file}" does not exist.`);
+    vscode.window.showWarningMessage(`Semantic Markdown: "${file}" does not exist.`);
   }
 }

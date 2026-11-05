@@ -1,7 +1,7 @@
 /*
  * External scanner for tree-sitter-smd.
  *
- * Styled Markdown syntax is only syntax when it is complete: `[text]{attrs}` needs its `]` and
+ * Semantic Markdown syntax is only syntax when it is complete: `[text]{attrs}` needs its `]` and
  * `{…}`, `==mark==` and `$math$` need their closers, `$$` math and front matter need a closing line.
  * Tree-sitter's own lexer cannot look ahead, so this scanner checks the whole construct before it
  * returns the opener, and otherwise declines so the text parses as plain text. The rules mirror

@@ -1,7 +1,7 @@
 ---
 smd: 1
 title: What spec v2 reads differently
-summary: Pins how v1 reads what Styled Markdown 2.0 rejects or reinterprets (mismatched closers, duplicate attributes, conflicting titles, braces after a heading, include sections found by a part of their text, and the priority of an agent block), so later releases are compared against them.
+summary: Pins how v1 reads what Semantic Markdown 2.0 rejects or reinterprets (mismatched closers, duplicate attributes, conflicting titles, braces after a heading, include sections found by a part of their text, and the priority of an agent block), so later releases are compared against them.
 status: draft
 updated: 2026-10-15
 ---

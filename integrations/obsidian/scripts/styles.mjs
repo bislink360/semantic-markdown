@@ -114,7 +114,7 @@ export function obsidianCss(smdCss) {
   const rules = parseCss(smdCss).map((block) => obsidianRule(block, 0)).filter(Boolean);
   if (!rules.some((rule) => rule.includes(THEME))) throw new Error('smd.css has no :root[data-smd-theme="dark"] palette to map.');
   return [
-    '/* Styled Markdown for Obsidian: made from smd.css by scripts/build.mjs (do not edit). */',
+    '/* Semantic Markdown for Obsidian: made from smd.css by scripts/build.mjs (do not edit). */',
     ...rules,
     EXTRA,
     '',

@@ -9,5 +9,5 @@ import org.jetbrains.plugins.textmate.api.TextMateBundleProvider
  */
 class SmdTextMateBundleProvider : TextMateBundleProvider {
     override fun getBundles(): List<TextMateBundleProvider.PluginBundle> =
-        listOf(TextMateBundleProvider.PluginBundle("Styled Markdown", SmdPlugin.bundle))
+        listOf(TextMateBundleProvider.PluginBundle("Semantic Markdown", SmdPlugin.bundle))
 }

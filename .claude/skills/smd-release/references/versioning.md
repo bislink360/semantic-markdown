@@ -2,7 +2,7 @@
 
 ## One version for everything
 
-The extension, the npm package and the skills (through their bundled CLI) always share one version `X.Y.Z`, and each release has one Git tag `vX.Y.Z`. That way "Styled Markdown 1.4.0" means the same behaviour in VS Code, in CI and in an agent. `bump-version.mjs` updates every place at once, and `release-check.mjs` fails on a mismatch.
+The extension, the npm package and the skills (through their bundled CLI) always share one version `X.Y.Z`, and each release has one Git tag `vX.Y.Z`. That way "Semantic Markdown 1.4.0" means the same behaviour in VS Code, in CI and in an agent. `bump-version.mjs` updates every place at once, and `release-check.mjs` fails on a mismatch.
 
 ## Semantic versioning, applied to this project
 

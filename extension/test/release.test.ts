@@ -89,9 +89,9 @@ test('releaseNotes puts the downloads table first when asked', () => {
   assert.ok(notes.startsWith('## Downloads\n'));
   assert.ok(notes.endsWith('\n\nBody\n'));
   const assets = [
-    'styled-markdown-1.5.0.vsix', 'styled-markdown-1.5.0.tgz', 'styled-markdown-reader.zip', 'styled-markdown-writer.zip',
-    'styled-markdown-playground.zip', 'mkdocs_styled_markdown-1.5.0-py3-none-any.whl', 'mkdocs_styled_markdown-1.5.0.tar.gz', 'styled-markdown-obsidian-1.5.0.zip',
-    'styled-markdown-jetbrains-1.5.0.zip',
+    'semantic-markdown-1.5.0.vsix', 'semantic-markdown-1.5.0.tgz', 'semantic-markdown-reader.zip', 'semantic-markdown-writer.zip',
+    'semantic-markdown-playground.zip', 'mkdocs_semantic_markdown-1.5.0-py3-none-any.whl', 'mkdocs_semantic_markdown-1.5.0.tar.gz', 'semantic-markdown-obsidian-1.5.0.zip',
+    'semantic-markdown-jetbrains-1.5.0.zip',
   ];
   for (const asset of assets) {
     assert.ok(downloadsTable('1.5.0').includes(`\`${asset}\``), asset);
@@ -159,7 +159,7 @@ test('the Claude Code plugin and the MCP registry entry have the extension versi
   const marketplace = json('.claude-plugin', 'marketplace.json');
   assert.deepEqual(marketplace.plugins.map((p: { name: string; source: string }) => [p.name, p.source]), [[plugin.name, './']]);
   const [script, command] = plugin.mcpServers.smd.args as string[];
-  assert.equal(script, '${CLAUDE_PLUGIN_ROOT}/skills/styled-markdown-reader/scripts/smd.cjs');
+  assert.equal(script, '${CLAUDE_PLUGIN_ROOT}/skills/semantic-markdown-reader/scripts/smd.cjs');
   assert.equal(command, 'mcp');
   assert.ok(readFileSync(join(root, script.replace('${CLAUDE_PLUGIN_ROOT}/', ''))).length > 0);
 });
@@ -169,12 +169,12 @@ test('checkRelease rejects tags that are not vX.Y.Z', () => {
 });
 
 test('registryRequest builds the public lookup for each registry', () => {
-  assert.equal(registryRequest('npm', '1.5.0')?.url, 'https://registry.npmjs.org/styled-markdown/1.5.0');
-  assert.equal(registryRequest('openvsx', '1.5.0')?.url, 'https://open-vsx.org/api/bislink360/styled-markdown/1.5.0');
+  assert.equal(registryRequest('npm', '1.5.0')?.url, 'https://registry.npmjs.org/semantic-markdown/1.5.0');
+  assert.equal(registryRequest('openvsx', '1.5.0')?.url, 'https://open-vsx.org/api/bislink360/semantic-markdown/1.5.0');
   const marketplace = registryRequest('marketplace', '1.5.0');
   assert.equal(marketplace?.init.method, 'POST');
-  assert.match(String(marketplace?.init.body), /"value":"bislink360\.styled-markdown"/);
-  assert.equal(registryRequest('pypi', '1.5.0')?.url, 'https://pypi.org/pypi/mkdocs-styled-markdown/1.5.0/json');
+  assert.match(String(marketplace?.init.body), /"value":"bislink360\.semantic-markdown"/);
+  assert.equal(registryRequest('pypi', '1.5.0')?.url, 'https://pypi.org/pypi/mkdocs-semantic-markdown/1.5.0/json');
   assert.equal(registryRequest('jetbrains', '1.5.0')?.url, 'https://plugins.jetbrains.com/api/plugins/35420/updates?size=100');
   assert.equal(registryRequest('crates', '1.5.0'), undefined);
 });
@@ -229,14 +229,14 @@ test('publishDecision names the JetBrains Marketplace', () => {
 });
 
 test('uploadRequest posts the plugin id and the zip with the token as a bearer header', async () => {
-  const { url, init } = uploadRequest(new Uint8Array([80, 75]), 'styled-markdown-jetbrains-1.5.0.zip', 'secret-token');
+  const { url, init } = uploadRequest(new Uint8Array([80, 75]), 'semantic-markdown-jetbrains-1.5.0.zip', 'secret-token');
   assert.equal(url, UPLOAD_URL);
   assert.equal(init.method, 'POST');
   assert.equal(init.headers.authorization, 'Bearer secret-token');
   const form = init.body as FormData;
   assert.equal(form.get('pluginId'), '35420');
   const file = form.get('file') as File;
-  assert.equal(file.name, 'styled-markdown-jetbrains-1.5.0.zip');
+  assert.equal(file.name, 'semantic-markdown-jetbrains-1.5.0.zip');
   assert.equal(file.size, 2);
 });
 
@@ -251,7 +251,7 @@ test('uploadOutcome: success, an already uploaded version, a refused token, othe
 });
 
 test('uploadPlugin reads the zip and never reports a network error as success', async () => {
-  const zip = join(mkdtempSync(join(tmpdir(), 'smd-jb-')), 'styled-markdown-jetbrains-1.5.0.zip');
+  const zip = join(mkdtempSync(join(tmpdir(), 'smd-jb-')), 'semantic-markdown-jetbrains-1.5.0.zip');
   writeFileSync(zip, 'PK');
   let sent: FormData | undefined;
   const ok = await uploadPlugin(zip, '1.5.0', 't', async (_url: unknown, init?: RequestInit) => {

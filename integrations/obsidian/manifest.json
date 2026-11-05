@@ -1,10 +1,10 @@
 {
   "id": "styled-markdown",
-  "name": "Styled Markdown",
-  "version": "2.6.0",
+  "name": "Semantic Markdown",
+  "version": "3.0.0",
   "minAppVersion": "1.4.0",
-  "description": "Render Styled Markdown (.smd) syntax in your notes: callouts, cards, tabs, decisions, risks, badges, status and due dates. Opens .smd files too.",
+  "description": "Render Semantic Markdown (.smd) syntax in your notes: callouts, cards, tabs, decisions, risks, badges, status and due dates. Opens .smd files too.",
   "author": "Roshan Alwis",
-  "authorUrl": "https://github.com/bislink360/styled-markdown",
+  "authorUrl": "https://github.com/bislink360/semantic-markdown",
   "isDesktopOnly": false
 }

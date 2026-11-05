@@ -33,7 +33,7 @@ test('.pre-commit-hooks.yaml: smd-validate, smd-fmt and smd-fmt-check run the CL
 test('root package.json: private, and its smd bin is the bundled CLI it packs', () => {
   assert.equal(pkg.private, true, 'never published to npm');
   const bin = pkg.bin.smd;
-  assert.equal(bin, 'skills/styled-markdown-reader/scripts/smd.cjs');
+  assert.equal(bin, 'skills/semantic-markdown-reader/scripts/smd.cjs');
   assert.ok(pkg.files.includes(bin), 'npm pack (which pre-commit installs) includes the bin');
   assert.ok(existsSync(join(root, bin)));
   assert.match(readFileSync(join(root, bin), 'utf8'), /^#!\/usr\/bin\/env node\r?\n/, 'npm needs the shebang for its shims');

@@ -6,7 +6,7 @@ set -uo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cli="${SMD_CLI:-}"
-if [ -z "$cli" ]; then cli="$here/../skills/styled-markdown-reader/scripts/smd.cjs"; fi
+if [ -z "$cli" ]; then cli="$here/../skills/semantic-markdown-reader/scripts/smd.cjs"; fi
 
 usage_error() {
   echo "::error title=smd validate::$1"

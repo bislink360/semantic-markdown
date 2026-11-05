@@ -1,6 +1,6 @@
 ---
-name: styled-markdown-reader
-description: Read Styled Markdown (.smd) files with few tokens. Use it whenever you need anything from a .smd file (answering questions about a spec/PRD/ADR/RFC/runbook/design doc, implementing, summarizing or reviewing it, checking its tasks, decisions, risks or APIs), even if the user just says "the spec", "the doc" or "the plan". Use it instead of reading large .smd files whole.
+name: semantic-markdown-reader
+description: Read Semantic Markdown (.smd) files with few tokens. Use it whenever you need anything from a .smd file (answering questions about a spec/PRD/ADR/RFC/runbook/design doc, implementing, summarizing or reviewing it, checking its tasks, decisions, risks or APIs), even if the user just says "the spec", "the doc" or "the plan". Use it instead of reading large .smd files whole.
 ---
 
 # Reading .smd
@@ -10,7 +10,7 @@ The bundled CLI drops styling and human-only text: `node <this-skill-dir>/script
 1. **Small file (under ≈6 KB, ≈1,500 tokens): read it directly.** Skip `:::human` blocks and `{agent=skip}` sections. Unsure of the size? Use step 2.
 2. **`smd read FILE`**: the whole agent view when it fits 2,000 tokens, else the outline (sections with line ranges and token costs). The summary often answers the question.
 3. **From an outline, read only what you need:** `smd agent FILE --section "Heading"` (repeatable; adds subsections and the `:::agent` instructions). `--brief` condenses diagrams, long code and done tasks.
-4. **Open raw lines only to edit:** headings carry `[L42]` refs; read just that range. To write, use the `styled-markdown-writer` skill.
+4. **Open raw lines only to edit:** headings carry `[L42]` refs; read just that range. To write, use the `semantic-markdown-writer` skill.
 
 `smd` MCP server registered? Its `read` tool does the same (`sections` for step 3).
 

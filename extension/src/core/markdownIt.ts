@@ -4,10 +4,10 @@ import { addTableRules, applySmd, hasSmd, hostContext, smdFeatures, type ReadFil
 export type { ReadFile } from './markdownItSetup';
 
 /**
- * Styled Markdown as a markdown-it plugin, for any markdown-it host (13 or 14):
+ * Semantic Markdown as a markdown-it plugin, for any markdown-it host (13 or 14):
  *
  *   import MarkdownIt from 'markdown-it';
- *   import smd from 'styled-markdown/markdown-it';
+ *   import smd from 'semantic-markdown/markdown-it';
  *   const md = new MarkdownIt().use(smd);
  *
  * The plugin only adds rules to the host's instance: it never creates its own, keeps the host's
@@ -110,7 +110,7 @@ function presetOptions(options: MarkdownItSmdOptions): MarkdownItSmdOptions {
   return resolved;
 }
 
-/** Add Styled Markdown syntax to a markdown-it instance. Using it twice on one instance has no further effect. */
+/** Add Semantic Markdown syntax to a markdown-it instance. Using it twice on one instance has no further effect. */
 export function markdownItSmd(md: MarkdownIt, options: MarkdownItSmdOptions = {}): void {
   if (hasSmd(md)) return;
   const resolved = presetOptions(options);

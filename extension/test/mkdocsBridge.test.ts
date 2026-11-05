@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { MkdocsBridge, scopeCodeColors, type BridgeRender } from '../src/mkdocsBridge';
 
 const bundle = join(__dirname, '..', 'dist', 'mkdocs-bridge.cjs');
-const packaged = join(__dirname, '..', '..', 'integrations', 'mkdocs', 'mkdocs_styled_markdown', 'bridge.cjs');
+const packaged = join(__dirname, '..', '..', 'integrations', 'mkdocs', 'mkdocs_semantic_markdown', 'bridge.cjs');
 // The bundle exists after npm run build; without it (the release workflow's verify job tests before building) skip,
 // like the other tests of built files. The release build job still checks the packaged copy against a fresh build.
 const unbuilt = !existsSync(bundle) && 'run npm run build first';
@@ -143,5 +143,5 @@ test('the bundled bridge answers JSON lines in order over stdin/stdout', { skip:
 });
 
 test('the Python package ships the current bridge (run npm run build and commit it when this fails)', { skip: unbuilt }, () => {
-  assert.ok(readFileSync(bundle).equals(readFileSync(packaged)), 'integrations/mkdocs/mkdocs_styled_markdown/bridge.cjs is stale');
+  assert.ok(readFileSync(bundle).equals(readFileSync(packaged)), 'integrations/mkdocs/mkdocs_semantic_markdown/bridge.cjs is stale');
 });

@@ -18,7 +18,7 @@ import { findVariables, lookupVariable, variableText } from './variables';
 /**
  * The plan of `smd migrate --to 2`: what a document needs so that it means the same under spec v2 (`smd: 2`) as it
  * does today. Each step rewrites a few lines, or is a note when nothing is rewritten. 1.10 only reported the plan
- * (`--dry-run`); Styled Markdown 2.0 writes it (migrateCommand.ts, and the editor's "Migrate to Spec v2"), then checks
+ * (`--dry-run`); Semantic Markdown 2.0 writes it (migrateCommand.ts, and the editor's "Migrate to Spec v2"), then checks
  * what it wrote (migrateCheck.ts).
  *
  * Internal: not exported from the npm package, so the plan's shape can still change in a minor release.
@@ -78,15 +78,15 @@ const KINDS: Record<MigrationKind, { proposal: string; keeps: 'v1' | 'v2'; reaso
   },
   'duplicate-attrs': {
     proposal: '4', keeps: 'v1',
-    reason: 'Styled Markdown 2.0 reports a key, an id or a class given twice as an error in every document (proposal 4). Each is kept once, with the value v1 uses (the last), where it first appears.',
+    reason: 'Semantic Markdown 2.0 reports a key, an id or a class given twice as an error in every document (proposal 4). Each is kept once, with the value v1 uses (the last), where it first appears.',
   },
   'title-text': {
     proposal: '4', keeps: 'v1',
-    reason: 'Styled Markdown 2.0 reports a container titled both by title="…" and by text as an error in every document (proposal 4). The text, which v1 does not show, is removed.',
+    reason: 'Semantic Markdown 2.0 reports a container titled both by title="…" and by text as an error in every document (proposal 4). The text, which v1 does not show, is removed.',
   },
   'agent-priority': {
     proposal: '12', keeps: 'v1',
-    reason: 'Styled Markdown 2.0 removed "priority" on ":::agent", which no tool read (proposal 12), so it is an unknown attribute in every document. It is removed; nothing renders differently.',
+    reason: 'Semantic Markdown 2.0 removed "priority" on ":::agent", which no tool read (proposal 12), so it is an unknown attribute in every document. It is removed; nothing renders differently.',
   },
   'math-delimiters': {
     proposal: '2', keeps: 'v1',

@@ -2,17 +2,17 @@
   "name": "tree-sitter-smd",
   "version": "1.7.0",
   "private": true,
-  "description": "Tree-sitter grammar for the Styled Markdown (.smd) extensions, with highlight, injection, fold and indent queries. Markdown itself is injected from tree-sitter-markdown.",
+  "description": "Tree-sitter grammar for the Semantic Markdown (.smd) extensions, with highlight, injection, fold and indent queries. Markdown itself is injected from tree-sitter-markdown.",
   "author": "Roshan Alwis",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bislink360/styled-markdown.git",
+    "url": "git+https://github.com/bislink360/semantic-markdown.git",
     "directory": "integrations/tree-sitter-smd"
   },
   "keywords": [
     "tree-sitter",
-    "styled-markdown",
+    "semantic-markdown",
     "smd",
     "markdown",
     "parser"

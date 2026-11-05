@@ -11,12 +11,12 @@ import kotlin.io.path.exists
 /** Where the plugin's files are, and how it runs the `smd` CLI it ships. */
 object SmdPlugin {
     const val ID = "com.bislink360.styled-markdown"
-    const val NOTIFICATIONS = "Styled Markdown"
+    const val NOTIFICATIONS = "Semantic Markdown"
 
     /** The plugin's folder: its jar in lib/, the server in server/, the TextMate bundle in bundle/. */
     val directory: Path
         get() = PluginManagerCore.getPlugin(PluginId.getId(ID))?.pluginPath
-            ?: error("The Styled Markdown plugin is not loaded")
+            ?: error("The Semantic Markdown plugin is not loaded")
 
     /** The TextMate bundle made from the VS Code extension's grammar (see build.gradle.kts). */
     val bundle: Path get() = directory.resolve("bundle")
@@ -24,7 +24,7 @@ object SmdPlugin {
     /** The `smd` CLI shipped with the plugin: one self-contained file, the same as the agent skills bundle. */
     val bundledCli: Path get() = directory.resolve("server").resolve("smd.cjs")
 
-    /** The CLI to run: the one set in Settings | Languages & Frameworks | Styled Markdown, else the bundled one. */
+    /** The CLI to run: the one set in Settings | Languages & Frameworks | Semantic Markdown, else the bundled one. */
     fun cli(): Path = SmdSettings.getInstance().cliPath.takeIf { it.isNotBlank() }?.let(Path::of) ?: bundledCli
 
     /** The Node.js executable: the one set in the settings, else `node` on the PATH (null when there is none). */
@@ -46,5 +46,5 @@ object SmdPlugin {
     }
 }
 
-/** A Styled Markdown file: the `.smd` extension, as in the VS Code extension. */
+/** A Semantic Markdown file: the `.smd` extension, as in the VS Code extension. */
 fun VirtualFile.isSmd(): Boolean = !isDirectory && extension == "smd"

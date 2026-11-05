@@ -1,4 +1,4 @@
-// Styled Markdown in MkDocs: smd blocks follow the theme's light or dark mode, not the system's.
+// Semantic Markdown in MkDocs: smd blocks follow the theme's light or dark mode, not the system's.
 // The mkdocs theme sets <html data-bs-theme="dark">, Material <body data-md-color-scheme="slate">;
 // other themes are light. Loaded before runtime.js, which reads data-smd-theme-pref.
 (function () {

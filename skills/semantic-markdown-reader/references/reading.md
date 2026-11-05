@@ -1,4 +1,4 @@
-# Reading Styled Markdown: full reference
+# Reading Semantic Markdown: full reference
 
 Read this only when `SKILL.md` doesn't cover what you need. Commands run as `node <skill-dir>/scripts/smd.cjs <command>` (or `smd` on PATH).
 

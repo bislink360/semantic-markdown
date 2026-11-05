@@ -1,35 +1,35 @@
 // Skill files and document templates, bundled into the CLI at build time (esbuild text loader),
 // so `smd skills install` and `smd init --template` work from a single self-contained file.
-import READER_SKILL from '../../skills/styled-markdown-reader/SKILL.md';
-import READER_REFERENCE from '../../skills/styled-markdown-reader/references/reading.md';
-import WRITER_SKILL from '../../skills/styled-markdown-writer/SKILL.md';
-import WRITER_SYNTAX from '../../skills/styled-markdown-writer/references/syntax.md';
-import SYNTAX_BASICS from '../../skills/styled-markdown-writer/references/syntax/basics.md';
-import SYNTAX_CALLOUTS from '../../skills/styled-markdown-writer/references/syntax/callouts.md';
-import SYNTAX_PROJECT from '../../skills/styled-markdown-writer/references/syntax/project.md';
-import SYNTAX_DEVELOPER from '../../skills/styled-markdown-writer/references/syntax/developer.md';
-import SYNTAX_LAYOUT from '../../skills/styled-markdown-writer/references/syntax/layout.md';
-import SYNTAX_FIGURES from '../../skills/styled-markdown-writer/references/syntax/figures-and-notes.md';
-import SYNTAX_INLINE from '../../skills/styled-markdown-writer/references/syntax/inline.md';
-import SYNTAX_SPEC_V2 from '../../skills/styled-markdown-writer/references/syntax/spec-v2.md';
-import WRITER_STYLE from '../../skills/styled-markdown-writer/references/style-guide.md';
+import READER_SKILL from '../../skills/semantic-markdown-reader/SKILL.md';
+import READER_REFERENCE from '../../skills/semantic-markdown-reader/references/reading.md';
+import WRITER_SKILL from '../../skills/semantic-markdown-writer/SKILL.md';
+import WRITER_SYNTAX from '../../skills/semantic-markdown-writer/references/syntax.md';
+import SYNTAX_BASICS from '../../skills/semantic-markdown-writer/references/syntax/basics.md';
+import SYNTAX_CALLOUTS from '../../skills/semantic-markdown-writer/references/syntax/callouts.md';
+import SYNTAX_PROJECT from '../../skills/semantic-markdown-writer/references/syntax/project.md';
+import SYNTAX_DEVELOPER from '../../skills/semantic-markdown-writer/references/syntax/developer.md';
+import SYNTAX_LAYOUT from '../../skills/semantic-markdown-writer/references/syntax/layout.md';
+import SYNTAX_FIGURES from '../../skills/semantic-markdown-writer/references/syntax/figures-and-notes.md';
+import SYNTAX_INLINE from '../../skills/semantic-markdown-writer/references/syntax/inline.md';
+import SYNTAX_SPEC_V2 from '../../skills/semantic-markdown-writer/references/syntax/spec-v2.md';
+import WRITER_STYLE from '../../skills/semantic-markdown-writer/references/style-guide.md';
 import AGENT_RULES_TEMPLATE from '../../skills/agent-rules.md';
-import T_PRD from '../../skills/styled-markdown-writer/assets/templates/prd.smd';
-import T_ADR from '../../skills/styled-markdown-writer/assets/templates/adr.smd';
-import T_RFC from '../../skills/styled-markdown-writer/assets/templates/rfc.smd';
-import T_RUNBOOK from '../../skills/styled-markdown-writer/assets/templates/runbook.smd';
-import T_API from '../../skills/styled-markdown-writer/assets/templates/api.smd';
-import T_STATUS from '../../skills/styled-markdown-writer/assets/templates/status-report.smd';
-import T_MEETING from '../../skills/styled-markdown-writer/assets/templates/meeting-notes.smd';
-import T_POSTMORTEM from '../../skills/styled-markdown-writer/assets/templates/postmortem.smd';
-import T_RELEASE from '../../skills/styled-markdown-writer/assets/templates/release-notes.smd';
-import T_OKRS from '../../skills/styled-markdown-writer/assets/templates/okrs.smd';
-import T_ONBOARDING from '../../skills/styled-markdown-writer/assets/templates/onboarding.smd';
-import T_TEST_PLAN from '../../skills/styled-markdown-writer/assets/templates/test-plan.smd';
-import T_PR from '../../skills/styled-markdown-writer/assets/templates/pr-description.smd';
-import T_SPEC from '../../skills/styled-markdown-writer/assets/templates/spec.smd';
-import T_PLAN from '../../skills/styled-markdown-writer/assets/templates/plan.smd';
-import T_TASKS from '../../skills/styled-markdown-writer/assets/templates/tasks.smd';
+import T_PRD from '../../skills/semantic-markdown-writer/assets/templates/prd.smd';
+import T_ADR from '../../skills/semantic-markdown-writer/assets/templates/adr.smd';
+import T_RFC from '../../skills/semantic-markdown-writer/assets/templates/rfc.smd';
+import T_RUNBOOK from '../../skills/semantic-markdown-writer/assets/templates/runbook.smd';
+import T_API from '../../skills/semantic-markdown-writer/assets/templates/api.smd';
+import T_STATUS from '../../skills/semantic-markdown-writer/assets/templates/status-report.smd';
+import T_MEETING from '../../skills/semantic-markdown-writer/assets/templates/meeting-notes.smd';
+import T_POSTMORTEM from '../../skills/semantic-markdown-writer/assets/templates/postmortem.smd';
+import T_RELEASE from '../../skills/semantic-markdown-writer/assets/templates/release-notes.smd';
+import T_OKRS from '../../skills/semantic-markdown-writer/assets/templates/okrs.smd';
+import T_ONBOARDING from '../../skills/semantic-markdown-writer/assets/templates/onboarding.smd';
+import T_TEST_PLAN from '../../skills/semantic-markdown-writer/assets/templates/test-plan.smd';
+import T_PR from '../../skills/semantic-markdown-writer/assets/templates/pr-description.smd';
+import T_SPEC from '../../skills/semantic-markdown-writer/assets/templates/spec.smd';
+import T_PLAN from '../../skills/semantic-markdown-writer/assets/templates/plan.smd';
+import T_TASKS from '../../skills/semantic-markdown-writer/assets/templates/tasks.smd';
 
 export const TEMPLATES: Record<string, { description: string; text: string }> = {
   prd: { description: 'Product requirements / feature spec', text: T_PRD },
@@ -60,12 +60,12 @@ export interface SkillBundle {
 
 export const SKILLS: SkillBundle[] = [
   {
-    name: 'styled-markdown-reader',
+    name: 'semantic-markdown-reader',
     summary: 'read .smd token-efficiently (read → sections → edit)',
     files: { 'SKILL.md': READER_SKILL, 'references/reading.md': READER_REFERENCE },
   },
   {
-    name: 'styled-markdown-writer',
+    name: 'semantic-markdown-writer',
     summary: 'create and edit .smd following the rules (templates + validator)',
     files: {
       'SKILL.md': WRITER_SKILL,

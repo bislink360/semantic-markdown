@@ -78,7 +78,7 @@ const HEADINGS: Record<IssueSyncKind, string> = {
 };
 
 export function runIssues(targets: string[], options: IssuesOptions, io: IssuesIo): number {
-  if (options.repo !== undefined && !REPO.test(options.repo)) return usage(io, `--repo needs owner/name, e.g. --repo bislink360/styled-markdown (got "${options.repo}").`);
+  if (options.repo !== undefined && !REPO.test(options.repo)) return usage(io, `--repo needs owner/name, e.g. --repo bislink360/semantic-markdown (got "${options.repo}").`);
   const files = targets.flatMap((t) => collect(t));
   if (!files.length) return usage(io, 'No .smd files found.');
   const ghProblem = checkGh(io.gh);

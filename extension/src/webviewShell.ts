@@ -1,4 +1,4 @@
-// The HTML page a Styled Markdown webview loads: a strict Content Security Policy with a fresh nonce, the
+// The HTML page a Semantic Markdown webview loads: a strict Content Security Policy with a fresh nonce, the
 // stylesheets, the body and the scripts. Shared by the preview and the Block Editor. No `vscode` import: callers
 // pass the webview's CSP source and URLs as strings, so the unit tests can check what comes out.
 import { randomBytes } from 'node:crypto';

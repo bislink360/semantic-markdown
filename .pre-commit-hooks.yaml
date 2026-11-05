@@ -2,7 +2,7 @@
 # .pre-commit-config.yaml:
 #
 #   repos:
-#     - repo: https://github.com/bislink360/styled-markdown
+#     - repo: https://github.com/bislink360/semantic-markdown
 #       rev: v1.5.0
 #       hooks:
 #         - id: smd-fmt
@@ -10,12 +10,12 @@
 #           args: [--strict]   # optional: fail on warnings too
 #
 # language: node installs the root package.json, whose only file is the bundled CLI
-# (skills/styled-markdown-reader/scripts/smd.cjs): no dependencies, nothing from the npm registry.
+# (skills/semantic-markdown-reader/scripts/smd.cjs): no dependencies, nothing from the npm registry.
 # See docs/INSTALL.md, "Pre-commit hooks".
 
 - id: smd-validate
   name: smd validate
-  description: Check staged Styled Markdown (.smd) files. Fails on errors; add args [--strict] to fail on warnings too.
+  description: Check staged Semantic Markdown (.smd) files. Fails on errors; add args [--strict] to fail on warnings too.
   entry: smd validate
   language: node
   files: '\.smd$'

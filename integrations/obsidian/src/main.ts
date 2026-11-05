@@ -18,7 +18,7 @@ import { type LineRange, RenderSync, planSection } from './sections';
 import { AGENT_BLOCK_CHOICES, type AgentBlocks, normalizeSettings, type SmdSettings } from './settings';
 
 /**
- * Styled Markdown (.smd) syntax in Obsidian's reading view:
+ * Semantic Markdown (.smd) syntax in Obsidian's reading view:
  * - `:::` containers, which span several Markdown blocks, are drawn by the section their first line is in, from that
  *   section's lines to the container's end (`getSectionInfo` gives the note's text and the section's lines); the
  *   sections inside are hidden.
@@ -28,7 +28,7 @@ import { AGENT_BLOCK_CHOICES, type AgentBlocks, normalizeSettings, type SmdSetti
  * - `.smd` files open in the Markdown view.
  * The engine runs with raw HTML off and its output goes through Obsidian's `sanitizeHTMLToDom`.
  */
-export default class StyledMarkdownPlugin extends Plugin {
+export default class SemanticMarkdownPlugin extends Plugin {
   settings: SmdSettings = normalizeSettings(undefined);
   /** The engine for notes, with the containers and directives the settings turn on. */
   private engine = new ObsidianEngine(engineOptions(this.settings));
@@ -69,7 +69,7 @@ export default class StyledMarkdownPlugin extends Plugin {
     try {
       this.registerExtensions(['smd'], 'markdown');
     } catch (e) {
-      console.warn('Styled Markdown: .smd files are already handled by another plugin.', e);
+      console.warn('Semantic Markdown: .smd files are already handled by another plugin.', e);
     }
   }
 
@@ -161,7 +161,7 @@ function containerSource(doc: NoteModel, container: LineRange): string {
 }
 
 class SmdSettingTab extends PluginSettingTab {
-  constructor(app: App, private readonly plugin: StyledMarkdownPlugin) {
+  constructor(app: App, private readonly plugin: SemanticMarkdownPlugin) {
     super(app, plugin);
   }
 

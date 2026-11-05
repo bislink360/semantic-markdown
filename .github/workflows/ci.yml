@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           if ! git diff --quiet -- ../skills ../integrations/mkdocs; then
-            echo "::error::skills/*/scripts/smd.cjs or integrations/mkdocs/mkdocs_styled_markdown/bridge.cjs is stale. Run 'npm run build' in extension/ and commit the result."
+            echo "::error::skills/*/scripts/smd.cjs or integrations/mkdocs/mkdocs_semantic_markdown/bridge.cjs is stale. Run 'npm run build' in extension/ and commit the result."
             git diff --stat -- ../skills ../integrations/mkdocs
             exit 1
           fi
@@ -165,11 +165,11 @@ jobs:
         run: ./gradlew buildPlugin verifyPluginStructure --console=plain
       - name: The zip has the plugin jar, the server and the TextMate bundle
         run: |
-          zip=$(ls build/distributions/styled-markdown-jetbrains-*.zip)
+          zip=$(ls build/distributions/semantic-markdown-jetbrains-*.zip)
           unzip -tq "$zip"
-          for file in 'lib/styled-markdown-jetbrains-[0-9.]+\.jar' server/smd.cjs bundle/package.json bundle/language-configuration.json \
+          for file in 'lib/semantic-markdown-jetbrains-[0-9.]+\.jar' server/smd.cjs bundle/package.json bundle/language-configuration.json \
             bundle/syntaxes/smd.tmLanguage.json bundle/syntaxes/markdown.tmLanguage.json bundle/syntaxes/markdown.LICENSE.txt; do
-            unzip -l "$zip" | grep -E " styled-markdown-jetbrains/$file\$" > /dev/null || { echo "::error::$zip has no $file"; exit 1; }
+            unzip -l "$zip" | grep -E " semantic-markdown-jetbrains/$file\$" > /dev/null || { echo "::error::$zip has no $file"; exit 1; }
           done
 
   # Dogfoods the GitHub Action in validate/ from this checkout with the committed bundled CLI
@@ -209,11 +209,11 @@ jobs:
       - name: Run integration tests in VS Code
         run: xvfb-run -a node test/integration/run.mjs
       - name: Package .vsix
-        run: npx vsce package --no-dependencies --out styled-markdown-ci.vsix
+        run: npx vsce package --no-dependencies --out semantic-markdown-ci.vsix
       - uses: actions/upload-artifact@v4
         with:
           name: vsix
-          path: extension/styled-markdown-ci.vsix
+          path: extension/semantic-markdown-ci.vsix
           retention-days: 7
 
   bench:

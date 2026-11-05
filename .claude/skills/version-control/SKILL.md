@@ -1,6 +1,6 @@
 ---
 name: version-control
-description: Plan and run a release train in the Styled Markdown repository. Given a list of features for a release (e.g. "1.2.0: link completion, smd fmt, mermaid diagnostics"), create the release branch and one independent branch per feature, develop each in its own worktree, merge feature PRs into the release branch, then — after the release is tagged and published — merge the release branch into main. Use this skill whenever the user gives features for a version, asks to start/plan a release or milestone (including "do the v1.2 items from the roadmap"), asks which branch to work on or where a PR should target, wants to add a feature to an in-flight release, or asks to finish/close a release. Use together with the smd-release skill, which owns compatibility checks, versioning rules and publishing.
+description: Plan and run a release train in the Semantic Markdown repository. Given a list of features for a release (e.g. "1.2.0: link completion, smd fmt, mermaid diagnostics"), create the release branch and one independent branch per feature, develop each in its own worktree, merge feature PRs into the release branch, then — after the release is tagged and published — merge the release branch into main. Use this skill whenever the user gives features for a version, asks to start/plan a release or milestone (including "do the v1.2 items from the roadmap"), asks which branch to work on or where a PR should target, wants to add a feature to an in-flight release, or asks to finish/close a release. Use together with the smd-release skill, which owns compatibility checks, versioning rules and publishing.
 ---
 
 # Version control: the release train
@@ -22,7 +22,7 @@ The compatibility gate, versioning rules, changelog format and publishing steps 
 ## 1. Plan the release from the feature list
 
 1. Pin down the version and the feature list.
-   - If the user points at the roadmap ("the v1.2 items"), read that milestone with the styled-markdown-reader skill (`smd agent ROADMAP.smd --section "v1.2…"`) and take the unchecked items.
+   - If the user points at the roadmap ("the v1.2 items"), read that milestone with the semantic-markdown-reader skill (`smd agent ROADMAP.smd --section "v1.2…"`) and take the unchecked items.
    - Group small related items into one branch per **major feature**. A branch should be one reviewable PR, one changelog bullet group, and something that can be dropped without affecting the others.
    - Name branches `feat/<slug>` (user-visible capability), `fix/<slug>` (bug), `docs/<slug>`, `perf/<slug>`, `refactor/<slug>` or `chore/<slug>`, all lowercase kebab-case.
 2. Check the version against the last tag (▶ smd-release `references/versioning.md`): new capabilities → minor, fixes only → patch, anything breaking → major.
@@ -81,7 +81,7 @@ On the release branch, once every planned feature is merged or dropped:
 4. **Tag the release branch head** (the exact commit that ships). Pushing the tag runs the Release workflow, which builds from the tag, creates the GitHub Release and publishes; then verify each registry (▶ smd-release §6–7):
 
    ```bash
-   git tag -a v1.2.0 origin/release/v1.2.0 -m "Styled Markdown 1.2.0" && git push origin v1.2.0
+   git tag -a v1.2.0 origin/release/v1.2.0 -m "Semantic Markdown 1.2.0" && git push origin v1.2.0
    ```
 
 5. Verify every registry shows the new version before calling it released (▶ smd-release §7).

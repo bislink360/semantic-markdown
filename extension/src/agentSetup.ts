@@ -3,10 +3,13 @@
 import { SHARED_CLI_PATH, type AgentTarget } from './agentTargets';
 
 /** Name of the server entry written into each config. */
-export const MCP_SERVER_NAME = 'styled-markdown';
+export const MCP_SERVER_NAME = 'semantic-markdown';
+
+/** The entry's name before 3.0 (Styled Markdown). Merging replaces it, so the same server isn't started twice. */
+export const LEGACY_MCP_SERVER_NAME = 'styled-markdown';
 
 /** Where the Claude skills put the CLI, relative to the project root. */
-export const CLAUDE_SKILL_CLI = '.claude/skills/styled-markdown-reader/scripts/smd.cjs';
+export const CLAUDE_SKILL_CLI = '.claude/skills/semantic-markdown-reader/scripts/smd.cjs';
 
 export interface McpConfigSpec {
   /** Path relative to the project root, with forward slashes. */
@@ -58,7 +61,9 @@ export function mergeMcpConfig(existing: string | undefined, spec: McpConfigSpec
       throw new McpConfigError(`${spec.file} has an unexpected shape, so it was left alone. Add this to its "${spec.key}":\n${snippet(spec)}`);
     }
   }
-  const servers = { ...(config[spec.key] as Record<string, unknown> | undefined), [MCP_SERVER_NAME]: spec.entry };
+  const servers: Record<string, unknown> = { ...(config[spec.key] as Record<string, unknown> | undefined) };
+  if (isOwnServer(servers[LEGACY_MCP_SERVER_NAME])) delete servers[LEGACY_MCP_SERVER_NAME];
+  servers[MCP_SERVER_NAME] = spec.entry;
   const indent = existing?.match(/\n([ \t]+)"/)?.[1] ?? '  ';
   const eol = existing?.includes('\r\n') ? '\r\n' : '\n';
   return JSON.stringify({ ...config, [spec.key]: servers }, null, indent).split('\n').join(eol) + eol;
@@ -66,6 +71,13 @@ export function mergeMcpConfig(existing: string | undefined, spec: McpConfigSpec
 
 function snippet(spec: McpConfigSpec): string {
   return JSON.stringify({ [MCP_SERVER_NAME]: spec.entry }, null, 2);
+}
+
+/** An entry that runs the bundled smd CLI's MCP server (`node …/smd.cjs mcp …`), as `smd init --agent` writes it. */
+function isOwnServer(entry: unknown): boolean {
+  if (!isObject(entry) || !Array.isArray(entry.args)) return false;
+  const [cli, command] = entry.args as unknown[];
+  return typeof cli === 'string' && cli.endsWith('smd.cjs') && command === 'mcp';
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

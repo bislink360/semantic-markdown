@@ -1,4 +1,4 @@
-/* Styled Markdown runtime — used by the VS Code preview and by exported HTML. */
+/* Semantic Markdown runtime — used by the VS Code preview and by exported HTML. */
 (function () {
   'use strict';
 

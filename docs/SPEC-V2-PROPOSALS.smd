@@ -1,7 +1,7 @@
 ---
 smd: 1
-title: "RFC: Styled Markdown spec v2"
-summary: The breaking changes accepted for Styled Markdown 2.0, gathered from v1.0–v1.9, with evidence, breakage, migration and the accepted decision for each. The non-breaking parts and deprecation hints ship first in 1.10.
+title: "RFC: Semantic Markdown spec v2"
+summary: The breaking changes accepted for Semantic Markdown 2.0, gathered from v1.0–v1.9, with evidence, breakage, migration and the accepted decision for each. The non-breaking parts and deprecation hints ship first in 1.10.
 status: approved
 owners: ["@roshanmadhushanka"]
 tags: [rfc, spec, v2]

@@ -61,11 +61,11 @@ test('jetbrains: the Markdown grammar copy uses its own scope throughout', () =>
 
 test('jetbrains: every file the build copies into the plugin exists', () => {
   // build.gradle.kts copies these into the plugin's server/ and bundle/ folders, with bundle/ itself.
-  for (const file of ['skills/styled-markdown-reader/scripts/smd.cjs', 'extension/language-configuration.json']) {
+  for (const file of ['skills/semantic-markdown-reader/scripts/smd.cjs', 'extension/language-configuration.json']) {
     assert.ok(existsSync(join(root, file)), `${file} is missing`);
   }
   const gradle = readFileSync(join(pluginDir, 'build.gradle.kts'), UTF8);
-  for (const copied of ['skills/styled-markdown-reader/scripts/smd.cjs', 'dir("bundle")', 'extension/language-configuration.json', 'extension/package.json']) {
+  for (const copied of ['skills/semantic-markdown-reader/scripts/smd.cjs', 'dir("bundle")', 'extension/language-configuration.json', 'extension/package.json']) {
     assert.ok(gradle.includes(copied), `build.gradle.kts no longer reads ${copied}: update this test`);
   }
 });

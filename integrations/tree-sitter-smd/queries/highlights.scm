@@ -1,4 +1,4 @@
-; Styled Markdown (.smd) highlights.
+; Semantic Markdown (.smd) highlights.
 ;
 ; These cover the syntax .smd adds. Markdown itself (headings, emphasis, links, lists…) is
 ; highlighted by the injected markdown and markdown_inline grammars (see injections.scm).

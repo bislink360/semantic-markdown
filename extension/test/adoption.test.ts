@@ -45,7 +45,7 @@ test('the report says "not listed" for a registry without the package, and why a
     openVsx: { listed: false },
     pypi: { listed: true, lastWeek: 1, lastMonth: 7 },
   });
-  assert.match(report, /^### Styled Markdown adoption, 2026-10-30\n\n\| Source \| Metric \| Value \|/);
+  assert.match(report, /^### Semantic Markdown adoption, 2026-10-30\n\n\| Source \| Metric \| Value \|/);
   assert.match(report, /\| GitHub \| — \| unavailable: gh: not logged in \\\| try gh auth login \|/);
   assert.match(report, /\| npm \| — \| not listed \|/);
   assert.match(report, /\| Open VSX \| — \| not listed \|/);

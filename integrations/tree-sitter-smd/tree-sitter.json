@@ -4,13 +4,13 @@
     {
       "name": "smd",
       "camelcase": "Smd",
-      "title": "Styled Markdown",
+      "title": "Semantic Markdown",
       "scope": "text.smd",
       "path": ".",
       "file-types": [
         "smd"
       ],
-      "injection-regex": "^(smd|styled-markdown)$",
+      "injection-regex": "^(smd|semantic-markdown)$",
       "highlights": "queries/highlights.scm",
       "injections": "queries/injections.scm"
     }
@@ -18,14 +18,14 @@
   "metadata": {
     "version": "1.7.0",
     "license": "MIT",
-    "description": "Styled Markdown (.smd) grammar for tree-sitter: the syntax .smd adds to Markdown",
+    "description": "Semantic Markdown (.smd) grammar for tree-sitter: the syntax .smd adds to Markdown",
     "authors": [
       {
         "name": "Roshan Alwis"
       }
     ],
     "links": {
-      "repository": "https://github.com/bislink360/styled-markdown"
+      "repository": "https://github.com/bislink360/semantic-markdown"
     }
   },
   "bindings": {
