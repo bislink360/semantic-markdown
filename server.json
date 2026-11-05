@@ -9,13 +9,13 @@
     "source": "github",
     "subfolder": "npm"
   },
-  "version": "2.6.0",
+  "version": "3.0.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "styled-markdown",
-      "version": "2.6.0",
+      "version": "3.0.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

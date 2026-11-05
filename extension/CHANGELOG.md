@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.0 — 2026-11-05
+
+### ⚠️ Breaking changes
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Fixed
+
 ## 2.6.0 — 2026-10-31
 
 Collaboration, step one: with `smd merge` set up as a Git merge driver (`smd merge --install`), two branches that edit different blocks, list items, table rows or front matter keys of one `.smd` document no longer conflict. Also new: the release workflow can publish the JetBrains plugin, and the README opens with a recording of the playground. No breaking changes: documents, commands, flags, settings, skills and library exports from 2.5.1 keep working.
