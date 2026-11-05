@@ -18,6 +18,10 @@ export interface BuildOptions {
   out: string;
   title?: string;
   base?: string;
+  /** The site's public address, for canonical links and sitemap.xml (see SiteOptions.url). */
+  url?: string;
+  /** The link-preview image (see SiteOptions.image). */
+  image?: string;
   today?: string;
   /** Language of the site's labels, and of documents without a `lang:` (default: the home document's, else English). */
   lang?: string;
@@ -42,7 +46,7 @@ export function runBuild(options: BuildOptions, io: BuildIo): number {
   if (!sources.length) return usage(io, `No ${options.md ? '.smd or .md' : '.smd'} files found in ${options.dir}.`);
   if (options.clean && previous) removeFiles(out, previous);
   const site = buildSite(sources, {
-    title: options.title, base: options.base, today: options.today, lang: options.lang, readFile: (source) => readerFor(path.join(dir, source)),
+    title: options.title, base: options.base, url: options.url, image: options.image, today: options.today, lang: options.lang, readFile: (source) => readerFor(path.join(dir, source)),
   });
   const written = writeSite(out, site);
   const copied = copyAssets(dir, out, site.assets);

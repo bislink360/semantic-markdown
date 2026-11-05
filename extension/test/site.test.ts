@@ -10,6 +10,7 @@ import { dashboardHtml } from '../src/core/siteDashboard';
 import { joinPath, linker, normalizeBase, pageOutput, relativeHref, rewriteLinks, siteBacklinks } from '../src/core/siteLinks';
 import { breadcrumbsHtml, navOrder, navTree, pagerHtml, sidebarHtml, type SitePage } from '../src/core/siteNav';
 import { excerpt, searchDoc, searchIndexScript } from '../src/core/siteSearch';
+import { headMetaHtml, imageUrl, llmsTxt, pageUrl, plainDescription, robotsTxt, sitemapXml, siteUrl } from '../src/core/siteMeta';
 import { renderSmd } from '../src/core/render';
 import { collectSources, isInside, outProblem, previousBuild, removeFiles, runBuild, SITE_MARKER } from '../src/siteBuild';
 
@@ -248,7 +249,7 @@ test('buildSite renders every document into the site layout with shared assets',
   const paths = site.files.map((f) => f.path).sort();
   assert.deepEqual(paths, [
     '_smd/runtime.js', '_smd/search-index.js', '_smd/site.css', '_smd/site.js', '_smd/smd.css',
-    'dashboard.html', 'guide/setup.html', 'index.html', 'smd-dashboard.html',
+    'dashboard.html', 'guide/setup.html', 'index.html', 'llms.txt', 'smd-dashboard.html',
   ]);
   assert.deepEqual(site.skipped, ['_smd/oops.smd', 'guide/setup.md']);
   assert.deepEqual(site.assets, ['img/logo.png']);
@@ -292,6 +293,84 @@ test('buildSite generates a home index when there is no index or README, and abs
   assert.match(fileOf(site, 'guide/a.html'), /href="\/docs\/b\.html">beta<\/a>/);
   assert.match(fileOf(site, 'guide/a.html'), /data-smd-root="\/docs\/"/);
   assert.deepEqual(site.pages.map((p) => p.output), ['index.html', 'b.html', 'guide/a.html']);
+});
+
+test('siteMeta: public address, page URLs, images, descriptions, sitemap and robots.txt', () => {
+  assert.equal(siteUrl(undefined, '/docs/'), undefined, 'a path is not a public address');
+  assert.equal(siteUrl(undefined, 'https://x.dev/docs'), 'https://x.dev/docs/', 'an absolute --base is one');
+  assert.equal(siteUrl('https://y.dev', 'https://x.dev/docs/'), 'https://y.dev/', '--url wins');
+  assert.equal(siteUrl('ftp://y.dev', undefined), undefined);
+  assert.equal(pageUrl('https://x.dev/', 'index.html'), 'https://x.dev/');
+  assert.equal(pageUrl('https://x.dev/', 'guide/index.html'), 'https://x.dev/guide/');
+  assert.equal(pageUrl('https://x.dev/', 'guide/my page.html'), 'https://x.dev/guide/my%20page.html');
+  assert.equal(pageUrl('https://x.dev/', 'myindex.html'), 'https://x.dev/myindex.html');
+  assert.equal(imageUrl('img/card.png', 'https://x.dev/d/'), 'https://x.dev/d/img/card.png');
+  assert.equal(imageUrl('https://cdn.dev/c.png', undefined), 'https://cdn.dev/c.png');
+  assert.equal(imageUrl('img/card.png', undefined), undefined, 'og:image must be absolute');
+  assert.equal(plainDescription('  Two\n  lines. '), 'Two lines.');
+  assert.equal(plainDescription(null), undefined);
+  assert.equal(sitemapXml('https://x.dev/', [{ source: 'a.smd', output: 'a&b.html', title: 'A' }]),
+    '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://x.dev/a%26b.html</loc></url>\n</urlset>\n');
+  assert.equal(robotsTxt('https://x.dev/'), 'User-agent: *\nAllow: /\n\nSitemap: https://x.dev/sitemap.xml\n');
+  assert.equal(robotsTxt('https://user.github.io/project/'), undefined, 'crawlers read robots.txt only at the root of a host');
+});
+
+test('siteMeta: head tags are escaped, and the card is large only with an image', () => {
+  const head = headMetaHtml({ title: 'A "B"', siteTitle: 'S<x>', description: 'D & E', url: 'https://x.dev/a.html', image: 'https://x.dev/c.png' });
+  assert.equal(head, [
+    '<meta name="description" content="D &amp; E">',
+    '<link rel="canonical" href="https://x.dev/a.html">',
+    '<meta property="og:type" content="website">',
+    '<meta property="og:site_name" content="S&lt;x&gt;">',
+    '<meta property="og:title" content="A &quot;B&quot;">',
+    '<meta property="og:description" content="D &amp; E">',
+    '<meta property="og:url" content="https://x.dev/a.html">',
+    '<meta property="og:image" content="https://x.dev/c.png">',
+    '<meta name="twitter:card" content="summary_large_image">',
+  ].join('\n') + '\n');
+  const bare = headMetaHtml({ title: 'A', siteTitle: 'S' });
+  assert.doesNotMatch(bare, /description|canonical|og:url|og:image/);
+  assert.match(bare, /twitter:card" content="summary"/);
+  assert.equal(llmsTxt('T', 'Sum\nmary.', [{ title: 'A [x]', href: 'a.html', summary: 'About A.' }, { title: 'B', href: 'b.html' }]),
+    '# T\n\n> Sum mary.\n\n## Documents\n\n- [A \\[x\\]](a.html): About A.\n- [B](b.html)\n');
+});
+
+test('buildSite writes descriptions, canonical links, sitemap.xml and llms.txt for a site with a public address', () => {
+  const docs: SiteSource[] = [
+    { path: 'index.smd', text: '---\ntitle: Markdown for agents\nsummary: The home page.\n---\nHello.\n' },
+    { path: 'guide/setup.smd', text: '---\ntitle: Setup\nsummary: Install it.\n---\n## Install\n' },
+    { path: 'guide/notes.smd', text: '# Notes\n' },
+  ];
+  const site = buildSite(docs, { title: 'Site', url: 'https://x.dev/docs', image: 'card.png', assets });
+  const home = fileOf(site, 'index.html');
+  assert.match(home, /<title>Site · Markdown for agents<\/title>/, 'a home title other than the site title is kept');
+  assert.match(home, /<meta name="description" content="The home page\.">/);
+  assert.match(home, /<link rel="canonical" href="https:\/\/x\.dev\/docs\/">/);
+  assert.match(home, /<meta property="og:title" content="Site">/);
+  assert.match(home, /<meta property="og:image" content="https:\/\/x\.dev\/docs\/card\.png">/);
+  assert.match(home, /<link rel="stylesheet" href="_smd\/smd\.css">/, '--url leaves links relative');
+  const setup = fileOf(site, 'guide/setup.html');
+  assert.match(setup, /<meta name="description" content="Install it\.">/);
+  assert.match(setup, /<meta property="og:url" content="https:\/\/x\.dev\/docs\/guide\/setup\.html">/);
+  assert.doesNotMatch(fileOf(site, 'guide/notes.html'), /name="description"/, 'no summary, no description');
+  assert.match(fileOf(site, 'sitemap.xml'), /<loc>https:\/\/x\.dev\/docs\/<\/loc>[\s\S]*<loc>https:\/\/x\.dev\/docs\/guide\/setup\.html<\/loc>/);
+  assert.doesNotMatch(fileOf(site, 'sitemap.xml'), /dashboard/);
+  assert.equal(site.files.some((f) => f.path === 'robots.txt'), false, 'not at the root of the host');
+  assert.equal(fileOf(site, 'llms.txt'), '# Site\n\n> The home page.\n\n## Documents\n\n'
+    + '- [Markdown for agents](https://x.dev/docs/): The home page.\n'
+    + '- [Notes](https://x.dev/docs/guide/notes.html)\n'
+    + '- [Setup](https://x.dev/docs/guide/setup.html): Install it.\n');
+
+  const local = buildSite(docs, { assets });
+  assert.match(fileOf(local, 'index.html'), /<title>Markdown for agents<\/title>/);
+  assert.doesNotMatch(fileOf(local, 'index.html'), /canonical|og:url/);
+  assert.equal(local.files.some((f) => f.path === 'sitemap.xml'), false, 'a sitemap needs absolute URLs');
+  assert.match(fileOf(local, 'llms.txt'), /- \[Setup\]\(guide\/setup\.html\): Install it\./);
+  const rooted = buildSite(docs, { base: 'https://x.dev/', assets });
+  assert.match(fileOf(rooted, 'robots.txt'), /Sitemap: https:\/\/x\.dev\/sitemap\.xml/);
+  const linked = buildSite([{ path: 'index.smd', text: '# Home\n\n[ours](llms.txt)\n' }], { assets });
+  assert.deepEqual(linked.assets, ['llms.txt']);
+  assert.equal(linked.files.some((f) => f.path === 'llms.txt'), false, "the documents' own llms.txt wins");
 });
 
 // ---------------------------------------------------------------------------

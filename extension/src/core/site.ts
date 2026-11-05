@@ -5,6 +5,7 @@ import { documentLanguage, isEnglishMessages, label, messagesFor, siteScriptLabe
 import { renderSmd, type Heading } from './render';
 import { dashboardHtml } from './siteDashboard';
 import { linker as makeLinker, PAGE_SOURCE, pageOutput, rewriteLinks, siteBacklinks, type Linker } from './siteLinks';
+import { headMetaHtml, imageUrl, llmsTxt, pageUrl, plainDescription, robotsTxt, sitemapXml, siteUrl } from './siteMeta';
 import { breadcrumbsHtml, folderTitle, navOrder, navTree, pagerHtml, sidebarHtml, type NavFolder, type SitePage } from './siteNav';
 import { searchDoc, searchIndexScript } from './siteSearch';
 import { STATUS_VALUES } from './spec';
@@ -36,6 +37,14 @@ export interface SiteOptions {
    * of their own: a BCP 47 tag such as `de`. Default: the home document's `lang`, else English.
    */
   lang?: string;
+  /**
+   * The site's public address, such as `https://example.com/docs/`, for canonical links, `og:url` and
+   * `sitemap.xml` (and `robots.txt` at the root of a host). Links between pages stay as `base` makes them.
+   * Default: `base` when it is an absolute `http(s)` URL, else none.
+   */
+  url?: string;
+  /** The image link previews show (`og:image`): an absolute URL, or a path resolved against `url`. */
+  image?: string;
 }
 
 /** A file of the site: `path` relative to the site folder. */
@@ -77,6 +86,9 @@ interface Site {
   /** The site's language tag, and its labels. */
   lang: string;
   m: Messages;
+  /** The public address (ends in `/`) and the social image, when known. */
+  url?: string;
+  image?: string;
 }
 
 /** Build the site: every document rendered, linked and wrapped in the site's navigation. */
@@ -97,8 +109,10 @@ export function buildSite(sources: SiteSource[], options: SiteOptions = {}): Sit
   const dashboard: SitePage = { source: '', output: dashboardOutput, title: m['site.dashboard'] };
   const home: SitePage = homePage ?? { source: '', output: 'index.html', title };
   const tree = navTree(pages, homePage);
+  const url = siteUrl(options.url, options.base);
   const site: Site = {
     title, home, dashboard, tree, order: navOrder(tree, home), linker, assets: { ...defaultAssets(), ...options.assets }, lang, m,
+    url, image: imageUrl(options.image, url),
   };
   const backlinks = siteBacklinks(chosen);
   const bySource = new Map(pages.map((p) => [p.source, p]));
@@ -108,7 +122,22 @@ export function buildSite(sources: SiteSource[], options: SiteOptions = {}): Sit
   if (!homePage) files.push({ path: home.output, content: pageShell(site, home, homeIndexHtml(site), '') });
   const dashboardBody = dashboardHtml(pages, { linker, output: dashboard.output, today: options.today, messages: m });
   files.push({ path: dashboard.output, content: pageShell(site, dashboard, dashboardBody, '') }, ...assetFiles(site, pages, options.today));
+  // A file of the same name among the documents' linked files wins over the generated one.
+  files.push(...discoveryFiles(site).filter((f) => !assets.has(f.path)));
   return { files, assets: [...assets].sort(compareText), pages: site.order, skipped };
+}
+
+/** `llms.txt` always; `sitemap.xml` and `robots.txt` when the site's public address is known. */
+function discoveryFiles(site: Site): SiteFile[] {
+  const documents = site.order.filter((p) => p.source);
+  const href = (p: SitePage) => (site.url ? pageUrl(site.url, p.output) : site.linker.href('index.html', p.output));
+  const llmsPages = documents.map((p) => ({ title: p.title, href: href(p), summary: plainDescription(p.summary) }));
+  const files: SiteFile[] = [{ path: 'llms.txt', content: llmsTxt(site.title, plainDescription(site.home.summary), llmsPages) }];
+  if (!site.url) return files;
+  files.push({ path: 'sitemap.xml', content: sitemapXml(site.url, documents.length ? documents : [site.home]) });
+  const robots = robotsTxt(site.url);
+  if (robots) files.push({ path: 'robots.txt', content: robots });
+  return files;
 }
 
 function defaultAssets(): SiteAssets {
@@ -235,7 +264,14 @@ function pageShell(site: Site, page: SitePage, body: string, backlinks: string, 
   const theme = shell.theme ?? 'auto';
   const href = (to: string) => escapeHtml(site.linker.href(page.output, to));
   const root = escapeHtml(site.linker.href(page.output, 'index.html').replace(/index\.html$/, ''));
-  const title = page === site.home ? site.title : `${page.title} · ${site.title}`;
+  const title = shellTitle(site, page);
+  const meta = headMetaHtml({
+    title: page === site.home ? site.title : page.title,
+    siteTitle: site.title,
+    description: plainDescription(page.summary),
+    url: site.url ? pageUrl(site.url, page.output) : undefined,
+    image: site.image,
+  });
   const katex = body.includes('class="katex') ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">\n' : '';
   const mermaid = body.includes('class="smd-mermaid"') ? '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>\n' : '';
   return `<!DOCTYPE html>
@@ -245,7 +281,7 @@ function pageShell(site: Site, page: SitePage, body: string, backlinks: string, 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Semantic Markdown">
 <title>${escapeHtml(title)}</title>
-${katex}<link rel="stylesheet" href="${href(`${ASSET_DIR}/smd.css`)}">
+${meta}${katex}<link rel="stylesheet" href="${href(`${ASSET_DIR}/smd.css`)}">
 <link rel="stylesheet" href="${href(`${ASSET_DIR}/site.css`)}">
 </head>
 <body class="smd-body smd-site" data-smd-root="${root}"${siteLabels(m)}>
@@ -269,6 +305,15 @@ ${mermaid}<script src="${href(`${ASSET_DIR}/runtime.js`)}"></script>
 </body>
 </html>
 `;
+}
+
+/**
+ * The `<title>`: `Page · Site`; the home page is the site title, followed by its own title when that differs
+ * (a site titled with `--title` whose home document has a longer title: `Site · Home title`).
+ */
+function shellTitle(site: Site, page: SitePage): string {
+  if (page !== site.home) return `${page.title} · ${site.title}`;
+  return page.source && page.title !== site.title ? `${site.title} · ${page.title}` : site.title;
 }
 
 /** Byte-order comparison, so the order doesn't depend on the locale. */
