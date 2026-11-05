@@ -1,4 +1,4 @@
-/* Styled Markdown in VS Code's built-in Markdown preview (.md files): theme colors and Mermaid diagrams. */
+/* Semantic Markdown in VS Code's built-in Markdown preview (.md files): theme colors and Mermaid diagrams. */
 (function () {
   'use strict';
 

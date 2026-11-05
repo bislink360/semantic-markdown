@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Styled Markdown release gate.
+// Semantic Markdown release gate.
 //
 // Compares the working tree with the last released tag across every public surface
 // (format vocabulary, validation, rendering, agent view, CLI, npm API, VS Code manifest,

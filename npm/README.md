@@ -1,25 +1,25 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/bislink360/styled-markdown/main/docs/images/icon.png" width="96" alt="Styled Markdown">
+  <img src="https://raw.githubusercontent.com/bislink360/semantic-markdown/main/docs/images/icon.png" width="96" alt="Semantic Markdown">
 </p>
 
-# styled-markdown
+# semantic-markdown
 
-**Styled Markdown (`.smd`)** is Markdown for developers, product managers and AI agents: callouts, colors, diagrams, decisions, risks, API blocks, KPIs and audience-aware content, with validation and token-efficient **agent views**.
+**Semantic Markdown (`.smd`)** is Markdown for developers, product managers and AI agents: callouts, colors, diagrams, decisions, risks, API blocks, KPIs and audience-aware content, with validation and token-efficient **agent views**.
 
 This package provides the complete engine as a **library** and the **`smd` CLI**, with **zero runtime dependencies**.
 
-![Rendered Styled Markdown](https://raw.githubusercontent.com/bislink360/styled-markdown/main/docs/images/01-overview.png)
+![Rendered Semantic Markdown](https://raw.githubusercontent.com/bislink360/semantic-markdown/main/docs/images/01-overview.png)
 
 - 📦 One install gives you the render, validate, fix, convert, agent-view, outline and task-extraction tools
 - 🧩 CommonJS + ESM + TypeScript types; runs in Node 22+ and in bundlers/browsers (the library has no `fs` dependency)
-- 🤖 Built for LLM pipelines: `agentView()` cuts 5–37% of tokens from a whole document while keeping meaning, and about 80% when an agent reads only the section it needs ([measured](https://github.com/bislink360/styled-markdown/blob/main/docs/TOKENS.md))
+- 🤖 Built for LLM pipelines: `agentView()` cuts 5–37% of tokens from a whole document while keeping meaning, and about 80% when an agent reads only the section it needs ([measured](https://github.com/bislink360/semantic-markdown/blob/main/docs/TOKENS.md))
 
 ## Install
 
 ```bash
-npm install styled-markdown        # library + local `smd` command
-npm install -g styled-markdown     # global `smd` command
-npx styled-markdown --help         # run without installing
+npm install semantic-markdown        # library + local `smd` command
+npm install -g semantic-markdown     # global `smd` command
+npx semantic-markdown --help         # run without installing
 ```
 
 ## CLI
@@ -59,7 +59,7 @@ smd lsp --stdio                       # language server for Neovim, Helix, Zed�
 
 Run `smd --help` for every option. The export commands before 2.0, `smd render`, `smd to-md`, `smd pdf` and `smd docx`, still work as before.
 
-The package also installs **`smd-language-server`**, the same as `smd lsp`: point your editor's LSP client at `smd-language-server --stdio` for `.smd` files to get diagnostics with quick fixes, the outline, symbol search, hover, completion, go to definition and formatting. Setups for Neovim, Helix and Zed: [editor guide](https://github.com/bislink360/styled-markdown/blob/main/docs/EDITORS.md).
+The package also installs **`smd-language-server`**, the same as `smd lsp`: point your editor's LSP client at `smd-language-server --stdio` for `.smd` files to get diagnostics with quick fixes, the outline, symbol search, hover, completion, go to definition and formatting. Setups for Neovim, Helix and Zed: [editor guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/EDITORS.md).
 
 ## Library
 
@@ -70,7 +70,7 @@ import {
   querySmd, indexEntry, smdIndex, diffSmd, formatSmd,
   decisionLog, decisionLogMarkdown, statusChanges, statusReportMarkdown, statusReport,
   riskRegister, riskRegisterText, renderRiskPage, buildSite,
-} from 'styled-markdown';
+} from 'semantic-markdown';
 ```
 
 ### Render
@@ -92,16 +92,16 @@ LATEST_SPEC;                                 // 2: the newest spec version this 
 const page = renderPage(source);
 ```
 
-The front matter JSON Schema is at `styled-markdown/frontmatter.schema.json`, and `FRONTMATTER_SCHEMA` exports the same object. Style fragments with the bundled stylesheet: `import 'styled-markdown/smd.css'`. Diagrams render client-side with [Mermaid](https://mermaid.js.org), and math server-side with KaTeX (include KaTeX's CSS).
+The front matter JSON Schema is at `semantic-markdown/frontmatter.schema.json`, and `FRONTMATTER_SCHEMA` exports the same object. Style fragments with the bundled stylesheet: `import 'semantic-markdown/smd.css'`. Diagrams render client-side with [Mermaid](https://mermaid.js.org), and math server-side with KaTeX (include KaTeX's CSS).
 
 ### markdown-it plugin
 
-Already render Markdown with [markdown-it](https://github.com/markdown-it/markdown-it) (a docs site, a static site generator, a chat UI)? Add `.smd` syntax to your own instance with the `styled-markdown/markdown-it` plugin. It works with markdown-it 13 and 14, which you provide (an optional peer dependency; the package still has no runtime dependencies):
+Already render Markdown with [markdown-it](https://github.com/markdown-it/markdown-it) (a docs site, a static site generator, a chat UI)? Add `.smd` syntax to your own instance with the `semantic-markdown/markdown-it` plugin. It works with markdown-it 13 and 14, which you provide (an optional peer dependency; the package still has no runtime dependencies):
 
 ```ts
 import MarkdownIt from 'markdown-it';
-import smd from 'styled-markdown/markdown-it';   // CommonJS: const smd = require('styled-markdown/markdown-it');
-import 'styled-markdown/smd.css';                 // or <link rel="stylesheet" href="…/styled-markdown/dist/smd.css">
+import smd from 'semantic-markdown/markdown-it';   // CommonJS: const smd = require('semantic-markdown/markdown-it');
+import 'semantic-markdown/smd.css';                 // or <link rel="stylesheet" href="…/semantic-markdown/dist/smd.css">
 
 const md = new MarkdownIt({ linkify: true }).use(smd);
 
@@ -155,14 +155,14 @@ Each rule is named `smd_…`, so `md.disable('smd_mark')` turns a single one off
 
 ### remark and rehype plugins (Astro, Docusaurus, Next.js)
 
-`styled-markdown/remark` renders the whole file with `renderSmd` and replaces the Markdown tree with the resulting HTML, so every `.smd` construct looks exactly as it does with `smd export --to html`. `styled-markdown/rehype` does the same for pipelines that only take rehype plugins. Neither imports anything from unified: the package still has zero dependencies.
+`semantic-markdown/remark` renders the whole file with `renderSmd` and replaces the Markdown tree with the resulting HTML, so every `.smd` construct looks exactly as it does with `smd export --to html`. `semantic-markdown/rehype` does the same for pipelines that only take rehype plugins. Neither imports anything from unified: the package still has zero dependencies.
 
 ```js
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
-import { remarkSmd } from 'styled-markdown/remark';
+import { remarkSmd } from 'semantic-markdown/remark';
 
 const file = await unified()
   .use(remarkParse)
@@ -184,7 +184,7 @@ file.data.smd;          // { frontMatter, headings, spec }
 
 **Front matter.** When the source still starts with `---` (plain unified, with or without remark-frontmatter), the plugin reads it like `renderSmd`. When the host removed it first, the plugin looks for the parsed data in `file.data.astro.frontmatter` (Astro), `file.data.matter` (vfile-matter) or `file.data.frontmatter`, or uses your `frontMatter` option. Front matter nodes (`yaml`, `toml`) and MDX `import`/`export` nodes stay in the tree.
 
-**What the page needs.** The stylesheet (`styled-markdown/smd.css`), KaTeX's CSS when documents have math (rendered at build time), and for Mermaid diagrams, tabs and copy buttons the Mermaid script plus the runtime that `smd export --to html` inlines (`SMD_RUNTIME_JS` from `styled-markdown`). The runtime hydrates the page once on load. Without it, diagrams show their source and tab panes are stacked under their labels.
+**What the page needs.** The stylesheet (`semantic-markdown/smd.css`), KaTeX's CSS when documents have math (rendered at build time), and for Mermaid diagrams, tabs and copy buttons the Mermaid script plus the runtime that `smd export --to html` inlines (`SMD_RUNTIME_JS` from `semantic-markdown`). The runtime hydrates the page once on load. Without it, diagrams show their source and tab panes are stacked under their labels.
 
 | Host | Status | Notes |
 |---|---|---|
@@ -197,23 +197,23 @@ file.data.smd;          // { frontMatter, headings, spec }
 ```js
 // astro.config.mjs
 import { defineConfig } from 'astro/config';
-import { remarkSmd } from 'styled-markdown/remark';
+import { remarkSmd } from 'semantic-markdown/remark';
 
 export default defineConfig({
   markdown: { remarkPlugins: [[remarkSmd, { test: /[\\/]docs[\\/]/, header: false }]] },
 });
-// in the layout: import 'styled-markdown/smd.css';
+// in the layout: import 'semantic-markdown/smd.css';
 ```
 
 ```js
 // docusaurus.config.js
-const { remarkSmd } = require('styled-markdown/remark');
+const { remarkSmd } = require('semantic-markdown/remark');
 
 module.exports = {
   markdown: { format: 'detect' },   // .md = CommonMark, .mdx = MDX
   presets: [['classic', {
     docs: { remarkPlugins: [[remarkSmd, { header: false }]] },
-    theme: { customCss: [require.resolve('styled-markdown/smd.css')] },
+    theme: { customCss: [require.resolve('semantic-markdown/smd.css')] },
   }]],
 };
 ```
@@ -221,8 +221,8 @@ module.exports = {
 ```tsx
 // Next.js (App Router): app/docs/spec/page.tsx
 import { readFile } from 'node:fs/promises';
-import { renderSmd } from 'styled-markdown';
-import 'styled-markdown/smd.css';
+import { renderSmd } from 'semantic-markdown';
+import 'semantic-markdown/smd.css';
 
 export default async function Page() {
   const { html } = renderSmd(await readFile('docs/spec.smd', 'utf8'));
@@ -234,14 +234,14 @@ export default async function Page() {
 // next.config.mjs, with @next/mdx and rehype-raw installed (pages written as .md)
 import createMDX from '@next/mdx';
 import rehypeRaw from 'rehype-raw';
-import { remarkSmd } from 'styled-markdown/remark';
+import { remarkSmd } from 'semantic-markdown/remark';
 
 const withMDX = createMDX({
   extension: /\.mdx?$/,
   options: { format: 'detect', remarkPlugins: [remarkSmd], rehypePlugins: [rehypeRaw] },
 });
 export default withMDX({ pageExtensions: ['ts', 'tsx', 'md', 'mdx'] });
-// Turbopack takes plugins by name instead: remarkPlugins: ['styled-markdown/remark'] (default export)
+// Turbopack takes plugins by name instead: remarkPlugins: ['semantic-markdown/remark'] (default export)
 ```
 
 ### Validate and fix
@@ -255,7 +255,7 @@ const diagnostics = validateSmd(source, { fileExists: (p) => fs.existsSync(p) })
 const { text, applied } = applyFixes(source, diagnostics);
 ```
 
-Every diagnostic has a stable `code` (`container/unclosed`, `attrs/value`, `mermaid/type`, `task/overdue`, …). They're listed in the [specification](https://github.com/bislink360/styled-markdown/blob/main/docs/SPEC.md#7-validation-rules).
+Every diagnostic has a stable `code` (`container/unclosed`, `attrs/value`, `mermaid/type`, `task/overdue`, …). They're listed in the [specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md#7-validation-rules).
 
 ```ts
 // Turn rules off or change their severity, by code, category or '*'; the most specific key wins.
@@ -406,8 +406,8 @@ People read this; agents skip it.
 
 ## More
 
-- **VS Code extension:** live preview, Block Editor, validation, IntelliSense and agent view. Install **Styled Markdown** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.styled-markdown), or `styled-markdown-X.Y.Z.vsix` from the [latest GitHub release](https://github.com/bislink360/styled-markdown/releases/latest) for Cursor, VSCodium and Windsurf (the Open VSX listing is coming); see the [install guide](https://github.com/bislink360/styled-markdown/blob/main/docs/INSTALL.md).
-- **AI agent skills** for Claude and other agents: [skills guide](https://github.com/bislink360/styled-markdown/blob/main/docs/SKILLS.md)
-- [Feature guide](https://github.com/bislink360/styled-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/styled-markdown/blob/main/docs/SPEC.md) · [Examples](https://github.com/bislink360/styled-markdown/tree/main/examples)
+- **VS Code extension:** live preview, Block Editor, validation, IntelliSense and agent view. Install **Semantic Markdown** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.semantic-markdown), or `semantic-markdown-X.Y.Z.vsix` from the [latest GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) for Cursor, VSCodium and Windsurf (the Open VSX listing is coming); see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md).
+- **AI agent skills** for Claude and other agents: [skills guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/SKILLS.md)
+- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md) · [Examples](https://github.com/bislink360/semantic-markdown/tree/main/examples)
 
 Author: **Roshan Alwis** · License: MIT

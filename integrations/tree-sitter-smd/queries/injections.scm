@@ -1,4 +1,4 @@
-; Styled Markdown (.smd) injections.
+; Semantic Markdown (.smd) injections.
 ;
 ; Markdown: every line the .smd grammar does not parse itself, as one combined document, so
 ; paragraphs, lists and headings work across lines. The .smd constructs inside a line (directives,

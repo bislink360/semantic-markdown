@@ -468,10 +468,10 @@ const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: skills install writes both self-contained skills', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'smd-skill-'));
   execFileSync(process.execPath, [cli, 'skills', 'install', '--dir', dir]);
-  const reader = join(dir, 'styled-markdown-reader');
-  const writer = join(dir, 'styled-markdown-writer');
-  assert.match(readFileSync(join(reader, 'SKILL.md'), 'utf8'), /^---\r?\nname: styled-markdown-reader\r?\n/);
-  assert.match(readFileSync(join(writer, 'SKILL.md'), 'utf8'), /^---\r?\nname: styled-markdown-writer\r?\n/);
+  const reader = join(dir, 'semantic-markdown-reader');
+  const writer = join(dir, 'semantic-markdown-writer');
+  assert.match(readFileSync(join(reader, 'SKILL.md'), 'utf8'), /^---\r?\nname: semantic-markdown-reader\r?\n/);
+  assert.match(readFileSync(join(writer, 'SKILL.md'), 'utf8'), /^---\r?\nname: semantic-markdown-writer\r?\n/);
   for (const f of ['references/syntax.md', 'references/syntax/basics.md', 'references/style-guide.md', 'assets/templates/prd.smd', 'scripts/smd.cjs']) {
     assert.ok(existsSync(join(writer, f)), f);
   }
@@ -480,7 +480,7 @@ test('CLI: skills install writes both self-contained skills', { skip: !existsSyn
   const repoSkills = join(__dirname, '..', '..', 'skills');
   const walk = (dir: string, rel = ''): string[] => readdirSync(join(dir, rel), { withFileTypes: true })
     .flatMap((e) => (e.isDirectory() ? walk(dir, join(rel, e.name)) : [join(rel, e.name)]));
-  for (const name of ['styled-markdown-reader', 'styled-markdown-writer']) {
+  for (const name of ['semantic-markdown-reader', 'semantic-markdown-writer']) {
     for (const f of walk(join(repoSkills, name)).filter((p) => !p.startsWith('scripts'))) {
       assert.equal(readFileSync(join(dir, name, f), 'utf8'), readFileSync(join(repoSkills, name, f), 'utf8'), `${name}/${f}`);
     }
@@ -490,7 +490,7 @@ test('CLI: skills install writes both self-contained skills', { skip: !existsSyn
 });
 
 test('every template produces a valid document', () => {
-  const dir = join(__dirname, '..', '..', 'skills', 'styled-markdown-writer', 'assets', 'templates');
+  const dir = join(__dirname, '..', '..', 'skills', 'semantic-markdown-writer', 'assets', 'templates');
   const names = readdirSync(dir);
   assert.equal(names.length, 16);
   for (const name of names) {

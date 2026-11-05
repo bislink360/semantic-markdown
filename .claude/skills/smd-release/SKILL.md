@@ -1,17 +1,17 @@
 ---
 name: smd-release
-description: Branch, version, verify and publish Styled Markdown releases (VS Code extension, npm package `styled-markdown`, agent skills, GitHub release) without breaking existing users. Use this skill for any change destined for the public bislink360/styled-markdown repository — starting a feature or fix branch, preparing or reviewing a pull request, bumping versions, writing the changelog, checking backward compatibility, tagging, or publishing to the VS Code Marketplace, Open VSX, npm or GitHub Releases (the tag-triggered Release workflow) — even if the user just says "ship it", "release this", "bump the version", "merge this" or "publish".
+description: Branch, version, verify and publish Semantic Markdown releases (VS Code extension, npm package `semantic-markdown`, agent skills, GitHub release) without breaking existing users. Use this skill for any change destined for the public bislink360/semantic-markdown repository — starting a feature or fix branch, preparing or reviewing a pull request, bumping versions, writing the changelog, checking backward compatibility, tagging, or publishing to the VS Code Marketplace, Open VSX, npm or GitHub Releases (the tag-triggered Release workflow) — even if the user just says "ship it", "release this", "bump the version", "merge this" or "publish".
 ---
 
-# Releasing Styled Markdown
+# Releasing Semantic Markdown
 
 One repository ships four artifacts that must stay in lockstep:
 
 | Artifact | Where | Version source |
 |---|---|---|
-| VS Code extension `bislink360.styled-markdown` | VS Code Marketplace, Open VSX + `.vsix` on GitHub Releases | `extension/package.json` |
-| npm package `styled-markdown` (library + `smd` CLI) | npmjs.com | `npm/package.json` (same version) |
-| Agent skills `styled-markdown-reader` / `-writer` | `skills/`, zips on GitHub Releases | bundle the CLI, so they follow the same version |
+| VS Code extension `bislink360.semantic-markdown` | VS Code Marketplace, Open VSX + `.vsix` on GitHub Releases | `extension/package.json` |
+| npm package `semantic-markdown` (library + `smd` CLI) | npmjs.com | `npm/package.json` (same version) |
+| Agent skills `semantic-markdown-reader` / `-writer` | `skills/`, zips on GitHub Releases | bundle the CLI, so they follow the same version |
 | Format spec | `smd: 2` in new documents (`smd: 1` documents keep the v1 rules) | `SMD_VERSION` in `extension/src/core/spec.ts`; changes only for format-breaking releases |
 
 Existing documents, CI pipelines (`smd validate`), library users and agents all depend on today's behaviour. **The primary goal of this process is that nothing breaks silently.** Every incompatible change is found by the checker, called out to the human, and shipped only as a major version.
@@ -72,7 +72,7 @@ Every new syntax feature must also add a document exercising it to `extension/te
 
    on the release branch, and rename the release branch and tracking PR to match.
 2. Once every planned feature PR is merged into the release branch (or dropped from the train), complete the changelog entry. List every item from the checker's **Breaking** section under `### ⚠️ Breaking changes`, each with a migration note. Delete empty headings.
-3. Update docs for any new syntax: `docs/SPEC.md`, `docs/FEATURES.md`, the matching `skills/styled-markdown-writer/references/syntax/<topic>.md` (listed in `references/syntax.md`), and the README feature list.
+3. Update docs for any new syntax: `docs/SPEC.md`, `docs/FEATURES.md`, the matching `skills/semantic-markdown-writer/references/syntax/<topic>.md` (listed in `references/syntax.md`), and the README feature list.
 4. Rebuild (`cd extension && npm run build && npm run build:npm`) and run the **full** check with no skip flags.
 5. Run the **static analysis gate** (sonarqube-scan skill). GitHub CI has no static analysis, so this local SonarQube run is the only check for bugs, vulnerabilities, security hotspots and code smells. It must pass: fix blocking findings, or suppress them with a reasoned `NOSONAR`. Grow `baseline.json` only with the maintainer's approval.
 
@@ -98,7 +98,7 @@ Don't proceed until the human approves in chat. For a major release, get approva
 1. Tag the head of the release branch (the exact commit that ships) and push the tag. **Pushing the tag publishes**, so do it only after the human's approval in §5:
 
    ```bash
-   git tag -a vX.Y.Z origin/release/vX.Y.Z -m "Styled Markdown X.Y.Z" && git push origin vX.Y.Z
+   git tag -a vX.Y.Z origin/release/vX.Y.Z -m "Semantic Markdown X.Y.Z" && git push origin vX.Y.Z
    ```
 
 2. The tag starts `.github/workflows/release.yml`. Its logic lives in small tested scripts in `extension/scripts/release/`:
@@ -107,7 +107,7 @@ Don't proceed until the human approves in chat. For a major release, get approva
    |---|---|
    | verify | `check-versions.mjs`: the tag equals the version in `extension/package.json`, `package-lock.json`, `npm/package.json`, `integrations/mkdocs/pyproject.toml`, `integrations/obsidian/manifest.json`, `.claude-plugin/plugin.json` and `server.json` (its version and its npm package's); the CHANGELOG has a non-empty `## X.Y.Z` section; the tagged commit is on `main` or a `release/*` branch. Then typecheck and unit tests. |
    | build | `.vsix` (`npm run package`), npm `.tgz` (`npm run build:npm`, `npm pack`) skill zips (`zip -r`), the playground zip (`npm run build:playground`) the MkDocs plugin wheel and sdist (`python -m build integrations/mkdocs`) the Obsidian plugin zip (`main.js`, `manifest.json`, `styles.css` from `integrations/obsidian`) and the JetBrains plugin zip (`./gradlew buildPlugin` in `integrations/jetbrains`, with Java 21; it ships the tag's `smd.cjs`). Checks they are real zips with the LICENSE and the right version, and that `skills/*/scripts/smd.cjs` match a fresh build. Notes: `changelog-excerpt.mjs --downloads` (downloads table + the changelog section). All uploaded as the `release-assets` workflow artifact. |
-   | github-release | Creates the GitHub Release with those notes and the nine assets (the `.vsix`, the `.tgz`, both skill zips, `styled-markdown-playground.zip`, the MkDocs plugin wheel and `.tar.gz`, `styled-markdown-obsidian-X.Y.Z.zip` and, since 2.1.0, `styled-markdown-jetbrains-X.Y.Z.zip`). If the release already exists, it keeps its notes and attaches only missing assets. Verifies the release lists all nine. |
+   | github-release | Creates the GitHub Release with those notes and the nine assets (the `.vsix`, the `.tgz`, both skill zips, `semantic-markdown-playground.zip`, the MkDocs plugin wheel and `.tar.gz`, `semantic-markdown-obsidian-X.Y.Z.zip` and, since 2.1.0, `semantic-markdown-jetbrains-X.Y.Z.zip`). If the release already exists, it keeps its notes and attaches only missing assets. Verifies the release lists all nine. |
    | publish-marketplace, publish-openvsx, publish-npm, publish-pypi | Publish the exact `.vsix` / `.tgz` / wheel and sdist attached to the release (`vsce publish --packagePath`, `ovsx publish`, `npm publish --provenance`, `twine upload` with `PYPI_TOKEN`), then poll the registry until it lists X.Y.Z (`wait-for-version.mjs`). |
    | publish-jetbrains | Uploads the exact JetBrains plugin zip attached to the release to the JetBrains Marketplace (`upload-jetbrains.mjs`, plugin 35420, with `JETBRAINS_TOKEN`). JetBrains reviews each upload by hand, so the job doesn't wait for the listing; an upload of a version the Marketplace already has counts as done. |
 
@@ -122,9 +122,9 @@ Don't proceed until the human approves in chat. For a major release, get approva
 | Where | Verify (don't trust the workflow's output alone) |
 |---|---|
 | GitHub release | `gh release view vX.Y.Z` lists 4 assets (`.vsix`, `.tgz`, two skill zips) |
-| VS Code Marketplace | `npx vsce show bislink360.styled-markdown` shows X.Y.Z (verification can take a few minutes) |
-| Open VSX | `curl -s https://open-vsx.org/api/bislink360/styled-markdown/X.Y.Z` returns that version |
-| npm | `npm view styled-markdown@X.Y.Z version` returns X.Y.Z |
+| VS Code Marketplace | `npx vsce show bislink360.semantic-markdown` shows X.Y.Z (verification can take a few minutes) |
+| Open VSX | `curl -s https://open-vsx.org/api/bislink360/semantic-markdown/X.Y.Z` returns that version |
+| npm | `npm view semantic-markdown@X.Y.Z version` returns X.Y.Z |
 | JetBrains Marketplace | `node extension/scripts/release/wait-for-version.mjs jetbrains X.Y.Z --attempts 1` passes once JetBrains has approved the upload (it can take a few days; until then the plugin page lists no update) |
 
 **One-time setup, done by the maintainer.** Until a secret exists its publish job skips, and releases stay GitHub-only as before. Add each one in GitHub → **Settings → Secrets and variables → Actions → New repository secret**, or with `gh secret set NAME` (it prompts for the value, so the token never lands in shell history):
@@ -133,19 +133,19 @@ Don't proceed until the human approves in chat. For a major release, get approva
 |---|---|
 | `VSCE_PAT` | Sign in to [dev.azure.com](https://dev.azure.com) with the account that owns the `bislink360` publisher ([marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage)) → User settings → Personal access tokens → New token: Organization **All accessible organizations**, scope **Marketplace → Manage**, an expiry you track. |
 | `OVSX_PAT` | Sign in to [open-vsx.org](https://open-vsx.org) with GitHub, link an Eclipse account and sign the Publisher Agreement (profile page), then Settings → Access Tokens → Generate. Create the `bislink360` namespace once from your own shell: `npx ovsx create-namespace bislink360` (reads the token from `OVSX_PAT`). Optionally claim the namespace (EclipseFdn/open-vsx.org issue) for the verified badge. |
-| `NPM_TOKEN` | On [npmjs.com](https://www.npmjs.com), as the account that will own `styled-markdown` (with 2FA) → Access Tokens → Generate New Token → **Granular**: read and write, packages `styled-markdown` (the very first publish needs "all packages" until the package exists; narrow it afterwards), bypass 2FA for automation, an expiry you track. |
-| `PYPI_TOKEN` | On [pypi.org](https://pypi.org), as the account that will own `mkdocs-styled-markdown` (with 2FA) → Account settings → API tokens → Add API token (the very first upload needs an account-wide token until the project exists; replace it with a token scoped to `mkdocs-styled-markdown` afterwards). |
+| `NPM_TOKEN` | On [npmjs.com](https://www.npmjs.com), as the account that will own `semantic-markdown` (with 2FA) → Access Tokens → Generate New Token → **Granular**: read and write, packages `semantic-markdown` (the very first publish needs "all packages" until the package exists; narrow it afterwards), bypass 2FA for automation, an expiry you track. |
+| `PYPI_TOKEN` | On [pypi.org](https://pypi.org), as the account that will own `mkdocs-semantic-markdown` (with 2FA) → Account settings → API tokens → Add API token (the very first upload needs an account-wide token until the project exists; replace it with a token scoped to `mkdocs-semantic-markdown` afterwards). |
 | `JETBRAINS_TOKEN` | On [plugins.jetbrains.com](https://plugins.jetbrains.com), signed in with the JetBrains account that develops plugin 35420 → profile → **My Tokens** → Generate Token (permanent tokens; revoke and replace it if it leaks). The first version was uploaded by hand; the job uploads every release after that. |
 
 The publish jobs run in the `release` GitHub environment (created on first use). Add required reviewers to it to approve every publish, and store the secrets as environment secrets there if you want them scoped to publishing. An expired token fails its job: update the secret and re-run the workflow for the tag.
 
-**Manual fallback** (the workflow is unavailable). Build from the tag in a separate worktree: `npm run package` (→ `.vsix`), `npm run build:npm` then `npm pack` in `npm/` (→ `.tgz`), skill zips from `skills/`, and `styled-markdown-playground.zip` from `npm run build:playground` (zip the `playground` folder in `extension/dist/`) — on Windows with `C:\Windows\System32\tar.exe -a -c -f <name>.zip <folder>` (Git Bash's `tar` writes a tar file named `.zip`; check with `file *.zip`), elsewhere with `zip -r`. Notes: `node extension/scripts/release/changelog-excerpt.mjs X.Y.Z --downloads -o notes.md`. Publish in this order, only with credentials already present on the machine (`npx vsce ls-publishers` lists `bislink360`, `npm whoami` succeeds); otherwise stop and give the human the exact command:
+**Manual fallback** (the workflow is unavailable). Build from the tag in a separate worktree: `npm run package` (→ `.vsix`), `npm run build:npm` then `npm pack` in `npm/` (→ `.tgz`), skill zips from `skills/`, and `semantic-markdown-playground.zip` from `npm run build:playground` (zip the `playground` folder in `extension/dist/`) — on Windows with `C:\Windows\System32\tar.exe -a -c -f <name>.zip <folder>` (Git Bash's `tar` writes a tar file named `.zip`; check with `file *.zip`), elsewhere with `zip -r`. Notes: `node extension/scripts/release/changelog-excerpt.mjs X.Y.Z --downloads -o notes.md`. Publish in this order, only with credentials already present on the machine (`npx vsce ls-publishers` lists `bislink360`, `npm whoami` succeeds); otherwise stop and give the human the exact command:
 
 | Step | Command |
 |---|---|
-| GitHub release | `gh release create vX.Y.Z --verify-tag --title "Styled Markdown X.Y.Z" --notes-file notes.md <vsix> <tgz> <skill zips>` |
-| VS Code Marketplace | `cd extension && npx vsce publish --packagePath styled-markdown-X.Y.Z.vsix` |
-| Open VSX | `npx ovsx publish styled-markdown-X.Y.Z.vsix` (token from `OVSX_PAT`) |
+| GitHub release | `gh release create vX.Y.Z --verify-tag --title "Semantic Markdown X.Y.Z" --notes-file notes.md <vsix> <tgz> <skill zips>` |
+| VS Code Marketplace | `cd extension && npx vsce publish --packagePath semantic-markdown-X.Y.Z.vsix` |
+| Open VSX | `npx ovsx publish semantic-markdown-X.Y.Z.vsix` (token from `OVSX_PAT`) |
 | npm | `cd npm && npm publish` |
 
 Then verify each one as in the table above.
@@ -154,7 +154,7 @@ Then verify each one as in the table above.
 
 - **Merge the release branch into `main`:** merge the tracking PR `release/vX.Y.Z → main` with a **merge commit** (never squash), so the tagged commit is in `main`'s history. Then delete the release and feature branches, and merge `main` into any other open release branch (version-control skill §5).
 - Confirm the README badges and install instructions resolve. Push doc changes that point at the new version only after all registries show it.
-- If a release is bad, don't unpublish. Ship a patch train from the tag (`plan-release.mjs X.Y.Z+1 fix/<slug> --base vX.Y.Z`). For npm, `npm deprecate styled-markdown@X.Y.Z "<reason>"` warns installers.
+- If a release is bad, don't unpublish. Ship a patch train from the tag (`plan-release.mjs X.Y.Z+1 fix/<slug> --base vX.Y.Z`). For npm, `npm deprecate semantic-markdown@X.Y.Z "<reason>"` warns installers.
 
 ## References
 

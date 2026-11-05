@@ -7,7 +7,7 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
 
-/** The plugin's settings, for every project: Settings | Languages & Frameworks | Styled Markdown. */
+/** The plugin's settings, for every project: Settings | Languages & Frameworks | Semantic Markdown. */
 @Service(Service.Level.APP)
 @State(name = "StyledMarkdownSettings", storages = [Storage("styled-markdown.xml")])
 class SmdSettings : SimplePersistentStateComponent<SmdSettings.Settings>(Settings()) {

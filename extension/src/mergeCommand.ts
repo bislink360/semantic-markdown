@@ -32,7 +32,7 @@ export const MERGE_HELP = `Merging with Git:
       PATH). Safe to run again. --uninstall removes both.
 `;
 
-const NAME = 'Styled Markdown block merge';
+const NAME = 'Semantic Markdown block merge';
 const ATTRIBUTE = '*.smd merge=smd';
 const LABELS = { ours: 'ours', base: 'base', theirs: 'theirs' };
 const DEFAULT_MARKER_SIZE = 7;

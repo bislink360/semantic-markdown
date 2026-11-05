@@ -1,10 +1,10 @@
-# Styled Markdown — Guide for AI Agents
+# Semantic Markdown — Guide for AI Agents
 
-> Paste this file (or link to it) in your agent's system prompt, `CLAUDE.md`, `AGENTS.md`, Cursor rules or Copilot instructions so agents read and write `.smd` correctly. For Cursor, GitHub Copilot and `AGENTS.md`, `smd skills install --target cursor,copilot,agents` writes a short version of this guide and the CLI (`.smd/smd.cjs`) into your project ([details](SKILLS.md#github-copilot-cursor-codex-windsurf-and-other-agents)). Agents that support skills can use the [styled-markdown skills](SKILLS.md) instead.
+> Paste this file (or link to it) in your agent's system prompt, `CLAUDE.md`, `AGENTS.md`, Cursor rules or Copilot instructions so agents read and write `.smd` correctly. For Cursor, GitHub Copilot and `AGENTS.md`, `smd skills install --target cursor,copilot,agents` writes a short version of this guide and the CLI (`.smd/smd.cjs`) into your project ([details](SKILLS.md#github-copilot-cursor-codex-windsurf-and-other-agents)). Agents that support skills can use the [semantic-markdown skills](SKILLS.md) instead.
 
 ## Reading `.smd` files (save tokens)
 
-Don't read `.smd` files whole with cat/Read. Use the CLI (`smd` on PATH, or `node skills/styled-markdown-reader/scripts/smd.cjs`):
+Don't read `.smd` files whole with cat/Read. Use the CLI (`smd` on PATH, or `node skills/semantic-markdown-reader/scripts/smd.cjs`):
 
 0. **Shortcut:** `smd read <file>` does steps 1–2 in one call. It prints the whole agent view when it fits 2,000 tokens (`--max-tokens <n>` changes the budget), and otherwise the outline, so you can ask for sections next with `smd read <file> --section "<heading>"`.
 1. `smd outline <file>` shows the title, status, summary and every section with its line range and token cost.
@@ -58,7 +58,7 @@ Paths are relative to the root folder: `--root <dir>`, or the folder the client 
 `smd init --agent claude|cursor|copilot|agents` (comma-separated for several; `--dir <project>`, default the current folder) installs everything an agent needs in a project: the skills (`claude`) or the reading and writing rules (`cursor`, `copilot`, and `agents` for `AGENTS.md`), the CLI, and the MCP server in the agent's own config file: `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `.vscode/mcp.json` (Copilot in VS Code). Existing config files are merged (other servers are kept); a file that isn't plain JSON, such as one with comments, is left alone and the entry to add is printed. Run it again to update. `--no-mcp` skips the MCP config.
 
 ```bash
-npx styled-markdown init --agent claude            # once the package is on npm
+npx semantic-markdown init --agent claude            # once the package is on npm
 node path/to/smd.cjs init --agent cursor,agents    # with the CLI from a release or a skill folder
 ```
 
@@ -66,8 +66,8 @@ Or register it by hand with the npm package (`npx` downloads it on first use), o
 
 ```bash
 # Claude Code (add --scope project to share it through .mcp.json)
-claude mcp add smd -- npx -y -p styled-markdown smd mcp
-claude mcp add smd -- node skills/styled-markdown-reader/scripts/smd.cjs mcp
+claude mcp add smd -- npx -y -p semantic-markdown smd mcp
+claude mcp add smd -- node skills/semantic-markdown-reader/scripts/smd.cjs mcp
 ```
 
 Cursor (`.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`):
@@ -75,7 +75,7 @@ Cursor (`.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
-    "smd": { "command": "npx", "args": ["-y", "-p", "styled-markdown", "smd", "mcp", "--root", "/path/to/project"] }
+    "smd": { "command": "npx", "args": ["-y", "-p", "semantic-markdown", "smd", "mcp", "--root", "/path/to/project"] }
   }
 }
 ```
@@ -85,12 +85,12 @@ VS Code (`.vscode/mcp.json`):
 ```json
 {
   "servers": {
-    "smd": { "type": "stdio", "command": "npx", "args": ["-y", "-p", "styled-markdown", "smd", "mcp", "--root", "${workspaceFolder}"] }
+    "smd": { "type": "stdio", "command": "npx", "args": ["-y", "-p", "semantic-markdown", "smd", "mcp", "--root", "${workspaceFolder}"] }
   }
 }
 ```
 
-Pass `--root` whenever the client may start the server outside your project, such as Claude Desktop. On Windows, clients that cannot run `npx` directly need `cmd /c npx …` (for Claude Code: `claude mcp add smd -- cmd /c npx -y -p styled-markdown smd mcp`). Logs go to stderr; stdout carries only protocol messages.
+Pass `--root` whenever the client may start the server outside your project, such as Claude Desktop. On Windows, clients that cannot run `npx` directly need `cmd /c npx …` (for Claude Code: `claude mcp add smd -- cmd /c npx -y -p semantic-markdown smd mcp`). Logs go to stderr; stdout carries only protocol messages.
 
 ## Writing `.smd` files
 
@@ -109,7 +109,7 @@ updated: 2026-09-26
 
 `smd: 2` (spec v2) shows text as written: straight quotes stay straight (type `—` or `’`, or add `typography: true`), only `https://…`, `www.…` and e-mail addresses become links, a heading's trailing `{word}` is heading text, and any `:name[…]` is a directive (`\:name[…]` keeps it text). When you edit an existing document, keep its `smd` value: `smd: 1` or no key keeps the v1 rules, and `smd migrate <file> --to 2` moves it to spec v2 without changing what it shows.
 
-Then write normal Markdown, adding Styled Markdown only where it helps the reader:
+Then write normal Markdown, adding Semantic Markdown only where it helps the reader:
 
 | Need | Write |
 |------|-------|

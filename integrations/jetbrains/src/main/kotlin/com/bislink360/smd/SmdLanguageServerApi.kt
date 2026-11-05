@@ -6,7 +6,7 @@ import org.eclipse.lsp4j.services.LanguageServer
 import java.util.concurrent.CompletableFuture
 
 /**
- * The Styled Markdown language server's requests beyond LSP. `smd/renderHtml` (extension/src/lsp.ts, announced as
+ * The Semantic Markdown language server's requests beyond LSP. `smd/renderHtml` (extension/src/lsp.ts, announced as
  * `experimental.smdRenderHtml`) renders a document as the page `smd export --to html` writes, for the preview.
  */
 interface SmdLanguageServerApi : LanguageServer {

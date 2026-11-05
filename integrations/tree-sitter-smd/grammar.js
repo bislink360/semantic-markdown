@@ -1,9 +1,9 @@
 /**
- * @file Tree-sitter grammar for Styled Markdown (.smd): the syntax .smd adds to Markdown.
+ * @file Tree-sitter grammar for Semantic Markdown (.smd): the syntax .smd adds to Markdown.
  * @author Roshan Alwis
  * @license MIT
  *
- * This grammar is the host language of a .smd buffer. It parses only what Styled Markdown adds
+ * This grammar is the host language of a .smd buffer. It parses only what Semantic Markdown adds
  * (docs/SPEC.md): front matter, `:::name{attrs} Title` … `:::` containers, fenced code and `$$` math
  * (so that their contents are opaque), and inline directives, styled spans, `==mark==`, `$math$`,
  * `{{variables}}`, footnotes, task boxes and attribute lists. Everything else is a `line`, and

@@ -736,7 +736,7 @@ function coreProperties(title: string | undefined, lang: string): string {
 }
 
 const APP_PROPERTIES = `${XML_HEAD}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">`
-  + '<Application>Styled Markdown</Application></Properties>';
+  + '<Application>Semantic Markdown</Application></Properties>';
 
 function settingsXml(footnotes: boolean): string {
   const notes = footnotes ? '<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr>' : '';

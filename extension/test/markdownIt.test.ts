@@ -33,7 +33,7 @@ const body = [
   ':::tabs',
   ':::tab npm',
   '```bash',
-  'npm i styled-markdown',
+  'npm i semantic-markdown',
   '```',
   ':::',
   ':::tab Math',
@@ -189,17 +189,17 @@ const npmDir = join(__dirname, '..', '..', 'npm');
 const built = existsSync(join(npmDir, 'dist', 'markdown-it.cjs'));
 const skipNpm = !built && 'run npm run build:npm first';
 
-test('npm package: styled-markdown/markdown-it resolves and loads with require and import', { skip: skipNpm }, async () => {
+test('npm package: semantic-markdown/markdown-it resolves and loads with require and import', { skip: skipNpm }, async () => {
   const pkg = JSON.parse(readFileSync(join(npmDir, 'package.json'), 'utf8'));
   assert.deepEqual(pkg.dependencies ?? {}, {}, 'zero runtime dependencies');
   assert.equal(pkg.peerDependenciesMeta['markdown-it'].optional, true);
   // Resolve through the package's own exports map (self-reference by name).
   const requireFromPkg = createRequire(join(npmDir, 'package.json'));
-  const cjsPath = requireFromPkg.resolve('styled-markdown/markdown-it');
+  const cjsPath = requireFromPkg.resolve('semantic-markdown/markdown-it');
   assert.ok(cjsPath.endsWith(join('dist', 'markdown-it.cjs')));
   assert.ok(existsSync(join(npmDir, pkg.exports['./markdown-it'].types)), 'types are emitted');
 
-  const cjs = requireFromPkg('styled-markdown/markdown-it');
+  const cjs = requireFromPkg('semantic-markdown/markdown-it');
   assert.equal(typeof cjs, 'function', 'require() returns the plugin itself');
   assert.equal(cjs.default, cjs);
   assert.match(new MarkdownIt().use(cjs).render(':::note\nx\n:::'), /smd-callout-note/);

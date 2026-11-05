@@ -303,7 +303,7 @@ function checkFrontMatter(
   };
 
   if (data.smd === undefined) {
-    push(0, 0, 3, 'info', 'frontmatter/version', `Add "smd: ${UNDECLARED_SPEC}" to the front matter so tools know which Styled Markdown version this file targets.`,
+    push(0, 0, 3, 'info', 'frontmatter/version', `Add "smd: ${UNDECLARED_SPEC}" to the front matter so tools know which Semantic Markdown version this file targets.`,
       { line: 1, column: 0, endColumn: 0, replacement: `smd: ${UNDECLARED_SPEC}\n`, title: `Add "smd: ${UNDECLARED_SPEC}"` });
   } else {
     checkSmdVersion(data.smd, keyLine('smd'), lines, push);
@@ -849,7 +849,7 @@ function unresolvedAnchor(link: UnresolvedAnchor, push: Push): void {
   }
   const fixed = target.slice(0, target.indexOf('#') + 1) + heading.slug;
   push(line, column, end, 'info', 'link/github-anchor',
-    `"#${anchor}" is the id GitHub gives the heading "${heading.text}" ${link.where}; its Styled Markdown id is "#${heading.slug}". The link works on GitHub, but not in the preview or rendered HTML.`,
+    `"#${anchor}" is the id GitHub gives the heading "${heading.text}" ${link.where}; its Semantic Markdown id is "#${heading.slug}". The link works on GitHub, but not in the preview or rendered HTML.`,
     { line, column, endColumn: end, replacement: fixed, title: `Change to "${fixed}"` });
 }
 

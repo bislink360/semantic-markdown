@@ -1,7 +1,7 @@
 ---
 smd: 2
 title: Validation errors in spec v2
-summary: Pins how a spec v2 document renders what Styled Markdown 2.0 reports as errors in every document (duplicate attributes, conflicting titles, an invalid figure kind, a Mermaid syntax error) and the removed priority of an agent block, so later releases are compared against it.
+summary: Pins how a spec v2 document renders what Semantic Markdown 2.0 reports as errors in every document (duplicate attributes, conflicting titles, an invalid figure kind, a Mermaid syntax error) and the removed priority of an agent block, so later releases are compared against it.
 status: draft
 updated: 2026-10-17
 ---

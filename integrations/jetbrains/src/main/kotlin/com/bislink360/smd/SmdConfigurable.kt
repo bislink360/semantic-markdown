@@ -9,8 +9,8 @@ import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.columns
 import com.intellij.ui.dsl.builder.panel
 
-/** Settings | Languages & Frameworks | Styled Markdown: which Node.js and `smd` CLI run the server, and how exports run. */
-class SmdConfigurable : BoundConfigurable("Styled Markdown") {
+/** Settings | Languages & Frameworks | Semantic Markdown: which Node.js and `smd` CLI run the server, and how exports run. */
+class SmdConfigurable : BoundConfigurable("Semantic Markdown") {
     private val settings = SmdSettings.getInstance()
 
     override fun createPanel(): DialogPanel = panel {
@@ -26,7 +26,7 @@ class SmdConfigurable : BoundConfigurable("Styled Markdown") {
                 .columns(COLUMNS_LARGE)
                 .comment(
                     "Empty: the CLI shipped with the plugin. To check Mermaid syntax too, point it at the npm " +
-                        "package's <code>dist/cli.js</code> (<code>npm install -g styled-markdown</code>).",
+                        "package's <code>dist/cli.js</code> (<code>npm install -g semantic-markdown</code>).",
                 )
         }
         group("Export to PDF") {

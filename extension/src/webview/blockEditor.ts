@@ -1,4 +1,4 @@
-// The Block Editor page (Styled Markdown Block Editor (Preview)). It shows the blocks the extension rendered, lets
+// The Block Editor page (Semantic Markdown Block Editor (Preview)). It shows the blocks the extension rendered, lets
 // the user edit one block's source at a time, and sends requests by block key; the extension decides what changes
 // in the document (see blockEditorSession.ts). Runs after media/runtime.js, whose window.smdRuntime gives the page's
 // one VS Code handle, hydrate(scope), announce() and saved state.

@@ -1,4 +1,4 @@
-/* Styled Markdown static site (smd build): collapsible sidebar and client-side search. */
+/* Semantic Markdown static site (smd build): collapsible sidebar and client-side search. */
 (function () {
   'use strict';
 

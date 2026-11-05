@@ -1,7 +1,7 @@
-// The Styled Markdown Block Editor (Preview): a custom text editor over the same TextDocument as the text editor, so
+// The Semantic Markdown Block Editor (Preview): a custom text editor over the same TextDocument as the text editor, so
 // undo, save, the dirty state, diffs and diagnostics keep working. The page shows the document block by block and
 // asks for edits by block key; blockEditorSession.ts decides what each request changes. Opt-in through "Open With…"
-// or "Styled Markdown: Open Block Editor"; never the default editor for .smd files.
+// or "Semantic Markdown: Open Block Editor"; never the default editor for .smd files.
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import {

@@ -1,11 +1,11 @@
-# Styled Markdown on GitHub
+# Semantic Markdown on GitHub
 
 GitHub renders `.md` files as pages, but shows a `.smd` file as its source text. People who browse your repository on github.com see `:::warning` fences and `{color=red}` attributes instead of a callout. This guide covers the ways around that, from the simplest to the most complete, and says what each one costs.
 
 ## Contents
 
 - [Which path to choose](#which-path-to-choose)
-- [A. Styled Markdown syntax in `.md` files](#a-styled-markdown-syntax-in-md-files)
+- [A. Semantic Markdown syntax in `.md` files](#a-semantic-markdown-syntax-in-md-files)
 - [B. Generate `.md` copies in CI](#b-generate-md-copies-in-ci)
 - [C. Post the changes on pull requests](#c-post-the-changes-on-pull-requests)
 - [`.gitattributes`: what it does and doesn't do](#gitattributes-what-it-does-and-doesnt-do)
@@ -14,15 +14,15 @@ GitHub renders `.md` files as pages, but shows a `.smd` file as its source text.
 
 | Path | GitHub shows | You keep | Cost |
 |---|---|---|---|
-| **A.** `.smd` syntax in `.md` files | GitHub's own rendering: alerts, tables, task lists, Mermaid and math render; `:::` fences and `:directives[…]` show as plain text | One file per document. The CLI, VS Code, MkDocs and the static-site plugins read it as Styled Markdown | Write the parts GitHub must show well in its subset. Folder scans and the MCP server look only at `.smd` files |
+| **A.** `.smd` syntax in `.md` files | GitHub's own rendering: alerts, tables, task lists, Mermaid and math render; `:::` fences and `:directives[…]` show as plain text | One file per document. The CLI, VS Code, MkDocs and the static-site plugins read it as Semantic Markdown | Write the parts GitHub must show well in its subset. Folder scans and the MCP server look only at `.smd` files |
 | **B.** `.md` copies made in CI | A rendered page for every `.smd` file: callouts become alerts, decisions and agent blocks become notes, tasks keep owners and dates | The full syntax in `.smd`; GitHub readers open the `.md` copy | A second file per document, written by a bot commit or checked on pull requests |
 | **C.** A pull request comment | What changed, as an agent reads it, on each pull request | Everything as it is | Review aid only: browsing the repository still shows source |
 
 Start with **A** if most of your documents are READMEs and guides that people read on GitHub. Use **B** when you want the full syntax (decisions, risks, tasks, layout) and still want readable pages on GitHub. Add **C** to either for reviews.
 
-## A. Styled Markdown syntax in `.md` files
+## A. Semantic Markdown syntax in `.md` files
 
-Every `.md` file is already a valid Styled Markdown document. Add `smd: 2` to its front matter and the tools read it with the spec v2 rules:
+Every `.md` file is already a valid Semantic Markdown document. Add `smd: 2` to its front matter and the tools read it with the spec v2 rules:
 
 ```markdown
 ---
@@ -38,11 +38,11 @@ title: Payments runbook
 
 ### What GitHub shows
 
-GitHub renders the parts of Styled Markdown that are also GitHub Markdown, and shows the rest as text:
+GitHub renders the parts of Semantic Markdown that are also GitHub Markdown, and shows the rest as text:
 
 | Syntax | On GitHub | Use in a `.md` file read on GitHub |
 |---|---|---|
-| GitHub alerts (`> [!NOTE]`, `> [!WARNING]`…) | Rendered alerts | **Yes.** Styled Markdown reads them as callouts (`<warning>` in the agent view) |
+| GitHub alerts (`> [!NOTE]`, `> [!WARNING]`…) | Rendered alerts | **Yes.** Semantic Markdown reads them as callouts (`<warning>` in the agent view) |
 | Tables, task lists, footnotes, `<details>` | Rendered | **Yes** |
 | ```` ```mermaid ```` diagrams, `$math$` and `$$` math | Rendered | **Yes** |
 | Front matter | A table at the top of the page | Yes |
@@ -54,12 +54,12 @@ GitHub renders the parts of Styled Markdown that are also GitHub Markdown, and s
 
 | Tool | `.md` files |
 |---|---|
-| `smd validate`, `fmt`, `agent`, `outline`, `tasks`, `query`, `index`, `diff`, `meta`, `export` | Read a `.md` file you **name**, as Styled Markdown: `smd agent docs/runbook.md`, `smd validate README.md docs/*.md` |
+| `smd validate`, `fmt`, `agent`, `outline`, `tasks`, `query`, `index`, `diff`, `meta`, `export` | Read a `.md` file you **name**, as Semantic Markdown: `smd agent docs/runbook.md`, `smd validate README.md docs/*.md` |
 | The same commands given a **folder** | Look only at `.smd` files in it (`smd validate docs/` with only `.md` files says "No .smd files found" and exits 2). Name the files, or let your shell expand `docs/*.md` |
 | `smd build docs --md` | Publishes `.md` files as pages too |
 | GitHub Action (`validate/`) | Checks `.md` files listed in `paths` one by one; folders give their `.smd` files only |
 | MCP server (`smd mcp`) | Reads `.smd` files only |
-| VS Code | The built-in Markdown preview renders the syntax in `.md` files that have an `smd:` key (the `smd.markdownPreview.enabled` setting). Validation, completion and the Styled Markdown preview are for `.smd` files |
+| VS Code | The built-in Markdown preview renders the syntax in `.md` files that have an `smd:` key (the `smd.markdownPreview.enabled` setting). Validation, completion and the Semantic Markdown preview are for `.smd` files |
 | MkDocs plugin, remark and rehype plugins, markdown-it plugin, Obsidian | Render it in `.md` files (MkDocs: `md_syntax: true`) |
 
 A `.md` file without an `smd:` key is read with the spec v1 rules, as every `.md` file was in 1.x. That is fine for most text; `smd: 2` keeps quotes and dashes as typed and links only full URLs, as GitHub does.
@@ -86,7 +86,7 @@ permissions:
 
 env:
   DOCS: docs                # the folder with your .smd files
-  SMD_VERSION: v2.5.0       # the Styled Markdown release whose CLI to use
+  SMD_VERSION: v2.5.0       # the Semantic Markdown release whose CLI to use
 
 jobs:
   copies:
@@ -97,7 +97,7 @@ jobs:
         with:
           node-version: 22
       - name: Download the smd CLI (one file, no dependencies)
-        run: curl -sSfLo "$RUNNER_TEMP/smd.cjs" "https://raw.githubusercontent.com/bislink360/styled-markdown/$SMD_VERSION/skills/styled-markdown-reader/scripts/smd.cjs"
+        run: curl -sSfLo "$RUNNER_TEMP/smd.cjs" "https://raw.githubusercontent.com/bislink360/semantic-markdown/$SMD_VERSION/skills/semantic-markdown-reader/scripts/smd.cjs"
       - name: Write a .md copy next to every .smd file
         run: |
           set -euo pipefail
@@ -162,7 +162,7 @@ jobs:
         with:
           node-version: 22
       - name: Download the smd CLI
-        run: curl -sSfLo "$RUNNER_TEMP/smd.cjs" "https://raw.githubusercontent.com/bislink360/styled-markdown/$SMD_VERSION/skills/styled-markdown-reader/scripts/smd.cjs"
+        run: curl -sSfLo "$RUNNER_TEMP/smd.cjs" "https://raw.githubusercontent.com/bislink360/semantic-markdown/$SMD_VERSION/skills/semantic-markdown-reader/scripts/smd.cjs"
       - name: Changed sections, in the agent view
         env:
           BASE: origin/${{ github.base_ref }}

@@ -62,7 +62,7 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement privately:
 contact the maintainer, [@roshanmadhushanka](https://github.com/roshanmadhushanka),
 on GitHub, or open a
-[private report](https://github.com/bislink360/styled-markdown/security/advisories/new)
+[private report](https://github.com/bislink360/semantic-markdown/security/advisories/new)
 on this repository (it is only visible to you and the maintainers). Please don't
 report conduct issues in a public issue or discussion.
 All complaints will be reviewed and investigated promptly and fairly.

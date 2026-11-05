@@ -1,13 +1,13 @@
 ---
 smd: 2
-title: Styled Markdown
+title: Semantic Markdown
 summary: Markdown that people and AI agents both read well. Callouts, decisions, risks, tasks and diagrams, validated, with an agent view that skips the decoration.
 accent: indigo
 ---
 
 :badge[spec v2, stable]{color=indigo} :badge[MIT]{color=green} :badge[Node.js 22+]{color=gray}
 
-**Styled Markdown (`.smd`) is Markdown plus a small, validated vocabulary** (`:::warning`, `:::decision`, `:::risk`, tasks with owners and due dates, Mermaid diagrams, `:::agent` instructions) with a CLI, a VS Code extension, an MCP server and agent skills that let an agent read only what it needs.
+**Semantic Markdown (`.smd`) is Markdown plus a small, validated vocabulary** (`:::warning`, `:::decision`, `:::risk`, tasks with owners and due dates, Mermaid diagrams, `:::agent` instructions) with a CLI, a VS Code extension, an MCP server and agent skills that let an agent read only what it needs.
 
 :::::columns
 ::::column
@@ -21,7 +21,7 @@ Edit a document and see the preview, the agent view with its token count, the pr
 ::::
 ::::column
 :::card{accent=teal} Read the docs
-[Install guide](https://github.com/bislink360/styled-markdown/blob/main/docs/INSTALL.md) · [Feature guide](https://github.com/bislink360/styled-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/styled-markdown/blob/main/docs/SPEC.md) · [Agents](https://github.com/bislink360/styled-markdown/blob/main/docs/AGENTS.md) · [GitHub](https://github.com/bislink360/styled-markdown)
+[Install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md) · [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md) · [Agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/AGENTS.md) · [GitHub](https://github.com/bislink360/semantic-markdown)
 :::
 ::::
 :::::
@@ -31,31 +31,31 @@ Edit a document and see the preview, the agent view with its token count, the pr
 ::::tabs
 :::tab Claude Code
 ```text
-/plugin marketplace add bislink360/styled-markdown
-/plugin install styled-markdown@styled-markdown
+/plugin marketplace add bislink360/semantic-markdown
+/plugin install semantic-markdown@semantic-markdown
 ```
 
-The two agent skills (reading and writing `.smd`) and the MCP server, in one plugin. Or set up one project with `npx styled-markdown init --agent claude`.
+The two agent skills (reading and writing `.smd`) and the MCP server, in one plugin. Or set up one project with `npx semantic-markdown init --agent claude`.
 :::
 :::tab Cursor, Copilot, other agents
 ```bash
-npx styled-markdown init --agent cursor    # or copilot, agents
+npx semantic-markdown init --agent cursor    # or copilot, agents
 ```
 
 Writes the rules file, the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet into the project.
 :::
 :::tab VS Code
-Search for **Styled Markdown** in the Extensions view, or:
+Search for **Semantic Markdown** in the Extensions view, or:
 
 ```bash
-code --install-extension bislink360.styled-markdown
+code --install-extension bislink360.semantic-markdown
 ```
 
-Cursor, VSCodium and Windsurf: install the `.vsix` from the [latest release](https://github.com/bislink360/styled-markdown/releases/latest) until the Open VSX listing is live.
+Cursor, VSCodium and Windsurf: install the `.vsix` from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest) until the Open VSX listing is live.
 :::
 :::tab npm and CLI
 ```bash
-npm install -g styled-markdown    # the smd command
+npm install -g semantic-markdown    # the smd command
 smd validate docs/
 ```
 
@@ -63,7 +63,7 @@ The same package is a zero-dependency library (`renderSmd`, `validateSmd`, `agen
 :::
 ::::
 
-Until the registry listings are live, every [GitHub release](https://github.com/bislink360/styled-markdown/releases/latest) has the `.vsix`, the npm package and the skills: see the [install guide](https://github.com/bislink360/styled-markdown/blob/main/docs/INSTALL.md).
+Until the registry listings are live, every [GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) has the `.vsix`, the npm package and the skills: see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md).
 
 ## What it looks like
 
@@ -98,10 +98,10 @@ Won usability testing on completion rate.
 
 ## For docs-as-code teams
 
-- Every `.md` file is already valid Styled Markdown: rename it and add structure where it helps.
+- Every `.md` file is already valid Semantic Markdown: rename it and add structure where it helps.
 - `smd export --to md` writes plain GitHub Markdown, `smd build` a static site, and the GitHub Action annotates problems on pull requests.
 - Spec v2 is stable: documents written today keep their meaning in every 2.x release.
 
 ---
 
-[GitHub](https://github.com/bislink360/styled-markdown) · [Releases](https://github.com/bislink360/styled-markdown/releases) · [Discussions](https://github.com/bislink360/styled-markdown/discussions) · [Compatibility policy](https://github.com/bislink360/styled-markdown/blob/main/docs/COMPATIBILITY.md) · MIT licence
+[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/COMPATIBILITY.md) · MIT licence

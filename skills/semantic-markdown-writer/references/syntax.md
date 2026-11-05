@@ -1,4 +1,4 @@
-# Styled Markdown syntax reference (spec v2)
+# Semantic Markdown syntax reference (spec v2)
 
 Everything in CommonMark + GitHub-Flavored Markdown is valid. The `.smd` additions, with every attribute and allowed value, are split by topic. Read only the file for the construct you're using; `smd validate --fix` catches the rest.
 

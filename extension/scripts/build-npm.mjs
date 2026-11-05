@@ -1,6 +1,6 @@
-// Builds the `styled-markdown` npm package into ../npm/dist:
+// Builds the `semantic-markdown` npm package into ../npm/dist:
 //   index.cjs / index.mjs             the library (engine only, browser-safe, zero runtime dependencies)
-//   markdown-it.cjs / markdown-it.mjs the markdown-it plugin (`styled-markdown/markdown-it`; markdown-it is the host's)
+//   markdown-it.cjs / markdown-it.mjs the markdown-it plugin (`semantic-markdown/markdown-it`; markdown-it is the host's)
 //   remark.* / rehype.*               the remark and rehype plugins (import the library bundle)
 //   cli.js                            the `smd` command (same bundle as the extension's CLI)
 //   language-server.js                the `smd-language-server` command: `smd lsp` under its own name, for editors
@@ -34,7 +34,7 @@ const common = {
 await esbuild.build({ ...common, platform: 'node', format: 'cjs', outfile: join(out, 'index.cjs') });
 await esbuild.build({ ...common, platform: 'neutral', mainFields: ['module', 'main'], format: 'esm', outfile: join(out, 'index.mjs') });
 
-// The markdown-it plugin (`styled-markdown/markdown-it`). The host provides markdown-it; the plugin
+// The markdown-it plugin (`semantic-markdown/markdown-it`). The host provides markdown-it; the plugin
 // only imports its types, and `external` keeps it out of the bundle should that ever change.
 const plugin = { ...common, entryPoints: [join(root, 'src', 'core', 'markdownIt.ts')], external: ['markdown-it'] };
 await esbuild.build({
@@ -42,13 +42,13 @@ await esbuild.build({
   platform: 'node',
   format: 'cjs',
   outfile: join(out, 'markdown-it.cjs'),
-  // require('styled-markdown/markdown-it') is the plugin function itself, as markdown-it plugins usually are;
+  // require('semantic-markdown/markdown-it') is the plugin function itself, as markdown-it plugins usually are;
   // its `default` and `markdownItSmd` properties are the same function.
   footer: { js: 'module.exports=Object.assign(module.exports.default,module.exports);' },
 });
 await esbuild.build({ ...plugin, platform: 'neutral', mainFields: ['module', 'main'], format: 'esm', outfile: join(out, 'markdown-it.mjs') });
 
-// styled-markdown/remark and styled-markdown/rehype: thin entries that import the main bundle.
+// semantic-markdown/remark and semantic-markdown/rehype: thin entries that import the main bundle.
 const useMainBundle = (file) => ({
   name: 'use-main-bundle',
   setup(build) {
@@ -72,7 +72,7 @@ copyFileSync(join(root, 'dist', 'cli.js'), join(out, 'cli.js'));
 // `smd-language-server` for editors that launch a server by name: runs the CLI as `smd lsp`.
 writeFileSync(join(out, 'language-server.js'), [
   '#!/usr/bin/env node',
-  '// smd-language-server: the same as `smd lsp` (the Styled Markdown language server over stdio).',
+  '// smd-language-server: the same as `smd lsp` (the Semantic Markdown language server over stdio).',
   "process.argv.splice(2, 0, 'lsp');",
   "require('./cli.js');",
   '',

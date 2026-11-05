@@ -10,7 +10,7 @@ import { applyWhen, previewApplies, previewMode } from './markdownPreviewGate';
 const extended = new WeakSet<MarkdownIt>();
 
 /**
- * Styled Markdown syntax in VS Code's built-in Markdown preview, for .md files. VS Code calls this
+ * Semantic Markdown syntax in VS Code's built-in Markdown preview, for .md files. VS Code calls this
  * (`markdown.markdownItPlugins` in package.json) when it builds its markdown-it instance; the settings
  * are read then, so a change applies after Developer: Reload Window. Plain Markdown is unchanged:
  * .smd rules only match text it would show literally, and other code blocks stay VS Code's.

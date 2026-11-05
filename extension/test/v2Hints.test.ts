@@ -140,7 +140,7 @@ test('priority on :::agent, removed in 2.0: an attrs/unknown warning on the attr
   const text = doc(':::agent{priority=high} Read this\nx\n:::\n\n:::agent{title="T" priority=1}\ny\n:::');
   const hints = only('attrs/unknown', text);
   assert.deepEqual(found(hints), ['4:attrs/unknown:warning', '8:attrs/unknown:warning']);
-  assert.equal(hints[0].message, 'Unknown attribute "priority" on ":::agent". It was removed in Styled Markdown 2.0, since no tool read it. Remove it.');
+  assert.equal(hints[0].message, 'Unknown attribute "priority" on ":::agent". It was removed in Semantic Markdown 2.0, since no tool read it. Remove it.');
   assert.deepEqual([hints[1].column, hints[1].endColumn], [19, 27]);
   const after = fixed('attrs/unknown', text);
   assert.equal(after, doc(':::agent Read this\nx\n:::\n\n:::agent{title="T"}\ny\n:::'));
@@ -212,12 +212,12 @@ test('frontmatter/version: versions 1 and 2 pass, as whole numbers or digit stri
     const [newer] = only('frontmatter/version', doc('Body', line));
     const n = line.replaceAll(/\D/g, '');
     assert.deepEqual([newer.severity, newer.message, newer.fix], ['warning',
-      `Styled Markdown version ${n} is newer than this tool knows, so it reads the document with the version 2 rules. Update Styled Markdown, or write "smd: 2".`, undefined], line);
+      `Semantic Markdown version ${n} is newer than this tool knows, so it reads the document with the version 2 rules. Update Semantic Markdown, or write "smd: 2".`, undefined], line);
     assert.equal(specVersion(doc('Body', line)), 2, line);
   }
   const [missing] = only('frontmatter/version', '---\ntitle: x\n---\n');
   assert.equal(missing.severity, 'info');
-  assert.equal(missing.message, 'Add "smd: 1" to the front matter so tools know which Styled Markdown version this file targets.', 'unchanged in 2.0');
+  assert.equal(missing.message, 'Add "smd: 1" to the front matter so tools know which Semantic Markdown version this file targets.', 'unchanged in 2.0');
 });
 
 test('the 1.10 hints can be configured and suppressed like other rules', () => {

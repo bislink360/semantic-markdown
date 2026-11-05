@@ -36,7 +36,7 @@ test('sectionExcerpt previews a section up to the next heading of the same level
 
 test('documentPreview gives the title, status, summary and top sections', () => {
   const preview = documentPreview(showcase);
-  assert.equal(preview.title, 'Styled Markdown Showcase');
+  assert.equal(preview.title, 'Semantic Markdown Showcase');
   assert.equal(preview.status, 'review');
   assert.match(preview.summary ?? '', /A tour of every/);
   assert.ok(preview.sections.includes('Callouts'), JSON.stringify(preview.sections));

@@ -4,7 +4,7 @@
       "frontmatter",
       "---"
     ],
-    "description": "Styled Markdown front matter",
+    "description": "Semantic Markdown front matter",
     "body": [
       "---",
       "smd: 2",

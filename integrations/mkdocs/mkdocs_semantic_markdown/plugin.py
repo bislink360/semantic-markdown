@@ -1,4 +1,4 @@
-"""MkDocs plugin: ``.smd`` files in ``docs_dir`` become pages, rendered by the Styled Markdown engine."""
+"""MkDocs plugin: ``.smd`` files in ``docs_dir`` become pages, rendered by the Semantic Markdown engine."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from .bridge import NodeBridge
 
 log = get_plugin_logger(__name__)
 
-ASSET_DIR = "assets/styled-markdown"
+ASSET_DIR = "assets/semantic-markdown"
 SMD_CSS, RUNTIME_JS = "smd.css", "runtime.js"
 MKDOCS_CSS, MKDOCS_JS = "mkdocs.css", "mkdocs.js"
 STATIC = Path(__file__).with_name("assets")
@@ -81,8 +81,8 @@ def page_urls(files: Files) -> dict[str, str]:
     return {f.src_uri: unquote(f.url) for f in files.documentation_pages()}
 
 
-class StyledMarkdownPlugin(BasePlugin):
-    """Render ``.smd`` pages (and with ``md_syntax``, ``.md`` pages) with the Styled Markdown engine."""
+class SemanticMarkdownPlugin(BasePlugin):
+    """Render ``.smd`` pages (and with ``md_syntax``, ``.md`` pages) with the Semantic Markdown engine."""
 
     config_scheme = (
         ("md_syntax", c.Type(bool, default=False)),

@@ -1,7 +1,7 @@
 name: Pages
 
-# Publishes https://bislink360.github.io/styled-markdown/: the homepage (site/index.smd, built with `smd build`, so
-# the homepage is itself a Styled Markdown document) at /, and the web playground (playground/) at /playground/.
+# Publishes https://bislink360.github.io/semantic-markdown/: the homepage (site/index.smd, built with `smd build`, so
+# the homepage is itself a Semantic Markdown document) at /, and the web playground (playground/) at /playground/.
 # main only changes when a release is merged, so the site always matches the latest release.
 #
 # Until GitHub Pages is turned on for the repository (Settings → Pages → Source: GitHub Actions), only the deploy
@@ -42,7 +42,7 @@ jobs:
           node dist/cli.js validate ../site --strict
           node dist/cli.js fmt --check ../site
       - name: Build the homepage
-        run: node dist/cli.js build ../site --out ../_site --title "Styled Markdown"
+        run: node dist/cli.js build ../site --out ../_site --title "Semantic Markdown"
       - name: Build the playground into /playground/
         run: node scripts/build-playground.mjs --out ../_site/playground
       - name: List the site

@@ -1,4 +1,4 @@
-# Styled Markdown style guide
+# Semantic Markdown style guide
 
 How to write `.smd` that people enjoy reading and agents can use cheaply.
 

@@ -1,7 +1,7 @@
 {
-  "name": "styled-markdown-obsidian",
+  "name": "semantic-markdown-obsidian",
   "private": true,
-  "description": "Styled Markdown (.smd) syntax in Obsidian notes. Built with the extension's toolchain: run `npm ci` in extension/ first.",
+  "description": "Semantic Markdown (.smd) syntax in Obsidian notes. Built with the extension's toolchain: run `npm ci` in extension/ first.",
   "license": "MIT",
   "scripts": {
     "build": "node scripts/build.mjs",

@@ -42,8 +42,8 @@ class SmdPreviewEditor(private val project: Project, private val file: VirtualFi
     private val scrollQuery: JBCefJSQuery? = browser?.let { JBCefJSQuery.create(it as JBCefBrowserBase) }
     private val alarm = Alarm(Alarm.ThreadToUse.POOLED_THREAD, this)
     private val view: JComponent = browser?.component ?: JBLabel(
-        "<html><center>The Styled Markdown preview needs the IDE's embedded browser (JCEF), which is not available.<br>" +
-            "Use <b>Open Styled Markdown Preview in Browser</b> instead.</center></html>",
+        "<html><center>The Semantic Markdown preview needs the IDE's embedded browser (JCEF), which is not available.<br>" +
+            "Use <b>Open Semantic Markdown Preview in Browser</b> instead.</center></html>",
         SwingConstants.CENTER,
     )
 
@@ -79,9 +79,9 @@ class SmdPreviewEditor(private val project: Project, private val file: VirtualFi
         val server = SmdLspServerSupportProvider.runningServer(project)
         if (server == null) {
             when {
-                SmdPlugin.node() == null -> show(message("The preview is rendered by the Styled Markdown language server, which needs Node.js 22 or newer. Set its path in Settings | Languages &amp; Frameworks | Styled Markdown."))
-                waits++ < SERVER_WAITS -> { show(message("Starting the Styled Markdown language server…")); schedule(1000) }
-                else -> show(message("The Styled Markdown language server is not running. The language server widget in the status bar shows its state and log."))
+                SmdPlugin.node() == null -> show(message("The preview is rendered by the Semantic Markdown language server, which needs Node.js 22 or newer. Set its path in Settings | Languages &amp; Frameworks | Semantic Markdown."))
+                waits++ < SERVER_WAITS -> { show(message("Starting the Semantic Markdown language server…")); schedule(1000) }
+                else -> show(message("The Semantic Markdown language server is not running. The language server widget in the status bar shows its state and log."))
             }
             return
         }

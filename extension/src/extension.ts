@@ -15,10 +15,11 @@ import { registerDocxExport } from './docxExport';
 import { registerPdfExport } from './pdfExport';
 import { migrationPlan } from './core/migrate';
 import { migrationEdit, migrationReport, migrationSummary, planCounts } from './migrateReport';
+import { oldExtensionIsActive } from './renamed';
 
 const APPLY = 'Apply';
 /** What the preview says after its summary in the editor. */
-const MIGRATE_NEXT = 'Dry run: nothing was changed. "Apply", or Styled Markdown: Migrate to Spec v2, applies it to the editor (not saved).';
+const MIGRATE_NEXT = 'Dry run: nothing was changed. "Apply", or Semantic Markdown: Migrate to Spec v2, applies it to the editor (not saved).';
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** The API VS Code's built-in Markdown preview uses (see markdownPreview.ts). */
@@ -27,6 +28,8 @@ export interface SmdExtensionApi {
 }
 
 export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
+  // The old Styled Markdown extension registers the same commands: stay idle until it is uninstalled.
+  if (oldExtensionIsActive()) return { extendMarkdownIt: (md) => md };
   const previews = new PreviewManager(context);
   const diagnostics = registerLanguageFeatures(context);
   registerAgentView(context);
@@ -48,7 +51,7 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
   context.subscriptions.push({ dispose: () => migration?.dispose() });
   /** The migration's output channel, cleared. */
   const migrationChannel = (): vscode.OutputChannel => {
-    migration ??= vscode.window.createOutputChannel('Styled Markdown: Migration to Spec v2');
+    migration ??= vscode.window.createOutputChannel('Semantic Markdown: Migration to Spec v2');
     migration.clear();
     return migration;
   };

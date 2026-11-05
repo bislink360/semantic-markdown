@@ -3,18 +3,18 @@
 //
 //   node extension/scripts/release/wait-for-version.mjs <npm|marketplace|openvsx|pypi|jetbrains> <X.Y.Z> [--attempts 20] [--delay 30]
 //
-// npm:         https://registry.npmjs.org/styled-markdown/X.Y.Z
-// marketplace: the Marketplace gallery query that `vsce show bislink360.styled-markdown` uses
-// openvsx:     https://open-vsx.org/api/bislink360/styled-markdown/X.Y.Z
-// pypi:        https://pypi.org/pypi/mkdocs-styled-markdown/X.Y.Z/json (the MkDocs plugin)
+// npm:         https://registry.npmjs.org/semantic-markdown/X.Y.Z
+// marketplace: the Marketplace gallery query that `vsce show bislink360.semantic-markdown` uses
+// openvsx:     https://open-vsx.org/api/bislink360/semantic-markdown/X.Y.Z
+// pypi:        https://pypi.org/pypi/mkdocs-semantic-markdown/X.Y.Z/json (the MkDocs plugin)
 // jetbrains:   https://plugins.jetbrains.com/api/plugins/35420/updates (approved versions of the JetBrains plugin)
 // Exits 0 when the version is listed, 1 after the last attempt. Reads public endpoints only.
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const PACKAGE = 'styled-markdown';
-export const EXTENSION = 'bislink360.styled-markdown';
-export const PYTHON_PACKAGE = 'mkdocs-styled-markdown';
+export const PACKAGE = 'semantic-markdown';
+export const EXTENSION = 'bislink360.semantic-markdown';
+export const PYTHON_PACKAGE = 'mkdocs-semantic-markdown';
 export const JETBRAINS_PLUGIN_ID = 35420;
 const MARKETPLACE_QUERY = 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery';
 const INCLUDE_VERSIONS = 0x1;

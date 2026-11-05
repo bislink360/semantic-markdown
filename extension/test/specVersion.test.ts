@@ -221,7 +221,7 @@ test('remark plugin: the spec option and the file\'s front matter, front matter 
 test('VS Code status bar: the tooltip names spec v2 for a document that opts in; v1 documents show what they did', () => {
   const v2 = statusBarState('---\nsmd: 2\nstatus: draft\n---\n');
   assert.deepEqual(v2, { status: { kind: 'known', status: 'draft' }, spec: 2 });
-  assert.equal(statusBarItem(v2.status, v2.spec).tooltip, 'Document status: draft — click to change\nStyled Markdown spec v2 (smd: 2)');
+  assert.equal(statusBarItem(v2.status, v2.spec).tooltip, 'Document status: draft — click to change\nSemantic Markdown spec v2 (smd: 2)');
   const v1 = statusBarState('---\nsmd: 1\nstatus: draft\n---\n');
   assert.deepEqual(statusBarItem(v1.status, v1.spec), statusBarText(v1.status));
   assert.deepEqual(statusBarState('# No front matter\n'), { status: { kind: 'missing' }, spec: 1 });

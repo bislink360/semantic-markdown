@@ -1,9 +1,9 @@
-# Styled Markdown for JetBrains IDEs
+# Semantic Markdown for JetBrains IDEs
 
-A plugin that gives `.smd` files highlighting and the Styled Markdown language server in IntelliJ IDEA, PyCharm, WebStorm, GoLand, RustRover and the other JetBrains IDEs. Install it from the GitHub release: [docs/INSTALL.md](../../docs/INSTALL.md#jetbrains-ides).
+A plugin that gives `.smd` files highlighting and the Semantic Markdown language server in IntelliJ IDEA, PyCharm, WebStorm, GoLand, RustRover and the other JetBrains IDEs. Install it from the GitHub release: [docs/INSTALL.md](../../docs/INSTALL.md#jetbrains-ides).
 
 > [!WARNING]
-> The plugin is new in 2.1.0. CI builds it against IntelliJ IDEA 2025.3 and runs the platform's plugin structure checks, and it builds against IntelliJ IDEA 2026.1; the language server it starts is the one tested in this repository. It has not yet been tried in every IDE it supports. If something doesn't work in your IDE, please [open an issue](https://github.com/bislink360/styled-markdown/issues) with the IDE's name and version (**Help → About**) and the log (**Help → Show Log in Explorer/Finder**).
+> The plugin is new in 2.1.0. CI builds it against IntelliJ IDEA 2025.3 and runs the platform's plugin structure checks, and it builds against IntelliJ IDEA 2026.1; the language server it starts is the one tested in this repository. It has not yet been tried in every IDE it supports. If something doesn't work in your IDE, please [open an issue](https://github.com/bislink360/semantic-markdown/issues) with the IDE's name and version (**Help → About**) and the log (**Help → Show Log in Explorer/Finder**).
 
 ## What it does
 
@@ -14,9 +14,9 @@ A plugin that gives `.smd` files highlighting and the Styled Markdown language s
 | Completion: block names after `:::`, attributes, front matter, inline directives, fence languages, link paths and `#anchors` | The language server |
 | Hover, go to definition, the outline (**Structure**), symbol search, **Reformat Code** | The language server |
 | **Live preview** beside the editor (since 2.2.0): the rendered page, updated as you type, in the IDE's light or dark theme | The language server's `smd/renderHtml` (the page `smd export --to html` writes, from the editor's current text) in the IDE's embedded browser (JCEF) |
-| **Open Styled Markdown Preview in Browser** (editor right-click menu, or **Tools**) | `smd export --to html` into a temporary folder, then the default browser |
-| **Export Styled Markdown to PDF** (editor right-click menu, or **Tools**; since 2.3.0): the rendered page as a PDF, with diagrams as vectors | `smd export --to pdf` to the file you choose, printed by an installed Chrome, Edge, Chromium or Brave (or the browser in the settings) |
-| **Export Styled Markdown to Word (.docx)** (editor right-click menu, or **Tools**; since 2.4.0): a Word document for Word, LibreOffice or Google Docs | `smd export --to docx` to the file you choose, written by the CLI's built-in writer, or by Pandoc when it is installed (or set in the settings) |
+| **Open Semantic Markdown Preview in Browser** (editor right-click menu, or **Tools**) | `smd export --to html` into a temporary folder, then the default browser |
+| **Export Semantic Markdown to PDF** (editor right-click menu, or **Tools**; since 2.3.0): the rendered page as a PDF, with diagrams as vectors | `smd export --to pdf` to the file you choose, printed by an installed Chrome, Edge, Chromium or Brave (or the browser in the settings) |
+| **Export Semantic Markdown to Word (.docx)** (editor right-click menu, or **Tools**; since 2.4.0): a Word document for Word, LibreOffice or Google Docs | `smd export --to docx` to the file you choose, written by the CLI's built-in writer, or by Pandoc when it is installed (or set in the settings) |
 
 The language server is the `smd` CLI's, shipped in the plugin as one file (`server/smd.cjs`, the same file as the agent skills' bundle), and runs on Node.js. Everything the server does is the same as in Neovim, Helix or Zed: see [docs/EDITORS.md](../../docs/EDITORS.md).
 
@@ -35,7 +35,7 @@ Not in the plugin: the agent view, the tasks view and the Block Editor. Those ar
 
 ## Settings
 
-**Settings → Languages & Frameworks → Styled Markdown**:
+**Settings → Languages & Frameworks → Semantic Markdown**:
 
 | Setting | Empty means |
 |---|---|
@@ -67,6 +67,6 @@ cd integrations/jetbrains
 ./gradlew buildPlugin -PlocalIde="/path/to/an/installed/IDE"   # or compile against an installed IDE
 ```
 
-The plugin zip is in `build/distributions/styled-markdown-jetbrains-X.Y.Z.zip`. `./gradlew runIde` opens an IDE with the plugin installed, for trying it. The build copies the language server (`skills/styled-markdown-reader/scripts/smd.cjs`) and the TextMate grammar (`extension/syntaxes`, `extension/language-configuration.json`) into the plugin; `bundle/package.json` lists them for the IDE's TextMate support, and a unit test ([`extension/test/jetbrains.test.ts`](../../extension/test/jetbrains.test.ts)) fails when it no longer matches the extension's `package.json`.
+The plugin zip is in `build/distributions/semantic-markdown-jetbrains-X.Y.Z.zip`. `./gradlew runIde` opens an IDE with the plugin installed, for trying it. The build copies the language server (`skills/semantic-markdown-reader/scripts/smd.cjs`) and the TextMate grammar (`extension/syntaxes`, `extension/language-configuration.json`) into the plugin; `bundle/package.json` lists them for the IDE's TextMate support, and a unit test ([`extension/test/jetbrains.test.ts`](../../extension/test/jetbrains.test.ts)) fails when it no longer matches the extension's `package.json`.
 
 The plugin uses the LSP API's names from before IntelliJ 2026.1.4 (`LspServerSupportProvider`, `ProjectWideLspServerDescriptor`), which every IDE from 2025.1 on has; newer IDEs keep them as deprecated aliases.

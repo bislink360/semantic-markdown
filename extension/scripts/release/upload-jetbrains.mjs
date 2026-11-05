@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Uploads the JetBrains plugin zip attached to the GitHub Release to the JetBrains Marketplace.
 //
-//   JETBRAINS_TOKEN=… node extension/scripts/release/upload-jetbrains.mjs <styled-markdown-jetbrains-X.Y.Z.zip> <X.Y.Z>
+//   JETBRAINS_TOKEN=… node extension/scripts/release/upload-jetbrains.mjs <semantic-markdown-jetbrains-X.Y.Z.zip> <X.Y.Z>
 //
 // Uses the Marketplace's plugin upload API (POST https://plugins.jetbrains.com/plugin/uploadPlugin with
 // pluginId and file). JetBrains reviews every upload by hand, so the version is listed only after that

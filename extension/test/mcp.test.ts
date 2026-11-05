@@ -185,7 +185,7 @@ test('CLI: smd mcp speaks JSON-RPC over stdio', { skip: !existsSync(cli) && 'run
   assert.deepEqual([...byId.keys()].sort((a, b) => String(a).localeCompare(String(b))), [1, 10, 11, 12, 13, 14, 15, 2, 20, 21, 22, null]);
   const result = (id: number) => byId.get(id)!.result as { content: Array<{ text: string }>; isError?: boolean };
   const text = (id: number) => result(id).content[0].text;
-  assert.equal((byId.get(1)!.result as { serverInfo: { name: string } }).serverInfo.name, 'styled-markdown');
+  assert.equal((byId.get(1)!.result as { serverInfo: { name: string } }).serverInfo.name, 'semantic-markdown');
   const listed = (byId.get(2)!.result as { tools: Array<{ name: string }> }).tools.map((t) => t.name);
   // 2.5: read replaced outline, section and agent in the list; the old names are still called above.
   assert.deepEqual(listed, ['read', 'tasks', 'query', 'validate']);

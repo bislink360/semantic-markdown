@@ -1,19 +1,19 @@
 # Contributing
 
-Thanks for helping improve Styled Markdown.
+Thanks for helping improve Semantic Markdown.
 
-- **Questions and ideas:** [Discussions](https://github.com/bislink360/styled-markdown/discussions).
-- **Bugs and feature requests:** [open an issue](https://github.com/bislink360/styled-markdown/issues/new/choose); the forms ask for what we need.
+- **Questions and ideas:** [Discussions](https://github.com/bislink360/semantic-markdown/discussions).
+- **Bugs and feature requests:** [open an issue](https://github.com/bislink360/semantic-markdown/issues/new/choose); the forms ask for what we need.
 - **Security problems:** report them privately, as [SECURITY.md](SECURITY.md) explains.
 - Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Good first issues
 
-Issues labelled [`good first issue`](https://github.com/bislink360/styled-markdown/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are small and self-contained, with the files to change named in the issue. [`help wanted`](https://github.com/bislink360/styled-markdown/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) issues are bigger but well defined. Comment on the issue before you start, so two people don't do the same work.
+Issues labelled [`good first issue`](https://github.com/bislink360/semantic-markdown/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are small and self-contained, with the files to change named in the issue. [`help wanted`](https://github.com/bislink360/semantic-markdown/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) issues are bigger but well defined. Comment on the issue before you start, so two people don't do the same work.
 
 No labelled issue that suits you? These are good places to start, and need no knowledge of the parser:
 
-- **A template:** add a document template to `skills/styled-markdown-writer/assets/templates/` and register it in `TEMPLATES` in `extension/src/skillsBundle.ts`. Copy an existing one; after `smd init x.smd --template <name>`, `smd validate x.smd` must report no errors or warnings.
+- **A template:** add a document template to `skills/semantic-markdown-writer/assets/templates/` and register it in `TEMPLATES` in `extension/src/skillsBundle.ts`. Copy an existing one; after `smd init x.smd --template <name>`, `smd validate x.smd` must report no errors or warnings.
 - **A quick fix or a clearer message** for a validation rule in `extension/src/core/validate.ts`, with a test.
 - **A language** for the labels smd adds around a document's text (`Note`, `Figure 2`, `overdue`…): copy a locale in `extension/src/core/locales.ts` and translate it.
 - **Docs:** a missing example, a confusing sentence or a broken link in `docs/`.
@@ -24,8 +24,8 @@ Pull requests may target the open `release/v*` branch or `main`; the maintainer 
 ## Setup
 
 ```bash
-git clone https://github.com/bislink360/styled-markdown.git
-cd styled-markdown/extension
+git clone https://github.com/bislink360/semantic-markdown.git
+cd semantic-markdown/extension
 npm install
 npm run build
 npm test
@@ -37,7 +37,7 @@ Press **F5** in `extension/` to run the extension in a development host.
 
 | Change | Files |
 |---|---|
-| New block or directive | `src/core/spec.ts` (vocabulary; drives validation, completion and hover) → `src/core/render.ts` (HTML) → `media/smd.css` (style) → `src/core/agentView.ts` (agent view) → `src/core/toMarkdown.ts` (GitHub fallback) → `syntaxes/smd-directives.injection.json` (for new inline directives) → `docs/SPEC.md`, `docs/FEATURES.md`, `skills/styled-markdown-writer/references/syntax.md` |
+| New block or directive | `src/core/spec.ts` (vocabulary; drives validation, completion and hover) → `src/core/render.ts` (HTML) → `media/smd.css` (style) → `src/core/agentView.ts` (agent view) → `src/core/toMarkdown.ts` (GitHub fallback) → `syntaxes/smd-directives.injection.json` (for new inline directives) → `docs/SPEC.md`, `docs/FEATURES.md`, `skills/semantic-markdown-writer/references/syntax.md` |
 | Validation rule | `src/core/validate.ts`, with a stable `code` and, when safe, a `fix` |
 | Agent skills | `skills/*/SKILL.md`, references and templates. `npm run build` refreshes the bundled `scripts/smd.cjs`. |
 | Preview behaviour | `media/runtime.js`, `src/preview.ts` |
@@ -45,18 +45,18 @@ Press **F5** in `extension/` to run the extension in a development host.
 ### Repository layout
 
 ```text
-styled-markdown/
+semantic-markdown/
 ├── extension/            VS Code extension + smd CLI (TypeScript)
 │   ├── src/core/         the engine: renderer, validator, agent view, converters (no VS Code dependency)
 │   ├── src/              extension: preview, language features, agent view UI, CLI
 │   ├── media/            preview CSS/runtime, icons
 │   └── test/             unit tests + VS Code integration tests
 ├── skills/
-│   ├── styled-markdown-reader/   agent skill: token-efficient reading
-│   └── styled-markdown-writer/   agent skill: authoring, with templates and references
-├── npm/                  the `styled-markdown` npm package (library + CLI)
-├── integrations/mkdocs/  the MkDocs plugin (Python package `mkdocs-styled-markdown`)
-├── integrations/obsidian/ the Obsidian plugin (id `styled-markdown`)
+│   ├── semantic-markdown-reader/   agent skill: token-efficient reading
+│   └── semantic-markdown-writer/   agent skill: authoring, with templates and references
+├── npm/                  the `semantic-markdown` npm package (library + CLI)
+├── integrations/mkdocs/  the MkDocs plugin (Python package `mkdocs-semantic-markdown`)
+├── integrations/obsidian/ the Obsidian plugin (id `semantic-markdown`)
 ├── integrations/jetbrains/ the JetBrains plugin (Kotlin, Gradle): TextMate highlighting and the language server
 ├── integrations/tree-sitter-smd/  Tree-sitter grammar and queries for Neovim, Helix and Zed
 ├── playground/           the web playground: a static page that runs the engine in the browser

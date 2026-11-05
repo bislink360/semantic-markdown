@@ -268,7 +268,7 @@ async function setTaskDone(task: WorkspaceTask, done: boolean): Promise<boolean>
   const line = currentLine(document, task);
   const box = line === undefined ? undefined : taskCheckbox(document.lineAt(line).text);
   if (line === undefined || !box) {
-    vscode.window.showWarningMessage(`Styled Markdown: "${task.text}" is no longer in ${task.file}.`);
+    vscode.window.showWarningMessage(`Semantic Markdown: "${task.text}" is no longer in ${task.file}.`);
     return false;
   }
   if (box.done === done) return true;

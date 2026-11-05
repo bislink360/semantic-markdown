@@ -149,7 +149,7 @@ export const SPELLCHECK_PATTERNS: ReadonlyArray<{ name: string; pattern: string 
 export function smdLanguageSettings(): { languageId: string; name: string; patterns: Array<{ name: string; pattern: string }>; ignoreRegExpList: string[] } {
   return {
     languageId: 'smd',
-    name: 'Styled Markdown (added by the Styled Markdown extension)',
+    name: 'Semantic Markdown (added by the Semantic Markdown extension)',
     patterns: SPELLCHECK_PATTERNS.map((p) => ({ ...p })),
     ignoreRegExpList: SPELLCHECK_PATTERNS.map((p) => p.name),
   };

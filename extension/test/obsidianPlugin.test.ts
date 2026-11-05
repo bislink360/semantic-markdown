@@ -263,13 +263,14 @@ test('the bundle needs nothing at runtime but the obsidian module', () => {
   const required = new Set([...mainJs.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]));
   assert.deepEqual([...required], ['obsidian']);
   assert.ok(EXTERNAL.includes('obsidian'));
-  assert.match(mainJs, new RegExp(`^/\\* Styled Markdown for Obsidian ${readManifest().version.replaceAll('.', '\\.')} `));
+  assert.match(mainJs, new RegExp(`^/\\* Semantic Markdown for Obsidian ${readManifest().version.replaceAll('.', '\\.')} `));
 });
 
 test('manifest.json and versions.json are what Obsidian expects, at the release version', () => {
   const manifest = readManifest();
   const versions = JSON.parse(readFileSync(join(pluginDir, 'versions.json'), 'utf8'));
   const extension = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+  // The plugin ID stays as it was before 3.0: Obsidian keys installs, settings and updates on it.
   assert.equal(manifest.id, 'styled-markdown');
   assert.equal(manifest.version, extension.version);
   assert.equal(versions[manifest.version], manifest.minAppVersion);

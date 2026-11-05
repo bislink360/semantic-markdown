@@ -1,4 +1,4 @@
-"""The Node process that renders Styled Markdown for the plugin.
+"""The Node process that renders Semantic Markdown for the plugin.
 
 The renderer is the same engine as the `smd` CLI and the VS Code extension, bundled as ``bridge.cjs``. The plugin
 starts it once per build and sends it one JSON request per line on stdin; it answers each with one JSON line on
@@ -20,7 +20,7 @@ BRIDGE_SCRIPT = Path(__file__).with_name("bridge.cjs")
 MIN_NODE = 22
 
 NODE_MISSING = (
-    "styled-markdown: Node.js {min}+ is needed to render .smd pages, but {node!r} was not found on PATH. "
+    "semantic-markdown: Node.js {min}+ is needed to render .smd pages, but {node!r} was not found on PATH. "
     "Install Node.js from https://nodejs.org (or your package manager), or set the plugin's `node` option "
     "to the node executable."
 )
@@ -45,7 +45,7 @@ class NodeBridge:
         major = int(str(self.info.get("node", "0")).split(".")[0])
         if major < MIN_NODE:
             self.close()
-            raise PluginError(f"styled-markdown: Node.js {MIN_NODE}+ is needed, found {self.info.get('node')}.")
+            raise PluginError(f"semantic-markdown: Node.js {MIN_NODE}+ is needed, found {self.info.get('node')}.")
 
     def call(self, method: str, **params: Any) -> Any:
         """Send one request and wait for its answer. Raises PluginError for an error answer or a dead process."""
@@ -53,7 +53,7 @@ class NodeBridge:
         request = json.dumps({"id": self._last_id, "method": method, "params": params}) + "\n"
         stdin, stdout = self._process.stdin, self._process.stdout
         if stdin is None or stdout is None or stdin.closed:
-            raise PluginError("styled-markdown: the Node.js renderer is not running.")
+            raise PluginError("semantic-markdown: the Node.js renderer is not running.")
         try:
             stdin.write(request.encode("utf-8"))
             stdin.flush()
@@ -64,7 +64,7 @@ class NodeBridge:
             raise PluginError(self._stopped())
         response = json.loads(line.decode("utf-8"))
         if "error" in response:
-            raise PluginError(f"styled-markdown: {response['error'].get('message', 'unknown error')}")
+            raise PluginError(f"semantic-markdown: {response['error'].get('message', 'unknown error')}")
         return response.get("result")
 
     def close(self) -> None:
@@ -92,4 +92,4 @@ class NodeBridge:
         self._stderr.seek(0)
         output = self._stderr.read().decode("utf-8", "replace").strip()
         detail = f":\n{output}" if output else "."
-        return f"styled-markdown: the Node.js renderer stopped (Node.js {MIN_NODE}+ is needed){detail}"
+        return f"semantic-markdown: the Node.js renderer stopped (Node.js {MIN_NODE}+ is needed){detail}"
