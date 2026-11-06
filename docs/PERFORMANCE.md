@@ -4,7 +4,7 @@ This page answers one question from the implementation review (C11). Does `smd r
 
 Short answer, on one machine. Without includes, every call parses the document once. The existing parse cache answers all other lookups. The outline path repeats projection passes, not parsing. That costs about 2–3 ms on the large repo documents and about 29 ms on a 50k-token document. With `:::include`, included files are parsed and read several times per call, and the parse cache does not help. That is the one place where repeated work is clearly visible. It is still under 50 ms at p95 for the case measured.
 
-No cache was added. Nothing in the view code was changed.
+No cache was added. A follow-up fixed the two slow paths this profile found, the `maxTokens` budget on large documents and the repeated loading of includes. Both now do less work within one call, and their output is byte for byte the same. See [Follow-up](#follow-up-the-two-slow-paths) at the end. The results below are from before that change.
 
 ## What is measured
 
@@ -111,7 +111,51 @@ Peak heap growth during 60 timed runs was 20–150 MB, highest on the 50k compos
 - **The editor's two projections share one parse.** After an edit the second view parses nothing. The first does an incremental update.
 - **Includes are where repeated work shows.** Included files are read twice per view and parsed several times per call. The cache does not help, so warm latency is about cold latency (10.8 vs 12.4 ms for a full read). For a document of this size the absolute cost is still small.
 
-On these numbers a cross-request cache is not warranted for documents without includes. The parse is already shared within a call and across calls on the same text. The remaining repeated work costs a few milliseconds on real documents. Two narrower follow-ups look worth measuring further. One is reusing included-file reads and parses within a single request. The other is the `maxTokens` budget path on very large documents.
+On these numbers a cross-request cache is not warranted for documents without includes. The parse is already shared within a call and across calls on the same text. The remaining repeated work costs a few milliseconds on real documents. Two narrower follow-ups looked worth doing. One is reusing included-file reads and parses within a single request. The other is the `maxTokens` budget path on very large documents. Both are done, see the next section.
+
+## Follow-up: the two slow paths
+
+### What changed
+
+**The budget path.** To fit `maxTokens`, the view omits sections one at a time and checks the size after each. Each check used to rebuild and recount the whole view, and each rebuild worked out every omitted section's pointer again by scanning all view lines. That made the cost grow with the square of the document. Now each section's text, token cost and pointer are worked out once per call. With the default estimate (characters / 4) a check needs only the view's length, and that length is now added up from the lines without building the text. Runs of blank lines and the joins with the header and footnotes are counted exactly as assembling the view would treat them. With a real tokenizer the whole text is still built and counted at each check, since its count does not follow from the length. The code is `draftCount` and `ViewLength` in `extension/src/core/agentView.ts`.
+
+**Includes.** `agentView`, `outline` and `sectionCosts` now read each file once per call, and keep every text they parse until the call returns (`withParses` in `extension/src/core/parse.ts`). Before, numbering figures and showing the text each loaded every include, and the included texts pushed each other out of the three-entry parse cache. Nothing is kept after the call, so this adds no cross-request cache. A document that changes between calls is read and parsed again, as before.
+
+### Output is unchanged
+
+`extension/test/viewOutput.test.ts` checks 190 groups of views against digests written by the code before the change (`test/viewOutput.digests.json`). The groups cover every sample, the 8k, 20k and 50k composites, the composite with includes, and five small documents made for edge cases of the budget path. Those are blank-line runs, whitespace-only lines, a parent section omitted before its child, GitHub alerts (whose closing tag is out of source-line order) and a multi-line front matter value. Each document is read with `brief`, a section, `embed`, includes off, provenance, constraints, without line refs, with up to 52 `maxTokens` budgets (alone, brief and with a word-count tokenizer), and through `outline`, `sectionCosts` and `readDocument`.
+
+Two further checks were run once and not kept. A comparison of old and new output over 3,474 views found no difference. A build of the new code that also built the full text at every budget check and compared lengths ran 16,804 budgeted views over 17 documents, and all 236,434 checks matched.
+
+### Parse counts with includes, after
+
+For the composite with includes. Before, each view read 6 files and markdown-it read 2.9× the root's lines. Now each file is read once and parsed once per call.
+
+| Call | `parseSmd` calls (hits) | Block parses, cold | Block parses, warm | Lines read ×doc, cold | Reads (distinct) |
+|---|---:|---:|---:|---:|---:|
+| `readDocument full` | 27 (22) | 1 full + 4 incremental | 5 incremental | 1.5 | 2 (2) |
+| `readDocument outline` | 84 (74) | 1 full + 9 incremental | 10 incremental | 2.9 | 4 (2) |
+| `outline` | 57 (52) | 1 full + 4 incremental | 5 incremental | 1.5 | 2 (2) |
+| `agentView maxTokens=1000` | 50 (45) | 1 full + 4 incremental | 5 incremental | 1.5 | 2 (2) |
+| `editor status` | 54 (44) | 1 full + 9 incremental | 10 incremental | 2.9 | 4 (2) |
+
+About 1.4× is reading every file once, so what is left is close to that. `readDocument outline` and `editor status` make two separate calls, so each reads and parses the includes once. Warm runs still parse the included texts. Keeping them across calls would be the cross-request cache this page argues against. Code embeds with `embed` are also read once per call now (1 read instead of 24 on the 50k composite). Documents without includes parse exactly as before.
+
+### Latency, before and after
+
+The machine was busier during this run than during the first one, and the profiler's absolute times varied by up to 2× between runs. So old and new code were timed in one process, alternating run by run, 30 runs each after 5 warm-up runs. Cold clears the parse cache first, warm repeats the call on the same text. Times are ms, p50 / p95.
+
+| Document | Call | Before, cold | Before, warm | After, cold | After, warm |
+|---|---|---:|---:|---:|---:|
+| composite ≈20k | `agentView maxTokens=1000` | 64.0 / 75.7 | 51.4 / 64.2 | 24.9 / 37.4 | 14.7 / 18.9 |
+| composite ≈50k | `agentView maxTokens=1000` | 542.7 / 597.9 | 511.3 / 605.5 | 68.9 / 94.7 | 44.3 / 57.0 |
+| composite with includes | `agentView` | 13.6 / 19.5 | 12.8 / 16.4 | 7.9 / 13.6 | 7.7 / 11.8 |
+| composite with includes | `agentView maxTokens=1000` | 28.7 / 38.4 | 23.0 / 27.8 | 11.2 / 15.8 | 10.9 / 14.5 |
+| composite with includes | `readDocument full` | 13.0 / 16.7 | 12.2 / 16.9 | 7.4 / 11.3 | 7.2 / 11.6 |
+| composite with includes | `readDocument outline` | 41.7 / 45.6 | 38.9 / 43.8 | 17.8 / 26.8 | 17.5 / 21.9 |
+| composite with includes | `editor status` | 26.2 / 29.5 | 27.2 / 34.2 | 15.4 / 24.5 | 15.3 / 19.2 |
+
+The budget path on the 50k composite is about 8× faster, and about 2.6× on the 20k one. What remains there is mostly the two view passes it always made, a full one and then a brief one. About a quarter is the size checks, which still scan the view's lines once per omitted section (290 on the 50k composite at 1,000 tokens). Views of the composite with includes are 1.7–2.3× faster. A full `npm run bench:profile` run on the new code, on the same busy machine, put every call on every sample under 10.2 ms at p95, cold.
 
 ## If a cache is added later
 
