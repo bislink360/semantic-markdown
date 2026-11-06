@@ -250,6 +250,8 @@ function selectSections(
 interface ViewHead {
   header: string;
   external: string;
+  /** The `:::danger` blocks and CAUTION alerts outside the selected sections (see outsideDangers). */
+  dangers: string;
   /** With `constraints`: the constraints outside the selected sections (see constraintsOutside). */
   constraints: string;
   constraintView?: ConstraintView;
@@ -257,15 +259,17 @@ interface ViewHead {
 }
 
 /** Where a view's head comes from, for provenance: the traces of its document-wide parts. */
-interface HeadTraces { external?: Trace; constraints?: Trace; footnotes?: Trace }
+interface HeadTraces { external?: Trace; dangers?: Trace; constraints?: Trace; footnotes?: Trace }
 
 /**
- * The header, plus :::agent blocks outside the selected sections (they still apply) and the footnotes
- * the sections reference but that are defined elsewhere.
+ * The header, plus what applies to the whole document outside the selected sections: its :::agent blocks and its
+ * dangers. Then the constraints pass when asked for, and the footnotes the sections reference but that are defined
+ * elsewhere.
  */
 function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTraces = {}): ViewHead {
   const { selected, lines, bodyStart, inScope } = scope;
   let external = '';
+  let dangers = '';
   let footnotes = '';
   let constraints = '';
   let constraintView: ConstraintView | undefined;
@@ -273,10 +277,24 @@ function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTrace
     const outside = transform(lines, bodyStart, (l) => !inScope(l), { ...options, onlyAgentBlocks: true, trace: traces.external });
     if (outside.trim()) external = `Document-wide agent instructions:\n${outside.trim()}\n\n`;
     footnotes = outsideFootnotes(scope, { ...options, trace: traces.footnotes });
+    // The constraints pass shows the dangers itself, with the pointers that go with them.
     if (options.constraints) ({ text: constraints, view: constraintView } = constraintsOutside(scope, { ...options, trace: traces.constraints }));
+    else dangers = outsideDangers(scope, { ...options, trace: traces.dangers });
   }
   const head = [header(scope.data, scope.shown, selected ? selected.map((s) => s.heading.text) : null), unreadBlock(scope.unread)].filter(Boolean).join('\n');
-  return { header: head, external, constraints, constraintView, footnotes };
+  return { header: head, external, dangers, constraints, constraintView, footnotes };
+}
+
+/**
+ * The dangers outside the selected sections, in full: `:::danger` blocks and CAUTION alerts, from the document and the
+ * files it includes. A danger is a hard constraint, so like a :::agent block it applies whichever sections are read
+ * (C04, decided 2026-11-06). Left out, as everywhere: sections marked {agent=skip}, `:::human` blocks, and dangers
+ * inside :::agent blocks, which are shown with them.
+ */
+function outsideDangers(scope: ViewScope, options: TransformOptions): string {
+  const inSkipped = (line: number) => scope.skipped.some((s) => line >= s.start && line <= s.end);
+  const text = transform(scope.lines, scope.bodyStart, (l) => !scope.inScope(l) && !inSkipped(l), { ...options, onlyDangers: true }).trim();
+  return text ? `Dangers elsewhere in the document:\n${text}\n\n` : '';
 }
 
 /**
@@ -321,7 +339,7 @@ function outsideFootnotes(scope: ViewScope, options: TransformOptions): string {
 }
 
 function assemble(head: ViewHead, body: string): string {
-  return [head.header, head.external + head.constraints + body, head.footnotes]
+  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes]
     .filter((s) => s.trim())
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -375,7 +393,7 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   });
   const traced = { ...options, readFile, brief: options.brief || result.budget?.condensed };
   const omissions: Omission[] = [];
-  const traces: HeadTraces = { external: { file, entries: [] }, constraints: { file, entries: [] }, footnotes: { file, entries: [] } };
+  const traces: HeadTraces = { external: { file, entries: [] }, dangers: { file, entries: [] }, constraints: { file, entries: [] }, footnotes: { file, entries: [] } };
   const body: Trace = { file, entries: [], omissions };
   transform(scope.lines, scope.bodyStart, scope.inScope, { ...traced, trace: body });
   const head = viewHead(scope, traced, traces);
@@ -384,7 +402,7 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   const bodyEntries = body.entries.filter((e) => !cut.some((o) => e.root >= o.line && e.root <= o.endLine));
   return provenanceManifest({
     text, file, result, omissions, dependencies,
-    entries: [...traces.external!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
+    entries: [...traces.external!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
     headerLines: head.header ? head.header.split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
     sections: scope.sections, selected: scope.selected, skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
@@ -667,6 +685,10 @@ function factText(value: unknown): string {
 
 interface TransformOptions extends AgentViewOptions {
   onlyAgentBlocks?: boolean;
+  /** Only the lines inside `:::danger` blocks and CAUTION alerts, not inside `:::agent` (see outsideDangers). */
+  onlyDangers?: boolean;
+  /** Only what every view keeps: `:::agent` and danger lines (an include hidden by condensing or a head pass). */
+  onlyMandatory?: boolean;
   /** The figures of the document and of what it includes, numbered together; found from `lines` when left out. */
   figures?: ExpandedFigures;
   /** Which document of `figures` the lines are: an included one's key (see includeKey), `''` for the root document. */
@@ -743,6 +765,8 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   /** Whether a line at `at` would be in the output now. */
   const visibleAt = (at: number) => inScope(at) && !dropping()
     && (!options.onlyAgentBlocks || inAgent())
+    && (!options.onlyDangers || (inDanger() && !inAgent()))
+    && (!options.onlyMandatory || inAgent() || inDanger())
     && (!options.onlyConstraints || (inDanger() && !inAgent()));
   const trace = options.trace;
   // `end`: the last source line the emitted line stands for, when it is more than `at` (a fence's lines).
@@ -863,7 +887,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
           // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
           // blocks still apply, as the document's own do (C01).
-          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined }, onlyAgentBlocks: true });
+          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined }, onlyMandatory: true });
           if (rules.length > 2) {
             for (const l of rules) {
               out.push(l);

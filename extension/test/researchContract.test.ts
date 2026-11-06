@@ -189,3 +189,71 @@ test('GAP-7 (AF13, AF23): --constraints lists an include outside the sections wi
   assert.equal(view.constraints?.shown, 0, 'a danger the view does not show is not counted as shown');
   assert.deepEqual(view.constraints?.pointers.map((p) => [p.type, p.title, p.line, p.section]), [['include', 'risky.smd', 7, 'A']]);
 });
+
+// ---------------------------------------------------------------------------
+// C04 constraint scope, decided 2026-11-06: dangers apply to the whole document
+// ---------------------------------------------------------------------------
+
+const scoped = edges([
+  '## A', '', ':::danger Never drop the ledger', 'ROOT_DANGER', ':::', '', '> [!CAUTION]', '> ALERT_DANGER', '',
+  ':::warning Careful', 'WARN_TEXT', ':::', '',
+  '## B', '', 'B text.', '',
+  '## Notes {agent=skip}', '', ':::danger Skipped', 'SKIP_DANGER', ':::', '',
+  '## C', '', ':::agent Rules', '::::danger In rules', 'AGENT_DANGER', '::::', ':::', '',
+  ':::human', '::::danger Human only', 'HUMAN_DANGER', '::::', ':::', '',
+  '## D', '', ':::include{file=risky.smd}', ':::',
+]);
+const riskyFiles: Record<string, string> = {
+  'risky.smd': ['---', 'smd: 2', 'title: Risky', '---', '', ':::danger Included danger', 'INCLUDED_DANGER', ':::', ''].join('\n'),
+};
+const riskyRead = (p: string) => riskyFiles[p];
+const once = (text: string, word: string) => assert.equal(text.split(word).length - 1, 1, `${word} once`);
+
+test('C04: a section view shows the dangers of other sections and included files in full, once each', () => {
+  const view = agentView(scoped, { readFile: riskyRead, sections: ['B'] }).text;
+  assert.match(view, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger">\nROOT_DANGER\n<\/danger>/);
+  for (const word of ['ROOT_DANGER', 'ALERT_DANGER', 'INCLUDED_DANGER', 'AGENT_DANGER']) once(view, word);
+  assert.match(view, /<included file="risky.smd">\n<danger title="Included danger">/);
+});
+
+test('C04: warnings, skipped sections and :::human blocks stay out of a section view by default', () => {
+  const view = agentView(scoped, { readFile: riskyRead, sections: ['B'] }).text;
+  for (const word of ['WARN_TEXT', 'SKIP_DANGER', 'HUMAN_DANGER']) assert.doesNotMatch(view, new RegExp(word));
+});
+
+test('C04: a danger inside the selected sections is shown in place, not repeated in the head', () => {
+  const view = agentView(scoped, { readFile: riskyRead, sections: ['A'] }).text;
+  once(view, 'ROOT_DANGER');
+  once(view, 'ALERT_DANGER');
+  once(view, 'INCLUDED_DANGER');
+});
+
+test('C04: with --constraints the dangers are listed once, in the constraints block', () => {
+  const view = agentView(scoped, { readFile: riskyRead, sections: ['B'], constraints: true }).text;
+  assert.doesNotMatch(view, /Dangers elsewhere in the document:/);
+  assert.match(view, /Constraints elsewhere in the document:/);
+  once(view, 'ROOT_DANGER');
+  assert.match(view, /warning "Careful"/, 'warnings are pointers');
+});
+
+test('C04: a whole-document view and a document without dangers are unchanged', () => {
+  assert.doesNotMatch(agentView(scoped, { readFile: riskyRead }).text, /Dangers elsewhere/);
+  assert.doesNotMatch(agentView(edges(['## A', '', 'a', '', '## B', '', 'b']), { sections: ['B'] }).text, /Dangers elsewhere/);
+});
+
+test('C04: the dangers survive a budget and brief section views, and MCP-style reads with sections', () => {
+  const tiny = agentView(scoped, { readFile: riskyRead, sections: ['B'], maxTokens: 10 });
+  assert.match(tiny.text, /ROOT_DANGER/);
+  assert.equal(tiny.budget?.fits, false);
+  assert.match(agentView(scoped, { readFile: riskyRead, sections: ['B'], brief: true }).text, /INCLUDED_DANGER/);
+  const read = readDocument(scoped, { readFile: riskyRead, sections: ['B'] });
+  assert.match(read.text, /Dangers elsewhere in the document:[\s\S]*ROOT_DANGER/);
+});
+
+test('C04: provenance leaves the text unchanged and maps the head dangers to their lines', () => {
+  const plain = agentView(scoped, { readFile: riskyRead, sections: ['B'] }).text;
+  const traced = agentView(scoped, { readFile: riskyRead, sections: ['B'], provenance: true, file: 'doc.smd' });
+  assert.equal(traced.text, plain);
+  const json = JSON.stringify(traced.provenance);
+  assert.match(json, /risky\.smd/);
+});

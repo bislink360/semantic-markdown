@@ -351,12 +351,13 @@ test('C04: constraints that disagree are all listed as written, in document orde
   assert.deepEqual(s.constraints!.pointers.map((p) => p.title), ['Keep logs 365 days', 'Delete old audit logs nightly', 'Keep logs 30 days', 'Never delete audit logs']);
 });
 
-test('C04: smd agent --section --constraints lists the constraints elsewhere; without it nothing is added', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
+test('C04: smd agent --section --constraints lists the constraints elsewhere; without it only the dangers are added', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const file = join(root, 'retention.smd');
   writeFileSync(file, conflicting);
   const plain = smd('agent', file, '--section', 'Scope');
   assert.equal(plain.status, 0, plain.stderr);
-  assert.doesNotMatch(plain.stdout, /Constraints elsewhere|AUDIT_LOGS_STAY|Keep logs/);
+  assert.match(plain.stdout, /Dangers elsewhere in the document:\n<danger title="Never delete audit logs">\nAUDIT_LOGS_STAY\.\n<\/danger>/, 'dangers apply to every section (decided 2026-11-06)');
+  assert.doesNotMatch(plain.stdout, /Constraints elsewhere|Keep logs|Delete old audit logs/, 'decisions and warnings stay behind --constraints');
   const out = smd('agent', file, '--section', 'Scope', '--constraints');
   assert.equal(out.status, 0, out.stderr);
   assert.match(out.stdout, /SCOPE_TEXT/);

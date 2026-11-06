@@ -187,11 +187,12 @@ test('C05: readDocument returns the manifest of what it showed, the outline incl
 // C04: constraints outside the selected sections (opt-in)
 // ---------------------------------------------------------------------------
 
-test('C04: off by default, so section views are unchanged', () => {
+test('C04: the constraints pass is off by default; only the dangers of other sections are shown (decided 2026-11-06)', () => {
   const plain = agentView(doc, { sections: ['Requirements'] });
   assert.doesNotMatch(plain.text, /Constraints elsewhere/);
   assert.equal(plain.constraints, undefined);
-  assert.doesNotMatch(plain.text, /Mask every PAN/);
+  assert.match(plain.text, /Dangers elsewhere in the document:\n<danger title="No card numbers in logs">\nMask every PAN before logging\.\n<\/danger>/);
+  assert.doesNotMatch(plain.text, /warning "Rate limits"|accepted decision "Use Postgres"/, 'warnings and decisions stay behind --constraints');
 });
 
 test('C04: dangers in full, other constraints as pointers, and nothing that is not a constraint', () => {
