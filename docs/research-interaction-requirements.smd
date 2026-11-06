@@ -1,0 +1,189 @@
+---
+smd: 2
+title: Attention, feedback and retrieval research requirements
+summary: Requirements for a shared human-agent document interface that connects visual attention cues, revision-aware human feedback, task-specific retrieval and verified software outcomes. Defines the research scope, observable acceptance criteria and dependency-ordered delivery gates.
+status: draft
+owners: ["@roshanmadhushanka"]
+tags: [requirements, research, human-ai-interaction, attention, retrieval]
+created: 2026-11-06
+updated: 2026-11-06
+toc: true
+related:
+  - semantic-tags-requirement.smd
+  - static-and-graph-based-filtering-requirement.smd
+  - COLLABORATION-RFC.smd
+  - RESEARCH-CONTRACT-RFC.smd
+  - ../research/evidence-matrix.smd
+  - ../research/research-plan.smd
+  - ../research/study-1-agent-evaluation.smd
+  - ../research/study-2-authoring.smd
+---
+
+## Problem
+
+An agent can render a question that a person never notices, receive an answer that loses its target, retrieve an outdated decision, or report completion without satisfying the requirement. Smaller context alone does not establish reliable collaboration. Semantic Markdown must connect the human-facing document and the agent-facing view throughout this loop:
+
+```mermaid
+flowchart LR
+  accTitle: Human-agent attention and feedback loop
+  accDescr: An agent raises an issue, a human responds, the document preserves the response, and the agent retrieves it to change and verify work.
+  A[Agent raises an issue] --> B[Human notices and understands]
+  B --> C[Human answers or corrects]
+  C --> D[Document records meaning and revision]
+  D --> E[Agent retrieves applicable feedback]
+  E --> F[Agent changes and verifies work]
+  F --> A
+```
+
+The paper title is **Semantic Markdown: Author-Controlled Context Views for Reliable AI-Assisted Software Work**. Author control includes people who review, answer and amend agent-authored documents. It means the ability to specify, inspect and revise the content and semantic relationships used to construct task context. It does not guarantee agent obedience or the completeness of an author's annotations.
+
+## Scope and status
+
+This is a requirements proposal, not a report of implemented features or completed studies. Existing foundations include semantic callouts, timelines, progress indicators, task checkboxes, agent views, section selection, queries, source provenance and omission inspection. Source presence, passing tests, released behavior and measured user benefit are separate statuses.
+
+This document coordinates the semantic-tags and tree/graph proposals and the accepted asynchronous collaboration direction. It adds requirements to reconcile in their RFCs; it does not silently override their syntax, defaults or accepted decisions. Use existing tables and known containers here until new syntax is specified and implemented.
+
+**In scope:** persistent document cues; human responses and corrections; stable targets and lifecycle state; author-defined context policies; tree and typed-edge retrieval; evidence-based progress; attention, correctness and total-token evaluation.
+
+**Deferred:** live synchronization, autonomous notification scheduling, learned attention personalization, multi-agent attention arbitration, general ontology expansion and additional publishing/editor integrations. Maintain existing integrations. Participant recruitment, model-provider spending, release and publication are separate activities, not authorized by this requirements document.
+
+## Research questions and outcomes
+
+| ID   | Research question                                                                                                   | Primary evidence                                                     |
+| ---- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| RQ-A | Do semantic visual cues help people notice, understand and appropriately respond to consequential issues?           | Detection, interpretation, response quality and active review time   |
+| RQ-F | Can people express feedback whose target, scope and lifecycle remain understandable in the agent view?              | Authoring errors, semantic preservation and feedback incorporation   |
+| RQ-R | Can agents discover relevant current feedback and declared applicable constraints through tree and graph retrieval? | Required-item recall, precision, retrieval failures and total tokens |
+| RQ-C | Does the complete loop improve or preserve software correctness at acceptable human attention and token cost?       | Executable outcomes, constraint compliance and human effort          |
+
+Correctness is a gate, not a quantity to trade away invisibly. Compare attention cost and tokens subject to a preregistered correctness threshold. Report tradeoffs and uncertainty separately; do not collapse them into an unvalidated composite score. Performance claims and numerical targets follow pilots and must be fixed before confirmatory runs.
+
+## Requirements
+
+Priorities apply to the research program: P0 establishes the contract and essential mechanism; P1 supplies the first paper's evaluation and workflow; P2 is conditional follow-up. An RFC must settle representation details before implementation. Requirement IDs below are document-local identifiers written as table text, not examples of shipped block-ID syntax.
+
+### Attention and cue semantics
+
+| ID   | Requirement                                                                                                                                                                                                                                                                                              | Priority      |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| AF01 | Define each cue's semantic role: question requests information or a decision; danger communicates a consequential restriction; timeline distinguishes planned and actual events; progress summarizes a stated basis; checkbox records a task-state claim. Preserve these meanings in the agent view.     | :priority[P0] |
+| AF02 | An actionable attention item identifies its target, reason, requested action, intended responder and blocking consequence when known. Missing values remain explicitly unknown; the agent must not invent an owner, urgency or deadline.                                                                 | :priority[P0] |
+| AF03 | Separate persistent awareness, review requests and blocking requests. Provide a deterministic review list with explicit status and target navigation. Define how a user encounters it; a rendered cue alone must not be described as an active notification.                                             | :priority[P1] |
+| AF04 | Blocking or high-severity presentation requires a reason. Users can correct severity and defer or dismiss a request without recording approval or resolving the underlying issue. Record duplicate requests against the same unresolved target so they can be grouped without losing distinct questions. | :priority[P1] |
+| AF05 | Convey meaning through text and structure as well as color. Support keyboard navigation, visible focus, meaningful accessible names and non-disruptive announcements of dynamic state changes. Test actual cue and feedback tasks with assistive technology; contrast checks alone are insufficient.     | :priority[P0] |
+
+### Feedback identity and lifecycle
+
+| ID   | Requirement                                                                                                                                                                                                                                                                                                                                   | Priority      |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| AF06 | Establish stable document-qualified identities for tasks, questions and feedback targets before linking them. IDs survive ordinary edits and moves within a document; cross-document moves, rename, deletion and duplicate IDs have specified behavior. Never attach feedback to a different target by silently choosing the first duplicate. | :priority[P0] |
+| AF07 | Specify a question lifecycle that distinguishes open, answered and answer incorporated; record outcome verification separately. Specify task states that distinguish an implementation claim, verification result and human acceptance when required. No exact syntax is mandated by this document.                                           | :priority[P0] |
+| AF08 | Record a response's target, base revision, attribution and scope, plus its current disposition. Preserve the accepted answer or correction and a navigable supersession/history record; do not require every historical entry in every agent view.                                                                                            | :priority[P0] |
+| AF09 | Support answer, correction, suggestion acceptance/rejection, reopening and withdrawal. An explicit action determines each transition; silence, opening a cue, dismissal and a checked box do not imply approval. Human confirmation is required before an agent proposal becomes a human-accepted decision or relationship.                   | :priority[P0] |
+| AF10 | Detect stale targets before applying feedback. Present the changed target and request an explicit rebase or renewed acceptance rather than automatically applying an old response. Writes use revision checks, preserve unrelated content and remain undoable in the editor.                                                                  | :priority[P0] |
+| AF11 | Keep uncertainty and conflicts visible. An unresolved question cannot become settled because its container is hidden or its status changed without an answer. Contradictory applicable decisions require explicit resolution; do not select a winner from styling, document order or model confidence.                                        | :priority[P0] |
+| AF12 | Provide equivalent agent-readable outcomes for feedback made through source editing and supported editor controls. Show authors the resulting context view and target relationships so they can inspect and repair representation errors.                                                                                                     | :priority[P1] |
+
+### Author-controlled context and trust
+
+| ID   | Requirement                                                                                                                                                                                                                                                                                                                 | Priority      |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| AF13 | Specify document, section and explicit-target applicability, including nested sections and includes. Resolve how scope and `applies-to` combine before shipping; invalid or ambiguous combinations produce diagnostics.                                                                                                     | :priority[P0] |
+| AF14 | Let an author declare a task view's selected elements, mandatory relationships and optional context, then preview and revise the resulting view. Separate author policy from an agent's discretionary retrieval choices and record both in provenance.                                                                      | :priority[P1] |
+| AF15 | Include the transitive closure of declared mandatory context dependencies or report the unresolved dependencies. Preserve mandatory bodies and their material qualifications through both section omission and brief condensation. This guarantees declared dependency preservation, not complete natural-language meaning. | :priority[P0] |
+| AF16 | When mandatory content exceeds the budget, report an unsatisfied budget and required content explicitly. Do not silently truncate it or label an incomplete view sufficient. Specify the distinct routing and truncation semantics of `read`, `agent` and `query`.                                                          | :priority[P0] |
+| AF17 | Separate semantic status, source revision, attribution, host trust and tool authorization. Hashes do not authenticate authors; external instructions cannot authorize actions; human-only filtering is not an access-control boundary. Apply the host's trust and filesystem policy to included content.                    | :priority[P0] |
+
+### Tree, graph and update retrieval
+
+| ID   | Requirement                                                                                                                                                                                                                                                                                                               | Priority      |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| AF18 | Preserve existing selector matches and ordering. Add tree selection and ancestor information before typed graph traversal; shared block IDs precede typed edges. Measure valid-query rate and recovery cost rather than assuming CSS familiarity eliminates instruction overhead.                                         | :priority[P0] |
+| AF19 | Distinguish navigation edges from mandatory context edges and define direction and semantics for each type. A link is related content; `applies-to`, dependency, contradiction, verification and supersession relations are not interchangeable.                                                                          | :priority[P0] |
+| AF20 | Return optional neighbors as pointers by default, with target, edge type, retrieval route and token basis. Include mandatory neighbors according to AF15. Expose cycles, depth truncation, missing targets and denied targets without leaking disallowed content; these cannot count as satisfied mandatory dependencies. | :priority[P0] |
+| AF21 | Retrieve open requests, answered questions, accepted/rejected feedback and reopened work with explicit lifecycle filters. Preserve existing bare-query semantics unless a versioned compatibility decision changes them; new default filtering must not hide answers.                                                     | :priority[P1] |
+| AF22 | Support updates since an explicit revision/checkpoint and identify affected requirements, decisions and tasks. Distinguish delivery, retrieval, incorporation and verification; reading an answer does not prove it was followed. An unknown or expired checkpoint requires an explicit recovery path.                    | :priority[P1] |
+| AF23 | Record source/dependency revisions, resolved selections, relationship paths, active policies, token basis, omissions and incomplete expansion in a context manifest. Surface an inspectable account to people and a compact result to agents without requiring them to read the entire manifest.                          | :priority[P1] |
+| AF24 | Derive graph edges from source for the initial prototype, as the filtering proposal specifies. Benchmark cross-file traversal time and repeated parsing before adding caches; any later cache requires a separate decision and revision-aware invalidation.                                                               | :priority[P2] |
+
+### Progress, evidence and verification
+
+| ID   | Requirement                                                                                                                                                                                                                                                                         | Priority      |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| AF25 | A completion percentage states its basis, denominator or weighting rule, update revision/time and whether it is measured or estimated. Unknown progress is represented as unknown, not an invented percentage. Define behavior when tasks are added, removed or reopened.           | :priority[P1] |
+| AF26 | Keep acceptance criteria, requirement coverage, test execution and human acceptance separate. A `verifies` link or an existing test file is not evidence of a passing execution. Associate verification results with the artifact revision and method that produced them.           | :priority[P0] |
+| AF27 | Make evidence priority depend on the task view. Verification and review views include evidence needed to assess completion or expose its absence; implementation views may use pointers when the evidence is optional. Reconcile this with semantic-tags R45 before implementation. | :priority[P1] |
+| AF28 | If feedback changes a requirement, constraint or acceptance criterion, identify dependent completion and verification claims that need reassessment. Preserve their history but do not continue displaying them as current verified outcomes without rechecking.                    | :priority[P1] |
+
+### Research apparatus and reporting
+
+| ID   | Requirement                                                                                                                                                                                                                                                                                                     | Priority      |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| AF29 | Maintain a requirement-to-implementation/test/release/study evidence matrix. Distinguish source present, tested, released, pilot and confirmatory evidence. Update the research protocols before freezing each experiment; existing harness fixtures remain non-study data.                                     | :priority[P0] |
+| AF30 | Use independently annotated, synthetic or appropriately licensed material and tasks derived from annotations. Compare equally informative plain Markdown, visual-only presentation, semantic representation, tree retrieval and typed graph retrieval through separate controlled comparisons.                  | :priority[P0] |
+| AF31 | Measure attention detection, interpretation, appropriate response, false alarms, active review time, interruption/resumption cost when applicable, workload and confidence calibration. Distinguish active human effort, agent runtime and waiting for a human response.                                        | :priority[P1] |
+| AF32 | Measure factual and functional correctness, constraint violations, feedback incorporation, stale-decision use and falsely accepted completion. Pair document tasks with executable repository tasks and include failure cases where selective views harm performance.                                           | :priority[P1] |
+| AF33 | Count actual provider-reported input/output across tool definitions, skills, retrieval, questions, human-answer context, repeated reads, retries and repair. Label estimates, cached usage and amortization assumptions separately; report authoring/maintenance effort and correctness-versus-token tradeoffs. | :priority[P0] |
+| AF34 | Freeze corpus, tool commit, prompts, model IDs, clock, tokenizer, conditions and scorer before confirmatory runs. Size studies through pilots and power analysis; distinguish non-inferiority from equivalence, handle clustered observations, blind judgments and report intervals and negative results.       | :priority[P0] |
+| AF35 | Human studies require ethics approval before recruitment and informed consent. Study instrumentation is opt-in, local, off by default and separate from release builds; record only necessary events, with a retention plan and no document text by default.                                                    | :priority[P0] |
+
+## Acceptance criteria
+
+These are implementation gates, not claims that a study hypothesis is true. Tests must exercise behavior and adverse cases; document validation only checks syntax.
+
+| ID   | Requirements    | Given / when                                                                                                                             | Observable result                                                                                                                                                                                                                                     |
+| ---- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AC-A | AF01–AF05       | A mixed document contains routine progress, one blocking question and one danger; a user reviews it by keyboard and assistive technology | Roles, targets and requested actions are available without color; focus is usable; updates do not steal focus; deferred items remain unresolved. Human detection benefit is measured separately.                                                      |
+| AC-B | AF06–AF12       | A person answers a question, edits its target, accepts a suggestion and reopens a task                                                   | Target identity and accepted content survive normal edits; stale application is refused; unrelated text is preserved; the agent view distinguishes answer, incorporation and verification. Duplicate IDs cannot silently retarget feedback.           |
+| AC-C | AF13–AF17       | A selected nested section depends on a scoped constraint in an include, with a budget below the required bodies                          | The applicable constraint and qualifications survive or the result identifies incomplete dependencies and budget failure. A conflicting constraint remains unresolved; an untrusted include grants no permission.                                     |
+| AC-D | AF18–AF20, AF24 | A graph contains optional links, mandatory edges, a cycle, a path beyond the traversal limit and an unavailable target                   | Selection is deterministic; optional neighbors are pointers; mandatory expansion is distinguished; cycles and bounds terminate; incomplete required paths are explicit. Legacy selectors retain their matches.                                        |
+| AC-E | AF21–AF23       | A stored checkpoint precedes an answer, rejection and reopened task                                                                      | Update retrieval returns the current dispositions and affected targets without replaying unrelated history; an invalid checkpoint explains recovery; retrieval is not recorded as implementation success.                                             |
+| AC-F | AF25–AF28       | Eight of ten tasks are checked, evidence is missing, and an accepted correction adds two tasks                                           | Progress states the counting basis and revised denominator; checked tasks are not automatically verified; outdated verification is flagged; review context exposes missing evidence.                                                                  |
+| AC-G | AF29–AF34       | The same frozen corpus is run through controlled presentation and retrieval conditions                                                   | Outputs identify versions, token basis and condition; oracle retrieval is labelled separately; model-selected retrieval includes all calls; evidence survival is not scored as task accuracy; blinded scoring and reproducible analysis are possible. |
+| AC-H | AF35            | A release build runs normally and a consented study session enables logging                                                              | Normal use creates no study log; the study build records only approved events locally and follows its retention policy; recruitment does not precede ethics approval.                                                                                 |
+
+## Delivery gates and dependencies
+
+| Gate                      | Work and exit condition                                                                                                                                                                     | Evaluation unlocked                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| G0 Contract and baseline  | Reconcile AF06–AF11, AF13, AF17, AF19, AF21, AF26 with existing RFCs; define task IDs and lifecycle; inventory implemented/unreleased foundations; freeze the baseline and annotation guide | Baseline agent and authoring pilots can begin without waiting for all new features |
+| G1 Context correctness    | Implement stable identity, scoped mandatory dependencies, stale/conflict reporting, accessible cue semantics and provenance; pass AC-B, AC-C and relevant AC-A cases                        | Semantic representation and constraint-preservation comparison                     |
+| G2 Feedback and retrieval | Implement the minimal answer/correction workflow, tree selectors, typed edges, explicit update retrieval and view inspection; pass AC-D and AC-E                                            | Retrieval comparison with fixed feedback; attention/feedback prototype pilot       |
+| G3 Calibrated oversight   | Implement progress basis, verification evidence and invalidation; pass AC-F; complete cue/feedback accessibility checks                                                                     | Full-loop pilot on executable software tasks                                       |
+| G4 Confirmatory evidence  | Complete independent corpus, approved human-study materials, apparatus, pilot-based sizing and preregistration; freeze each condition separately                                            | Attention/feedback study, retrieval/agent study and full-loop study                |
+| G5 Paper and artifacts    | Report attention, correctness and tokens with limitations; archive reproducible materials and distinguish historical versions                                                               | Submission-ready evidence for the agreed paper title                               |
+
+Do not make the first paper depend on every ecosystem feature. Baseline evaluation and formative work can proceed alongside RFC work. Confirmatory comparisons involving new features wait for those features and their acceptance gates to be frozen.
+
+## Evaluation design
+
+1. **Attention and feedback:** hold content constant and vary plain versus semantic visual presentation; separately test structured response/inspection. Include consequential issues among routine cues, incorrect completion claims and stale answers. Counterbalance documents and order. Screen-reader checks complement, rather than replace, task-based evaluation.
+2. **Representation and retrieval:** hold feedback content constant and compare equally informative plain Markdown search, semantic queries, tree selection and typed graph expansion. Include cross-section constraints, answered questions, exceptions, missing targets and multi-hop dependencies. Separate oracle from agent-selected retrieval and count recovery calls.
+3. **Complete loop:** an agent raises a meaningful uncertainty, a person responds, the response becomes revision-aware document state, and the agent retrieves it and changes code. Score executable behavior, acceptance criteria and constraints, including delayed answers, rejected suggestions, reopened tasks and changed requirements.
+
+Map these extensions onto the existing Study 1 and Study 2 protocols; write a bounded Study 3 protocol for the full loop. Reconcile question IDs and hypotheses across the research plan before preregistration. A factorial or staged design must isolate visual presentation from semantic encoding and retrieval; changing all three at once supports only an overall-system comparison.
+
+## Open decisions
+
+:::question Lifecycle syntax and identity
+The maintainer decides task IDs, response representation, attribution and state-transition syntax in the semantic-tags/collaboration RFCs before G1. Until then, these are conceptual states and acceptance behaviors, not new parser syntax. Preserve existing selectors and question-query defaults.
+:::
+
+:::question Mandatory dependency and scope policy
+The maintainer decides edge direction, scope combination, closure rules and how mandatory conflicts are surfaced before G1. Until then, retain current experimental defaults and do not claim complete constraint preservation.
+:::
+
+:::question Study size, venue and budgets
+The research author decides venue, provider budget, ethics route, outcome thresholds and final participant/task counts after pilots and before confirmatory runs. No numerical improvement target in another draft becomes a research result or a justified sample size automatically.
+:::
+
+## Rules for implementers
+
+:::agent Research and implementation constraints
+- This draft records requirements; it does not authorize implementation, model spending, recruitment, publication or edits outside the user's current request.
+- Reconcile syntax and defaults with the semantic-tags, filtering and collaboration RFCs before implementing their overlapping behavior. Keep unresolved choices explicit and retain current defaults until decided.
+- Reference AF and AC IDs in implementation plans and behavioral tests. Keep source presence, test results, release status and study evidence separate.
+- Preserve declared mandatory meaning, report incomplete context and budget failure, and expose target/revision relationships. Never equate viewed, answered, incorporated, implemented, verified and human accepted.
+- Host trust and user authorization remain separate from document status. Human-only views do not enforce confidentiality.
+- Maintain compatibility and measure complete interaction costs; additional instructions are justified by observed total-cost and correctness outcomes, not schema size alone.
+:::

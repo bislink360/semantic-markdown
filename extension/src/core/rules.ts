@@ -1,3 +1,4 @@
+import { maskCodeSpans } from './footnotes';
 import { suggest } from './util';
 import type { Diagnostic, Severity } from './validate';
 
@@ -179,7 +180,7 @@ export function readRuleConfig(data: unknown): { rules: RuleSettings; problems: 
 const COMMENT = /<!--\s*smd-(disable-next-line|disable-line|disable|enable)\b([^>]*?)\s*-->/g;
 
 /**
- * Honor suppression comments, outside code fences:
+ * Honor suppression comments, outside code fences and inline code spans (a comment quoted as `code` is an example):
  * - `<!-- smd-disable-next-line [codes] -->` for the line below
  * - `<!-- smd-disable-line [codes] -->` for its own line
  * - `<!-- smd-disable [codes] -->` … `<!-- smd-enable [codes] -->` for a range of lines
@@ -204,7 +205,8 @@ export function applySuppressions(text: string, diagnostics: Diagnostic[], repor
     }
     if (mark) fence = { char: mark[1][0], len: mark[1].length };
     let enabledHere: string[] | null = null;
-    for (const m of raw.matchAll(COMMENT)) {
+    // Code spans are blanked to spaces of the same length, so columns still match `raw`.
+    for (const m of maskCodeSpans(raw).matchAll(COMMENT)) {
       const patterns = m[2].split(/[\s,]+/).filter(Boolean);
       const start = m.index! + m[0].indexOf(m[2].trim() || '-->');
       for (const p of patterns) {

@@ -70,11 +70,17 @@ It exits 1 when a check fails. Known failures are listed in `KNOWN_FAILURES` in 
 
 Run on 2026-11-06 with Google Chrome 156.0.8078.80, headless, on Windows 11. Microsoft Edge is installed too but won't start headless here.
 
-76 checks passed, none failed, none were known failures, 2 were warnings and 2 were skipped. The two skips are task boxes on exported pages, where a toggle changes no document.
+78 checks passed, none failed, none were known failures, there were no warnings and 2 were skipped. The two skips are task boxes on exported pages, where a toggle changes no document.
 
-Everything in the table above passed on all six pages, except the following.
+Everything in the table above passed on all six pages.
 
-- **Warning: unnamed child blocks in the Block Editor.** Blocks inside a container (paragraphs, lists, tables, columns) take focus with the arrow keys but have no name. 22 in the showcase and 15 in the checkout sample. Top-level blocks are named groups such as "Paragraph, lines 3–5". The page announces a child's kind and lines through a live region when it gets focus, and its content is read. Whether that is enough needs a screen-reader check.
+### Child blocks in the Block Editor
+
+The first run warned that blocks inside a container (paragraphs, lists, tables, columns) took focus with the arrow keys but had no name: 22 in the showcase and 15 in the checkout sample. Only a live region said a child's kind and lines when it got focus. Children are now named like top-level blocks ("Paragraph, lines 4–6", plus its problems), without losing their own role.
+
+- A list, list item, table, row, figure, quote or `<details>` keeps its role and gets the name, so list and table navigation still work.
+- A paragraph, a plain `div` or code can't take a name in ARIA, so it becomes a named group with the role description "block", as a top-level block is.
+- A heading keeps its text as its name, and the live region still says its kind and lines.
 
 ### Diagrams
 

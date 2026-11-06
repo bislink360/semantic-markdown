@@ -54,6 +54,15 @@ test('suppression comments: next line, same line, ranges', () => {
     ['4:attrs/value'], 'enable lifts only the listed code');
   // Comments inside code are not directives.
   assert.deepEqual(codes('```html\n<!-- smd-disable -->\n```\n:::warnign\nx\n:::\n'), ['3:container/unknown']);
+  // Nor are comments quoted in inline code: they are examples, with no unknown-code warning.
+  assert.deepEqual(codes('Write `<!-- smd-disable-next-line rule/code -->` above a line.\n:::warnign\nx\n:::\n'), ['1:container/unknown']);
+  assert.deepEqual(codes('Use ``<!-- smd-disable -->`` for a range.\n:::warnign\nx\n:::\n'), ['1:container/unknown'], 'double-backtick span');
+  // A real comment after a code span on the same line still works, with its column in the line as written.
+  const text = 'See `x` <!-- smd-disable-next-line containr/unknown -->\n:::warnign\nx\n:::\n';
+  const unknown = validateSmd(text).find((d) => d.code === 'rules/unknown')!;
+  assert.equal(text.slice(unknown.column, unknown.endColumn), 'containr/unknown');
+  // An unclosed backtick is not a code span.
+  assert.deepEqual(codes('A ` then <!-- smd-disable-next-line -->\n:::warnign\nx\n:::\n'), []);
 });
 
 test('unknown codes in suppression comments are reported with a fix', () => {

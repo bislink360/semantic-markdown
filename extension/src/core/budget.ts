@@ -11,10 +11,11 @@ import { openTaskLines } from './taskLines';
  *   [section omitted: ## Rollout plan, L120-L160, ≈420 tokens — smd agent plan.smd --section "Rollout plan"]
  *
  * Never omitted: the header (title, front matter facts, summary), text before the first
- * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions, and
+ * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions (their own or from a file
+ * they include), and
  * sections requested with `sections` (and their subsections).
  *
- * Order: sections without key content go first; sections with a danger or warning callout, an
+ * Order: sections without key content go first; sections with a danger or warning callout (or alert), an
  * accepted decision, a question or an open task are kept longer. Within each group the deepest
  * headings go first, then the largest, then the latest in the document. A parent section is only
  * omitted after its subsections, and its pointer then replaces theirs.
@@ -56,6 +57,7 @@ const AGENT_BLOCK = /^\s*:{3,}\s*agent(?![\w-])/;
 /** Key content besides open tasks, which are the ones `smd tasks` lists (see openTaskLines). */
 const KEY_CONTENT = [
   /^\s*:{3,}\s*(?:danger|warning|question)(?![\w-])/,
+  /^ {0,3}>\s*\[!(?:CAUTION|WARNING)\]/i,
   /^\s*:{3,}\s*decision\b.*\bstatus\s*=\s*["']?accepted\b/,
 ];
 
@@ -101,12 +103,16 @@ export function withOmitted(omitted: BudgetSection[], section: BudgetSection): B
   return [...omitted.filter((o) => !within(o, section)), section].sort((a, b) => a.start - b.start);
 }
 
-/** `[section omitted: ## Rollout plan, L120-L160, ≈420 tokens — smd agent plan.smd --section "Rollout plan"]` */
-export function omissionPointer(s: BudgetSection, tokens: number, file = '<file>'): string {
+/**
+ * `[section omitted: ## Rollout plan, L120-L160, ≈420 tokens — smd agent plan.smd --section "Rollout plan"]`, with
+ * `, holds danger, question` after the tokens when the section shows those cues.
+ */
+export function omissionPointer(s: BudgetSection, tokens: number, file = '<file>', cues: string[] = []): string {
   const heading = `${'#'.repeat(s.heading.level)} ${s.heading.text}`;
   const query = s.heading.text.includes('"') ? s.heading.slug : s.heading.text;
   const read = `smd agent ${quoteArg(file)} --section "${query}"`;
-  return `[section omitted: ${heading}, L${s.start + 1}-L${s.end + 1}, ≈${tokens} tokens — ${read}]`;
+  const holds = cues.length ? `, holds ${cues.join(', ')}` : '';
+  return `[section omitted: ${heading}, L${s.start + 1}-L${s.end + 1}, ≈${tokens} tokens${holds} — ${read}]`;
 }
 
 function quoteArg(arg: string): string {

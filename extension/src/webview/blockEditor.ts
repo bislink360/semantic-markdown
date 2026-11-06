@@ -10,7 +10,7 @@ import type {
   BlockProblems, BlockView, FixesMessage, FixView, FocusRequest, FormField, FrontMatterView, HostMessage, InlineView, RenderMessage, TableView,
 } from '../blockEditorSession';
 import {
-  FROZEN, blockLabel, cellLabel, cellSource, clampCell, desiredOrder, editLabel, findView, followEdit, formRequest, gridActionEnabled,
+  FROZEN, blockLabel, cellLabel, childNaming, cellSource, clampCell, desiredOrder, editLabel, findView, followEdit, formRequest, gridActionEnabled,
   gridAnnouncement, gridKeyTarget, gridLabel, gridRequest, inlineAnnouncement, inlineItemLabel, inlineRequest, isUndoRedo, itemAnnouncement,
   itemForLine, listKeyTarget, mergeProblems, fixLabel, fixesAnnouncement, frontMatterValue, boundaryY, dropAnnouncement, dropIndex, dropMoves, dropTo, imageProblem, toBase64, orderMoves, problemsLabel, refreshedValue, shiftLine, textareaRows, toolbarKeyTarget, topRange, typeAhead, withoutLines,
   type GridAction, type GridCell, type GridRequest, type GridSize, type LineRange,
@@ -288,6 +288,23 @@ function start(rt: Runtime): void {
   }
 
   /**
+   * A child's accessible name, "Paragraph, lines 4–6", plus its problems, as a top-level block has (see childNaming):
+   * it keeps a role that can be named, a paragraph or generic element becomes a named group, a heading keeps its text.
+   */
+  function nameChild(el: HTMLElement, view: ItemView, shown: BlockProblems | undefined): void {
+    const naming = childNaming(el.tagName);
+    if (naming === 'contents') return;
+    if (naming === 'group') {
+      el.setAttribute('role', 'group');
+      el.setAttribute('aria-roledescription', 'block');
+    }
+    const problems = problemsLabel(shown);
+    el.setAttribute(ARIA_LABEL, problems ? `${blockLabel(view)}, ${problems}` : blockLabel(view));
+    if (shown) el.setAttribute('aria-description', shown.messages.join('; '));
+    else el.removeAttribute('aria-description');
+  }
+
+  /**
    * Mark a container's children (found in its HTML by their first line) as items of their own, each with its problem
    * badge. Returns the problems of children that are not in the HTML, which their container shows instead.
    */
@@ -301,7 +318,9 @@ function start(rt: Runtime): void {
         markItem(el, child);
         el.classList.add(CHILD);
         group.push(el);
-        updateChrome(el, mergeProblems(child.problems, annotateChildren(el, child.children)), true);
+        const shown = mergeProblems(child.problems, annotateChildren(el, child.children));
+        nameChild(el, child, shown);
+        updateChrome(el, shown, true);
       } else {
         lost = mergeProblems(lost, child.problems, annotateChildren(el ?? scope, child.children));
       }
@@ -896,7 +915,10 @@ function start(rt: Runtime): void {
     const to = listKeyTarget(event.key, list.indexOf(item), list.length);
     if (to < 0) return false;
     setCurrent(list[to], true);
-    if (list[to].classList.contains(CHILD)) rt.announce(itemAnnouncement(viewOf.get(list[to])!, shownProblems.get(list[to])));
+    // A named child says its kind and lines on focus; a heading is named by its text, so they are announced.
+    if (list[to].classList.contains(CHILD) && childNaming(list[to].tagName) === 'contents') {
+      rt.announce(itemAnnouncement(viewOf.get(list[to])!, shownProblems.get(list[to])));
+    }
     return true;
   }
 

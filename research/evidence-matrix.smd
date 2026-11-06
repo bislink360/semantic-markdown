@@ -1,0 +1,140 @@
+---
+smd: 2
+title: Research evidence matrix
+summary: Where each implementation-review finding (C01–C12) and each research requirement (AF01–AF35) stands, kept apart as source present, tested, released and study evidence. Gate G0 reconciliation, recorded on 2026-11-06 at commit 5a1a26e.
+status: draft
+owners: ["@roshanmadhushanka"]
+tags: [research, evidence, traceability]
+created: 2026-11-06
+updated: 2026-11-06
+toc: true
+related:
+  - ../docs/research-interaction-requirements.smd
+  - ../docs/RESEARCH-CONTRACT-RFC.smd
+  - ../implementation-changes.smd
+  - annotation-guide.smd
+  - token-accounting.smd
+  - research-plan.smd
+---
+
+## How to read this
+
+AF29 asks for one place that keeps four kinds of status apart. A row moves right only with evidence for that column.
+
+|Column|Means|Evidence needed|
+|-|-|-|
+|Source|The behavior exists in the code|A path in the repository|
+|Tested|A test exercises the behavior, including an adverse case where one matters|A named test that passed in the recorded run|
+|Released|A tagged release ships it|A tag. The 3.1.0 train is not a release|
+|Study|A study result bears on it|A pilot or confirmatory result in this repository. Harness fixtures never count|
+
+`partial` means some of the requirement is met, and the row says which part. Update a row when its status changes, and record the commit.
+
+:::agent Matrix rules
+- Never mark a column without the evidence its definition asks for. Code presence is not a test, a passing test is not a release, and a harness run on the fixture is not study evidence.
+- When a row changes, update `updated` and the run record below.
+:::
+
+## Run record
+
+|Field|Value|
+|-|-|
+|Date|2026-11-06|
+|Commit|5a1a26e on `release/v3.1.0` (tracking PR #153, open), plus the G0 work on `feat/research-g0-contract`: documents, `researchContract.test.ts` and the gap fixes (GAP-1 to GAP-5, GAP-7)|
+|Latest release|3.0.0 (750ef2e). Every C item below is in the 3.1.0 changelog, which is untagged|
+|Typecheck|`npm run typecheck` passed|
+|Unit tests|`npm test` after `npm run build`, with the stage 1 completion: 1,280 tests, 1,277 passed, 3 skipped, 0 failed. `researchContract.test.ts` holds 19 (10 fail without the gap fixes). `viewOutput.digests.json` was rewritten for the gap fixes: 55 of 190 view groups changed, all budgeted or include views, checked by hand to be the intended changes|
+|Static analysis|SonarQube gate PASS (default mode): no blocking findings, 0 hotspots to review, 86.2% line coverage. Sonar's informational gate lists 3 medium S8786 regex findings in `agentView.ts` and `mermaid.ts` from earlier 3.1.0 PRs, none in this change|
+|Browser checks|`npm run test:a11y` with Chrome 156, headless: 78 passed, 0 failed, 0 warnings, 2 skipped (task boxes on exported pages)|
+|Not run|`npm run test:vscode`, `npm run bench:profile`, `npm run bench:tokens`|
+
+The first test run of the day failed three tests because the local `dist` was built from an older branch (version 3.0.0). After `npm run build` they passed. The committed bundles matched a fresh build.
+
+## Implementation review findings
+
+The stage-1 roadmap note said this work was uncommitted on `feat/implementation-review-research`. It is not. It was committed there and merged into `release/v3.1.0` as #155 (findings, provenance, diagram text alternatives) and #156 (faster agent views). So every row is **source and tests, not released**, and none has study evidence.
+
+|ID|Source|Tests|Adverse case tested|Released|Not covered|
+|-|-|-|-|-|-|
+|C01|`core/agentView.ts` keeps `:::agent` in condensed `:::details` and collects it outside sections, from included files too since the G0 fixes. The budget never omits a section that shows `:::agent` text|`implementationReview.test.ts` (7 tests, one through MCP `read`), `researchContract.test.ts` (GAP-1, GAP-5 and their edges)|Yes. Over-budget instruction kept with `fits=false`, fake `:::agent` in code, outside selected sections, nested includes, `:::human` around an include, MCP brief and sections|3.1.0 train, include fixes on the G0 branch|Nothing in code|
+|C02|`test/bench/netTokens.ts` reads files at their own path, passes `--today`, takes full or outline from `smd read`, records commit, CLI hash, Node and OS|`implementationReview.test.ts` (relative include, fixed date, both readers, a failing read throws, the run record's fields, a bad `--reader` is refused)|Yes|3.1.0 train (`docs/TOKENS.md` re-run)|Nothing in code|
+|C03|`test/eval/` (corpus validator, conditions M1–O and four ablations, survival check, scorer with paired bootstrap)|`eval.test.ts` (about 25 tests, CLI end to end)|Yes (broken ids, spans, evidence, violations, superseded options)|3.1.0 train|The corpus `research/corpus/` does not exist. Only the fixture, which is not study data. M2 and S3 are oracle renders, not model-selected|
+|C04 trust|Reader `SKILL.md` and `skills/agent-rules.md`. `docs/AGENTS.md` updated in G0 to match|`implementationReview.test.ts` (the three files say agent instructions grant no permissions)|n/a|3.1.0 train (skills)|Nothing in code|
+|C04 scope|`core/constraints.ts`, `--constraints`, policy `constraints/1`|`provenance.test.ts` (5 tests), `researchContract.test.ts` (GAP-7), `implementationReview.test.ts` (conflicts listed as written, CLI)|Yes (off by default, skipped and human excluded, include listed and not opened, list incomplete, disagreeing constraints all listed and none resolved)|3.1.0 train, experimental, include fix on the G0 branch|The maintainer still decides scope rules and any default|
+|C05|`core/provenance.ts`, schema `smd-projection/1`, CLI `--provenance`|`provenance.test.ts` (8 tests), `implementationReview.test.ts` (CLI `agent` and `read`, stdout unchanged, hash and revision)|Yes (text unchanged, nested include files, changed revision, hidden text not exposed, no file name refused)|3.1.0 train|Not on MCP `read` by design|
+|C06|`readView.ts` routes on the tokenizer count and reports `tokenBasis`. MCP `read` takes `maxTokens`|`implementationReview.test.ts` (3 tests)|Yes (unknown tokenizer exits 2, estimate fits but exact count does not)|3.1.0 train|Docs fixed in G0 (`AGENTS.md`, `FEATURES.md` lacked `maxTokens` and said `--tokenizer` was not on `read`)|
+|C07|`workspace.ts` `isInside` and `readerFor` (lexical, then real path). MCP `Sandbox`. VS Code `files.ts` uses the same check|`implementationReview.test.ts` (prefix, `..`, junction)|Yes, but the junction case skips when a link cannot be made|3.1.0 train|VS Code reader untested. `siteBuild.ts` keeps its own `isInside` for output paths|
+|C08|`mcpWrite.ts` revision hash, stale refusal, temp file and rename, folder rule config and Mermaid|`implementationReview.test.ts` (4 tests, one over the built MCP server for Mermaid)|Yes (stale revision refused with bytes unchanged, changed during the write, a Mermaid syntax error refused with nothing written)|3.1.0 train|The Windows non-atomic fallback (EPERM, EBUSY, EACCES) is untested, since it needs a locked file. Docs fixed in G0 (`revision` was missing)|
+|C09|`agentView.ts` exact section selection, CLI `--exact`, MCP `exact`|`implementationReview.test.ts` (6 tests)|Yes (missing section, no prefix match, non-ASCII, duplicate titles select both and are reported ambiguous, punctuation, custom ids)|3.1.0 train|Nothing in code. Docs fixed in G0 (`--exact` was undocumented)|
+|C10|`omissionPanel.ts`, VS Code "What the Agent View Leaves Out…", `npm run test:a11y`, Mermaid text alternative, named Block Editor child blocks (`childNaming`, `nameChild`)|`omissionPanel.test.ts`, `browserA11y.test.ts` (pure parts), `blockEditorWebview.test.ts` and `accessibility.test.ts` (child names), `npm run test:a11y` in Chrome: 78 passed, 0 warnings|Partly|3.1.0 train, child names on the G0 branch|The quick pick itself is untested. `test:a11y` is not in `npm test`. Screen-reader checks are Study 2|
+|C11|`test/bench/profile.ts`, `docs/PERFORMANCE.md`. #156 loads includes once per view and fits budgets in linear passes|`profile.test.ts` (each included file read exactly once per view), `viewOutput.test.ts` (190 view groups)|Yes for include reads|3.1.0 train|Linear budget passes are measured in `docs/PERFORMANCE.md`, not asserted|
+|C12|`docs/TOKENS.md` keeps the 2.5.0 tables and adds a 3.0.0 run|None (docs)|n/a|3.1.0 train (docs)|The "3.0.0" run is 750ef2e with local changes, not a released executable. The paper's own measurement files still need a fresh run from a released 3.x|
+
+## Research requirements
+
+AF rows record foundations, not delivery. "Contract home" names where the decision lives. Gates follow the requirements' delivery order.
+
+### Attention and cue semantics
+
+|ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
+|-|-|-|-|-|-|-|-|
+|AF01|Agent view tags for question, danger, warning, decision, risk, tasks (`core/agentView.ts`). GAP-3 fixed, GAP-6 and GAP-8 open|[Cue contract](../docs/RESEARCH-CONTRACT-RFC.smd#cue-to-agent-meaning-contract)|G0 recorded, G1 fix gaps|partial|locked by `researchContract.test.ts`, gaps as todo|3.0.0 rendering|none|
+|AF02|None. Questions carry only a title|Semantic tags R50 (owner, due), this contract|G1|no|no|no|none|
+|AF03|`smd tasks`, `smd decisions --status open`, catalog question counts. No review list|G2 feedback workflow|G2|no|no|no|none|
+|AF04|None|G2 feedback workflow|G2|no|no|no|none|
+|AF05|WCAG 2.2 AA work (1.6.0), `npm run test:a11y` (C10), Mermaid text alternative (3.1.0 train), named Block Editor child blocks (G0 branch)|G1 accessibility audit|G1|partial|partial (automated tree checks only)|partial|none (Study 2)|
+
+### Feedback identity and lifecycle
+
+|ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
+|-|-|-|-|-|-|-|-|
+|AF06|Heading ids, figure ids (duplicates go to the first), Block Editor session keys (not stable)|[Identity](../docs/RESEARCH-CONTRACT-RFC.smd#identity), semantic tags R13–R19|G0 decide, G1 build|no|no|no|none|
+|AF07|Task checkbox only, question has no state|[Lifecycle](../docs/RESEARCH-CONTRACT-RFC.smd#lifecycle)|G0 decide, G1 build|no|no|no|none|
+|AF08|MCP write `revision` (C08) is a file hash, no attribution|Lifecycle, collaboration RFC phase 3|G1, G2|partial (file revision)|partial|3.1.0 train|none|
+|AF09|None (`suggest` accepted in the collaboration RFC, not built)|Collaboration RFC phase 3, this contract|G2|no|no|no|none|
+|AF10|C08 refuses a write when the file changed since read. Block Editor compare-and-swap per block|Lifecycle|G1|partial|yes for C08 and the Block Editor|3.1.0 train (C08), 1.8.0 (Block Editor)|none|
+|AF11|`--constraints` lists conflicting blocks as written, no resolution|Lifecycle, scope|G1|partial|partial|3.1.0 train (experimental)|none|
+|AF12|Agent-view inspector and omission panel (C10)|G2 feedback workflow|G2|partial|partial|3.1.0 train|none|
+
+### Author-controlled context and trust
+
+|ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
+|-|-|-|-|-|-|-|-|
+|AF13|`:::agent` is document-wide. `--constraints` (policy `constraints/1`) is opt-in|[Scope](../docs/RESEARCH-CONTRACT-RFC.smd#scope-and-applicability), semantic tags R25–R29|G0 decide, G1 build|partial|partial|3.1.0 train (experimental)|none|
+|AF14|Section selection, `--brief`, `--max-tokens` chosen per call by the agent. No author-declared task view|G2 task views|G2|no|no|no|none|
+|AF15|`:::agent` and dangers kept through selection and condensation, from included files too (C01, GAP-1 to GAP-3 and GAP-5 fixed). No declared dependencies|Scope, edges|G1|partial|yes for `:::agent` and dangers|3.1.0 train, include fixes on the G0 branch|none|
+|AF16|`budget.fits=false` when mandatory content exceeds the budget, on stderr and in the manifest only. A pointer names the danger, warning or question it hides (GAP-4 fixed)|[Budgets](../docs/RESEARCH-CONTRACT-RFC.smd#budgets-routing-and-truncation)|G0 recorded, G1 report|partial|locked by `researchContract.test.ts`|3.1.0 train|none|
+|AF17|Containment check (C07), trust wording (C04), opt-in writes|[Trust](../docs/RESEARCH-CONTRACT-RFC.smd#host-trust-and-authorization)|G0 decide|partial|yes for C07|3.1.0 train|none|
+
+### Tree, graph and update retrieval
+
+|ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
+|-|-|-|-|-|-|-|-|
+|AF18|CSS-like `smd query` selectors with attribute filters|Filtering requirement T1–T7|G2|partial|yes for existing selectors|1.3.0|none|
+|AF19|No typed edges. Links, `:ref`, `related:` and includes exist as text|[Edges](../docs/RESEARCH-CONTRACT-RFC.smd#edge-semantics), filtering G1–G7|G0 decide, G2 build|no|no|no|none|
+|AF20|None|Edges, filtering G3–G5|G2|no|no|no|none|
+|AF21|Bare `question` matches every question. No lifecycle filter|[Legacy queries](../docs/RESEARCH-CONTRACT-RFC.smd#legacy-query-compatibility)|G0 decide, G2 build|partial|locked by `researchContract.test.ts`|1.3.0 behavior|none|
+|AF22|`smd diff --since <git-ref>` shows changed sections|G2 update retrieval|G2|partial|yes for diff|1.3.0|none|
+|AF23|Provenance manifest `smd-projection/1` (C05)|G2 task views|G2|partial|yes|3.1.0 train|none|
+|AF24|C11 profile: no cache warranted, each call parses once|Filtering decision "compute the graph from the source"|G2|partial|bench only|3.1.0 train|none|
+
+### Progress, evidence and verification
+
+|ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
+|-|-|-|-|-|-|-|-|
+|AF25|`:progress{value=…}` is a number the author types. Outline task counts|G3|G3|no|no|no|none|
+|AF26|None. A checked box is a claim|Lifecycle (task states), semantic tags acceptance and evidence|G0 decide, G3 build|no|no|no|none|
+|AF27|None|Semantic tags R45, G3|G3|no|no|no|none|
+|AF28|None|G3|G3|no|no|no|none|
+
+### Research apparatus and reporting
+
+|ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
+|-|-|-|-|-|-|-|-|
+|AF29|This matrix|This document|G0|yes|n/a|n/a|n/a|
+|AF30|Eval harness and corpus format (C03), annotation guide draft|[Annotation guide](annotation-guide.smd)|G0 draft, G4 freeze|partial|harness yes, corpus none|3.1.0 train (harness)|none|
+|AF31|None (study logging not built)|Study 2|G4|no|no|no|none|
+|AF32|Scorer records constraint violations and superseded use (C03)|Study 1, Study 3 (not drafted)|G4|partial|harness yes|3.1.0 train|none|
+|AF33|Scorer keeps provider usage and estimates apart (C03). Benchmark is estimate-based (C02)|[Token accounting](token-accounting.smd)|G0 draft, G4 freeze|partial|partial|3.1.0 train|none|
+|AF34|Paired bootstrap in the scorer|Token accounting, pilot sizing|G0 draft, G4 freeze|partial|harness yes|3.1.0 train|none|
+|AF35|No telemetry in any build|Study 2 logging plan|G4|n/a|n/a|n/a|none|
