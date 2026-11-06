@@ -202,7 +202,10 @@ const checks = {
     const view = await waitFor(() => vscode.workspace.textDocuments.find((d) => d.uri.scheme === 'smd-agent'), 'agent view document');
     const text = view.getText();
     assert.match(text, /<agent-instructions title="Engineering constraints">/);
-    assert.doesNotMatch(text, /:::|\{agent=skip\}|usability sessions/);
+    // The header comment names what was left out ("1 × :::human block"); the view below it has no source syntax.
+    assert.match(text, /^<!-- Agent view: [\s\S]*?Left out: [^\n]*:::human block/);
+    const body = text.replace(/^<!--[\s\S]*?-->\n*/, '');
+    assert.doesNotMatch(body, /:::|\{agent=skip\}|usability sessions/);
     await vscode.window.showTextDocument(doc);
     await vscode.commands.executeCommand('smd.copyAgentView');
     const clip = await vscode.env.clipboard.readText();
