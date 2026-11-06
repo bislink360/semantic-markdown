@@ -56,7 +56,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd outline <file> [--related]` | Sections with line ranges and token costs; `--related` adds each `related:` doc's title, status, summary and cost |
 | `smd agent <file> [--section …] [--brief] [--max-tokens N]` | Compact agent view; `--max-tokens` condenses it and leaves out the least important sections (with pointers) to fit |
 | `smd agent <file> --provenance view.json` | Also writes a JSON manifest of the view: source hashes, settings, selected sections, a source map and every omission with its reason (also on `smd read`) |
-| `smd agent <file> --section … --constraints` | Experimental: also lists the constraints outside those sections (danger blocks in full, warnings, accepted decisions and open questions as pointers) |
+| `smd agent <file> --section … --constraints` | Experimental: also lists the constraints outside those sections (danger blocks in full, warnings, accepted decisions and open questions as pointers). Without it, a section view still shows the danger blocks of other sections |
 | `… --tokenizer o200k_base` | Exact token counts next to the estimate on `outline` and `agent`, if you have installed `js-tiktoken` (OpenAI encodings; approximate for Claude) |
 | `smd tasks <dir> [--mine @me]` | Open tasks across docs, overdue first |
 | `smd issues <dir> [--apply] [--create] [--close]` | Sync tasks with GitHub Issues through your `gh` login. A dry run unless `--apply`: checks off tasks whose issue closed, `--create` opens issues for unlinked tasks (and links them), `--close` closes issues of done tasks |
@@ -229,7 +229,7 @@ Collapsed section for long content.
 | `tip` | teal | advice | `<tip>` | `> [!TIP]` |
 | `success` | green | done / good | `<success>` | `> [!TIP]` |
 | `warning` | amber | caveat | `<warning>` | `> [!WARNING]` |
-| `danger` | red | hard constraint | `<danger>` | `> [!CAUTION]` |
+| `danger` | red | hard constraint | `<danger>`, **always included**: a section view shows the dangers of other sections under "Dangers elsewhere in the document" | `> [!CAUTION]` |
 | `question` | purple | open decision | `<question>` | `> [!IMPORTANT]` |
 | `details` | — | long optional content | `<details>` (omitted with `--brief`, except `:::agent` and `:::danger` blocks inside) | `<details><summary>` |
 

@@ -154,6 +154,10 @@ Two applicable accepted decisions or constraints that disagree are both shown, m
 
 AF13 needs one rule for how document scope, section scope, `applies-to` and includes combine. Semantic tags R25 to R27 define each on its own. This proposal combines them.
 
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Dangers apply to the whole document
+A `:::danger` block or CAUTION alert is a hard constraint wherever an agent reads. Every section view (`smd agent --section`, `smd read --section`, MCP `read` with sections) shows the dangers of the other sections and of included files in full, under "Dangers elsewhere in the document", as it shows `:::agent` blocks. Sections marked `{agent=skip}` and `:::human` blocks stay out. Warnings, accepted decisions and open questions are not document-wide by default and are listed as pointers only with `--constraints` (policy `constraints/1`). This answers the C04 scope question for today's syntax. Scope for future `:::constraint` blocks follows the proposals below and the semantic-tags RFC.
+:::
+
 :::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Applicability is a union, and ambiguity is a diagnostic
 A block applies to a view when any of these holds. It is document-scoped. It is section-scoped and the view selects its section or any subsection of it. Its `applies-to` names a block or section the view includes. A `scope=section` block outside any section (above the first heading) is document-scoped and the validator says so. An `applies-to` that names nothing, or names a block in another document, is a diagnostic until cross-document targets are decided. Applicability never removes content a view would otherwise show.
 :::
