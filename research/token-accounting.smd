@@ -1,0 +1,144 @@
+---
+smd: 2
+title: Total-token accounting and pilot sizing
+summary: The method for counting what an agent task really costs in tokens, from provider-reported usage across every call, and for choosing study thresholds and sample sizes from pilots rather than from earlier drafts. Part of the G0 baseline (AF33, AF34).
+status: draft
+owners: ["@roshanmadhushanka"]
+tags: [research, tokens, method, preregistration]
+version: 0.1
+created: 2026-11-06
+updated: 2026-11-06
+related:
+  - study-1-agent-evaluation.smd
+  - study-2-authoring.smd
+  - annotation-guide.smd
+  - evidence-matrix.smd
+  - ../docs/TOKENS.md
+  - ../docs/research-interaction-requirements.smd
+---
+
+## Why a separate method
+
+`docs/TOKENS.md` measures what the tools print, with characters divided by four, and counts the skill and tool definitions once per session. That answers a product question. It is not what a study participant's agent spends. A provider bills the tool definitions and the system prompt on every request, retries and repair calls cost tokens, and a cached prefix is billed differently. The paper must report totals that a reader could check against a provider invoice, and keep estimates apart (AF33).
+
+This document fixes how Study 1, Study 3 and any full-loop pilot count tokens, and how pilots choose the thresholds and sizes that later get preregistered (AF34). It does not set any threshold itself.
+
+:::agent Accounting constraints
+- Provider-reported usage is the only source for reported totals. Label every other count as an estimate and name its method (characters / 4, or a named tokenizer and version).
+- Never merge cached and uncached input into one number. Report them side by side.
+- No number in this document, in `docs/TOKENS.md` or in an earlier draft is a study threshold or a sample size until a pilot has produced it and the author has frozen it.
+:::
+
+## Units
+
+|Unit|Definition|
+|-|-|
+|Call|One request to a model provider and its response|
+|Episode|All calls an agent makes for one task under one condition and one run, from the first prompt to the final answer|
+|Session|The calls that share one conversation state, which may hold several episodes when a protocol reuses context|
+|Human turn|A human answer or correction that enters the agent's context during an episode (Study 3 and full-loop pilots)|
+
+The episode is the unit of analysis. A session-level number is reported only when the protocol reuses context across tasks, and then the amortization rule below applies.
+
+## What counts
+
+Every call in an episode is logged and classified. Nothing is dropped because it failed.
+
+|Class|Includes|
+|-|-|
+|`setup`|System prompt, tool definitions, skill text and project instructions, as sent on each request|
+|`retrieval`|Calls whose purpose is reading the document (outline, section, query, search, line ranges)|
+|`answer`|The call that produces the final answer, and any reasoning or output tokens it reports|
+|`repair`|Calls after a tool error, an invalid selector, an over-budget result or a malformed answer|
+|`retry`|Calls repeated because of a transport or rate-limit failure, logged even when the provider bills nothing|
+|`human-context`|Tokens that carry a human answer, correction or question into the agent's context|
+|`repeat-read`|Retrieval of content the episode already read, flagged by the harness after the fact|
+
+`setup` tokens are part of every call's input. They are not subtracted. They are also reported on their own, measured once per condition from a call with an empty task, so readers can see how much of the total is fixed.
+
+## Per-call record
+
+The model harness writes one JSON line per call. The scorer joins them to answers by episode.
+
+```json
+{"episode": "wh-02/S3/run1", "model": "provider/model-id@2026-11-01",
+ "condition": "S3", "task": "wh-02", "run": 1, "call": 3, "class": "retrieval",
+ "usage": {"input": 4120, "output": 96, "cache_read": 3800, "cache_write": 0, "reasoning": 0},
+ "usage_raw": {"...": "the provider's own fields, unchanged"},
+ "estimate": {"method": "chars/4", "input": 4010, "output": 90},
+ "tool": "read", "error": null, "started": "2026-11-20T10:00:00Z", "ms": 1840}
+```
+
+`usage_raw` keeps the provider's fields as returned, so a later reader can redo the mapping. `estimate` is optional and never feeds a reported total. Transcripts are stored next to the log, as the Study 1 protocol requires.
+
+## Totals and reporting
+
+For each episode, report input, output, cached input and reasoning tokens separately, plus their sum as total billed-equivalent tokens with the cache rule stated. Then, per condition,
+
+- the median and interquartile range per episode, and the mean with a 95% interval from the same paired bootstrap the scorer uses for correctness,
+- the share spent in each class, so retrieval savings are not hidden by repair costs,
+- the number of calls and of `repair` and `retry` calls,
+- correctness and token cost together, per task, so a cheaper condition that fails more tasks is visible as such.
+
+Correctness is a gate (requirements, research questions section). A token saving is reported for a condition only beside its correctness result, and never as a composite score.
+
+### Amortization
+
+When a protocol reuses a session for several tasks, the per-episode share of `setup` tokens depends on how many tasks the session holds. Report both the measured per-episode numbers and the session total. Any amortized figure states the number of tasks it assumes, and the paper gives the break-even task count rather than one amortized number.
+
+### Authoring and maintenance effort
+
+Tokens an agent spends writing or updating `.smd` markup, and minutes a person spends marking a document, are costs of the approach. Study 2 and the full-loop pilot record them separately from reading costs (AF33). The marking log in the annotation guide gives the marker's time per document.
+
+## Historical numbers
+
+The 2.5.0 and 2.6.0 measurements under the Styled Markdown name keep their executable version and their estimate method. They are not re-labelled, re-scaled or mixed into tables with provider-reported counts (C12). New 3.x runs of `docs/TOKENS.md` stay estimates and say so.
+
+## Pilot-based thresholds and sizing
+
+Pilots exist to produce the numbers a confirmatory study needs. They are not evidence for a hypothesis, and pilot data never enters the confirmatory analysis.
+
+### What a pilot must report
+
+- The cost per episode and per run in provider tokens and money, per model.
+- Correctness per condition and whether any condition sits at ceiling or floor.
+- Variance components for documents, tasks within documents, runs and models, from a mixed model fitted to the pilot.
+- The rate of harness failures, invalid tool calls and scorer disagreements with a human.
+
+### Choosing thresholds
+
+Each confirmatory comparison states one of three claims before the run, and its margin comes from the pilot and the author's judgment of what matters, not from a draft.
+
+|Claim|Holds when|Used for|
+|-|-|-|
+|Superiority|The 95% interval of the difference excludes zero in the stated direction|A view or cue that should improve an outcome|
+|Non-inferiority|The interval's lower bound stays above minus the margin|A cheaper view that should not lose correctness|
+|Equivalence|Both bounds stay inside plus and minus the margin (two one-sided tests)|A claim that two conditions do the same|
+
+Study 1's H1 currently says "within 5 percentage points" and calls it equivalence, while its wording reads as non-inferiority. The author decides which claim H1 makes and confirms or replaces the margin after the pilot. The same applies to the 40% token reduction and the 10-point power target, which are planning values.
+
+### Sizing
+
+Size each confirmatory study by simulating the planned mixed model with the pilot's variance components, at the chosen margin, for 80% power unless the author sets another target. Observations are clustered by document, task and model, so the simulation resamples at those levels and never treats runs as independent. Report the simulation code, seed and result in the preregistration.
+
+### Freeze list
+
+Before any confirmatory run, record these in the preregistration and the corpus freeze record. Any change after the run starts restarts it.
+
+- Corpus version, annotation guide version, task file hash.
+- Tool commit and executable version for every condition.
+- Prompts, tool definitions and skill text, by hash.
+- Model ids with provider version or date, sampling settings and seeds where supported.
+- The `today` clock for views and the tokenizer used for any estimate.
+- Conditions, ablations, the scorer commit and the judge prompt.
+- Claims, margins, analysis model, exclusion rules and planned sample size.
+
+## Open questions
+
+:::question Provider budget and models
+The author decides providers, models and spend for the pilot and the confirmatory runs. Until then the pilot plan assumes one model and four documents, as the Study 1 protocol says.
+:::
+
+:::question How are cached tokens weighted in the total?
+Providers bill cache reads and writes at different rates. Reporting them apart is fixed. Whether the headline total weights them by price or counts them as plain tokens is the author's decision, made before the pilot so the pilot reports the same way.
+:::
