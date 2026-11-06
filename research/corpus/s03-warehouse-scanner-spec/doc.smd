@@ -1,0 +1,808 @@
+---
+smd: 2
+title: "Scanbay 2: handheld scanner app requirements"
+summary: This document sets out the requirements for Scanbay 2, the app that warehouse staff at Oakbay Home use on handheld barcode scanners to receive, store, pick, count and load stock.
+status: approved
+---
+
+Status: approved for build. Version 1.4, last updated 2026-10-12. Product owner Delphine Okoro, tech lead Mateus Ferreira, operations sponsor Kasper Vermeulen.
+
+## Purpose
+
+This document sets out the requirements for Scanbay 2, the app that warehouse staff at Oakbay Home use on handheld barcode scanners to receive, store, pick, count and load stock. It replaces Scanbay 1, which has run in our distribution centres since 2019 and is no longer supported by the vendor of the scanner platform it was built on.
+
+The document is written for the product and engineering team building Scanbay 2, the warehouse operations leads who will sign off each release, and the support team who will run it. It says what the app must do and the limits it works within. It does not say how the screens look in detail. The design files are the reference for that, and where they disagree with this document, this document wins until the design is updated.
+
+Oakbay Home sells furniture, lighting and home textiles online and through 34 stores. Almost everything a customer orders leaves one of our five distribution centres, either on our own trucks for large items or with a parcel carrier for small ones. About 1,400 people work in the distribution centres across three shifts, and on a normal weekday they handle around 52,000 order lines. In the four weeks before Christmas and during the January sale that rises to about 110,000.
+
+## Background and history {agent=skip}
+
+This section is for readers who were not around for Scanbay 1. Nothing in it is a requirement.
+
+Scanbay 1 was built in 2018 by an agency, on a scanner platform that ran its own app runtime rather than plain Android. It went live in the Tilburg distribution centre in March 2019 and in the other four by the end of that year. For its time it was good. Before it, pickers worked from printed pick lists and keyed item numbers into fixed terminals at the end of each aisle, and the error rate on outbound orders was close to 2%. Scanbay 1 brought that down to about 0.4% within a year.
+
+The problems started in 2022. The scanner vendor announced the end of the old runtime, the agency that built the app had been bought and no longer did this kind of work, and the two developers who knew the code had left Oakbay. Since then Scanbay 1 has been kept alive by one contractor, two days a week. Every change takes months. The Polish translation added in 2023 for the Poznań centre took five months and still has untranslated error messages.
+
+The devices are the other half of the story. The 1,150 handhelds running Scanbay 1 are between four and seven years old. Batteries that lasted a full shift when they were new now last about five hours, so every centre keeps spare batteries on chargers at the end of each aisle and swaps them at the mid-shift break. About 6% of devices are out of service at any time, waiting for repair or parts that are harder to get every year.
+
+In 2024 operations tried to buy time by moving Scanbay 1 onto new Android devices with a compatibility layer the vendor offered. The pilot in Leeds ran for six weeks. Scans were noticeably slower, the app crashed when the device came back into Wi-Fi coverage after a dead zone, and the pilot was stopped. That is when the decision was made to build a replacement, and the first project brief for Scanbay 2 was written in the spring of 2025.
+
+The other thing everyone in the centres remembers is the peak of 2023, when the Scanbay 1 server ran out of database connections on the Monday after Black Friday and all five centres stopped scanning for 3 hours and 10 minutes. About 9,000 orders missed their delivery slot. Several of the requirements below, especially the ones about working offline, exist because of that day.
+
+## Scope
+
+### In scope
+
+Scanbay 2 covers the work that warehouse staff do with a handheld scanner in the five distribution centres: Tilburg, Leeds, Poznań, Lyon and Porto. That is receiving goods from suppliers, putting them away into storage locations, picking orders, counting stock, moving stock between locations, loading trucks, and receiving returns where a centre handles returns. It also covers the shift lead tools on the handheld, such as reassigning work and approving a short pick.
+
+### Out of scope
+
+Stores are out of scope. The 34 stores keep their own stock app, and Scanbay 2 will not be installed on store devices, even in the two stores that share a building with a distribution centre.
+
+The warehouse management system itself is out of scope. Scanbay 2 is a client of the warehouse management system, called WMS in the rest of this document, and it does not change how WMS allocates stock, builds waves or plans routes. Where Scanbay 2 needs something from WMS that WMS does not offer yet, it is listed under integration requirements and the WMS team owns the change.
+
+Fixed scanners on the conveyor lines, label printers and the forklift terminals are out of scope. They talk to WMS directly. Scanbay 2 does not drive printers, with one exception. A receiver can reprint a pallet label from the handheld to the nearest label printer, because that is the only printer action Scanbay 1 offered and the receiving teams use it many times a shift.
+
+Voice picking is not part of Scanbay 2. It was looked at and rejected, as described under decisions.
+
+### Assumptions
+
+The requirements rest on a few assumptions. If one of them turns out wrong, the requirements that depend on it have to be looked at again.
+
+- WMS stays the system of record for stock, orders, locations and tasks for the life of Scanbay 2. There is no plan to replace it before 2030.
+- The H7 stays available from the vendor until at least the end of 2029, and the vendor supports Android updates on it until then.
+- The network team finishes the new access points in Poznań before its go-live, and in the other centres by the end of 2027. Scanbay 2 works without them, but more slowly, and the offline limits were set on the assumption that dead zones will shrink.
+- The staff directory remains the only source of roles, badges and PINs, and it stays available at least 99.9% of the time. Sign-in on a device for the first time needs it.
+- The number of order lines grows by no more than 15% a year. The peak load figures in the performance requirements include two years of that growth.
+
+## Users and roles
+
+Every person who uses Scanbay 2 has one role in each distribution centre they work in. Roles come from the staff directory and are not set in the app. A person who works in two centres can have a different role in each.
+
+| Role | Typical count per centre | What they do in Scanbay 2 | Can approve |
+|-|-|-|-|
+| Picker | 120 to 180 | Picks order lines, reports short picks and damage | Nothing |
+| Receiver | 20 to 40 | Receives deliveries, checks quantities, reports damage, reprints pallet labels | Nothing |
+| Putaway operator | 15 to 30 | Moves received stock to storage locations | Nothing |
+| Cycle counter | 4 to 8 | Counts locations, recounts variances | Nothing |
+| Loader | 20 to 35 | Loads trucks in route order, confirms each stop | Nothing |
+| Shift lead | 6 to 10 | Everything above, plus reassigning work and approving exceptions | Short picks, count variances, damage write-offs up to the limit below |
+| Warehouse admin | 1 to 3 | Device setup, location changes, user help | Count variances over the shift lead limit, damage write-offs over the limit |
+
+A shift lead can approve a damage write-off with a stock value of up to 750 euros per item. Anything above that needs a warehouse admin. A shift lead cannot approve their own short picks or their own count variances, even when nobody else is on shift. In that case the item waits for the next shift lead or for an admin.
+
+Temporary staff from agencies are pickers, receivers or loaders only. They are never shift leads or admins in Scanbay 2, whatever their role was at another employer, and they get their role from the agency booking in the staff directory, not from a manual entry.
+
+Support staff from the IT service desk do not have a role in any centre. They use the device management console for device problems and the support view in the Scanbay admin site to see a user's recent activity. They cannot scan or confirm work in Scanbay 2.
+
+## Devices and working environment
+
+### Devices
+
+Scanbay 2 runs on the rugged Android handhelds that procurement has bought for the replacement, the model referred to internally as the H7, and on nothing else. The H7 runs Android 14 with the vendor's enterprise extensions, has a built-in 2D imager, a 4.7 inch screen and a hot-swappable battery rated for 12 hours. Operations will buy 1,250 of them, enough for the 1,150 devices in use today plus spares.
+
+Scanbay 2 is not supported on personal phones, tablets or the older Scanbay 1 devices. The device management console installs it, and the app refuses to start on a device the console has not enrolled.
+
+The H7 also takes a ring scanner that pairs over Bluetooth and is worn on the index finger. Whether Scanbay 2 supports ring scanners at launch is an open question, covered at the end of this document.
+
+### The buildings
+
+The five centres are large, between 38,000 and 64,000 square metres each, and they are not friendly places for radio. Racking up to 12 metres high is full of metal and of furniture packed in cardboard and foam, which absorbs signal, and the Wi-Fi survey done in 2025 found dead zones in every centre. The worst is Poznań, where about 9% of storage locations had no usable signal at the time of the survey. The network team is adding access points, but the app has to assume that any location may be without network for a while.
+
+Lyon and Porto have unheated mezzanines for textiles where the temperature in winter can drop to 4°C. The H7 is rated for that, but staff wear gloves there, and the app has to be usable with gloves. The other centres are heated.
+
+Staff work three shifts, 06:00 to 14:00, 14:00 to 22:00 and 22:00 to 06:00, except in Porto, which does not run a night shift. A device is shared between shifts and is used by several people a day.
+
+### Physical requirements for the app
+
+- Every button a worker needs during normal work has a touch target of at least 12 mm by 12 mm, so that it can be pressed with a work glove on.
+- Text that a worker needs to read while walking or lifting, such as the next location or the quantity to pick, is at least 9 mm high on screen.
+- Every scan gets feedback within 300 ms: a short tone and a green flash for a good scan, two low tones, a long vibration and a red screen for a bad one. Staff often scan without looking at the screen, so sound and vibration are not optional, and the app does not let a user turn them off. A shift lead can lower the volume for a whole centre during night shift, but not below 40%.
+- The app runs in portrait only.
+
+### Device setup and charging
+
+New H7s arrive at each centre from the vendor already enrolled in the device management console. The device team unpacks them, labels each with a device number and a barcode on the back, and puts them in the charging racks. The console installs Scanbay 2 and the centre's Wi-Fi settings the first time a device is on the network, which takes about 10 minutes. No one installs Scanbay 2 by hand.
+
+Each device belongs to one centre and is not moved between centres. A device found in the wrong centre is sent back by the device team rather than re-enrolled, since the centre is part of the device's configuration and of the scan log.
+
+Charging racks hold 20 devices each. A device in a rack is signed out, keeps sending its offline queue, and receives app updates. At the end of each shift the shift lead checks that every device is in a rack or signed out to someone on the next shift. Devices that are not in a rack and have not been used for 2 hours show up in the admin site as possibly lost.
+
+The battery swap is still possible on the H7, but it should not be needed, as set out under battery. Spare batteries are kept by the device team, not at the end of the aisles as they are today.
+
+## Signing in and shifts
+
+A worker signs in by scanning the barcode on their staff badge and entering their 6 digit PIN. There are no passwords in Scanbay 2. The PIN is set in the staff directory self-service kiosk at each centre's entrance and is never shown in the app or on the admin site.
+
+After 5 wrong PINs in a row the badge is locked for 15 minutes, and the shift lead's handheld shows a notice. Shift leads cannot unlock a badge early. Warehouse admins can.
+
+A session ends when the worker signs out, when the device is put in a charging cradle, or after 12 minutes without any scan or touch. Work in progress is kept. A picker who is signed out in the middle of a pick list gets the same pick list back, at the same line, when they sign in again on any device within 30 minutes. After 30 minutes the pick list goes back to WMS to be given to someone else, and any lines already picked stay picked.
+
+A worker can be signed in on only one device at a time. Signing in on a second device signs them out of the first, and the first device shows who took over and when. This matters because two devices signed in as one person was a common way to fake productivity numbers on Scanbay 1.
+
+The first screen after sign-in shows the worker's tasks for the shift as WMS has assigned them, with the current wave and the number of lines waiting. A worker cannot pick their own task type. A picker cannot start receiving because the receiving queue looks shorter, for example. Shift leads can move a worker between task types from their own handheld, and the change takes effect on the worker's device within 30 seconds.
+
+## Receiving
+
+### Deliveries and advance notices
+
+Most suppliers send an advance shipping notice to WMS before the truck arrives. The notice lists the purchase orders, the pallets and the expected quantity of each item on each pallet. About 85% of inbound pallets arrive with a notice. The rest, mostly from small textile suppliers, arrive without one.
+
+When a truck is at the dock, the receiver scans the dock door barcode and then the delivery note barcode. If a notice exists, Scanbay 2 shows the expected pallets for that delivery. If not, the receiver selects the supplier and the purchase order from a list, which shows only the open purchase orders for that supplier due within 14 days either side of today.
+
+### Checking pallets
+
+For each pallet the receiver scans the pallet label. Supplier pallet labels follow the GS1 logistics label, and Scanbay 2 reads the serial shipping container code, the item number, the quantity and the batch or production date from it where present. If the label cannot be read, the receiver keys the serial number shown under the barcode. Keying is allowed for pallet labels only, and is logged as a manual entry.
+
+The receiver confirms the quantity on the pallet. For single-item pallets the expected quantity is shown, and the receiver confirms it or enters the counted quantity. Mixed pallets, which are pallets with more than one item number, are broken down item by item. A receiver can receive at most 60 lines on one mixed pallet. A larger mixed pallet is split by the shift lead into two receipts in WMS before receiving starts, because Scanbay 1 became unusably slow on very large receipts and WMS still has a limit of 64 lines per receipt document.
+
+Over-deliveries are received up to 5% over the purchase order quantity without approval. Above that, the extra units are received into a quarantine location and the purchasing team decides within 3 working days whether to keep or return them. Under-deliveries are always received as counted, with no approval needed, and WMS tells purchasing.
+
+### Damage
+
+A receiver who finds damaged goods marks the affected units as damaged and takes photos with the H7's camera. At least 1 photo and at most 5 photos are required per damaged line, each up to 2 MB after the app compresses it. Photos are uploaded with the receipt and attached to the supplier claim in WMS. If the device is offline, the photos wait in the offline queue with the rest of the receipt, and they count towards the queue size limit described in the offline section.
+
+Damaged units are never put away to a pick location. They go to the damage area for the centre, and the app does not offer any other destination for them.
+
+### Reprinting a pallet label
+
+After a pallet is received, WMS prints an Oakbay pallet label at the dock printer. If the label is lost or unreadable, the receiver can reprint it from the handheld. The app sends the reprint to the printer assigned to the dock door they scanned at the start, and a receiver can reprint the same label at most 3 times. A fourth reprint needs a shift lead, since repeated reprints of the same label used to be the way pallets got lost and then found twice in Scanbay 1.
+
+## Putaway
+
+Received pallets wait in the receiving buffer until a putaway operator moves them. The operator scans the pallet label, and Scanbay 2 shows the storage location WMS has chosen. The operator drives or walks there, scans the location barcode, and confirms. A pallet is put away only when the location scan matches the location shown, except when the operator chooses a different location, which is allowed under the rules below.
+
+An operator can choose a different location when the suggested one is blocked or full. They scan the location they want instead, and Scanbay 2 asks WMS whether it is allowed. WMS allows it if the location is empty or holds the same item and batch, if the location's weight and height limits are not exceeded, and if the location is in a zone that accepts the item's storage class. Bulky items, which are anything over 30 kg or longer than 2.4 metres in its packaging, can only go to floor or bulk locations, never to racking above the first beam level.
+
+Scanbay 2 never puts away a pallet to a location that WMS has not confirmed. If the device is offline when the operator scans a different location, the app does not let them confirm it. They either use the suggested location, which was confirmed when the task was created, or wait until they are back in coverage.
+
+Putaway of a single pallet is normally under 4 minutes from scanning the pallet to confirming the location. The app shows a soft reminder after 15 minutes, since a pallet that sits on a forklift for longer than that has usually been forgotten.
+
+## Picking
+
+Picking is the largest part of the work, about 60% of all handheld scans, and most of the requirements here come from what went wrong with picking in Scanbay 1.
+
+### Waves and pick lists
+
+WMS groups order lines into waves several times a shift, and splits each wave into pick lists. A pick list is a sequence of locations in walking order, with an item and a quantity at each. A picker gets one pick list at a time. Small-item pick lists have up to 40 lines and go into a tote on a cart. Large-item pick lists have up to 8 lines and are picked onto a pallet truck or by forklift.
+
+A pick list is sent to the device in full when the picker starts it, so that the picker can carry on through a dead zone. Changes WMS makes to a pick list after it is sent, such as a line cancelled because the customer cancelled the order, reach the device when it is next in coverage. A line cancelled after it was picked is not reversed on the handheld. The picker finishes the list as normal and WMS sends the item back to stock at the packing station.
+
+### Scanning at a location
+
+At each location the picker scans the location barcode, then the item barcode, then confirms the quantity. For quantities over 1, the picker can either scan each unit or scan once and key the quantity. Keying is not allowed for items with a stock value over 400 euros per unit, which must be scanned unit by unit, so that a miskeyed quantity does not send a customer three armchairs instead of one.
+
+If the item scanned does not match the item on the pick line, the scan is rejected with the bad scan feedback and the line stays open. Scanbay 2 does not support substitutions. A picker cannot pick a different item, a different colour or a different batch than the line asks for, even if the shelf label suggests it is the same product. The customer bought a specific item, and substitutions are decided by customer service, not on the warehouse floor.
+
+### Multi-carton items
+
+Much of what Oakbay sells is packed in several cartons. A three-seat sofa is two or three cartons, a wardrobe can be up to seven, and a kitchen table with chairs is usually five. Each carton has its own barcode, with the item number and a carton number such as 2 of 5.
+
+A pick line for a multi-carton item is complete only when every carton of that item has been scanned. The app shows which cartons are still missing. The cartons of one item can be in different locations, since WMS sometimes stores the heavy cartons on the floor and the light ones in racking, and the pick list then visits each location in walking order.
+
+If one carton is missing or damaged, the whole item is short picked. The picker does not pick the other cartons of that item. This rule exists because in Scanbay 1 partial items were picked, packed and sent, and the customer received a wardrobe without its doors.
+
+### Two-person lift items
+
+Items over 25 kg in a single carton are flagged in the item master as two-person lift. When a pick line includes a two-person lift carton, Scanbay 2 shows a full-screen notice before the picker reaches the location, and it does not let the picker confirm the line until a second worker has scanned their badge on the same device.
+
+:::danger
+> **Warning:** Scanbay 2 must never let a single worker confirm the pick, putaway or loading of a carton flagged as two-person lift, and must never offer a setting, override or shift lead approval that removes the second badge scan. The flag is there because of back injuries. Oakbay had 23 reportable lifting injuries in the distribution centres in 2024, and in two centres the labour inspectorate has told us that further injuries on items we know are heavy will lead to enforcement action.
+:::
+
+Forklift picks are the one case where the second badge is not needed, because the carton is not lifted by hand. A pick line done by forklift is marked as such by WMS, and the app then skips the second badge scan for that line only.
+
+### Short picks
+
+A picker who cannot find the item, or finds fewer than the line asks for, reports a short pick. The app asks for a reason from a fixed list: location empty, not enough at location, item damaged, wrong item at location, cannot reach. The picker cannot type a free-text reason. Free text in Scanbay 1 ended up as a column nobody read.
+
+A short pick goes to the shift lead's handheld for approval. When the shift lead approves it, WMS looks for stock in another location and either adds a new line to a later pick list or marks the order line as short. A shift lead must deal with a short pick within 20 minutes, and the app escalates any unapproved short pick older than that to the warehouse admin. Approving a short pick never adjusts stock directly. It creates a count task for the location, which a cycle counter does later.
+
+### Finishing a pick list
+
+When the last line is picked or short picked, the picker scans the drop location for the tote or pallet, usually a packing station or a marshalling lane. The pick list is then complete. The app does not let a picker start a new pick list until the current one is dropped, except that a shift lead can release a picker from an unfinished list, which sends the rest of the lines back to WMS.
+
+The app shows the picker their own pick rate for the shift and the target rate for the task type, in lines per hour. The rate shown to the picker is never compared with other workers on screen. Works councils in Tilburg and Lyon agreed to the rate display on that condition, and it applies to every centre.
+
+## Moving stock
+
+Shift leads and putaway operators can move stock from one location to another outside a putaway task, for example to clear a location for a large delivery. A move is a scan of the source location, the items and quantities, and the destination location. The same destination rules apply as for putaway, and a move to a location WMS has not confirmed is refused in the same way.
+
+Pickers cannot move stock. A picker who finds stock in the wrong place reports it as a short pick with the reason "wrong item at location", and the count task that follows sorts it out.
+
+A single move can include up to 20 different items. Moves of whole pallets are scanned with the pallet label instead of item by item.
+
+## Cycle counting
+
+Every storage location is counted at least twice a year, and locations holding items worth more than 400 euros per unit are counted every month. WMS creates the count tasks and Scanbay 2 hands them to cycle counters. Count tasks created by short picks, as described above, are added to the same queue and go to the front of it.
+
+Counts are blind. The counter scans the location, then scans or keys every item they find and the quantity of each, without seeing what WMS expects. Showing the expected quantity is not supported in Scanbay 2, not even as an option for shift leads, because counters in Scanbay 1 tended to confirm whatever the screen said.
+
+When the count is submitted, WMS compares it with the stock record. A difference is a variance. Variances are handled in this order.
+
+1. If the variance is no more than 2% of the expected quantity and no more than 5 units, WMS accepts the count and adjusts stock with no approval.
+2. Otherwise, the location goes back into the queue for a recount by a different counter. The second counter is not told that it is a recount.
+3. If the recount matches the first count, the variance goes to the shift lead for approval, who can approve variances with a stock value of up to 2,000 euros. Larger variances go to the warehouse admin.
+4. If the recount matches the stock record, the first count is discarded and nothing changes.
+5. If the recount matches neither, a third count is done by the shift lead in person, and that count stands.
+
+A location is locked for picking and putaway from the moment the count starts until the count is accepted or the recount is assigned. The lock lasts at most 30 minutes. If the count has not been submitted by then, the lock lifts, the count task goes back to the queue, and the counter's handheld shows that the task was taken back.
+
+Counting happens during normal shifts, so locks on busy pick locations hurt picking. WMS schedules counts of the 500 busiest pick locations in each centre for the night shift only, except in Porto, where they are done on Saturday mornings.
+
+## Loading and dispatch
+
+Large items leave on Oakbay's own trucks, which run fixed routes from each centre. Each truck is loaded in reverse delivery order, so that the first stop is at the back doors. WMS sends the load plan to Scanbay 2 when the truck is at the dock.
+
+The loader scans the dock door, then the truck's trailer barcode, and then each pallet or carton as it goes on. The app shows the stop number for each scan in large figures. Loading a carton for a later stop after a carton for an earlier stop is allowed only if the later stop's carton is placed further forward in the trailer. Scanbay 2 cannot know where in the trailer a carton was placed, so it asks the loader to confirm the position when the order of scans breaks the plan, and logs the confirmation.
+
+A truck is closed when every pallet and carton on the load plan has been scanned or reported missing. A truck cannot leave with more than 2 missing items without the shift lead's approval, and it can never leave with a missing carton of a multi-carton item if the other cartons of that item are on board. In that case the loader takes the other cartons off again, and the item is rebooked for the next day.
+
+Parcel carrier collections are different. Small items are packed at the packing stations and sorted by carrier on the conveyor lines, which are outside Scanbay 2. Loaders scan the carrier's cages when they go out the door, but they do not scan each parcel.
+
+## Returns
+
+Customer returns of large items come back on Oakbay's trucks and are received in three centres only: Tilburg, Leeds and Lyon. Poznań and Porto do not handle returns, and Scanbay 2 hides the returns menu for users in those centres.
+
+A returns receiver scans the return label, then each carton. The app shows what the customer said was wrong. The receiver grades each item A, B or C. Grade A goes back to stock, grade B goes to the outlet area for discounted sale, and grade C is written off. A grade C write-off over 750 euros needs a warehouse admin, the same as a damage write-off.
+
+The grading guide for each product group is in the returns handbook, and Scanbay 2 shows a short version of it on screen when the receiver asks. Grade A needs the item to be complete, in its original cartons, and without any mark a customer would notice. Anything with a scratch, a stain or a repaired carton is at best grade B. An item with a missing carton is grade C, unless the missing carton is found on the same truck within the same day, in which case the receiver can regrade it before the end of the shift.
+
+Upholstered items that a customer has used, such as a sofa that was sat on for a week, are grade B at best for hygiene reasons, however clean they look. Mattresses and pillows that have left their sealed wrapping are always grade C. They cannot be resold in any of our markets.
+
+A returns receiver can grade up to 40 items in one return receipt. Most returns are one or two items, and the limit only matters for business customers returning a whole office order, which happens a few times a year and is split into several receipts by the shift lead.
+
+Returns of small items go to a carrier's returns centre and do not come back to our distribution centres. They are out of scope.
+
+## Barcodes
+
+### Supported formats
+
+Scanbay 2 reads the barcode formats in the table and no others. The imager is configured to ignore every other symbology, which speeds up scanning and stops it from picking up the wrong code on busy cartons.
+
+| Format | Used on | Notes |
+|-|-|-|
+| GS1-128 | Supplier pallet labels, Oakbay pallet labels | Application identifiers parsed as described below |
+| EAN-13 | Item barcodes on retail packaging | Most textiles and small items |
+| Code 128 | Oakbay carton labels, location labels, staff badges, dock doors | Prefix tells the type |
+| Data Matrix | Carton labels from three furniture suppliers | Same content as their Code 128 labels |
+| QR code | Trailer barcodes only | Not used anywhere else |
+
+QR codes are accepted only when the app is waiting for a trailer scan. A QR code scanned anywhere else is treated as a bad scan. This came out of the pilot, where QR codes on supplier marketing leaflets taped to pallets were picked up as pallet labels.
+
+### Oakbay label prefixes
+
+Oakbay's own Code 128 labels start with a two-letter prefix that says what the label is. LC is a location, CT is a carton, BD is a staff badge, DD is a dock door and PL is an Oakbay pallet. The app uses the prefix to reject a scan of the wrong type before it asks WMS, so that a picker who scans a carton when the app expects a location gets the bad scan feedback at once.
+
+### Parsing GS1 labels
+
+Supplier pallet labels are parsed with the application identifiers below. A label with an identifier not in this list is still accepted, and the unknown identifier is ignored and logged. A label without an SSCC, identifier 00, is rejected, since the pallet cannot be tracked without it.
+
+```text
+(00) SSCC, 18 digits                      required
+(02) GTIN of contained items, 14 digits   optional, used to check the item
+(10) Batch or lot, up to 20 characters    optional
+(11) Production date, YYMMDD              optional
+(37) Count of contained items             optional, prefilled as quantity
+
+Example:
+]C1 00 387123450000012347 02 08712345678906 37 24 10 TX2026-41
+-> SSCC 387123450000012347, GTIN 08712345678906, quantity 24, batch TX2026-41
+```
+
+Labels where the quantity in identifier 37 differs from the advance shipping notice are received with the counted quantity, not either of the printed ones. The receiver always confirms the quantity.
+
+## Working offline
+
+### What works without network
+
+Because of the dead zones, Scanbay 2 is built to keep working when the device has no network. Scans that only need data already on the device are accepted offline and queued. Scans that need an answer from WMS are refused offline, with a message telling the worker to move back into coverage.
+
+What works offline:
+
+- Picking lines on a pick list already on the device, including short picks, which are queued for the shift lead.
+- Putaway to the suggested location.
+- Counting, since the count is blind and needs nothing from WMS until it is submitted.
+- Loading against a load plan already on the device.
+- Receiving against an advance notice already on the device, including damage photos.
+
+What does not work offline:
+
+- Putaway or moves to a location other than the suggested one.
+- Receiving without an advance notice, since the purchase order list comes from WMS.
+- Starting a new pick list, count task or load plan.
+- Signing in for the first time on a device. A worker who has signed in on that device in the last 24 hours can sign in again offline with the same badge and PIN.
+- Every shift lead approval.
+
+### The offline queue
+
+:::decision{status=superseded date=2025-09-15}
+Decision (2025-09-15, architecture review): the offline queue on a device holds at most 200 scans. When the queue is full, the app stops accepting scans and tells the worker to move back into coverage until the queue has been sent. 200 scans is about 45 minutes of steady picking and is far longer than anyone should spend in a dead zone.
+:::
+
+The queue is stored in encrypted storage on the device and survives a restart and a battery swap. Entries are sent in the order they were made, as soon as the device has network, and the app shows a small counter of unsent entries in the top bar the whole time.
+
+The device keeps trying to send the queue while it has network, with a back-off that starts at 2 seconds and doubles up to 60 seconds between attempts. Entries that WMS rejects, for example because the line was cancelled while the device was offline, are not retried. They go to the shift lead's exceptions list with the reason WMS gave.
+
+A worker cannot sign out while the queue holds entries, except by putting the device in a charging cradle, where it keeps sending. If a device with unsent entries is not back on network within 8 hours, the device management console raises an alert to the warehouse admin, since the device has probably been left somewhere it should not be.
+
+```mermaid
+stateDiagram-v2
+  accTitle: Lifecycle of a scan in the offline queue
+  [*] --> Queued: scan accepted offline
+  Queued --> Sending: network available
+  Sending --> Sent: WMS accepts
+  Sending --> Queued: timeout or network lost
+  Sending --> Rejected: WMS rejects
+  Rejected --> ShiftLeadReview
+  Sent --> [*]
+  ShiftLeadReview --> [*]
+```
+
+### Data kept on the device
+
+To work offline, each device keeps a copy of some reference data for its own centre. That is the location list with each location's zone, storage class and barcode, the item master for items stocked in the centre, with item numbers, names in the five languages, carton counts, weights and the two-person lift flag, and the list of staff who have signed in on that device in the last 24 hours, for offline sign-in.
+
+The reference data is refreshed from the gateway every 15 minutes while the device has network, and in full every night at 03:00 local time while the device is in its charging rack. The full copy for the largest centre is about 180 MB, and the app may use at most 400 MB of device storage in total, including the offline queue and photos waiting to be sent. If the reference data on a device is more than 24 hours old, the app shows a warning on the sign-in screen and refuses offline work until it has been refreshed, since an item master that old can miss new two-person lift flags.
+
+Stock levels are not kept on the device. The handheld never knows how many of an item WMS thinks a location holds, which is also what keeps counts blind.
+
+### Conflicts
+
+The main conflict is two devices picking the same stock while one of them is offline. WMS reserves stock for a pick list when it creates the list, so two pickers are never sent to the same units. A conflict only happens when the stock is not where WMS thinks it is, and then the second pick to reach WMS is rejected and turned into a short pick.
+
+Counts submitted from an offline device are compared with the stock record at the time WMS receives them, not the time they were made. A pick from the location that reached WMS in the meantime can create a false variance. WMS handles this by replaying picks made after the count started, using the time the scan was made on the device, before it compares. Device clocks are kept in sync by the device management console and must not drift more than 2 seconds from network time. A device that drifts further shows an error and will not accept scans until its clock is corrected.
+
+## Architecture
+
+:::decision{status=superseded date=2025-11-20}
+Decision (2025-11-20, architecture review): Scanbay 2 is built as a progressive web app that runs in the H7's managed browser. One code base serves the handhelds and the shift lead view on desktop, updates are deployed without touching the devices, and the team can hire from the web developers we already work with. The offline queue uses the browser's storage and a service worker. Native code is limited to a small bridge for the scanner hardware.
+:::
+
+The rest of this section describes the parts of the system that do not depend on that choice.
+
+```mermaid
+flowchart LR
+  accTitle: Scanbay 2 system context
+  H[H7 handheld running Scanbay 2] -->|HTTPS| G[Scanbay gateway]
+  G --> W[WMS]
+  G --> S[Staff directory]
+  G --> P[Label print service]
+  A[Scanbay admin site] --> G
+  M[Device management console] -->|installs and configures| H
+  W -->|pick lists, load plans, count tasks| G
+```
+
+The Scanbay gateway is a small service that the Scanbay team owns. It sits between the handhelds and the systems they need. It checks every request against the user's role and centre, translates between the handheld's API and the older WMS interfaces, and keeps a log of every scan. Handhelds never call WMS, the staff directory or the print service directly.
+
+The gateway runs in both of Oakbay's data centres, active in both, behind the internal load balancer. Each centre's handhelds can reach either data centre. The gateway keeps no state of its own except the scan log, which is written to a replicated database, so the loss of one data centre does not stop scanning.
+
+Every request from a handheld carries the device id, the user's session token and a request id the device creates. The request id makes every write idempotent. If the gateway receives the same request id twice, for example because the device resent its offline queue after a timeout, it returns the first result and does nothing else. Request ids are kept for 7 days.
+
+## Handheld API
+
+The handheld talks to the gateway through a small JSON API over HTTPS. The endpoints below are the ones the handheld needs for picking, which is the first workflow to be built. Receiving, putaway, counting and loading follow the same pattern and are specified in the API reference that the gateway team keeps next to the code.
+
+All endpoints need the `Authorization` header with the session token and the `X-Device-Id` header. Write endpoints also need `X-Request-Id`, a UUID created on the device. Times are UTC in ISO 8601 with milliseconds. Quantities are whole numbers, since Oakbay does not sell anything by weight or length.
+
+### Get the next pick list
+
+:::api{method=GET path="/v1/picklists/next"}
+`GET /v1/picklists/next`
+
+Returns the next pick list WMS has assigned to the signed-in user, or `204 No Content` when there is none. The response holds the whole list, so the device can work offline from it.
+
+| Field | Type | Notes |
+|-|-|-|
+| `pickListId` | string | Stable for the life of the list |
+| `wave` | string | For display only |
+| `lines` | array | Up to 40 for small items, up to 8 for large items |
+| `lines[].lineId` | string | |
+| `lines[].location` | string | Location code without the LC prefix |
+| `lines[].item` | string | Oakbay item number |
+| `lines[].cartons` | integer | 1 for single-carton items |
+| `lines[].quantity` | integer | At least 1 |
+| `lines[].twoPersonLift` | boolean | True if any carton is flagged |
+| `lines[].forklift` | boolean | True when WMS plans the line for a forklift |
+| `dropLocation` | string | Where the tote or pallet goes when the list is done |
+
+Responses: `200` with the pick list, `204` when no list is assigned, `401` when the session has ended, `409` when the user already has an unfinished list on another device.
+:::
+
+### Confirm a pick line
+
+:::api{method=POST path="/v1/picklists/{pickListId}/lines/{lineId}/confirm"}
+`POST /v1/picklists/{pickListId}/lines/{lineId}/confirm`
+
+Confirms that a line was picked. The body lists every scan that made up the pick, with the time each scan was made on the device, so that WMS can order events from devices that were offline.
+
+```json
+{
+  "scans": [
+    {"type": "location", "value": "LC-TIL-14-03-B", "scannedAt": "2026-10-09T07:41:12.418Z"},
+    {"type": "carton", "value": "CT-4418820-1-3", "scannedAt": "2026-10-09T07:41:19.002Z"},
+    {"type": "carton", "value": "CT-4418820-2-3", "scannedAt": "2026-10-09T07:41:24.770Z"},
+    {"type": "carton", "value": "CT-4418820-3-3", "scannedAt": "2026-10-09T07:41:31.155Z"}
+  ],
+  "quantity": 1,
+  "secondBadge": "BD-0042117",
+  "offline": false
+}
+```
+
+Responses: `200` when the line is confirmed, `409` when the line was cancelled or already confirmed by another request, `422` when the scans do not match the line, for example a missing carton or a missing second badge on a two-person lift line.
+:::
+
+### Report a short pick
+
+:::api{method=POST path="/v1/picklists/{pickListId}/lines/{lineId}/short"}
+`POST /v1/picklists/{pickListId}/lines/{lineId}/short`
+
+Reports a short pick. The body has the quantity found, which can be 0, the reason code and the scans made. The reason code is one of `LOCATION_EMPTY`, `NOT_ENOUGH`, `DAMAGED`, `WRONG_ITEM`, `CANNOT_REACH`.
+
+Responses: `202` when the short pick is queued for the shift lead, `409` when the line was cancelled, `422` for an unknown reason code.
+:::
+
+### Drop a finished pick list
+
+:::api{method=POST path="/v1/picklists/{pickListId}/drop"}
+`POST /v1/picklists/{pickListId}/drop`
+
+Closes the pick list at the drop location. The body holds the scanned drop location. Responses: `200` when closed, `422` when the drop location is not the one in the pick list, or when any line is neither confirmed nor short.
+:::
+
+### Rate limits and timeouts
+
+The gateway accepts up to 10 requests per second from one device, which is far more than a person can scan. Requests over the limit get `429` with a `Retry-After` header, and the handheld waits that long. The limit exists to protect WMS from a device stuck in a loop, which happened twice in the pilot.
+
+The handheld waits 8 seconds for a response before treating a request as failed and putting it in the offline queue. Read requests that time out are not queued. They are retried when the worker taps the screen or scans again.
+
+The gateway gives WMS 5 seconds for each call it makes. WMS calls that time out are not retried by the gateway, since the handheld will resend with the same request id and the gateway's idempotency check handles the duplicate.
+
+### Error messages
+
+Every error the handheld shows has a short code, a one-line message in the worker's language, and what to do next. Error messages never show stack traces, internal host names or WMS error codes. The full detail goes to the scan log, where support can find it by the request id. The short code is shown so that a worker can read it out to a shift lead or to the service desk over the phone.
+
+| Code | When | Shown to worker |
+|-|-|-|
+| SB-101 | Scan of the wrong label type | Wrong barcode. Scan the location. |
+| SB-102 | Item does not match the line | Wrong item. Check the location and scan again. |
+| SB-201 | No network for a step that needs it | No network. Move to a covered area. |
+| SB-202 | Offline queue full | Too many scans waiting. Move to a covered area. |
+| SB-301 | Second badge missing on two-person lift | Second person needed. Ask a colleague to scan their badge. |
+| SB-401 | Session ended | Signed out. Scan your badge. |
+| SB-901 | Anything unexpected | Something went wrong. Tell your shift lead the code. |
+
+The codes are stable. Once a code is in use, it keeps its meaning, and a code that is no longer needed is retired, not reused.
+
+## Changes needed in WMS
+
+Scanbay 2 needs five changes in WMS. The WMS team owns them and has planned them into their releases for the fourth quarter of 2026. Scanbay 2 cannot start the pilot until the first three are live in Tilburg.
+
+1. Accept a device timestamp on every scan and order events by it, not by arrival time, for counts and picks from the same location. Today WMS orders by arrival, which is the cause of the false variances described under conflicts.
+2. Release a pick list back to the pool when the gateway reports that a picker has been signed out for 30 minutes, keeping lines already picked.
+3. Return the two-person lift flag and the forklift flag on every pick line, putaway task and load plan line. The flag exists in the item master but is not sent to any client today.
+4. Accept a reason code on short picks from the fixed list, instead of the free text field Scanbay 1 uses.
+5. Strip customer names and contact details from return reasons before sending them to any client.
+
+The WMS team has said that change 1 is the hardest, because it touches stock reservation, and that it may arrive in Tilburg only a week before the pilot. The risk is listed under risks.
+
+Scanbay 2 does not need any change to how WMS builds waves or picks locations. Requests to change those, which operations make regularly, are out of scope for this project and go to the WMS team's own backlog.
+
+## Shift lead tools
+
+Shift leads use the same handheld app as everyone else, with an extra tab for their own tasks. They also have the Scanbay admin site on a desktop in the shift office, but the requirements here are for the handheld, since most shift leads spend their shift on the floor.
+
+The shift lead tab shows, for the shift lead's centre and shift only:
+
+- Exceptions waiting for them, oldest first: short picks, count variances, damage write-offs, rejected offline entries and requests for a fourth label reprint.
+- Workers signed in, their task type and the time of their last scan. A worker with no scan for 10 minutes is shown in amber. The app does not show why.
+- Pick lists, count tasks and load plans still open, with how far each has got.
+- Devices in the centre with unsent offline entries, and how old the oldest entry is.
+
+From the tab a shift lead can approve or reject an exception, move a worker between task types, release a picker from an unfinished pick list, and lower the scan volume for night shift. A shift lead cannot cancel an order line, change a pick list, or change stock levels directly. Those are WMS actions that stay in WMS.
+
+A shift lead sees only their own centre. A shift lead who works in two centres switches between them by signing out and in again with the other centre selected. There is no view across centres in the handheld app. The operations managers who need that use the reports in WMS.
+
+## Scanbay admin site
+
+The admin site is a desktop web application for warehouse admins and, in read-only form, for the IT service desk. It is not used on the handhelds. Warehouse admins use it to:
+
+- See every device in their centre, its battery health, app version, last sign-in and unsent queue.
+- Unlock a locked badge.
+- Approve exceptions over the shift lead limits.
+- Look up the scan history of a user, a location, an item or a pallet for the last 90 days.
+- Set the centre's night shift volume floor and the reminder times for putaway, within the limits in this document.
+
+Location changes, such as adding a new aisle, are made in WMS. Scanbay 2 picks them up at the next sync, which runs every 15 minutes. Admins do not create locations in the admin site.
+
+The service desk view shows the same device and scan history pages without any of the approve, unlock or settings actions. The service desk uses it to answer the question they get most often, which is whether a worker's scan reached WMS.
+
+## Non-functional requirements
+
+### Performance
+
+- Scan to feedback on the device within 300 ms for 99% of scans, whether online or offline. Feedback means the tone, the vibration and the colour change. It does not wait for WMS.
+- Confirming a pick line, including the round trip to WMS, completes within 1.5 seconds for 95% of requests at the January sale peak, measured at the gateway.
+- Getting the next pick list completes within 3 seconds for 95% of requests at peak.
+- The app starts from cold to the sign-in screen within 4 seconds on an H7.
+
+The peak load used for testing is 110,000 order lines a day across the five centres, with up to 1,300 devices signed in at the same time and a busiest minute of about 2,600 scans. The gateway must handle twice that with no change to the response times above, so that a bad January does not take scanning down.
+
+### Battery
+
+Scanbay 2 must not need a battery swap during an 8 hour shift on a new H7 battery. In the battery test, a device running a picking script with a scan every 12 seconds, screen brightness at 70% and Wi-Fi roaming between access points every few minutes must end the 8 hours with at least 20% charge left. The app does not use GPS, and it does not keep the camera running between photos.
+
+### Security
+
+The handheld stores only what it needs for the current work: the signed-in user's session, the current task, the offline queue and the cached sign-in data for offline sign-in. All of it is in the device's encrypted app storage. Cached sign-in data for a user is deleted 24 hours after their last sign-in on that device.
+
+Session tokens are valid for 10 hours and are bound to the device. A token used from another device is refused, and both devices are flagged in the admin site.
+
+Customer data is kept to a minimum on the handheld. Loaders see the delivery town and postcode for each stop, so that they can check a load. They do not see customer names, street addresses or phone numbers, and neither does anyone else in Scanbay 2. Returns receivers see what the customer said was wrong with the item, with names and contact details removed by WMS before the text reaches the gateway.
+
+The app must pass the security team's mobile application review before the pilot and again before the rollout to each centre after the first. The device management console blocks screenshots in Scanbay 2 and blocks the device's own USB file transfer.
+
+### Languages
+
+The app is available in English, Dutch, French, Polish and Portuguese at launch. Each worker's language comes from their profile in the staff directory, and a worker can change it from the sign-in screen for their own session. Shift leads see exceptions in their own language, whatever language the worker who raised them was using.
+
+All text shown on the handheld comes from translation files, including error messages and the reasons in short pick lists. A build with a missing translation in any of the five languages fails. This is the requirement that would have caught the untranslated Polish error messages in Scanbay 1.
+
+German is not supported at launch, although Oakbay has talked about a sixth distribution centre near the German border. Adding a language must not need anything beyond a new translation file and a release.
+
+### Accessibility
+
+The warehouse floor is not an office, and the main accessibility needs come from the work, not from screen readers. Text and touch sizes are covered above. Colour is never the only signal. The green and red scan feedback always comes with a tone and a symbol, since about 1 in 12 men in the centres can be expected to have some colour vision deficiency. The app works at the device's largest system font size without hiding any button needed for normal work.
+
+### Logging and data retention
+
+The gateway logs every scan, every request and every response, with the user, the device, the centre, the request id and the time on the device and at the gateway. The scan log is the record operations uses for disputes, such as a customer saying an item never arrived, so it is kept for 400 days. Application logs, which are the technical logs of the gateway and the app, are kept for 30 days.
+
+Personal data in the scan log is limited to the staff badge number. Worker names are looked up from the staff directory when a log is displayed and are never written to the log itself. Workers who leave Oakbay keep their badge number in old log entries, which is allowed under the staff privacy notice for operational records.
+
+Productivity data, such as pick rates per worker, is not computed by Scanbay 2. WMS computes it from the scan log under the rules agreed with the works councils, and Scanbay 2 only shows a worker their own rate as described under picking.
+
+## Support and incidents
+
+### Who supports what
+
+The IT service desk takes the first call for any Scanbay 2 problem, 24 hours a day, since the centres work around the clock. Device hardware problems go to the device team, who keep a stock of spare H7s in every centre. Problems in the app or the gateway go to the Scanbay team's on-call engineer. Problems in WMS go to the WMS team, even when they show up as errors in Scanbay 2, and the Scanbay on-call engineer's first job in an incident is often to work out which of the two it is.
+
+The Scanbay team runs a weekly on-call rota with a primary and a secondary engineer. During the pilot and the first four weeks of each centre's rollout, an engineer from the team is also on site in that centre on weekdays.
+
+### Severity levels
+
+Scanbay 2 incidents use the company's incident severity levels, which are the same for every product team.
+
+:::include{file=../_shared/incident-severity.smd}
+:::
+
+For Scanbay 2 the customers in that table are the warehouse workers, and the levels are read as follows. Scanning stopped in any whole centre for more than 10 minutes is SEV1, because trucks leave on fixed times and a stop of that length during the day shift means missed deliveries. Scanning stopped or badly degraded in one workflow in one centre, such as picking working but loading not, is SEV2. Problems limited to a few devices, a single aisle or one shift lead function are SEV3 unless they block a truck from leaving. The device team's hardware stock problems are SEV4.
+
+### Fallback when scanning stops
+
+Every centre keeps a paper fallback for picking and loading. WMS can print the open pick lists and load plans for a centre on request, and the shift leads have practised working from paper twice a year since the 2023 outage. When scanning has been stopped for 15 minutes, the shift manager decides whether to switch to paper. Scanbay 2 does not decide this, and it does not take part in the paper process. When scanning comes back, the work done on paper is keyed into WMS by the shift leads, not into Scanbay 2.
+
+Receiving and counting stop while scanning is down. Deliveries wait at the dock, and suppliers' drivers are told the delay.
+
+## Delivery plan
+
+The Scanbay team is eight people: Mateus as tech lead, four Android developers, two gateway developers and a tester, with Delphine as product owner and Lucía Navarro from design for three days a week. Two of the Android developers joined from an agency in April 2026 on contracts that run to the end of the rollout, and both will hand over to permanent staff before they leave.
+
+The build is split into releases, each of which is used on the floor in the Tilburg test area before the next starts.
+
+| Release | Content | Ready in test area |
+|-|-|-|
+| R1 | Sign-in, picking, short picks, offline queue, shift lead exceptions | 2026-10-30 |
+| R2 | Loading, two-person lift for loading, admin site device pages | 2026-11-20 |
+| R3 | Receiving, putaway, damage photos, label reprint | 2026-12-11 |
+| R4 | Cycle counting, moving stock, returns | 2027-01-29 |
+
+R1 was delivered on time and is in the test area now. R4 is not needed for the start of the pilot, since counting, moves and returns are added to the pilot in its fourth week, and the team has kept the last two weeks of January free in case R3 slips. Everything in R4 must be in the test area for at least a week before it goes on the floor.
+
+Work on Scanbay 1 stops on 2026-12-31, except for fixes to problems that stop scanning in a centre. The contractor who maintains it stays until the last centre has moved.
+
+## Testing
+
+Scanbay 2 is tested at four levels before the pilot.
+
+Unit and integration tests run on every change to the app and the gateway, and a change does not merge with a failing test. The gateway's integration tests run against a WMS test instance that the WMS team refreshes from production data every Sunday, with customer data replaced.
+
+The scan test suite runs on 20 real H7s in the test lab in Tilburg. It scans a set of 400 printed labels covering every supported format, damaged and partly covered labels, labels under shrink wrap and labels in low light, and checks that each one is read or rejected as expected. It also checks the 300 ms feedback time for every scan. The suite runs every night and before every release.
+
+The offline test suite walks a set of scripted workflows on the lab devices while the lab's Wi-Fi is switched off and on at random intervals of between 30 seconds and 20 minutes. At the end, the scan log and the WMS test instance must agree with the scripts exactly, with no lost and no doubled scans. A single difference fails the run.
+
+The floor trial is a week in the Tilburg centre before the pilot, with 12 experienced pickers and receivers using Scanbay 2 on real work for 2 hours a shift, with a Scanbay 1 device in their other pocket. Anything they report as worse than Scanbay 1 is reviewed by the team before the pilot starts, and items the team decides not to fix are listed in the pilot notes with the reason.
+
+Load tests of the gateway run against the WMS test instance at twice the peak load described under performance. WMS test instances are smaller than production, so the WMS part of the response time in a load test is not representative, and the gateway is tested with a stub for WMS that answers in 400 ms as well.
+
+Customer data and real staff badges are never used in any test. Test badges have numbers starting with BD-9, and the gateway refuses them in production.
+
+## Rollout
+
+### Pilot
+
+The pilot runs in Tilburg, our largest centre and the one closest to the team, from 2027-01-11 for 6 weeks. It starts with picking and loading on the day shift, which is where most of the staff are, and adds the night shift and the other workflows in the third week. Receiving and putaway on Scanbay 2 start in week 4.
+
+During the pilot, Scanbay 1 stays installed on the old devices, and a shift lead can switch any worker back to it. Each switch back is logged with a reason, and the reasons are reviewed every morning in the pilot stand-up.
+
+The pilot ends successfully when, for 2 consecutive weeks:
+
+- The outbound error rate on orders picked with Scanbay 2 is at or below the Scanbay 1 rate for the same period, which in Tilburg is 0.38%.
+- Pick rates for experienced pickers are within 5% of their Scanbay 1 rates.
+- No SEV1 or SEV2 incident has been caused by Scanbay 2.
+- Fewer than 2% of shifts have had a worker switched back to Scanbay 1.
+
+### Rollout to the other centres
+
+After the pilot, the other four centres go live one at a time, at least 3 weeks apart, in the order Leeds, Lyon, Porto, Poznań. Poznań goes last because of its dead zones, and the network team's access point work there must be finished before it starts.
+
+| Centre | Planned go-live | Devices | Night shift | Returns |
+|-|-|-|-|-|
+| Tilburg | 2027-01-11 (pilot) | 310 | Yes | Yes |
+| Leeds | 2027-03-08 | 260 | Yes | Yes |
+| Lyon | 2027-03-29 | 230 | Yes | Yes |
+| Porto | 2027-04-19 | 150 | No | No |
+| Poznań | 2027-05-10 | 200 | Yes | No |
+
+No centre goes live in the six weeks before Christmas or during the January sale. If the rollout slips, a centre that would go live after 2027-10-15 waits until the end of January 2028.
+
+Each centre's go-live is a Monday. Scanbay 1 is removed from that centre's devices 4 weeks after go-live, and the old devices are collected by the device team the week after that. A centre can ask for Scanbay 1 to stay for 2 more weeks, once. After that, it goes.
+
+### Training
+
+Every worker gets a 30 minute session on the floor before their first shift on Scanbay 2, run by a shift lead who has had a half day of training from the Scanbay team. The session is in the worker's language. A worker who has not had the session cannot sign in to Scanbay 2. The staff directory records the session, and the app checks it at sign-in.
+
+Agency workers who start after go-live get the same 30 minute session on their first day. Agencies are told about it in the booking terms.
+
+Shift leads get a further 2 hour session on the shift lead tab and the exceptions flow. Warehouse admins get a half day on the admin site.
+
+## Success measures
+
+Six months after the last centre goes live, Scanbay 2 is judged on these measures, compared with the same months a year earlier on Scanbay 1.
+
+| Measure | Scanbay 1 baseline | Target |
+|-|-|-|
+| Outbound order error rate, all centres | 0.41% | 0.30% or lower |
+| Lines picked per picker hour, small items | 96 | 105 or more |
+| Lines picked per picker hour, large items | 21 | 22 or more |
+| Devices out of service at any time | 6% | 2% or lower |
+| Battery swaps per device per shift | 1.0 | 0 |
+| Minutes of scanning stopped per centre per year | 340 | 60 or fewer |
+| Time to add a language or a workflow change | 5 months | 6 weeks or less |
+
+Pick rate targets are not targets for individual workers. They are for the system, and they are reported per centre, never per person.
+
+## Decisions
+
+This section records the decisions that shaped the requirements after the first draft. Each one gives the date and who made it. Earlier decisions in other sections are kept as they were written, so that people who read an older version can see what changed.
+
+### Native Android app
+
+:::decision{status=accepted date=2026-03-18}
+Decision (accepted 2026-03-18, architecture review): Scanbay 2 is a native Android app written in Kotlin, not a progressive web app. This replaces the November 2025 decision to build it as a progressive web app in the managed browser. The prototype built in January and February 2026 showed three problems we could not work around. The managed browser on the H7 clears service worker storage when the device is low on space, which would lose the offline queue. Scan to feedback in the browser was between 380 and 650 ms, over the 300 ms requirement, because the scanner events go through the browser's input layer. And the browser does not let the app keep the scanner engine ready while the screen is dimmed, so the first scan after a pause was often missed.
+:::
+
+The shift lead view on desktop becomes part of the Scanbay admin site, which stays a web application. The handheld and the admin site share the gateway API but no client code.
+
+Updates to the native app are pushed through the device management console. A new version goes to 10% of devices in one centre first, then to the rest of that centre the next day, then to the other centres. Updates are never pushed during the first 2 hours of a shift.
+
+### Offline queue size
+
+:::decision{status=accepted date=2026-05-06}
+Decision (accepted 2026-05-06, product and operations): the offline queue holds up to 1,000 entries or 4 hours of work, whichever comes first, and each damage photo counts as 10 entries. This replaces the limit of 200 scans set in September 2025. The Wi-Fi survey showed that some bulk areas in Poznań and Lyon are out of coverage for whole pick lists, and at 200 the large-item pickers there would hit the limit several times a shift. The 4 hour limit is there so that a device left in a dead zone does not hold a whole shift's work that nobody else can see.
+:::
+
+When the queue reaches 80% of either limit, the app warns the worker with a banner. At 100%, it stops accepting scans and shows SB-202.
+
+### Voice picking
+
+:::decision{status=rejected date=2026-02-11}
+Decision (rejected 2026-02-11, operations): voice picking, where the picker wears a headset and hears the next location and confirms by speaking, is not part of Scanbay 2. Operations looked at it because it frees the picker's hands. It was rejected because our items are mostly large and are scanned carton by carton anyway, because the noise in the loading areas defeated the speech recognition in the trial in Leeds, and because the five languages would mean five sets of voice models to train and keep up. It may come back as a separate project for small-item picking only.
+:::
+
+### Keying quantities
+
+:::decision{status=accepted date=2026-06-24}
+Decision (accepted 2026-06-24, product): keying a quantity instead of scanning each unit is allowed for items up to 400 euros per unit. The first draft of this document did not allow keying at all. Pickers in the pilot of the prototype took up to 4 minutes to scan 60 identical cushion covers one by one, and the error rate for keyed quantities of cheap items was no worse than for scanned ones.
+:::
+
+## Open questions
+
+### Ring scanners
+
+:::question
+Undecided: whether Scanbay 2 supports the Bluetooth ring scanners at launch. Pickers who tried them in the prototype liked having both hands free for large cartons, but the ring loses its pairing when the H7 is swapped between shifts, and re-pairing takes about a minute with the current device software. The device vendor has promised a fix in a firmware update planned for the first quarter of 2027. The decision will be made at the pilot review in February 2027. Until then, Scanbay 2 is built and tested with the H7's built-in imager only, ring scanners are not issued to anyone, and the app ignores input from a ring scanner if one is paired.
+:::
+
+### Photos of items on the pick screen
+
+:::question
+Open question: whether the pick screen shows a product photo for each line. Operations would like it for items that look alike, such as the same sofa in two shades of grey. The product photos are large and are held by the e-commerce team, who have not agreed to serve them to the warehouse. Until this is settled, the pick screen shows the item number, the name, the colour and the carton count, and no photo.
+:::
+
+## Risks
+
+:::risk{impact=high likelihood=medium}
+Risk: the WMS team cannot deliver the timestamp ordering of offline events in time for the pilot. Impact high, likelihood medium. Without it, counts done offline will create false variances and the cycle counters will spend the pilot recounting. The fallback is to turn off offline counting for the pilot, which the app supports with a centre setting.
+:::
+
+:::risk{impact=medium likelihood=medium}
+Risk: the H7 firmware update that fixes ring scanner pairing also changes how the scanner engine reports events. Impact medium, likelihood medium. We have asked the vendor for an early build and will run the full scan test suite on it before it is allowed on any production device.
+:::
+
+:::risk{impact=medium likelihood=low}
+Risk: works councils in Lyon or Tilburg object to the scan log being kept for 400 days. Impact medium, likelihood low. The retention period was presented to both councils in September 2026 and neither raised an objection, but neither has given written agreement either.
+:::
+
+## Notes for automated coding assistants
+
+:::agent
+This document is also read by the coding assistants and code generation tools the team uses. When you use it to write or review code for Scanbay 2, follow these rules. Treat the section on two-person lift items as fixed. Do not generate any code path, flag, test bypass or debug option that lets a single badge confirm a two-person lift carton, even in test builds. Use the error codes in the table as they are and do not invent new ones. Ask a person on the team before you add a new code. Take field names and response codes for the handheld API from this document or from the gateway's API reference, not from Scanbay 1's code, which uses different names. If this document and the design files disagree, follow this document and say in your output that they disagree.
+:::
+
+## Glossary
+
+Advance shipping notice: a message from a supplier to WMS listing what is on a delivery before it arrives.
+
+Bulky item: anything over 30 kg or longer than 2.4 metres in its packaging.
+
+Carton: one box of an item. An item can have one or several cartons.
+
+Drop location: where a picker leaves a finished tote or pallet, usually a packing station or a marshalling lane.
+
+Pick list: a sequence of locations with an item and quantity at each, given to one picker.
+
+SSCC: serial shipping container code, the 18 digit number that identifies a pallet.
+
+Two-person lift: a carton over 25 kg that must be handled by two people.
+
+Wave: a group of order lines that WMS releases for picking together.
+
+## Appendix A: notes from the design review on 2026-06-24 (for the team) {agent=skip}
+
+Present: Delphine Okoro, Mateus Ferreira, Kasper Vermeulen, Saskia de Groot and Bram Hendriks from Tilburg operations, Agnieszka Wróbel from Poznań, Hélène Marchand from Lyon, Rui Teixeira from Porto, Tom Ashworth from Leeds, Lucía Navarro from design, and two of the Scanbay developers. Notes by Lucía.
+
+The meeting was called to go through the prototype results before the requirements were frozen for the build. It ran for three hours and most of the time went on picking.
+
+Saskia opened with the keying question. Her pickers had spent a whole morning in the prototype scanning cushion covers one at a time and she said that if the final app did that, she would have a revolt on her hands by lunchtime. Mateus showed the error data from the prototype, which had keyed quantities on cheap items going wrong no more often than scanned ones. Kasper wanted a limit, because he did not want expensive armchairs keyed. The group settled on 400 euros per unit, mainly because that is already the threshold for monthly counting and nobody wanted to learn a second number. This is the keying decision in the decisions section.
+
+Agnieszka raised the Poznań dead zones again. She brought a printed map of the centre with the dead zones coloured in, and it was sobering. Whole aisles of bulk storage are out of coverage. She said the larger offline queue agreed in May had made the prototype usable there, which under the old 200 scan limit it had not been, but that on bad days two aisles are out of coverage for most of a shift and the 4 hour limit would still bite. The network team was not in the room. Delphine took an action to ask them for a date for the new access points. Nobody wanted to raise the 4 hour limit, for the reason given in the decision.
+
+Hélène asked for the scan feedback sound to be turned off on night shift in Lyon, because the mezzanine is right above the room where the night staff take their break. Mateus explained why sound cannot be turned off and offered the volume floor instead. Hélène accepted 40% but asked that it be revisited if the night staff still complain. Nobody has complained since.
+
+Tom asked whether loaders could see the customer's name on a stop, since drivers sometimes ask. The answer was no, for the privacy reasons in the security section. Drivers have their own app with the delivery details, and loaders do not need names to load a truck correctly.
+
+Rui wanted to know why Porto has to wait until April. The answer is that the team cannot support two go-lives at the same time, and Porto is the smallest centre. He asked whether Porto could go before Lyon, and the group agreed to look at it again after the pilot, but the plan in this document still has Lyon first.
+
+Bram spent the last half hour on two-person lifts. In the prototype, the second badge scan was being done by whoever was nearest, often someone who then walked away before the lift. He wanted the app to ask the second person to confirm again after the lift. Lucía thought that would just add a second meaningless tap. The group did not agree, and it was left with the requirement as it stands. Kasper said he would raise the walk-away problem with the health and safety team as a training issue rather than an app issue.
+
+Actions from the meeting, all done by the time version 1.3 was published:
+
+- Delphine to get a date for the Poznań access points from the network team.
+- Mateus to write up the keying rule for the requirements.
+- Lucía to redesign the multi-carton screen so that the missing cartons are visible without scrolling on items with up to 7 cartons.
+- Kasper to raise the second badge walk-away problem with health and safety.
+
+## Appendix B: notes from floor visits (for the team) {agent=skip}
+
+These are the notes Lucía and the developers wrote during the floor visits in spring 2026, kept here because they explain several requirements. They are notes, not requirements.
+
+In Tilburg, a picker showed us how she holds the Scanbay 1 device in her teeth when she needs both hands for a carton. Every picker we spoke to had a way of freeing both hands, and none of them were good. This is where the interest in ring scanners comes from.
+
+In Leeds, the receivers keep a laminated sheet of supplier quirks taped to the dock door, such as which supplier puts the SSCC on the side of the pallet that faces the trailer wall. We asked whether the app should know about these. The receivers said no, they would rather keep the sheet, which they can update in a minute with a marker.
+
+In Lyon, we watched the mezzanine pickers in gloves. Nearly every one of them took a glove off to press the small buttons on Scanbay 1, in a room at 6°C. The 12 mm touch target requirement came from that afternoon.
+
+In Poznań, a shift lead showed us the notebook where he writes short picks during a dead zone, because Scanbay 1 loses them if the device does not have network when the short pick is reported. He enters them later from the shift office. He was the first person to ask us for an offline queue, before we had mentioned one.
+
+In Porto, the loaders asked for the stop number to be bigger. It is now at least 9 mm high, like the location and quantity on the pick screen.
+
+## Document history {agent=skip}
+
+- Version 1.0, 2025-12-05: first draft for review, written for a progressive web app.
+- Version 1.1, 2026-03-25: native Android app, following the architecture review.
+- Version 1.2, 2026-05-12: offline queue limits raised, voice picking rejected.
+- Version 1.3, 2026-07-01: keying of quantities, design review results, glossary added.
+- Version 1.4, 2026-10-12: rollout dates fixed, changes needed in WMS added, open question on product photos added, approved for build.

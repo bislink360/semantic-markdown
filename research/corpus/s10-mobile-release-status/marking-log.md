@@ -1,0 +1,11 @@
+L1-6: front matter title, summary, status — "# FareLoop mobile 4.12 release: weekly status, week 44", "4.12 is the release that brings account-based ticketing to the FareLoop rider app.", "Status: at risk." (status mapped to `draft`: "at risk is project health, not document status")
+L28: :::decision{status=superseded} — "This replaces the 2026-11-04 date agreed in week 42."
+L50: :::danger — "**Important:** The tap-to-pay flow must stay switched off for iOS in 4.12" … "can get the whole app pulled from the store"
+L70: :::risk{impact=high likelihood=medium} — "Risk: older gate readers on the Harbor line" … "Impact high, likelihood medium."
+L76: :::decision{status=accepted date=2026-10-29} — "Decision (accepted 2026-10-29)"
+L84: :::question — "Undecided: whether 4.12 still supports Android 9." … "Until then, the build keeps Android 9 as the minimum version"
+L105: :priority[P1] :due[2026-11-03] — "priority P1, @mira, due 2026-11-03"
+L106: :priority[P1] :due[2026-11-02] — "priority P1, @jun, due 2026-11-02"
+L107: :priority[P2] :due[2026-11-06] — "priority P2, @tomasz, due 2026-11-06"
+L109: :priority[P2] :due[2026-11-09] — "priority P2, @ade, due 2026-11-09"
+L111: {agent=skip} — "Notes from Thursday's go/no-go (for the team)"

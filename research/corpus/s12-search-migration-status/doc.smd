@@ -1,0 +1,700 @@
+---
+smd: 2
+title: "Quillmark site search migration: status and plan"
+summary: Quillmark is moving site search on all three storefronts from Folio, the search engine we built in-house in 2016, to Corvidex, a managed search service.
+status: draft
+---
+
+Status: amber. Running report for weeks 41 to 45 of 2026 (5 October to 6 November), updated every Friday by the search programme lead, Ottilie Brand. The latest week is at the bottom of "Weekly status".
+
+Quillmark is moving site search on all three storefronts from Folio, the search engine we built in-house in 2016, to Corvidex, a managed search service. This document is both the running status report for the migration and the plan for what is left. It is meant for the search programme team, the storefront and catalogue teams who depend on search, and the steering group, which meets every Thursday while the ramp is running.
+
+## Summary
+
+Corvidex now serves 25% of search traffic on all three storefronts, and Folio serves the rest. We moved to 25% on 2026-10-27, dropped back to 5% for six hours on 2026-10-29 after an indexing delay, and have been at 25% again since 2026-10-30. On the numbers we gate on, Corvidex is ahead of Folio on zero-result searches and on latency, level on search conversion for desktop, and still behind on mobile search conversion, where the gap has closed from 3.4% to 1.1% over two weeks.
+
+The programme is amber for two reasons. First, the indexing pipeline fell behind during the price feed burst on 2026-10-29, and we need to show for two full weeks that the fix holds before going past 25%. Second, the peak trading freeze starts on 2026-11-16, and we have not yet decided how much traffic Corvidex carries through Black Friday. The hard deadline does not move: the Folio hardware lease at the Eastfield data centre ends on 2027-03-31, and Folio has to be switched off and its data removed before then.
+
+Spend is 6% over the budget agreed in May, mostly because we ran Folio and Corvidex side by side for longer than planned. The steering group accepted the overrun on 2026-10-29.
+
+## Status at a glance
+
+| Workstream | Owner | Status | Notes |
+|-|-|-|-|
+| Indexing pipeline | Dev Malhotra | Amber | Price updates now go through a separate partial-update path; two weeks of proof needed |
+| Relevance and ranking | Saoirse Quinlan | Green | Zero-result rate 4.6% on Corvidex against 6.8% on Folio |
+| Storefront integration | Bram de Wit | Green | All three storefronts on the search gateway since week 41 |
+| Autocomplete | Bram de Wit | Amber | Mobile conversion gap traced to autocomplete ordering, fix live on 25% |
+| Measurement and A/B analysis | Ifeoma Chukwu | Green | Daily gate report automated since week 43 |
+| Operations and on-call | Lukas Ferreira | Green | Runbook for rollback tested three times, last on 2026-11-03 |
+| Folio decommissioning | Lukas Ferreira | Not started | Planned for February 2027 |
+| Budget | Ottilie Brand | Amber | 6% over the May budget, accepted by steering |
+
+## Background (history, for people new to the programme) {agent=skip}
+
+Folio was built in 2016 by a team of four, when Quillmark sold only new books on one storefront. It started as a thin layer over an open-source search library, with our own code for ISBN handling, author name matching and a ranking formula that mostly sorted by sales rank. Over the next eight years it grew to handle the marketplace, the Irish and Dutch storefronts, gift cards and audiobooks, and most of the people who knew the ranking code have left. By 2024 Folio ran on 18 servers in the Eastfield data centre, rebuilt its whole index every night in a job that took about 5 hours, and picked up changes during the day through a separate delta job every 20 minutes.
+
+The trigger for this programme was Black Friday 2025. Folio's query servers ran out of memory at 09:40 on the Friday morning, during a promotion on boxed sets, and search was down for 52 minutes across all three storefronts. Shoppers who cannot search mostly leave. Our estimate of the lost sales for that hour was a little over £380,000, and the incident review found that we could not add capacity to Folio quickly, because each new query server needed a full copy of the index built on the server itself, which took most of a day.
+
+In January 2026 the steering group asked for options. We looked at rebuilding Folio on newer hardware, at running an open-source search engine ourselves in the cloud, and at three managed search services. The comparison is in the options paper from February, which is still worth reading if you want to know why the other managed services lost. In short, Corvidex was the only one that handled our ISBN and edition grouping without custom plugins, and it let us keep relevance rules in our own repository rather than in a vendor console. The contract was signed in May 2026 for three years, with a break clause after the first year.
+
+Between May and September the programme built the indexer, moved the storefronts onto the search gateway one at a time, wrote the first ranking rules and assembled the judged query set. The UK storefront moved onto the gateway in July, the Dutch in August and the Irish only in week 41, later than the others because its storefront code was still on an older framework that the web team was replacing anyway. The summer was slower than planned, mostly because the judged query set needed far more grading than anyone expected, and because two of the seven people on the programme were pulled into the checkout rebuild for most of August.
+
+The original plan from May aimed to switch all traffic in one go in October, well ahead of peak trading. That plan changed in week 41, and the reasons are in the weekly notes below.
+
+## Team
+
+| Person | Role in the programme |
+|-|-|
+| Ottilie Brand | Programme lead, writes this report |
+| Hollis Ng | Product manager for search |
+| Dev Malhotra | Indexing pipeline and the indexer service |
+| Saoirse Quinlan | Relevance, ranking rules, synonyms and the judged query set |
+| Bram de Wit | Search gateway, storefront integration and autocomplete |
+| Ifeoma Chukwu | Measurement, the gate report and A/B analysis |
+| Lukas Ferreira | Operations, on-call, rollback and Folio decommissioning |
+
+The steering group is chaired by Imogen Hartley, the chief digital officer, and includes the heads of the catalogue, storefront and customer service teams and a representative from finance.
+
+## Goals and non-goals
+
+The migration is done when all of these are true.
+
+- All search traffic on the UK, Irish and Dutch storefronts is served by Corvidex.
+- The 95th percentile response time of the search gateway is at or under 250 ms, measured at the gateway, for 14 days in a row.
+- The zero-result rate, meaning the share of searches that return nothing, is under 4% on every storefront.
+- Search conversion, the share of search sessions that end in a purchase, is no worse than Folio's was over the same weeks of the previous year, adjusted for overall traffic.
+- A catalogue change, including a price or stock change, shows in search within 5 minutes of the catalogue service publishing it.
+- Folio is switched off, and its data is removed from the Eastfield servers before the lease ends.
+
+Search inside the text of books is not part of this migration. Folio never offered it, and the publisher agreements we have do not allow us to index book text for search in any case. Personalised ranking is also out of scope for the first phase. Corvidex can rank results using a shopper's purchase history, but we have not done the privacy review, and the first phase ranks every shopper's results the same way.
+
+Marketplace listings from third-party sellers are not indexed as separate documents in the first phase. A marketplace listing shows up in search only through the edition it belongs to, as "also available from sellers" on the result card. The exception is signed and first editions, which sellers list as their own items and which collectors search for directly, so those listings are indexed as separate documents with their own result cards. There are about 210,000 of them.
+
+Gift cards, stationery and the small range of toys we sell are indexed, but they are kept out of results for searches that look like an ISBN or an author name. Audiobooks are indexed with their print editions and grouped with them under the same work.
+
+## Architecture
+
+Search on all three storefronts goes through the search gateway, a small service that Bram's team owns. The storefronts never call Folio or Corvidex directly. The gateway turns a shopper's query into a request for one of the two engines, applies the business rules that do not belong in either engine (such as hiding titles that a storefront cannot sell), and returns a common result format. Since week 40 the gateway also decides which engine a shopper's searches go to.
+
+The router inside the gateway assigns each shopper to an engine by a hash of their session ID, so a shopper stays on the same engine for the whole session, and the ramp percentage decides how many hash buckets go to Corvidex. There are 1,000 buckets. At 25%, buckets 0 to 249 go to Corvidex. A shopper's assignment does not change when the percentage goes up, except that more buckets join Corvidex, and when we roll back every bucket returns to Folio at once.
+
+Queries sent to Corvidex must not contain the shopper's email address, account ID or postcode. The gateway sends only the query text, the storefront, the shopper's language, the device type and the session hash. Corvidex keeps query logs for 30 days, and its contract allows it to use them only for running our service.
+
+The gateway waits at most 800 ms for an engine to answer. After that it returns the category page for the query's best-matching category instead of a results page, and logs a timeout. At 25% traffic Corvidex timeouts have run at about 0.02% of queries, against 0.09% for Folio.
+
+```mermaid
+flowchart LR
+  subgraph Catalogue
+    CAT[Catalogue service] --> FEED[Change feed]
+    PRICE[Price and stock service] --> FEED
+  end
+  FEED --> IDX[Indexer]
+  IDX -- full and partial updates --> CVX[(Corvidex indexes)]
+  FEED --> FDELTA[Folio delta job]
+  FDELTA --> FOLIO[(Folio)]
+  SHOP[Storefronts] --> GW[Search gateway]
+  GW --> ROUTER{Router: session hash bucket}
+  ROUTER -- buckets below ramp --> CVX
+  ROUTER -- other buckets --> FOLIO
+```
+
+Each storefront has its own Corvidex index, because the three sites sell different ranges and the Dutch site searches in two languages. Corvidex allows at most 40 million documents per index and at most 8 indexes on our contract tier. The UK index is the largest at 15.1 million documents. Each index has one replica in a second zone, and Corvidex promises 99.95% availability for queries per calendar month.
+
+The indexer is a new service owned by Dev's team. It reads the catalogue change feed, builds index documents, and sends them to Corvidex. Corvidex accepts at most 1,000 documents in one update request and at most 10 update requests per second per index, which caps a single index at 10,000 document updates per second. Folio keeps its own nightly rebuild and delta job until it is switched off, and it reads the same change feed through the old Folio delta job.
+
+## Data and indexing
+
+### What goes into the index
+
+The catalogue holds about 14.2 million editions, grouped into about 3.1 million works, with around 260,000 authors and contributors. An edition is one ISBN, or one product code for items without an ISBN. A work is the book itself, so a hardback, a paperback, an ebook and an audiobook of the same novel are four editions of one work. Search results show works, with the best edition for the shopper picked out and the other formats listed under it. Folio did this grouping at query time, which is one of the reasons it was slow. Corvidex does it with a grouping field at index time, and the indexer writes the work ID onto every edition document.
+
+Every edition becomes one index document on each storefront that sells it. An edition that is not for sale on a storefront is not indexed there, even if the storefront could show it as "currently unavailable". The exception is pre-orders. Titles that are announced but not yet published are indexed from the day the publisher's metadata arrives, so that shoppers can find and pre-order them, and they are marked as pre-orders on the result card.
+
+Titles restricted in a region, for legal or rights reasons, are left out of that region's index entirely. The catalogue service sets the restriction per storefront, and the indexer deletes the document from the affected index within the normal 5 minute freshness target. About 3,400 editions are restricted on at least one storefront, most of them on the Irish storefront because of distribution rights.
+
+A trimmed index document for the UK storefront looks like this. The real documents have about 40 fields.
+
+```json
+{
+  "id": "uk:9780000000017",
+  "work_id": "w-1184403",
+  "storefront": "uk",
+  "title": "The Lantern Keeper's Daughter",
+  "subtitle": null,
+  "contributors": [
+    {"name": "Maren Holloway", "role": "author"},
+    {"name": "Teo Akande", "role": "narrator"}
+  ],
+  "format": "paperback",
+  "series": {"name": "Harbour Lights", "number": 3},
+  "language": "en",
+  "categories": ["fiction/historical", "fiction/family-saga"],
+  "price_pence": 899,
+  "in_stock": true,
+  "preorder": false,
+  "sales_rank_30d": 1874,
+  "published": "2025-04-10",
+  "marketplace_offers": 4
+}
+```
+
+Prices are stored in the smallest unit of the storefront's currency, as integers. The Irish and Dutch storefronts use euro cents. The index does not hold any cost price, margin or supplier field. Those were in Folio's index for an old merchandising report, and the finance team asked us not to carry them over.
+
+### Freshness
+
+A change in the catalogue has to show in search within 5 minutes of the catalogue service publishing it to the change feed. That target covers new titles, metadata corrections, price changes, stock changes and restrictions. Folio's delta job ran every 20 minutes, so Folio was often 20 to 30 minutes behind, and shoppers sometimes saw a price in the results that did not match the product page. With the indexer running continuously, the median delay on Corvidex is 41 seconds and the 99th percentile was 3 minutes 10 seconds over week 45.
+
+The catalogue publishes about 2 million changes on an ordinary day, and the price and stock service adds another 5 to 6 million. Most of the price and stock changes come in bursts, when a supplier sends a new price file or the warehouse system posts its stock counts. The largest burst so far was 3.8 million changes in 40 minutes on 2026-10-29, which is the cause of the incident described in the week 44 notes.
+
+Since week 45 the indexer sends price and stock changes as partial updates, which change only those fields in a document, while metadata changes still rewrite the whole document. Partial updates count against the same limit of 1,000 documents per request and 10 requests per second per index, but they are about eight times cheaper for Corvidex to apply, so they do not slow down queries the way full rewrites did.
+
+### Full reindexing
+
+We do a full reindex of a storefront when the index schema changes, when we change how text is analysed (for example a new stemming rule for Dutch), or when we suspect the index has drifted from the catalogue. A full reindex of the UK index takes about 4 hours at the maximum update rate. Corvidex lets us build the new index alongside the old one and swap them in one step, so shoppers never see a half-built index.
+
+:::danger
+> **Warning:** A full reindex must not run between 07:00 and 23:00 UK time. It uses the whole Corvidex update quota for the storefront, and price and stock changes queue behind it, so shoppers see wrong prices and can buy items that are out of stock.
+:::
+
+A full reindex of all three storefronts needs about 9 hours, so it does not fit in one night. Run one storefront per night, the UK last. During the peak trading freeze no full reindex runs at all, unless the search on-call and the programme lead both agree that the live index is damaged.
+
+### Synonyms and spelling
+
+Each storefront has its own synonym list, kept in the `search-relevance` repository and loaded into Corvidex by the deploy pipeline. A synonym list can have at most 5,000 entries. The UK list is at 3,960 entries today, many of them carried over from Folio, where nobody had removed an entry since 2019. Saoirse's team is going through them, and has removed about 700 so far that either did nothing or made results worse.
+
+Spelling correction is done by Corvidex from the catalogue's own vocabulary, so author names and invented words from fantasy titles are corrected towards what we actually sell. We do not correct queries that look like an ISBN, an order number or a gift card code. Folio corrected ISBNs by one digit, which sent shoppers to the wrong book often enough that customer service had a saved reply for it.
+
+The Dutch storefront searches in Dutch and English, because about 40% of what it sells is English-language stock. The Dutch index analyses every title in both languages and ranks matches in the shopper's site language first. Folio did not do this, and Dutch shoppers searching in English often got nothing, which explains a large part of Folio's high zero-result rate on that storefront.
+
+### Data that stays out of search
+
+Some catalogue data never goes into a search index, on either engine. Customer reviews are not indexed as text, although the average rating and the number of reviews are. Internal notes from the buying team, which some editions carry in the catalogue, are not indexed. Cover images are not indexed, and Corvidex's image features are switched off on our account. Out-of-print editions with no marketplace offers are removed from the index 90 days after the last copy sold, unless they belong to a work that still has an edition for sale, in which case they stay listed under that work as "out of print".
+
+## Relevance and ranking
+
+### How results are ordered
+
+Corvidex scores every matching document on text relevance first, then our ranking rules adjust the score. The rules live in the `search-relevance` repository as configuration, are reviewed like code, and are deployed by the same pipeline as the synonym lists. Nobody changes ranking in the Corvidex console, and the console accounts for our team have read-only rights for ranking settings.
+
+The ranking signals in the first phase are:
+
+- text match on title, then contributors, then series name, then subtitle and categories, with title matches weighted highest;
+- sales over the last 30 days on that storefront, with a ceiling so that one bestseller does not push every other match off the first page;
+- whether the work has an edition in stock, since shoppers rarely buy a book that ships in three weeks;
+- the publication date, for queries that look like they are about new books (for example a query that names an author who has a new title in the last 60 days);
+- the format the shopper picked last time on that device, which is stored in the browser and sent by the gateway as a format hint, not taken from the shopper's account.
+
+Folio had 140 hand-written boost rules, most of which pinned particular editions to the top of particular queries. We carried over 22 of them, all for queries where the obvious match is not the book shoppers want (for example a classic novel where the public domain ebook is the best text match but the annotated school edition is what people buy). The rest were either for promotions that ended years ago or did not change anything in Corvidex.
+
+Pinned results, where merchandising puts a title first for a query, are limited to 3 per query and to 200 queries per storefront. Merchandising asked for more during the summer, and the answer was no, because pinned results were a large part of why Folio's results drifted away from what shoppers wanted. A pinned result must have an end date no more than 6 weeks after it starts.
+
+### Measuring relevance
+
+We measure relevance in two ways. The offline way is a judged query set: 2,400 queries taken from real search logs, weighted towards the most common queries, with each of the top 10 results for each query graded by two people from the customer service and buying teams. The online way is the A/B comparison between the two engines on live traffic, using the gate metrics in "Quality gates".
+
+The judged query set gives a score between 0 and 1. Folio scores 0.61 on it. Corvidex with our week 45 rules scores 0.74. A ranking change is not deployed if it lowers the score by more than 0.01, even if it fixes a specific complaint, unless the programme lead agrees it in writing. The full judged set takes about 25 minutes to run, and it runs on every pull request to the relevance repository.
+
+| Query type | Share of searches | Folio zero-result rate | Corvidex zero-result rate (week 45) |
+|-|-|-|-|
+| Title words | 41% | 3.9% | 2.7% |
+| Author name | 23% | 5.2% | 3.1% |
+| ISBN | 9% | 1.1% | 0.4% |
+| Series name or number | 6% | 14.8% | 9.6% |
+| Subject or genre | 12% | 9.3% | 7.2% |
+| Other (gift cards, stationery, misspelled) | 9% | 17.4% | 11.9% |
+| All queries | 100% | 6.8% | 4.6% |
+
+Series queries are still the weakest. A shopper who types "harbour lights 3" or "harbour lights book three" expects the third book in the series, and both engines are poor at matching the number. Saoirse's team has a fix in testing that reads series numbers out of the query, described in the week 43 and week 45 notes.
+
+### Autocomplete
+
+Autocomplete suggests up to 8 completions on desktop and 4 on mobile, after the shopper has typed at least 2 characters. It waits 120 ms after the last key press before it sends a request, so a fast typist sends one request rather than one per letter. Suggestions come from a separate, smaller Corvidex index that holds only titles, author names and series names, about 4.2 million entries for the UK storefront, and it is updated from the same change feed as the main index.
+
+Suggestions are ordered by text match and then by sales over the last 30 days, since the fix in week 44. Titles that are out of stock on every format are still suggested, because shoppers often want to pre-order or join a waiting list, but they are ordered after titles that are in stock. Suggestions never include gift cards, toys or stationery, and they never include titles that have a content warning flag in the catalogue, even when the shopper has typed the full title. Those titles still appear in the full results after the shopper presses search.
+
+Folio's autocomplete was a separate in-house service, Folio Suggest, which runs on two of the Folio servers. It is switched off together with Folio and needs no plan of its own.
+
+Autocomplete requests are not counted in the query volume that Corvidex bills for, under a clause we negotiated in the contract. They are about 2.5 times as many as full searches, so this matters for the budget.
+
+### Rejected and parked ideas
+
+:::decision{status=rejected date=2026-08-12}
+Decision (rejected 2026-08-12): let merchandising manage pinned results and boosts directly in the Corvidex console, so that changes for promotions can go live in minutes rather than through a pull request. Changes made in the console are not reviewed, are not in our repository, and are lost when we rebuild an index from configuration. Merchandising now raises a pull request through a form that generates it, and a change can be live within an hour in working hours.
+:::
+
+Corvidex's semantic matching, which finds results by meaning rather than words, is switched off for the first phase. In testing it helped for vague queries like "books about grief for teenagers" and hurt for exact ones, mainly by mixing in titles with similar themes when the shopper had typed a precise title. We will test it again in 2027 for subject queries only.
+
+Ranking by margin was proposed by the commercial team in June. It is not part of this migration. The steering group said that ranking by margin should be decided separately from the engine change, so that any drop in conversion can be blamed on the right change.
+
+## Cutover plan
+
+:::decision{status=superseded date=2026-06-17}
+Decision (accepted 2026-06-17): all three storefronts switch from Folio to Corvidex in a single step on Monday 2026-10-19, at 06:00 UK time, after two weeks in which both engines index the full catalogue and Corvidex answers a mirrored copy of live queries without its results being shown. A single switch keeps the measurement simple and means the storefront teams only have to watch one cutover. Folio stays running, without traffic, for six weeks after the switch so that we can go back to it.
+:::
+
+The steps for a switch, whichever way the traffic moves, are the same.
+
+1. The programme lead posts in #search-programme which step is planned and when, at least one working day ahead.
+2. Ifeoma confirms that the gate report for the previous three days is green for the current percentage.
+3. Lukas checks that the Corvidex indexes are within the freshness target and that the Folio delta job is still running, so that rollback to Folio returns shoppers to a fresh index.
+4. Bram changes the ramp percentage in the gateway configuration and deploys it. The change reaches all gateway instances within 2 minutes.
+5. The on-call watches the gate dashboard for the first hour, and Ifeoma checks the gate report again the next morning.
+
+A ramp step can only happen on a Tuesday or a Wednesday, between 09:00 and 15:00 UK time, so that the whole team is around for the rest of the working week. Rolling back is different. Anyone on the search on-call rota can roll back to Folio at any time, on any day, without asking first, and tells the programme lead afterwards.
+
+Rollback sets the ramp percentage to 0 in the gateway, which sends every bucket to Folio. It has to be possible within 5 minutes at every stage of the ramp. We have tested it three times on production, the last time on 2026-11-03, and it took between 2 and 3 minutes each time, almost all of it the gateway configuration rollout.
+
+```yaml
+# gateway/config/router.yaml (production, as of 2026-11-06)
+router:
+  buckets: 1000
+  hash: session_id
+  engines:
+    corvidex:
+      percent: 25
+      timeout_ms: 800
+      storefronts: [uk, ie, nl]
+    folio:
+      percent: 75
+      timeout_ms: 800
+      storefronts: [uk, ie, nl]
+  sticky_session: true
+  fallback_on_timeout: category_page
+  # Never set both engines to serve the same bucket.
+  # Rollback: set corvidex.percent to 0 and folio.percent to 100.
+```
+
+## Quality gates
+
+Every ramp step needs the gates below to have been green for the current percentage for three days in a row. The gate report compares shoppers on Corvidex with shoppers on Folio over the same days, so seasonal swings affect both sides equally.
+
+| Gate | Measure | Threshold |
+|-|-|-|
+| Latency | 95th percentile at the gateway | At or under 250 ms |
+| Errors | Engine errors and timeouts | Under 0.1% of queries |
+| Zero results | Share of searches with no results | At or below Folio's rate for the same days |
+| Conversion | Search sessions ending in a purchase | No more than 2% lower than Folio, relative, on each device type |
+| Freshness | 99th percentile delay from change feed to index | Under 5 minutes |
+| Revenue per search | Revenue from search sessions divided by searches | No more than 2% lower than Folio, relative |
+
+The conversion and revenue gates are relative, so a 2% lower conversion means, for example, 4.9% against 5.0%, not 3.0% against 5.0%. We need at least 40,000 search sessions on each side and each device type before a gate result counts, which at 1% traffic took about four days and at 5% takes less than one.
+
+:::warning
+> **Important:** Do not ramp past 25% until the freshness gate has been green for 14 days in a row on all three storefronts, not the usual 3. This applies from the 2026-10-29 incident onwards.
+:::
+
+The latency gate has an exception for the Dutch storefront, where the target is 300 ms instead of 250 ms, because every query is analysed in two languages. The exception lasts until the end of the first phase and has to be agreed again after that.
+
+When a gate turns red on a day where the ramp is not changing, nothing happens automatically. The on-call looks at it the same day. If the conversion or revenue gate is red for two days in a row, the programme lead decides whether to roll back.
+
+### Testing before a ramp step
+
+Before each ramp step, and before each relevance release, the change goes through the staging environment. Staging has its own Corvidex indexes for all three storefronts, fed from a copy of the catalogue that is refreshed every Sunday, and a gateway configured the same way as production. Staging indexes are on a smaller Corvidex tier, so latency there is not a guide to production latency, and nobody should quote staging latency in a gate discussion.
+
+The checks on staging before a step are:
+
+- the judged query set runs against the staging indexes and scores at least as well as production;
+- the 300 most common queries of the last week return a non-empty first page on every storefront;
+- a scripted set of 60 shopper journeys, from search to basket, passes on desktop and mobile web;
+- the rollback is run once, from the step's percentage back to 0.
+
+Accessibility is checked on staging for every change to the results page or the autocomplete list. The results page must be usable with a keyboard alone and with a screen reader, and the autocomplete list must announce the number of suggestions. A change that fails the accessibility check does not go to production, whatever its effect on conversion. The accessibility team's sign-off is not needed for a ramp step that only changes the percentage, because the results page is the same for both engines.
+
+Load tests run against production Corvidex, not staging, in the quietest hour of the night, with traffic marked as test traffic so that it is billed at a reduced rate and left out of the gate report. The last load test, on 2026-10-15, ran 2,400 queries per second against the UK index for 30 minutes, which is a little over the 1,900 per second we saw at the worst moment of Black Friday 2025, with a 95th percentile of 188 ms. A load test on production needs the programme lead's approval and must not run during the peak trading freeze.
+
+## Plan from here
+
+```mermaid
+gantt
+  title Quillmark search migration, remaining plan
+  dateFormat YYYY-MM-DD
+  section Ramp
+  Hold at 25 percent, prove freshness fix :active, 2026-10-30, 2026-11-13
+  Peak trading freeze                     :crit, 2026-11-16, 2026-12-04
+  Ramp to 50 percent                      :2026-12-08, 1d
+  Ramp to 100 percent                     :2027-01-12, 1d
+  section Folio
+  Folio kept running without traffic      :2027-01-12, 30d
+  Folio switched off and wiped            :2027-02-15, 14d
+  Lease ends                              :milestone, 2027-03-31, 0d
+```
+
+The dates after the freeze depend on the open question about peak traffic. If the steering group decides to carry 50% through the peak, the 50% step moves to 2026-11-11 and the plan otherwise stays the same. No ramp step of any size happens during the freeze.
+
+## Storefront notes
+
+The three storefronts share the engine, the gateway and the indexer, but they are not the same, and some of what is in this document applies to one of them only.
+
+The UK storefront carries about 78% of search traffic and almost all of the marketplace listings. It also hosts the business pages for trade and library customers, whose bulk ISBN search sends up to 500 ISBNs in one request. Corvidex handles these as a single filter query rather than 500 searches, so a bulk search counts as one query for billing. Bulk searches are left out of the gate report, because a library uploading a list of 500 ISBNs is not a shopper.
+
+The Irish storefront carries about 9% of search traffic. It has the most restricted titles, about 2,900 of the 3,400, mostly because of distribution rights held by a different company in Ireland. Prices are in euro, and the storefront shares the UK's English synonym list with about 120 Irish additions, mostly place names and Irish language titles, held in a separate overlay file. The overlay counts towards the 5,000 entry limit of the Irish list.
+
+The Dutch storefront carries about 13% of search traffic and searches in two languages, as described in "Synonyms and spelling". It has its own synonym list in Dutch with about 1,700 entries, plus the English list. It also has the most marketplace sellers per edition, because of a large group of second-hand booksellers who joined the marketplace in 2025, so its result cards show "also available from sellers" more often than the other storefronts. Dutch book prices are fixed by law for new books, so the price signals that the UK uses in promotions do not apply there, and the Dutch ranking rules have no promotion boosts at all.
+
+All three storefronts move to Corvidex at the same percentage today. The gateway allows a different percentage per storefront, and we may use that during the peak if the Irish zero-result question is still open, by keeping the Irish storefront at a lower percentage than the others.
+
+## Weekly status
+
+Each week's entry is written on the Friday and not changed afterwards, except to fix a wrong number, which is marked as a correction. Read them in order if you want the full story, or the latest one if you only want where we are.
+
+### Week 41 (5 to 9 October): change of cutover plan
+
+Overall: amber.
+
+The mirrored traffic test ended on Tuesday. For two weeks Corvidex answered a copy of every live query on all three storefronts, without its results being shown to anyone, and we compared its answers and timings with Folio's. Latency was good, with a 95th percentile of 162 ms on the UK storefront. The comparison of results was harder to read than we expected. On 31% of queries the two engines returned a different first result, and the judged query set could only tell us which was better for the queries it contains. For the rest we had no way of knowing which engine shoppers would prefer without showing them.
+
+That result is why the cutover plan changed. A single switch on 2026-10-19 would have moved every shopper at once to an engine that ranks a third of queries differently, with no way of measuring the effect except by comparing against last year's numbers, which are distorted by the 2025 outage and by this year's new Dutch range. Ifeoma and Saoirse proposed a stepped ramp with a live A/B comparison instead, and the steering group agreed it on Friday 2 October, the week before this report.
+
+:::decision{status=accepted date=2026-10-02}
+Decision (accepted 2026-10-02): traffic moves from Folio to Corvidex in steps of 1%, 5%, 25%, 50% and 100%, chosen by session hash in the search gateway, with each step gated on the quality gates holding for three days at the previous step. This replaces the single-switch cutover on 2026-10-19 agreed on 2026-06-17. Folio keeps serving the remaining traffic during the ramp, and after the 100% step it stays running without traffic for 30 days, not six weeks, so that it can be switched off before the lease ends.
+:::
+
+The full catalogue backfill into Corvidex finished on Wednesday for all three storefronts: 15.1 million documents in the UK index, 9.8 million in the Irish index and 11.3 million in the Dutch index. A check against the catalogue found 1,206 editions missing from the UK index. All of them were editions whose publisher metadata had a title longer than 1,024 characters, which the indexer rejected. Most are academic conference proceedings with the whole table of contents in the title field. The indexer now cuts titles at 1,024 characters for indexing, and the full title is still shown on the product page.
+
+Other work this week:
+
+- Bram's team finished moving the Irish storefront onto the search gateway, so all three storefronts now call search through the gateway. Shoppers saw no change, since the gateway still sent everything to Folio.
+- Saoirse found that the Dutch synonym list had been loaded with the UK list's entries appended by mistake, because of a path error in the deploy pipeline. It was fixed the same day, and a check in the pipeline now refuses a synonym list with more than 5,000 entries or with entries in the wrong language.
+- Lukas wrote the rollback runbook and ran it once on production with the ramp at 0%, which proved only that the configuration rollout works. A real test needs traffic on Corvidex.
+
+Problems: none blocking. The decision to ramp in steps means the migration finishes later than planned, which is the main reason for amber this week.
+
+### Week 42 (12 to 16 October): 1% live
+
+Overall: amber.
+
+Corvidex went live for 1% of shoppers on Tuesday 2026-10-13 at 10:00. The step went through without errors, and the first shopper sessions on Corvidex were in the logs within a minute.
+
+The first problem showed up the same afternoon. The 95th percentile latency for shoppers on Corvidex was 310 ms, against 162 ms in the mirrored test. Lukas traced it to the gateway instances in our second cloud region, which serve about a third of traffic and were calling Corvidex in the first region, because the Corvidex endpoint configuration listed only one region. The mirrored test had run only from the first region, so we had never seen it. With the second region pointed at Corvidex's endpoint in its own region, latency on Thursday was 171 ms. Corvidex charges for traffic between its regions, and the two days of cross-region calls cost about £1,100.
+
+The gate report needed four days to get enough sessions on each device type at 1%, so the first full gate result came on Friday. All gates were green except conversion on mobile, which was 2.8% lower on Corvidex, relative. With so few sessions this was within the noise, and we decided to wait for 5% before reading anything into it.
+
+Freshness was well inside the target all week. The 99th percentile delay was 1 minute 50 seconds. There were no price bursts larger than about a million changes this week.
+
+Customer service saw two complaints that might have come from Corvidex results, both about an author search where a different author with a similar name came first. Both were for authors whose names differ only in an accent, which the Corvidex analyser was folding together. Saoirse's team added both pairs to a short list of names that must not be folded, and the list is in the relevance repository.
+
+One thing went wrong in our own process. The 1% step was announced in #search-programme only on the morning of the step, not a working day ahead, because the announcement was in a draft that was never posted. Nothing broke, but the storefront teams were not watching. The announcement is now part of the step checklist in the gateway repository, and the step cannot be deployed without a link to it.
+
+Decisions this week: none.
+
+### Week 43 (19 to 23 October): 5% live, mobile conversion gap
+
+Overall: amber.
+
+We moved to 5% on Tuesday 2026-10-20 after three green days at 1% on every gate except mobile conversion, which the steering group agreed to wave through at 1% on the grounds that the sample was too small to mean anything. At 5% the samples are large enough after a day, and by Thursday the mobile conversion gap was clear and steady: 3.4% lower on Corvidex, relative, on both the iOS and Android apps and on the mobile web storefront. Desktop conversion was level, within 0.3%.
+
+Ifeoma and Bram spent most of the week on the mobile gap. The search results themselves were not the problem. Shoppers who got to a results page converted at the same rate on both engines. The difference was in how many got there. On mobile, about 58% of searches start from autocomplete, against 31% on desktop, and Corvidex's autocomplete was ordering suggestions by text match only. Folio ordered them by text match and then by sales rank, so a shopper who typed "the sec" on Folio saw the best-selling title starting with those words first, and on Corvidex saw whichever title matched the letters best, which was often an old reference book. On a phone, with room for only four suggestions, that matters a lot.
+
+Bram's team has a fix that sends sales rank into Corvidex's autocomplete scoring. It is built and is in testing on staging. It needs one change from Corvidex, a setting on our account that lets autocomplete use a numeric field, which their support team said would take up to 5 working days.
+
+Zero-result rate on Corvidex at 5% was 5.1% against 6.8% on Folio, so that gate is comfortably green. Latency was 168 ms at the 95th percentile, also green. The Dutch storefront ran at 231 ms, inside its 300 ms exception.
+
+Series queries remain weak on both engines. Saoirse's team built a parser that recognises series numbers in a query ("book 3", "vol. 3", "#3", "deel 3" in Dutch, and the word forms up to twelve) and turns them into a filter on the series number field. On the judged query set it raised the score for series queries from 0.48 to 0.66, but it also broke 9 queries for titles that contain a number, such as novels with a year in the title. The parser now only applies when the rest of the query matches a known series name, and it goes into the week 45 relevance release.
+
+The indexer had its first real test of a price burst on Wednesday, when a large supplier sent a new price file with 1.4 million changes. The 99th percentile freshness delay went up to 4 minutes 20 seconds for about half an hour and came back down on its own. Dev noted in the weekly sync that this was closer to the 5 minute target than he liked, and that a larger burst would push it over. In hindsight this was the warning for week 44.
+
+Other work this week:
+
+- The judged query set was extended from 2,000 to 2,400 queries, adding 400 from the Dutch storefront, which had been under-represented.
+- Folio's nightly rebuild failed on Thursday night because a disk filled up on one of the Folio servers. Folio served the previous day's index until the delta job caught up. The disk was the third Folio disk failure this year, and a reminder of why we are moving.
+- Customer service now has a short note on how to tell whether a shopper's complaint came from Corvidex, using the session hash shown on the support console.
+
+:::decision{status=accepted date=2026-10-22}
+Decisions this week: the steering group agreed on 2026-10-22 to move to 25% on Tuesday 2026-10-27 if the autocomplete fix is live on Corvidex by then and the mobile gap has narrowed to under 2%. If not, the step waits a week.
+:::
+
+Correction (added 2026-10-30): this entry first said the mobile gap was 3.8%. The correct figure for the week is 3.4%, after removing a day of bot traffic that the analytics filter missed.
+
+### Week 44 (26 to 30 October): 25% live, indexing incident
+
+Overall: red on Thursday, back to amber by Friday.
+
+Corvidex turned on the autocomplete setting on Monday, two days earlier than they promised. The autocomplete fix went live for shoppers on Corvidex on Monday afternoon, and by Tuesday morning the mobile conversion gap had narrowed to 1.6%. We moved to 25% on Tuesday 2026-10-27 at 10:00, as agreed by the steering group.
+
+On Thursday 2026-10-29, from 13:10 UK time, the warehouse system and two suppliers posted price and stock files within the same hour, with 3.8 million changes in about 40 minutes. The indexer was sending every change as a full document rewrite, which at that volume used the whole Corvidex update quota for the UK index. The indexer's queue grew faster than it drained, and the 99th percentile freshness delay reached 47 minutes at 14:05. For that period, shoppers on Corvidex saw prices and stock that were up to 47 minutes old. Folio, which was 20 to 30 minutes behind as usual, did better than Corvidex for once.
+
+The on-call, Lukas, rolled back from 25% to 5% at 14:12, which took 2 minutes 40 seconds. We did not roll back to 0% because at 5% the number of shoppers affected was small, and the A/B comparison for the step was still useful. The queue drained by 15:30, and freshness was back under 5 minutes by 15:45. We went back up to 25% at 20:00 on Thursday, which broke the rule that ramp steps only happen on Tuesday or Wednesday daytime. The programme lead approved it in the incident channel, on the grounds that returning to a percentage we had already been running is not a new step. The steering group has since agreed with that reading, but asked that it be written down, which it now is: returning to a percentage that has already passed its gates, within 24 hours of a rollback, counts as part of the rollback and not as a ramp step.
+
+What it cost: we estimate that about 2,100 orders were placed by shoppers on Corvidex at a price that had changed in the previous 47 minutes. Our checkout always charges the current price from the price service, never the price shown in search, so no shopper was charged a wrong price. The effect was that 380 shoppers saw a higher price at checkout than in search, and customer service received 41 contacts about it. About 90 orders were placed for items that had just gone out of stock, and the warehouse cancelled them the next morning with the usual apology email.
+
+The fix went into the indexer on Friday. Price and stock changes now go to Corvidex as partial updates, which are much cheaper, and the indexer gives them priority over metadata rewrites when its queue is longer than 50,000 changes. In a replay of Thursday's burst on staging, the 99th percentile freshness delay peaked at 3 minutes 5 seconds. The incident review is scheduled for 2026-11-04, and the "Important" note in "Quality gates" about 14 days of green freshness comes from the steering group's response to the incident.
+
+Other work this week:
+
+- The mobile conversion gap was 1.6% at the end of Tuesday and 1.3% on Friday. Desktop was level.
+- Zero-result rate at 25% was 4.8% on Corvidex and 6.8% on Folio.
+- The series number parser passed review and is scheduled for the relevance release on 2026-11-03.
+
+:::decision{status=accepted date=2026-10-29}
+Decisions this week: the rollback reading described above (accepted by the steering group on 2026-10-29).
+:::
+
+### Week 45 (2 to 6 November): holding at 25%
+
+Overall: amber.
+
+A quiet week on traffic, which is what we wanted. Corvidex has served 25% all week with no rollback. The partial update path for prices and stock has carried four bursts of more than a million changes, the largest 2.2 million on Wednesday morning, and the 99th percentile freshness delay stayed under 3 minutes 30 seconds through all of them. Over the week as a whole it was 3 minutes 10 seconds. The freshness gate has now been green for 7 days in a row, counting from Friday 2026-10-30, so the 14 days the steering group asked for end on Thursday 2026-11-12 at the earliest.
+
+The relevance release went out on Tuesday 2026-11-03 with the series number parser, about 300 more synonym removals for the UK list, and the two accent pairs from week 42. The judged query set score went from 0.72 to 0.74, and the zero-result rate for series queries on live traffic dropped from 12.1% to 9.6% in three days. The overall zero-result rate at 25% is now 4.6% against Folio's 6.8%. On the UK storefront alone it is 4.1%, which is close to the 4% goal, while the Irish storefront is at 5.9% because of the larger share of restricted titles that shoppers search for and cannot find.
+
+The mobile conversion gap is 1.1%, inside the 2% gate. Desktop conversion is 0.4% higher on Corvidex, which is within the noise. Revenue per search is level within 0.5%.
+
+The incident review for 2026-10-29 took place on Wednesday 2026-11-04. Its main findings were that the indexer was load tested with steady traffic but never with bursts, that the price and stock service had no way to warn the indexer of a large file before sending it, and that the 5 minute freshness target was not on the on-call dashboard, so the on-call learned of the delay from a customer service message rather than an alert. Actions from the review are in "Actions" below. Lukas tested the rollback again on 2026-11-03 at 25%, and it took 2 minutes 10 seconds.
+
+Spend: the Corvidex invoice for October came in at £61,400, against £52,000 in the budget for the month. The difference is the cross-region traffic in week 42, a higher query volume than we assumed because the mirrored test ran into October, and the update volume during the 2026-10-29 burst. The steering group accepted the overrun on 2026-10-29 when it saw the forecast, which puts the programme 6% over its budget for the year.
+
+The peak question did not get decided. The steering group discussed it on Thursday 2026-11-05 and asked for one more week of numbers at 25%, including the freshness data from the 14-day window, before it decides. That leaves very little time before the freeze. The 14 green days end on Thursday 2026-11-12, and the next Tuesday is 2026-11-17, which is already inside the freeze. A 50% step before the peak can therefore only happen if the group agrees to cut the 14 days short and step on Wednesday 2026-11-11. Ottilie has asked the group for a decision by message by 2026-11-10.
+
+Other work this week:
+
+- Dev's team added a burst warning to the price and stock service. When it is about to send a file with more than 500,000 changes, it posts the size and expected start time to the indexer, and the indexer raises its partial update priority ahead of time.
+- The freshness delay is now on the search on-call dashboard, with an alert at 4 minutes for 10 minutes in a row.
+- Ifeoma produced the first weekly gate report broken down by storefront rather than overall, which is how we found the Irish zero-result rate problem.
+- Folio's decommissioning plan is drafted (see "Folio decommissioning") and is with the security team for review.
+
+Decisions this week: none final. The peak traffic question is still open.
+
+### Gate results by week
+
+The figures are for Corvidex at the end of each week, over the last three days of the week, with Folio's figure for the same days in brackets where the gate compares the two.
+
+| Week | Ramp | p95 latency | Zero results | Mobile conversion vs Folio | Desktop conversion vs Folio | Freshness p99 |
+|-|-|-|-|-|-|-|
+| 41 | 0% (mirrored) | 162 ms | not measured | not measured | not measured | 1 min 40 s |
+| 42 | 1% | 171 ms | 5.3% (6.9%) | −2.8%, not enough data | −0.6%, not enough data | 1 min 50 s |
+| 43 | 5% | 168 ms | 5.1% (6.8%) | −3.4% | −0.3% | 4 min 20 s |
+| 44 | 25% | 174 ms | 4.8% (6.8%) | −1.3% | +0.1% | 47 min (incident) |
+| 45 | 25% | 169 ms | 4.6% (6.8%) | −1.1% | +0.4% | 3 min 10 s |
+
+The latency figures are for the UK storefront. The Dutch storefront has run between 224 ms and 236 ms since week 43, and the Irish storefront within 10 ms of the UK figure.
+
+## Risks
+
+:::risk{impact=high likelihood=medium}
+Risk: a price or stock burst larger than anything seen so far pushes freshness past 5 minutes again, during the peak when prices change most. Impact high, likelihood medium. The partial update path has handled 2.2 million changes in one burst, and the replay of the 3.8 million burst stayed under target, but suppliers send their largest price files in the week before Black Friday, and last year's largest was 6.1 million changes. Dev's team is replaying a 7 million change burst on staging in week 46. If freshness goes past 5 minutes, the on-call rolls back to 5%.
+:::
+
+:::risk{impact=high likelihood=low}
+Risk: Corvidex has an outage during the peak. Impact high, likelihood low. Their availability over the last 12 months, from their own status history, was 99.97%. With Folio still running and the rollback tested, a Corvidex outage costs us the time it takes to notice and roll back, which is under 10 minutes with the new alerting. The gateway's 800 ms timeout and category page fallback cover the minutes before the rollback.
+:::
+
+:::risk{impact=high likelihood=medium}
+Risk: Folio fails during the peak, now that it carries less traffic and gets less attention. Impact high, likelihood medium. Folio had three disk failures this year and nobody on the team knows its query servers well. If Folio fails while it carries 75% of traffic, the gateway can be set to send 100% to Corvidex, but that is a jump from 25% that no gate has tested. Lukas is writing a separate runbook for this case, and the steering group has agreed in principle that a forced move to 100% is allowed when Folio is down, under the same rule as a rollback.
+:::
+
+:::risk{impact=medium likelihood=low}
+Risk: the Folio lease end slips into the busy months, or the data removal is not finished by 2027-03-31. Impact medium, likelihood low. The lease cannot be extended month by month, and the data centre provider charges a full year if we overrun by a single day. The plan leaves six weeks between switching Folio off and the lease end.
+:::
+
+:::risk{impact=medium likelihood=high}
+Risk: shoppers on the Irish storefront search for restricted titles more than we expected, and the zero-result gate never gets under 4% there. Impact medium, likelihood high. The restriction list is a legal requirement, so the fix cannot be to show the titles. Hollis is working with the content team on a "not available in Ireland" result card that would count as a result rather than a zero-result page, which needs the steering group's agreement on how the gate is measured.
+:::
+
+## Open questions
+
+:::question
+Undecided: how much traffic Corvidex carries through the peak trading freeze, from 2026-11-16 to 2026-12-04. Holding at 25% is the safe option for the peak itself, but it leaves Folio carrying three quarters of Black Friday traffic, and Folio is the system that failed last year. Going to 50% before the freeze means cutting the 14-day freshness proof short. The steering group will decide by message by 2026-11-10. Until then, the plan assumes Corvidex stays at 25% through the freeze, Folio's query servers are kept at full size, and the 50% step is scheduled for 2026-12-08.
+:::
+
+:::question
+Undecided: whether the "not available in Ireland" result card counts as a result for the zero-result gate. Until then, the gate counts it as a zero-result search, and the Irish storefront's goal of 4% is reported but not used to block the 100% step.
+:::
+
+:::question
+Not decided yet, but not blocking: whether we use the break clause in the Corvidex contract after the first year. The break clause has to be used by 2027-04-30. Nobody expects to, and nothing in this plan depends on it.
+:::
+
+## Folio decommissioning
+
+Folio is switched off in three steps after the 100% step, and the hardware goes back to the data centre provider before the lease ends on 2027-03-31.
+
+1. For 30 days after the 100% step, Folio keeps running without traffic, and its delta job keeps it up to date, so that a rollback still returns shoppers to a fresh index. The rollback rule stays as it is during these 30 days.
+2. After the 30 days, the Folio delta job and nightly rebuild are stopped, and the gateway configuration for Folio is removed. From this point there is no rollback to Folio.
+3. The Folio servers are wiped by the data centre provider's certified process, and the provider gives us a certificate for each disk. Lukas collects the certificates and sends them to the security team.
+
+Folio's index holds no customer data, but its query logs do. They contain query text, session IDs and, for searches made before 2023, the account ID of logged-in shoppers. The query logs are not copied anywhere before the wipe, except for an anonymised sample of 2 million queries from 2025 and 2026, which Saoirse's team keeps for the judged query set and which the privacy team has approved. Account IDs are removed from the sample before it leaves the Folio servers.
+
+The 18 Folio servers are leased, so they are not ours to keep or sell. The 4 network switches in the Folio racks are ours and move to the main data centre room, where the network team will reuse them.
+
+Folio's code stays in the archive repository, read only. Nobody should start a new project on it. Some of its ISBN handling code is still used by the catalogue service's import job, and Dev's team will move that code into the catalogue service before the archive is frozen.
+
+## Operations and on-call
+
+The search on-call rota has six people from the search programme and the gateway team, one week each. During the ramp the on-call covers both engines, the gateway and the indexer. Folio's own servers are still covered by the infrastructure on-call, as they have been since 2019, and the search on-call pages them for anything below the Folio application.
+
+The on-call dashboard shows, for each engine and storefront, the query rate, the 95th percentile latency, the error and timeout rate, the zero-result rate for the last hour, and the freshness delay for Corvidex. It also shows the current ramp percentage and the time of the last gateway configuration change, which helped twice in week 44 when people asked whether a change was a ramp step or a rollback.
+
+Alerts that page the search on-call:
+
+- Corvidex or Folio error and timeout rate above 1% for 5 minutes on any storefront.
+- Gateway 95th percentile latency above 600 ms for 10 minutes.
+- Corvidex freshness delay above 4 minutes for 10 minutes in a row (new in week 45).
+- The indexer's queue above 500,000 changes.
+- Folio's nightly rebuild not finished by 07:00 UK time.
+
+The on-call does not change ranking, synonyms or pinned results in an incident. If a ranking problem is serious enough to need action out of hours, for example an offensive title coming first for a common query, the on-call rolls the affected storefront back to Folio and leaves the fix to Saoirse's team in working hours. Rolling back a single storefront is possible because each storefront has its own ramp percentage in the gateway configuration, although today all three are set the same.
+
+Corvidex support is reachable through their support portal for anything that is not urgent, and by phone for an outage, with a response time of 30 minutes on our contract tier. Only the people on the search on-call rota and the programme lead are registered contacts, so other teams who need Corvidex support go through the on-call.
+
+### Access and keys
+
+Corvidex has two kinds of API key on our account. Query keys can only search, and the gateway holds one per storefront. Admin keys can change indexes, settings and ranking, and only the indexer and the relevance deploy pipeline hold them. Both kinds are stored in the secrets manager and rotated every 90 days by the platform team's rotation job. No person has an admin key. Changes to the Corvidex account that need a person, such as raising a quota, go through the console with single sign-on, and the console roles for our team are read-only for ranking, as described in "How results are ordered".
+
+The query keys are restricted to the gateway's outbound addresses, so a leaked query key cannot be used from anywhere else. Admin keys are restricted the same way to the indexer's and the pipeline's addresses. A key is never put in a storefront page, a mobile app or a browser request, including for autocomplete, which goes through the gateway like everything else.
+
+Folio has no keys. Anything inside the Eastfield network could query it, which was acceptable in 2016 and is one of the findings the security team raised in its 2025 review. Since Folio is going away, the finding was accepted as a risk until the switch-off rather than fixed.
+
+## Search reporting after the migration
+
+Merchandising and the buying team use search reports every week: the most common searches, the most common zero-result searches, and searches that lead to a product page but not a purchase. Folio produced these from its own query logs, in a nightly job that wrote spreadsheets to a shared drive. That job stops working for the share of traffic on Corvidex, and it stops completely when Folio is switched off.
+
+The replacement reports come from the analytics warehouse, from the same search events as the gate report, so they cover both engines during the ramp. Ifeoma's team built them in September, and merchandising has been using them alongside the old spreadsheets since week 42. The two disagree slightly, because the warehouse leaves out bots and staff sessions and Folio's job did not. Merchandising has agreed to use the warehouse numbers from 2026-11-02 onwards.
+
+The zero-result report is the one that matters most to the buying team, because a common search with no results is often a book we should stock. The warehouse report lists each zero-result query with the storefront and the count, and since week 45 it also says whether the query matched a restricted title, so the buying team stops asking about books we are not allowed to sell in Ireland.
+
+Search reports do not include anything that identifies a shopper. A query that looks like an email address, a phone number or a postcode is replaced with a placeholder before it reaches the warehouse.
+
+## Questions we get asked
+
+Will shoppers see different prices on Corvidex? No. The price in the results comes from the index, which is updated from the price service within the freshness target, and checkout always charges the current price from the price service. During the 2026-10-29 incident, shoppers saw old prices in results, but nobody was charged one.
+
+Can my team get a search API for an internal tool? Not during the migration. After the 100% step we expect to offer read-only access through the gateway for internal tools, but not direct access to Corvidex.
+
+Why is the Dutch storefront slower? Because every query is analysed in Dutch and English. It is inside its own 300 ms target, and the latency gate has an exception for it.
+
+Can we pin a title for a promotion tomorrow? Yes, through the pinned results form, within the limit of 3 per query and 200 queries per storefront, and with an end date. A pin raised before 14:00 on a working day is normally live the same day.
+
+Why does a book show as "out of print" in search but someone is selling it on the marketplace? Because marketplace offers are shown on the result card of the edition they belong to, and the edition itself is out of print. The card shows both. If it does not, that is a bug, and #search-programme wants to hear about it.
+
+What happens to search if Corvidex goes down during the peak? The on-call rolls back to Folio. Until then, the gateway shows the category page for a query when an engine does not answer within 800 ms.
+
+## Dependencies and other teams
+
+The migration depends on several teams that are not part of the programme.
+
+| Team | What we need from them | Contact | Status |
+|-|-|-|-|
+| Catalogue | Change feed with all fields, restriction flags per storefront | Anouk Verbeek | Done |
+| Price and stock | Partial update fields, burst warnings | Rafael Monteiro | Burst warning live since week 45 |
+| Storefront web | Result card for "not available in Ireland" | Hollis Ng | Design in progress |
+| Mobile apps | No change needed; apps call the gateway | Mei Lindgren | Done |
+| Customer service | Support console field for session hash, saved replies | Grainne Doyle | Done |
+| Infrastructure | Folio servers until switch-off, data centre exit | Tobias Mensah | On track |
+| Privacy | Query log handling, query sample approval | Nadia Rahman | Sample approved 2026-09-14 |
+| Security | Review of Folio wipe plan | Nadia Rahman | In review |
+
+The mobile apps needed no release for the migration, because they have called the gateway since 2023. That will not stay true if we want the format hint on the apps, which is sent from the browser on the web storefronts but not from the apps. That is a small change for a later app release and not part of this plan.
+
+The catalogue team has frozen the change feed format until the end of January, apart from fixes. Any new field they add before then goes to Folio and Corvidex through the same feed, so the indexer has to ignore fields it does not know rather than fail on them. It does, and there is a test for it.
+
+## Budget
+
+The budget agreed in May covers the Corvidex contract for the first year, the engineering time of the programme team, and the cost of running Folio until it is switched off.
+
+| Item | Budget for 2026-27 | Forecast | Difference |
+|-|-|-|-|
+| Corvidex service (queries, indexing, storage) | £540,000 | £592,000 | +£52,000 |
+| Corvidex cross-region traffic | £0 | £1,100 | +£1,100 |
+| Folio hardware lease and power, to 2027-03-31 | £168,000 | £168,000 | £0 |
+| Programme team (7 people, internal cost) | £610,000 | £640,000 | +£30,000 |
+| Judging for the query set | £24,000 | £21,500 | −£2,500 |
+| Contingency | £60,000 | £0 | −£60,000 |
+| Total | £1,402,000 | £1,422,600 | +£20,600 |
+
+The forecast assumes 100% on Corvidex from 2027-01-12. Each extra month at a split between the engines costs about £14,000 more than the forecast, mostly in Corvidex query volume that we pay for on top of Folio's fixed costs.
+
+The table nets the overrun against the unused contingency. Against the budget without contingency, which is how the finance team reports it, we are at 6% over. The programme team line is higher because the stepped ramp needs Ifeoma's analysis work for about ten weeks longer than the single switch would have.
+
+Corvidex invoices monthly in arrears. Query volume is billed per thousand queries, with the price per thousand dropping above 120 million queries a month. We are at about 35 million a month on Corvidex at 25%, so we will only reach the cheaper tier at about 100%.
+
+## How the gate report is made
+
+The gate report runs every morning at 06:00 UK time over the previous three full days, and Ifeoma's team checks it before 09:30. It reads search events from the analytics warehouse, where every search the gateway serves is logged with the session hash, the engine, the storefront, the device type and whether the session later ended in a purchase. A session counts as a search session if it has at least one search, and it is attributed to the engine that served its first search. Because a shopper's bucket never changes within a session, mixed sessions only happen when the ramp changes, and the report leaves out sessions that crossed a configuration change.
+
+The core of the conversion gate looks like this. The real query also filters out bots, staff sessions and test storefronts.
+
+```sql
+SELECT
+  engine,
+  device_type,
+  COUNT(*)                                   AS search_sessions,
+  AVG(CASE WHEN purchased THEN 1 ELSE 0 END) AS conversion
+FROM analytics.search_sessions
+WHERE session_date BETWEEN CURRENT_DATE - 3 AND CURRENT_DATE - 1
+  AND crossed_config_change = FALSE
+  AND is_bot = FALSE
+GROUP BY engine, device_type
+HAVING COUNT(*) >= 40000;
+```
+
+The report shows each gate as green, red or "not enough data". "Not enough data" never counts as green. Ifeoma's team added a check in week 43 that a single day cannot make up more than half of a gate's sessions, after a day of bot traffic that the filter missed made the mobile gap look worse than it was.
+
+Shoppers who block analytics cookies are not in the report at all, since their sessions are not logged with a purchase outcome. They are about 11% of sessions, spread evenly across the two engines by the hash, so we do not expect them to change the comparison.
+
+## Actions
+
+Open actions from the weekly sync and the 2026-10-29 incident review, as of Friday 2026-11-06.
+
+- [ ] Replay a 7 million change price burst on staging and report the freshness delay, priority :priority[P1], @dev, due :due[2026-11-12]
+- [ ] Get a decision from the steering group on traffic through the peak, priority :priority[P1], @ottilie, due :due[2026-11-10]
+- [ ] Load test the indexer with burst traffic as part of every indexer release, priority :priority[P2], @dev, due :due[2026-11-20]
+- [x] Add the freshness delay to the on-call dashboard with an alert, @lukas
+- [x] Add a burst warning from the price and stock service to the indexer, @dev
+- [ ] Write the runbook for a forced move to 100% when Folio is down, and walk the on-call rota through it, priority :priority[P1], @lukas, due :due[2026-11-13]
+- [ ] Agree with the steering group how the "not available in Ireland" result card counts for the zero-result gate, priority :priority[P2], @hollis, due :due[2026-11-19]
+- [ ] Finish the UK synonym list clean-up and get it under 3,000 entries, priority :priority[P3], @saoirse, due :due[2026-12-11]
+- [ ] Move Folio's ISBN handling code into the catalogue service, priority :priority[P2], @dev, due :due[2027-01-29]
+- [ ] Get the Folio wipe plan approved by security, priority :priority[P2], @lukas, due :due[2026-11-27]
+
+## Communication
+
+Every ramp step and every rollback is announced in #search-programme, and the weekly report goes to the steering group and the heads of the storefront, catalogue and customer service teams on Friday afternoon. Customer service gets a separate short note before each ramp step, written for their agents, with what shoppers might notice and the saved replies to use.
+
+We do not tell shoppers that search is changing. There is no banner, no blog post and no mention in the newsletter. Shoppers who notice different results will mostly see better ones, and announcing a new search engine invites comparison with the old one in the worst week to have it. The exception is the trade and library customers on the business storefront pages, who search by ISBN lists in bulk. They get a short email from their account managers before the 100% step, because the bulk ISBN search now ignores invalid ISBNs instead of failing the whole list.
+
+Questions from outside the programme go to Ottilie, or to #search-programme. Please do not contact Corvidex directly about our account. They are polite about it, but their account manager then calls the programme lead to ask what is going on.
+
+## What we have learned so far
+
+These are the points from the first five weeks of the ramp that we would want the next migration of this size to know. Some of them are already in the incident review, but most are not incidents.
+
+The mirrored test was worth doing for latency and load, and nearly useless for relevance. Comparing two engines' results without shoppers in the loop told us that the results were different, which we knew, and not which were better. If we did it again we would mirror for one week, not two, and start the live ramp at 1% a week earlier.
+
+Measure by device type from day one. The overall conversion number at 1% and 5% looked fine, because desktop was level and slightly better, and it hid a mobile gap that we only saw because Ifeoma had split the report by device type out of habit.
+
+Autocomplete is half of search on mobile. We planned the migration as if the results page was the product and autocomplete was a detail, and the biggest regression we found was in autocomplete.
+
+Load test the indexer with bursts, not steady traffic. The steady load test passed at three times our normal update rate, and the first large burst still broke freshness, because what matters is the queue during a burst, not the average rate.
+
+Write down the rules for rollback before you need them. The rule that anyone on call can roll back without asking worked exactly as intended in week 44. The rule we had not written down, about returning to a percentage after a rollback, caused a half-hour argument in the incident channel while the queue was draining.
+
+Keep Folio boring. Every week someone suggests a small improvement to Folio, since it still serves most traffic. We have said no each time, apart from replacing failed disks. The one change we made to Folio this year, a memory setting in August, is the change we suspect for the disk filling up in week 43, though we never proved it.
+
+## Notes from the steering group meeting on 2026-10-29 (meeting notes, for people) {agent=skip}
+
+Present: Imogen Hartley (chief digital officer, chair), Ottilie Brand, Hollis Ng, Lukas Ferreira, Ifeoma Chukwu, Anouk Verbeek for the catalogue team, Grainne Doyle for customer service, and Pieter Jansen from finance. Dev joined for the first item from the incident channel, since the queue was still draining when the meeting started at 15:00.
+
+The meeting was mostly about the incident earlier that afternoon. Lukas described the rollback to 5% and the state of the queue. Imogen asked whether we should go back to 0% until the fix was in. Lukas and Ottilie argued against it. At 5% the shoppers affected were few, Folio was no fresher than Corvidex at its usual 20 to 30 minutes behind, and dropping to 0% would throw away the 5% comparison data. Grainne said customer service could handle the contact volume at 5%. Imogen agreed, on the condition that we did not return to 25% until the queue was empty and freshness was back under target for at least an hour, which is what happened at 20:00.
+
+There was a long discussion about whether returning to 25% the same evening was a ramp step. Hollis read out the rule that steps happen on Tuesday or Wednesday daytime. Ottilie's view was that the rule was written to stop us moving to a new, untested percentage when the team is not around, and that 25% had already passed its gates. Pieter asked, reasonably, whether the rule would end up meaning whatever was convenient at the time. The compromise was to write down the 24-hour reading in the Weekly status so that it is a rule and not a judgement call.
+
+Anouk raised the price and stock bursts from the catalogue side. The burst was not unusual for a Thursday at the end of the month, and suppliers will send bigger ones in November. She offered to have the price and stock service warn the indexer ahead of large files, which became the burst warning that went live in week 45.
+
+Pieter presented the cost forecast. The October invoice would be about £9,000 over the month's budget, and the year about 6% over without contingency. Imogen accepted the overrun, saying the cost of the 2025 outage was many times larger and that she would rather pay for a careful ramp than save money on a fast one. Pieter asked for the monthly forecast to be in the weekly report from now on, which it is, in "Budget".
+
+The last item, the peak question, was moved to the following week because the meeting ran over. It was discussed on 2026-11-05 and is still open.
+
+## Glossary
+
+- Bucket: one of the 1,000 groups that the gateway's router puts sessions into by session hash. The ramp percentage decides how many buckets go to Corvidex.
+- Edition: one ISBN, or one product code for items without an ISBN.
+- Work: a book as a whole, grouping all its editions and formats.
+- Freshness: the delay between the catalogue publishing a change and the change showing in search.
+- Gate: one of the quality measures in "Quality gates" that must be green before a ramp step.
+- Judged query set: the 2,400 queries with graded results that we use to score ranking offline.
+- Partial update: an update that changes only some fields of an index document, used for price and stock since week 45.
+- Peak trading freeze: the period from 2026-11-16 to 2026-12-04 when no changes are made to the storefronts or their services except fixes for incidents.
+- Ramp step: a planned increase in the share of traffic that Corvidex serves.
+- Rollback: setting the ramp percentage back, usually to 0, so that Folio serves the traffic.
+- Zero-result rate: the share of searches that return no results at all.
