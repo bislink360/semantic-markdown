@@ -17,7 +17,7 @@ import {
   includeSource, type ExpandedFigures,
 } from './includeText';
 import {
-  alertLines, aroundInlineMath, convertedParts, fenceLines, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, parseSmd, renderedTaskLines,
+  alertLines, aroundInlineMath, convertedParts, fenceLines, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, parseSmd, renderedTaskLines, withParses,
   type AlertLines, type InlineItemLines, type InlineMathLines, type InlinePart,
 } from './parse';
 import {
@@ -329,12 +329,30 @@ function assemble(head: ViewHead, body: string): string {
 }
 
 export function agentView(text: string, viewOptions: AgentViewOptions = {}): AgentViewResult {
-  // Figures are numbered once, for every pass over the document.
-  const options: TransformOptions = { ...viewOptions, figures: expandedFigures(text, viewReader(viewOptions)) };
-  const scope = viewScope(text, options);
-  const result = options.maxTokens !== undefined ? budgetedView(text, scope, options) : wholeView(text, scope, options);
-  if (options.provenance) result.provenance = provenanceOf(text, scope, options, result);
-  return result;
+  return oneView(viewOptions, (viewOptions) => {
+    // Figures are numbered once, for every pass over the document.
+    const options: TransformOptions = { ...viewOptions, figures: expandedFigures(text, viewReader(viewOptions)) };
+    const scope = viewScope(text, options);
+    const result = options.maxTokens !== undefined ? budgetedView(text, scope, options) : wholeView(text, scope, options);
+    if (options.provenance) result.provenance = provenanceOf(text, scope, options, result);
+    return result;
+  });
+}
+
+/**
+ * Make one view (or one outline) with each file read once and each text parsed once (see withParses). Numbering
+ * figures and showing the text both load every `:::include`, and an outline makes several views. Nothing is kept
+ * after `make` returns.
+ */
+function oneView<O extends AgentViewOptions, T>(options: O, make: (options: O) => T): T {
+  const { readFile } = options;
+  if (!readFile) return withParses(() => make(options));
+  const read = new Map<string, string | undefined>();
+  const readOnce = (relativePath: string) => {
+    if (!read.has(relativePath)) read.set(relativePath, readFile(relativePath));
+    return read.get(relativePath);
+  };
+  return withParses(() => make({ ...options, readFile: readOnce }));
 }
 
 function wholeView(text: string, scope: ViewScope, options: TransformOptions): AgentViewResult {
@@ -403,67 +421,200 @@ function viewResult(
 // Token budget (maxTokens): condense, then omit sections in priority order.
 // ---------------------------------------------------------------------------
 
-/** A view before assembly: its head and every emitted body line with the source line it came from. */
+/**
+ * A view before assembly: its head and every emitted body line with the source line it came from. Fitting a budget
+ * tries one set of omitted sections after another, so what does not depend on the set is worked out once here.
+ */
 interface Draft {
   head: ViewHead;
   lines: Array<[at: number, line: string]>;
+  /** What each line is, for ViewLength (see pieceKind). */
+  kinds: Uint8Array;
+  /** The indexes of `lines` by source line, then by index, to find a section's lines (see draftSection). */
+  byLine: number[];
+  /** How many lines the document has. */
+  sourceLines: number;
   file?: string;
   count: (text: string) => number;
+  /** `count` is estimateTokens, so a view's count follows from its length (see draftCount). */
+  estimated: boolean;
+  /** Each section's tokens and pointer, worked out once. */
+  costs: Map<BudgetSection, number>;
+  pointers: Map<BudgetSection, { text: string; kind: number }>;
 }
 
 function draftOf(scope: ViewScope, options: AgentViewOptions): Draft {
   const lines: Array<[number, string]> = [];
   transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines });
-  return { head: viewHead(scope, options), lines, file: options.file, count: options.tokenizer?.count ?? estimateTokens };
+  const byLine = lines.map((_, k) => k).sort((a, b) => lines[a][0] - lines[b][0] || a - b);
+  return {
+    head: viewHead(scope, options), lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
+    file: options.file, count: options.tokenizer?.count ?? estimateTokens, estimated: !options.tokenizer, costs: new Map(), pointers: new Map(),
+  };
 }
 
 const joinLines = (lines: string[]) => lines.join('\n').replace(/\n{3,}/g, '\n\n');
-const inSection = (at: number, s: BudgetSection) => at >= s.start && at <= s.end;
 
-/** The view text of the lines emitted for one section. */
+/** The view text of the lines emitted for one section, in the order they were emitted. */
 function draftSection(draft: Draft, s: BudgetSection): string {
-  return joinLines(draft.lines.filter(([at]) => inSection(at, s)).map(([, line]) => line));
+  const { lines, byLine } = draft;
+  const first = (line: number) => {
+    let lo = 0;
+    let hi = byLine.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (lines[byLine[mid]][0] < line) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  };
+  const inSection = byLine.slice(first(s.start), first(s.end + 1)).sort((a, b) => a - b);
+  return joinLines(inSection.map((k) => lines[k][1]));
 }
 
-function pointerOf(draft: Draft, s: BudgetSection): string {
-  return omissionPointer(s, draft.count(draftSection(draft, s)), draft.file);
+/** What a section costs in the view. */
+function sectionTokens(draft: Draft, s: BudgetSection): number {
+  let tokens = draft.costs.get(s);
+  if (tokens === undefined) draft.costs.set(s, (tokens = draft.count(draftSection(draft, s))));
+  return tokens;
 }
 
-/** The assembled view with the omitted sections (in document order) replaced by pointers. */
+function pointerOf(draft: Draft, s: BudgetSection): { text: string; kind: number } {
+  let pointer = draft.pointers.get(s);
+  if (!pointer) {
+    const text = omissionPointer(s, sectionTokens(draft, s), draft.file);
+    draft.pointers.set(s, (pointer = { text, kind: pieceKind(text) }));
+  }
+  return pointer;
+}
+
+/**
+ * The body of the view with the omitted sections (in document order) replaced by pointers, piece by piece: each line
+ * or pointer, and the blank line that goes with a pointer, with its kind (see pieceKind).
+ */
+function draftBody(draft: Draft, omitted: BudgetSection[], piece: (text: string, kind: number) => void): void {
+  const cut = new Uint8Array(draft.sourceLines);
+  for (const s of omitted) cut.fill(1, s.start, s.end + 1);
+  let next = 0;
+  draft.lines.forEach(([at, line], k) => {
+    while (next < omitted.length && at > omitted[next].end) {
+      const pointer = pointerOf(draft, omitted[next++]);
+      piece(pointer.text, pointer.kind);
+      piece('', 0);
+    }
+    if (!cut[at]) piece(line, draft.kinds[k]);
+  });
+  for (const s of omitted.slice(next)) {
+    const pointer = pointerOf(draft, s);
+    piece('', 0);
+    piece(pointer.text, pointer.kind);
+  }
+}
+
+/** The assembled view with the omitted sections replaced by pointers. */
 function draftText(draft: Draft, omitted: BudgetSection[]): string {
   const body: string[] = [];
-  let next = 0;
-  for (const [at, line] of draft.lines) {
-    while (next < omitted.length && at > omitted[next].end) body.push(pointerOf(draft, omitted[next++]), '');
-    if (!omitted.some((s) => inSection(at, s))) body.push(line);
-  }
-  for (const s of omitted.slice(next)) body.push('', pointerOf(draft, s));
+  draftBody(draft, omitted, (text) => body.push(text));
   return assemble(draft.head, joinLines(body));
+}
+
+/**
+ * The tokens of `draftText(draft, omitted)`. With the estimate they follow from its length, which ViewLength works
+ * out without building the text; a tokenizer counts the text.
+ */
+function draftCount(draft: Draft, omitted: BudgetSection[]): number {
+  if (draft.estimated) {
+    const length = new ViewLength();
+    draftBody(draft, omitted, (text, kind) => length.add(text, kind));
+    const total = length.of(draft.head);
+    if (total !== undefined) return Math.ceil(total / 4); // estimateTokens
+  }
+  return draft.count(draftText(draft, omitted));
+}
+
+/** Kinds of body piece, as bits: not empty, with a character that isn't whitespace, with a line break. */
+const NOT_EMPTY = 1;
+const PRINTED = 2;
+const BREAK = 4;
+
+function pieceKind(text: string): number {
+  return (text ? NOT_EMPTY : 0) | (/\S/.test(text) ? PRINTED : 0) | (text.includes('\n') ? BREAK : 0);
+}
+
+/**
+ * The length of `assemble(head, joinLines(pieces))`, from the pieces one at a time. Joined with line breaks, a run of
+ * n empty pieces between two others makes n + 1 breaks, which joinLines cuts to at most 2. assemble only changes the
+ * body where it meets the head and the footnotes, so the body's whitespace at both ends is all it needs: the rest of
+ * the body (from its first character that isn't whitespace to its last) goes through unchanged.
+ */
+class ViewLength {
+  /** Pieces so far, and whether one was not empty. */
+  private pieces = 0;
+  private seen = false;
+  /** Empty pieces before the first piece that isn't, and after the last. */
+  private lead = 0;
+  private trail = 0;
+  /** The joined length from the first piece that isn't empty to the last. */
+  private inner = 0;
+  /** The pieces up to the first with a character that isn't whitespace, and from the last such piece on. */
+  private start: string[] = [];
+  private end: string[] = [];
+  private printed = false;
+  /** A piece holds a line break, which this does not count: the caller builds the text instead. */
+  private broken = false;
+
+  add(text: string, kind: number): void {
+    this.pieces++;
+    if (kind & BREAK) this.broken = true;
+    if (!(kind & NOT_EMPTY)) {
+      if (this.seen) this.trail++; else this.lead++;
+    } else {
+      this.inner += this.seen ? Math.min(this.trail + 1, 2) + text.length : text.length;
+      this.seen = true;
+      this.trail = 0;
+    }
+    if (!this.printed) this.start.push(text);
+    if (kind & PRINTED) {
+      this.printed = true;
+      this.end = [text];
+    } else if (this.printed) {
+      this.end.push(text);
+    }
+  }
+
+  /** The assembled view's length, or undefined when the body has a line break in a piece or nothing but whitespace. */
+  of(head: ViewHead): number | undefined {
+    if (this.broken || !this.printed) return undefined;
+    const body = Math.min(this.lead, 2) + this.inner + Math.min(this.trail, 2);
+    const before = /^\s*/.exec(joinLines(this.start))![0];
+    const after = /\s*$/.exec(joinLines(this.end))![0];
+    // A one-character stand-in for the middle of the body, which assemble leaves as it is.
+    return assemble(head, `${before}x${after}`).length - 1 + (body - before.length - after.length);
+  }
 }
 
 function budgetedView(text: string, scope: ViewScope, options: AgentViewOptions): AgentViewResult {
   const maxTokens = options.maxTokens ?? Infinity;
   let draft = draftOf(scope, options);
-  const condensed = !options.brief && draft.count(draftText(draft, [])) > maxTokens;
+  const condensed = !options.brief && draftCount(draft, []) > maxTokens;
   if (condensed) draft = draftOf(scope, { ...options, brief: true });
   const omitted = omitToFit(draft, scope, maxTokens);
   const out = draftText(draft, omitted);
   const tokens = draft.count(out);
   const omittedSections = omitted.map((s) => ({
-    heading: s.heading.text, level: s.heading.level, line: s.start, endLine: s.end, tokens: draft.count(draftSection(draft, s)),
+    heading: s.heading.text, level: s.heading.level, line: s.start, endLine: s.end, tokens: sectionTokens(draft, s),
   }));
   return viewResult(text, scope, out, options, { maxTokens, tokens, fits: tokens <= maxTokens, condensed, omitted: omittedSections }, draft.head.constraintView);
 }
 
 /** Omit sections, least important first, until the view fits or nothing more may be omitted. */
 function omitToFit(draft: Draft, scope: ViewScope, maxTokens: number): BudgetSection[] {
-  const cost = (s: BudgetSection) => draft.count(draftSection(draft, s));
+  const cost = (s: BudgetSection) => sectionTokens(draft, s);
   // Omitting a section only helps when its content costs more than its pointer.
   const candidates = omittableSections(scope.sections, scope.lines, scope.selected)
-    .filter((s) => cost(s) > draft.count(pointerOf(draft, s)));
+    .filter((s) => cost(s) > draft.count(pointerOf(draft, s).text));
   let omitted: BudgetSection[] = [];
   for (const s of omissionOrder(candidates, scope.lines, cost)) {
-    if (draft.count(draftText(draft, omitted)) <= maxTokens) break;
+    if (draftCount(draft, omitted) <= maxTokens) break;
     omitted = withOmitted(omitted, s);
   }
   return omitted;
@@ -1084,7 +1235,11 @@ export interface SectionCost {
 }
 
 /** Every section of a document with its agent-view token cost, as `outline` lists them. */
-export function sectionCosts(text: string, options: AgentViewOptions = {}): SectionCost[] {
+export function sectionCosts(text: string, viewOptions: AgentViewOptions = {}): SectionCost[] {
+  return oneView(viewOptions, (options) => sectionCostsOf(text, options));
+}
+
+function sectionCostsOf(text: string, options: AgentViewOptions): SectionCost[] {
   const fm = parseFrontMatter(text);
   const lines = text.split(/\r?\n/);
   const sectionView = sectionViews(lines, fm.bodyStartLine, { ...options, lineRefs: false });
@@ -1124,7 +1279,11 @@ function sectionMarks(text: string, lines: string[]): (mark: SectionMark, start:
   return (mark, start, end) => lines.slice(start, end + 1).some((l, k) => mark.line.test(l) && counts(mark, start + k));
 }
 
-export function outline(text: string, options: AgentViewOptions = {}): string {
+export function outline(text: string, viewOptions: AgentViewOptions = {}): string {
+  return oneView(viewOptions, (options) => outlineOf(text, options));
+}
+
+function outlineOf(text: string, options: AgentViewOptions): string {
   const fm = parseFrontMatter(text);
   const lines = text.split(/\r?\n/);
   const headings = parseSmd(text).headings;

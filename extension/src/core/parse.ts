@@ -245,6 +245,24 @@ function inPlaceFootnotes(instance: MarkdownIt): MarkdownIt {
 /** Recent documents: the final results by text, and the block states edits start from. */
 const results: Array<{ text: string; result: ParseResult }> = [];
 const states: State[] = [];
+/** Inside withParses: every text parsed since it began. */
+let kept: Map<string, ParseResult> | undefined;
+
+/**
+ * Run `make` with every text it parses kept until it returns, so none is parsed twice in it. One agent view parses an
+ * included file, its included lines and texts made from them more than once, more texts than the three recent ones
+ * kept above. Nothing is kept after `make` returns. Inside another withParses, it shares that one.
+ */
+export function withParses<T>(make: () => T): T {
+  if (kept) return make();
+  kept = new Map();
+  try {
+    return make();
+  } finally {
+    kept = undefined;
+  }
+}
+
 /** The opening lines of the fenced code blocks of each result (see fenceLines): zero-based, in the whole document. */
 const fenceStarts = new WeakMap<ParseResult, number[]>();
 /** The GitHub alerts of each result (see alertLines), in the whole document. */
@@ -317,6 +335,7 @@ function cutLines(text: string, count: number): string[] {
 export function resetParseCache(): void {
   results.length = 0;
   states.length = 0;
+  kept?.clear();
 }
 
 /**
@@ -328,10 +347,11 @@ export const parseCounts = { calls: 0, cached: 0, full: 0, incremental: 0, range
 
 export function parseSmd(text: string): ParseResult {
   parseCounts.calls++;
-  const hit = results.find((r) => r.text === text);
+  const hit = kept?.get(text) ?? results.find((r) => r.text === text)?.result;
   if (hit) {
     parseCounts.cached++;
-    return hit.result;
+    kept?.set(text, hit);
+    return hit;
   }
 
   const fm = parseFrontMatter(text);
@@ -380,6 +400,7 @@ export function parseSmd(text: string): ParseResult {
   itemsOf.set(result, state.blocks.flatMap((b) => b.items).map((item) => shiftItem(item, fm.bodyStartLine)));
   results.unshift({ text, result });
   results.length = Math.min(results.length, 3);
+  kept?.set(text, result);
   return result;
 }
 

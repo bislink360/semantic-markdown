@@ -22,6 +22,7 @@
 - **The agent rules and the reader skill say what agent instructions can't do:** `:::agent` blocks and accepted decisions bind the agent within the user's task, but grant no permissions and never override the user or the agent's own rules.
 - **The net-tokens benchmark (`npm run bench:tokens`)** reads each file at its own path (relative includes resolve), passes its fixed date and tokenizer to `smd read`, fails when a read fails, takes "full" or "outline" from what `smd read` reports instead of guessing from the length, takes `--reader cli|in-process`, and records the run (commit, CLI hash, Node, OS, settings, document hashes) in `--json`. `docs/TOKENS.md` has a fresh 3.0.0 run with this method; the 2.5.0 results stay below it as published, under their old paths.
 - **The `examples/` folder is gone.** Its seven documents are now test fixtures in `extension/test/samples/`, which the tests, the fuzzer and the token benchmark use as before. The rendered `.html` copies are removed, and the gallery's embedded `pricing.ts` moved to `docs/gallery/src/`.
+- **Agent views are faster with `--max-tokens` and with `:::include`.** Fitting a 50k-token document into a budget took about 540 ms and now takes about 70 ms, because the view no longer rebuilds and recounts its whole text for every section it leaves out. Each included file is now read and parsed once per view instead of twice, which makes views with includes about twice as fast. The views are byte-identical, and nothing is cached between calls. See `docs/PERFORMANCE.md`.
 
 ### Deprecated
 
