@@ -34,16 +34,23 @@ test('profileDocument measures every call with counts, latency and memory', () =
   }
 });
 
-test('profileDocument counts include reads and distinct paths', () => {
+test('C11: profileDocument counts include reads, and each included file is read once per view', () => {
   const dir = mkdtempSync(join(tmpdir(), 'smd-profile-test-'));
   try {
     writeFileSync(join(dir, 'b.smd'), '## B\n\nInner text.\n');
     writeFileSync(join(dir, 'a.smd'), '## A\n\nText.\n\n:::include{file="b.smd"}\n:::\n');
     const text = '# Root\n\n## Intro\n\nHello.\n\n:::include{file="a.smd"}\n:::\n';
-    const profile = profileDocument({ name: 'includes', text, dir }, settings, ['agentView']);
-    const [view] = profile.calls;
-    assert.equal(view.cold.distinctReads, 2);
-    assert.ok(view.cold.reads >= 2);
+    const profile = profileDocument({ name: 'includes', text, dir }, settings);
+    // Calls that make two views: the outline also sizes the agent view, and the status bar makes a full and a brief view.
+    const twoViews = new Set(['readDocument outline', 'editor status', 'editor status after edit']);
+    assert.ok(profile.calls.length >= 9);
+    for (const call of profile.calls) {
+      const views = twoViews.has(call.name) ? 2 : 1;
+      for (const counts of [call.cold, call.warm]) {
+        assert.equal(counts.distinctReads, 2, call.name);
+        assert.equal(counts.reads, 2 * views, `${call.name}: a.smd and b.smd once per view (${views})`);
+      }
+    }
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
