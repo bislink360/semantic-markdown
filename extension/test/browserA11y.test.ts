@@ -7,7 +7,7 @@ import {
   BLOCK_EDITOR_SCRIPTS, BLOCK_EDITOR_STYLES, KNOWN_FAILURES, PREVIEW_SCRIPTS, PREVIEW_STYLES, VSCODE_STUB,
   analyseTabWalk, applyKnown, blockEditorPage, claimsReducedMotion, formatTable, hasFocusIndicator, idRefProblems, landmarks, longestMotion,
   missingRoles, pageCss, parseArgs, previewPage, remoteUrls, seconds, siteFiles, standalonePage, stepKey, tabsProblems, themePref,
-  unnamedControls, unnamedFocusables, unnamedImages,
+  diagramProblems, unnamedControls, unnamedFocusables, unnamedImages,
   type AXNode, type CheckResult, type PageUrls, type TabStep,
 } from './browser/a11y';
 
@@ -263,11 +263,18 @@ test('applyKnown: known failures are listed, not failed; new ones still fail; on
   assert.deepEqual(unseen.map((k) => k.note), ['gone']);
 });
 
-test('known failures say where, what and which WCAG criterion', () => {
+test('known failures say where, what and which WCAG criterion; diagrams are not one of them', () => {
   for (const k of KNOWN_FAILURES) assert.match(k.note, /WCAG \d\.\d\.\d+/, k.note);
-  const mermaid = KNOWN_FAILURES.find((k) => k.check === 'image text')!;
-  assert.match('graphics-document: <svg id="smd-mermaid-3" width="100%"', mermaid.item);
-  assert.doesNotMatch('image: <img src="logo.png">', mermaid.item);
+  const diagram = 'graphics-document: <svg id="smd-mermaid-3" width="100%"';
+  assert.ok(!KNOWN_FAILURES.some((k) => k.check === 'image text' && k.item.test(diagram)), 'a diagram with no name fails the run');
+});
+
+test('diagramProblems: every diagram needs a picture role, a name and a description', () => {
+  assert.deepEqual(diagramProblems([
+    { id: 'smd-mermaid-1', role: 'graphics-document', name: 'Figure 1: Flow', description: 'Diagram source: flowchart LR' },
+    { id: 'smd-mermaid-2', role: 'img', name: '', description: 'Diagram source: pie' },
+    { id: 'smd-mermaid-3', role: 'generic', name: 'Diagram', description: '' },
+  ]), ['smd-mermaid-2: no name', 'smd-mermaid-3: role "generic" is not a picture role', 'smd-mermaid-3: no description']);
 });
 
 test('formatTable: one row per check, problems listed under failures and warnings only', () => {

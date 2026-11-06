@@ -198,6 +198,7 @@ export interface AXNode {
   ignored: boolean;
   role?: AXValue;
   name?: AXValue;
+  description?: AXValue;
   properties?: AXProperty[];
   backendDOMNodeId?: number;
   childIds?: string[];
@@ -215,6 +216,22 @@ export const LANDMARK_ROLES: ReadonlySet<string> = new Set(['banner', 'complemen
 
 export const roleOf = (n: AXNode) => String(n.role?.value ?? '');
 export const nameOf = (n: AXNode) => String(n.name?.value ?? '').trim();
+export const descriptionOf = (n: AXNode) => String(n.description?.value ?? '').trim();
+
+/** A rendered diagram as the accessibility tree has it. */
+export interface DiagramText { id: string; role: string; name: string; description: string }
+
+/**
+ * Diagrams missing part of their text alternative (WCAG 1.1.1): a name (from accTitle, the figure caption, the
+ * diagram's title, or "Diagram") and a description (from accDescr, else the diagram's source).
+ */
+export function diagramProblems(diagrams: readonly DiagramText[]): string[] {
+  return diagrams.flatMap((d) => [
+    ...(IMAGE_ROLES.has(d.role) ? [] : [`${d.id}: role "${d.role}" is not a picture role`]),
+    ...(d.name ? [] : [`${d.id}: no name`]),
+    ...(d.description ? [] : [`${d.id}: no description`]),
+  ]);
+}
 export function property(n: AXNode, name: string): unknown {
   return n.properties?.find((p) => p.name === name)?.value.value;
 }
@@ -477,17 +494,7 @@ export interface KnownFailure {
   note: string;
 }
 
-export const KNOWN_FAILURES: readonly KnownFailure[] = [
-  {
-    page: /./,
-    check: 'image text',
-    item: /^graphics-document: <svg id="smd-mermaid-\d+"/,
-    note: 'Mermaid diagrams (every page): a diagram without accTitle/accDescr becomes an <svg role="graphics-document"> with no '
-      + 'accessible name or description, and media/runtime.js replaces the diagram source, its only text version, with the SVG '
-      + '(WCAG 1.1.1 Non-text Content). Mermaid names the SVG when the source has accTitle:/accDescr: lines; nothing warns '
-      + 'when they are missing, and the figure caption or the source is not used instead.',
-  },
-];
+export const KNOWN_FAILURES: readonly KnownFailure[] = [];
 
 /** Failures matched by known failures become `known` when every item is known; the rest stay `fail`. */
 export function applyKnown(results: readonly CheckResult[], known: readonly KnownFailure[]): { results: CheckResult[]; unseen: KnownFailure[] } {
@@ -981,6 +988,22 @@ async function checkTree(page: Page, spec: PageSpec): Promise<CheckResult[]> {
   ];
 }
 
+/** Every rendered diagram has a name and a description in the accessibility tree. */
+async function checkDiagrams(page: Page, spec: PageSpec): Promise<CheckResult> {
+  const count = await page.evaluate<number>('document.querySelectorAll(".smd-diagram > svg").length');
+  if (!count) return { page: spec.name, check: 'diagram text', status: 'skip', detail: 'no diagram on the page' };
+  const diagrams: DiagramText[] = [];
+  for (let i = 0; i < count; i++) {
+    const el = `document.querySelectorAll(".smd-diagram > svg")[${i}]`;
+    const ax = await page.axOf(el);
+    const id = await page.evaluate<string>(`${el}.id || "diagram ${i + 1}"`);
+    diagrams.push({ id, role: ax ? roleOf(ax) : '', name: ax ? nameOf(ax) : '', description: ax ? descriptionOf(ax) : '' });
+  }
+  const names = diagrams.map((d) => `"${d.name.length > 40 ? `${d.name.slice(0, 40)}…` : d.name}"`).join(', ');
+  const problems = diagramProblems(diagrams);
+  return result(spec.name, 'diagram text', problems, `${count} diagram(s), each named and described: ${names}`, `${problems.length} problem(s) (WCAG 1.1.1)`);
+}
+
 async function checkTabOrder(page: Page, spec: PageSpec): Promise<CheckResult[]> {
   const expected = await page.evaluate<string[]>('window.__a11y.tabbableNow()');
   await page.evaluate('window.__a11y.resetFocus()');
@@ -1208,6 +1231,7 @@ async function checkPage(b: Launched, spec: PageSpec): Promise<CheckResult[]> {
     const results: CheckResult[] = [loads];
     results.push(...await checkTabOrder(page, spec));
     results.push(...await checkTree(page, spec));
+    results.push(await checkDiagrams(page, spec));
     results.push(await checkTabs(page, spec));
     results.push(await checkDisclosures(page, spec));
     const sent = () => page.evaluate<unknown[]>('window.__smdSent || []');

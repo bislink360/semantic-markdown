@@ -93,6 +93,13 @@ test('mermaid, math and highlight', () => {
   assert.match(html, /katex-display/);
   assert.match(html, /hljs-keyword/);
   assert.ok(codes('```mermaid\nflowchat LR\n```').includes('mermaid/type'));
+  // A diagram the page could only call "Diagram" gets a hint; accTitle, a figure or its own title name it.
+  const unnamed = (src: string) => validateSmd(src).filter((d) => d.code === 'mermaid/acc-title').map((d) => `${d.line}:${d.severity}`);
+  assert.deepEqual(unnamed('# T\n\n```mermaid\nflowchart LR\n  A-->B\n```\n'), ['2:hint']);
+  assert.deepEqual(unnamed('# T\n\n```mermaid\nflowchart LR\n  accTitle: Steps\n  A-->B\n```\n'), []);
+  assert.deepEqual(unnamed('# T\n\n:::figure Steps\n```mermaid\nflowchart LR\n  A-->B\n```\n:::\n'), []);
+  assert.deepEqual(unnamed('# T\n\n```mermaid\npie title Share\n  "A" : 1\n```\n'), []);
+  assert.deepEqual(unnamed('# T\n\n```mermaid\nflowchat LR\n```\n'), [], 'an unknown type is reported as mermaid/type only');
   assert.ok(codes('$$\n\\frac{1}{\n$$').includes('math/syntax'));
 });
 

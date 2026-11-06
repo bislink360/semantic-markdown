@@ -78,6 +78,8 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
+    accTitle: How a spec reaches an agent
+    accDescr: Product hands a spec to a developer, who asks the agent for its outline, open tasks and agent notes.
     participant PM as Product
     participant Dev as Developer
     participant Bot as Agent

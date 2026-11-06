@@ -40,6 +40,7 @@ The agent-view inspector is not checked in the browser. It is a read-only text d
 | focus visible | Each stop has an outline or box shadow, is on screen and is not transparent once focused | 2.4.7 |
 | names | Every control in the accessibility tree has a name | 4.1.2 |
 | image text | Every image and SVG document has a name | 1.1.1 |
+| diagram text | Every rendered Mermaid diagram is a picture with a name and a description in the tree | 1.1.1 |
 | focusable names | Other focusable elements that would be announced with no name. A warning only | |
 | id references | `aria-labelledby`, `aria-controls`, `for` and the like point at exactly one element in their own tree scope | 4.1.2 |
 | landmarks | `lang` is set, one `main`, and the roles each page should have. Site pages need a banner, search and named navigation. The Block Editor needs its named toolbar | 1.3.1, 3.1.1 |
@@ -69,12 +70,24 @@ It exits 1 when a check fails. Known failures are listed in `KNOWN_FAILURES` in 
 
 Run on 2026-11-06 with Google Chrome 156.0.8078.80, headless, on Windows 11. Microsoft Edge is installed too but won't start headless here.
 
-64 checks passed, none failed, 6 were known failures, 2 were warnings and 2 were skipped. The two skips are task boxes on exported pages, where a toggle changes no document.
+76 checks passed, none failed, none were known failures, 2 were warnings and 2 were skipped. The two skips are task boxes on exported pages, where a toggle changes no document.
 
 Everything in the table above passed on all six pages, except the following.
 
-- **Known failure: diagrams have no text alternative (WCAG 1.1.1).** It shows on every page, 3 diagrams in the showcase and 1 in the checkout sample. A Mermaid diagram without `accTitle` or `accDescr` becomes an `<svg role="graphics-document">` with no name or description. `media/runtime.js` replaces the diagram source, which was its only text version, with the SVG. Mermaid does name the SVG when the source has `accTitle:` and `accDescr:` lines. Chrome then reports that name and description. But nothing warns when they are missing, and neither the figure caption nor the source is used instead. Possible fixes are a validator hint for diagrams without `accTitle`, or keeping the source as the SVG's description.
 - **Warning: unnamed child blocks in the Block Editor.** Blocks inside a container (paragraphs, lists, tables, columns) take focus with the arrow keys but have no name. 22 in the showcase and 15 in the checkout sample. Top-level blocks are named groups such as "Paragraph, lines 3–5". The page announces a child's kind and lines through a live region when it gets focus, and its content is read. Whether that is enough needs a screen-reader check.
+
+### Diagrams
+
+The first run found that diagrams had no text alternative (WCAG 1.1.1). A Mermaid diagram without `accTitle` became an `<svg role="graphics-document">` with no name, and `media/runtime.js` had replaced the diagram source, its only text version, with the SVG. This is fixed in the preview, the Block Editor, exported HTML and site pages, which all draw diagrams with the same runtime.
+
+Each diagram's SVG now gets a name from the first of these that it has.
+
+1. An `accTitle:` line, which Mermaid turns into the SVG's title.
+2. The caption of the `:::figure` around it, such as "Figure 1: Writing, checking and exporting a document".
+3. The diagram's own title, from `title:` in its front matter, `pie title …` or a `title …` line.
+4. Otherwise just "Diagram", in the document's language.
+
+Its description is the `accDescr:` text when there is one. Otherwise it is the diagram's source, so a screen reader can still read what the picture shows. The validator gives the hint `mermaid/acc-title` for a diagram that would only be called "Diagram". The "diagram text" check asks Chrome for each diagram's name and description, and the samples cover all four kinds of name.
 
 ## What still needs people
 

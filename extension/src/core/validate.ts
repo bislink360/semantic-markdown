@@ -19,6 +19,7 @@ import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } 
 import { codeLines, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
 import { checkTablePipes } from './tableCheck';
+import { hasAccTitle, mermaidTitle } from './mermaid';
 import { headingAttrList, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
 import { outsideCode } from './include';
 import { findVariables, lookupVariable, substituteLine, variableNames, type Variables, type VariableUse } from './variables';
@@ -119,7 +120,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
     if (fence) {
       const close = new RegExp(`^\\s{0,3}${fence.char === '`' ? '`' : '~'}{${fence.len},}\\s*$`);
       if (close.test(raw)) {
-        checkFence(fence.lang, fence.content, fence.line, push, wholeLine);
+        checkFence(fence.lang, fence.content, fence.line, push, wholeLine, stack.some((c) => c.name === 'figure'));
         checkEmbed(fence.info, fence.content, fence.line, lines[fence.line], push, options);
         fence = null;
       } else {
@@ -1086,7 +1087,7 @@ function checkQuote(quote: QuoteBlock, raw: string, push: Push): void {
   }
 }
 
-function checkFence(lang: string, content: string[], line: number, push: Push, wholeLine: WholeLine): void {
+function checkFence(lang: string, content: string[], line: number, push: Push, wholeLine: WholeLine, inFigure = false): void {
   if (lang === 'mermaid') {
     let inConfig = false;
     for (const [offset, l] of content.entries()) {
@@ -1100,6 +1101,10 @@ function checkFence(lang: string, content: string[], line: number, push: Push, w
         const col = l.indexOf(kind);
         push(at, col, col + kind.length, 'error', 'mermaid/type', `Unknown Mermaid diagram type "${kind}"${hint ? ` — did you mean "${hint}"?` : '.'}`,
           hint ? { line: at, column: col, endColumn: col + kind.length, replacement: hint, title: `Change to "${hint}"` } : undefined);
+      } else if (!inFigure && !hasAccTitle(content) && !mermaidTitle(content)) {
+        // The page names a diagram from accTitle, the figure caption or its own title; with none it is just "Diagram".
+        wholeLine(line, 'hint', 'mermaid/acc-title',
+          'Screen readers can only call this diagram "Diagram". Add an accTitle: line that says what it shows (and accDescr: for a summary), or put it in a :::figure with a caption.');
       }
       return;
     }

@@ -460,12 +460,12 @@ test('Mermaid syntax errors are published when parsing finishes, unless the docu
   const c = ready(undefined, { mermaid });
   const uri = uriOf(join(root, 'docs', 'diagram.smd'));
   const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
-  c.open(uri, '# D\n\n```mermaid\nflowchart TD\n  bad\n```\n');
+  c.open(uri, '# D\n\n```mermaid\nflowchart TD\n  accTitle: Steps\n  bad\n```\n');
   assert.deepEqual(c.published(uri), []);
   await settle();
   assert.deepEqual(c.published(uri)!.map((d) => d.code), ['mermaid/syntax']);
 
-  c.change(uri, '# D\n\n```mermaid\nflowchart TD\n  bad\n```\n', 2);
+  c.change(uri, '# D\n\n```mermaid\nflowchart TD\n  accTitle: Steps\n  bad\n```\n', 2);
   c.change(uri, '# D\n', 3);
   await settle();
   assert.deepEqual(c.published(uri), [], 'the result for version 2 is dropped');

@@ -121,6 +121,8 @@ export const EN = {
   'runtime.codeCopied': 'Code copied',
   'runtime.mermaidMissing': 'Mermaid is not loaded — showing diagram source.',
   'runtime.diagramError': 'Diagram error',
+  'runtime.diagram': 'Diagram',
+  'runtime.diagramSource': 'Diagram source',
 
   // Static site (smd build)
   'site.documentation': 'Documentation',

@@ -573,6 +573,7 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `directive/unknown` | warning | A name outside the vocabulary. Spec v2: every `:name[…]` or `:name{…}` that renders as a directive with its content in a plain span (§4.2), with a fix when a known name is close. Spec v1: only a `:name[…]` close to a known directive (fix: closest name), which is text |
 | `directive/content` | error | Directive needs `[content]` |
 | `mermaid/type` · `mermaid/empty` | error / warning | Unknown diagram type (fix: closest type) / empty diagram |
+| `mermaid/acc-title` | hint | A diagram with no `accTitle:` line, not inside a `:::figure` and with no title of its own. The page can only name it "Diagram" for screen readers (and gives its source as the description); there is no fix |
 | `mermaid/syntax` | error | The diagram does not parse (checked with Mermaid's own parser where the tool ships it). A warning from 1.2 to 1.10, an error in every document since 2.0; there is no fix |
 | `math/syntax` · `math/unclosed` | error | KaTeX parse error / unclosed `$$` |
 | `fence/unclosed` | error | Unclosed code fence (fix: add it at the end of the document, for an unindented fence) |

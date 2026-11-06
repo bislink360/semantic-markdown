@@ -49,6 +49,7 @@ Why this matters now: customer evidence, history, previous attempts. People read
 
 ```mermaid
 flowchart LR
+    accTitle: What the diagram shows, in a few words
     U[User] --> A[Feature] --> S[(Storage)]
 ```
 

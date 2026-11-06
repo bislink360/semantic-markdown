@@ -500,6 +500,16 @@
           ],
           "description": "Empty Mermaid diagram"
         },
+        "mermaid/acc-title": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Mermaid diagram that screen readers can only call \"Diagram\": no `accTitle:`, no `:::figure` caption, no title of its own"
+        },
         "mermaid/syntax": {
           "enum": [
             "off",
