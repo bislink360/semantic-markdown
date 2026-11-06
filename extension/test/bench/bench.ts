@@ -7,7 +7,7 @@ import { resetParseCache } from '../../src/core/parse';
 import { largeDocument } from '../fuzz/generate';
 
 /**
- * Times the core on large synthetic documents made from the examples.
+ * Times the core on large synthetic documents made from the test samples.
  *
  *   npm run bench                     print the table
  *   npm run bench -- --check          also fail when a median exceeds its limit (CI does this)

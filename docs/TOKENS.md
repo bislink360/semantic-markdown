@@ -2,11 +2,11 @@
 
 Semantic Markdown's agent tools save tokens by reading less of a document. They also cost tokens: the skill descriptions, the reader skill, the agent rules and the MCP tool definitions all sit in the agent's context. This page measures both, so you can see the **net** effect and the document size from which the tools pay off.
 
-Short answer, measured in 2.5.0:
+Short answer, measured in 3.0.0 (the [2.5.0 results](#earlier-results-250-as-styled-markdown) are kept below):
 
 - On one read of a short document (under ≈1,500 tokens, ≈6 KB), the tools don't pay for their own instructions. The reader skill therefore tells agents to read such files directly.
-- Answering a question about one section pays off from ≈1,500 tokens with the reader skill, ≈1,000 with agent rules, ≈700 with no fixed cost. On 6k–8k-token documents a section read costs 80% less than the raw file.
-- Reading a whole document through the agent view saves 5–37% on the examples (`--brief` 14–43%), so it needs larger documents or several reads per session before it beats the fixed cost.
+- Answering a question about one section pays off from ≈1,600 tokens with the reader skill, ≈1,000 with agent rules, ≈700 with no fixed cost. On 6k–8k-token documents a section read costs about 80% less than the raw file.
+- Reading a whole document through the agent view saves 5–37% on the sample documents in `extension/test/samples/` (`--brief` 14–43%), so it needs larger documents or several reads per session before it beats the fixed cost.
 
 ## Method
 
@@ -31,7 +31,7 @@ Other assumptions:
 - **Tokens** are characters / 4, the same estimate `smd outline` prints. `--tokenizer o200k_base` gives exact counts for that OpenAI encoding if `js-tiktoken` is installed. There is no public tokenizer for current Claude models.
 - **Each tool call** adds 20 tokens for the call and the result's framing, for raw reads too. Claude Code's Read tool also adds a line number to every line of a raw file. The benchmark doesn't count that, so it favors raw reading slightly.
 - **Output tokens** cost about 5× input tokens. The tasks here are reads, so they are input tokens; the writer skill's guidance (write meaning, not styling) is about output.
-- **Larger documents** are built from the examples, one after another, with one `:::agent` block and unique headings (`composite ≈8k` and so on).
+- **Larger documents** are built from the samples, one after another, with one `:::agent` block and unique headings (`composite ≈8k` and so on).
 
 ### Accuracy: a coverage proxy, not an LLM
 
@@ -41,23 +41,96 @@ Read the coverage column as "did the agent at least see the right text". It does
 
 ## Results
 
-Measured on 2026-10-30 with the 2.5.0 skills, from `npm run bench:tokens -- --docs`. Numbers are ≈ tokens, including 20 per tool call.
+Measured on 2026-11-06 with `npm run bench:tokens -- --docs --reader cli`, after the 3.0 rename to Semantic Markdown. The tools were 3.0.0 plus the unreleased changes on the branch that fixed the benchmark (commit 750ef2e with local changes; the `--json` record holds the CLI's hash, Node v24.13.0 and Windows 11). Numbers are ≈ tokens, including 20 per tool call. A run for a paper should use a released executable and keep its `--json` record.
 
-### Fixed costs, before and after 2.5.0
+This run uses the corrected method. The benchmark reads each file at its own path, so relative includes resolve. It passes its fixed date (`--today 2026-10-28`) to `smd read`, stops when a read fails, and takes "full" or "outline" from what `smd read` reports instead of guessing from the length. The 2.5.0 results further down used the earlier method and are kept as published.
 
-| Overhead | When it is paid | 2.4.0 | 2.5.0 |
-|---|---|---:|---:|
-| Skill descriptions (reader + writer) | every Claude Code session | 321 | 256 |
-| Reader `SKILL.md` | when the reader skill triggers | 2,310 | 482 |
-| `agent-rules.md` (as installed) | every session (`AGENTS.md`) or when a `.smd` file is in context (Cursor, Copilot) | 819 | 279 |
-| MCP `tools/list` + instructions | every session with the server | 1,351 | 497 |
-| Writer `SKILL.md` | when the writer skill triggers | 2,091 | 1,647 |
-| Writer syntax reference | when the writer needs syntax | 4,545 (one file) | 367 index + one topic (198–944, median 645) |
-| Writer style guide | when the writer reads it | 1,146 | 1,146 |
+### Fixed costs
 
-The MCP list is smaller because one `read` tool replaced `outline`, `section` and `agent` in it, and the descriptions are shorter. The old tools still answer when called (`smd mcp --legacy-tools` lists them).
+| Overhead | When it is paid | 2.4.0 | 2.5.0 | 3.0.0 |
+|---|---|---:|---:|---:|
+| Skill descriptions (reader + writer) | every Claude Code session | 321 | 256 | 259 |
+| Reader `SKILL.md` | when the reader skill triggers | 2,310 | 482 | 508 |
+| `agent-rules.md` (as installed) | every session (`AGENTS.md`) or when a `.smd` file is in context (Cursor, Copilot) | 819 | 279 | 292 |
+| MCP `tools/list` + instructions | every session with the server | 1,351 | 497 | 496 |
+| Writer `SKILL.md` | when the writer skill triggers | 2,091 | 1,647 | 1,670 |
+| Writer syntax reference | when the writer needs syntax | 4,545 (one file) | 367 index + one topic (median 645) | 368 index + one topic (median 645) |
+| Writer style guide | when the writer reads it | 1,146 | 1,146 | 1,146 |
+
+The MCP list became smaller in 2.5.0 because one `read` tool replaced `outline`, `section` and `agent` in it, and the descriptions are shorter. The old tools still answer when called (`smd mcp --legacy-tools` lists them). In 3.0.0 the reader skill and the agent rules grew by a sentence each: agent instructions bind only within the user's task and grant no permissions.
 
 ### (a) Answer a question about one section
+
+Median over each document's sections. Coverage: share of the section's key lines present in what was read (a proxy for accuracy).
+
+| Document | raw | sections | Read raw | outline + section | `smd read` (+ section) | saving | + skill fixed | coverage raw / outline+section / read |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| samples/adr-0007-event-bus.smd | 756 | 3 | 776 | 482 | 619 | 20% | -79% | 100% / 100% / 100% |
+| samples/api-orders.smd | 748 | 5 | 768 | 374 | 582 | 24% | -76% | 100% / 100% / 100% |
+| samples/checkout-redesign.smd | 2,471 | 9 | 2,491 | 710 | 1,560 | 37% | 7% | 89% / 100% / 100% |
+| samples/feature-spec.smd | 747 | 5 | 767 | 451 | 638 | 17% | -83% | 97% / 97% / 97% |
+| samples/runbook-payments-latency.smd | 660 | 4 | 680 | 443 | 572 | 16% | -97% | 92% / 100% / 100% |
+| samples/showcase.smd | 1,550 | 10 | 1,570 | 554 | 1,303 | 17% | -32% | 98% / 99% / 99% |
+| samples/status-report-2026-09.smd | 370 | 5 | 390 | 329 | 371 | 5% | -192% | 100% / 100% / 100% |
+| docs/COLLABORATION-RFC.smd | 8,313 | 15 | 8,333 | 1,483 | 1,514 | 82% | 73% | 100% / 99% / 99% |
+| docs/SPEC-V2-PROPOSALS.smd | 5,976 | 20 | 5,996 | 1,226 | 1,257 | 79% | 66% | 100% / 100% / 100% |
+
+### (b) Understand the whole document
+
+| Document | Read raw | agent view | `--brief` | `smd read` | agent view saving | `--brief` saving | coverage raw / agent / brief / read |
+|---|---:|---:|---:|---:|---:|---:|---|
+| samples/adr-0007-event-bus.smd | 776 | 619 | 592 | 619 | 20% | 24% | 100% / 100% / 100% / 100% |
+| samples/api-orders.smd | 768 | 582 | 551 | 582 | 24% | 28% | 100% / 100% / 91% / 100% |
+| samples/checkout-redesign.smd | 2,491 | 1,560 | 1,426 | 1,560 | 37% | 43% | 98% / 100% / 85% / 100% |
+| samples/feature-spec.smd | 767 | 638 | 537 | 638 | 17% | 30% | 96% / 96% / 75% / 96% |
+| samples/runbook-payments-latency.smd | 680 | 572 | 572 | 572 | 16% | 16% | 96% / 100% / 100% / 100% |
+| samples/showcase.smd | 1,570 | 1,303 | 1,160 | 1,303 | 17% | 26% | 97% / 98% / 78% / 98% |
+| samples/status-report-2026-09.smd | 390 | 371 | 335 | 371 | 5% | 14% | 100% / 100% / 77% / 100% |
+| docs/COLLABORATION-RFC.smd | 8,333 | 6,376 | 6,276 | 697 | 23% | 25% | 99% / 99% / 95% / 10% |
+| docs/SPEC-V2-PROPOSALS.smd | 5,996 | 5,487 | 5,487 | 708 | 8% | 8% | 100% / 100% / 100% / 19% |
+
+### By document size
+
+Examples and documents built from them. Net = raw read minus (tools + fixed cost), for one read in a session; positive means the tools save.
+
+| Document | raw | (a) `smd read` + section | (a) net, no fixed | (a) net, skill | (b) `--brief` | (b) net, no fixed | (b) net, skill |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| samples/status-report-2026-09.smd | 370 | 371 | 19 | -748 | 335 | 55 | -712 |
+| samples/runbook-payments-latency.smd | 660 | 572 | 108 | -659 | 572 | 108 | -659 |
+| samples/feature-spec.smd | 747 | 638 | 129 | -638 | 537 | 230 | -537 |
+| samples/api-orders.smd | 748 | 582 | 186 | -581 | 551 | 217 | -550 |
+| samples/adr-0007-event-bus.smd | 756 | 619 | 157 | -610 | 592 | 184 | -583 |
+| samples/showcase.smd | 1,550 | 1,303 | 267 | -500 | 1,160 | 410 | -357 |
+| samples/checkout-redesign.smd | 2,471 | 1,560 | 931 | 164 | 1,426 | 1,065 | 298 |
+| composite ≈4k | 4,108 | 732 | 3,396 | 2,629 | 2,429 | 1,699 | 932 |
+| docs/SPEC-V2-PROPOSALS.smd | 5,976 | 1,257 | 4,739 | 3,972 | 5,487 | 509 | -258 |
+| docs/COLLABORATION-RFC.smd | 8,313 | 1,514 | 6,819 | 6,052 | 6,276 | 2,057 | 1,290 |
+| composite ≈8k | 9,760 | 1,583 | 8,197 | 7,430 | 6,038 | 3,742 | 2,975 |
+| composite ≈16k | 16,573 | 2,589 | 14,004 | 13,237 | 10,368 | 6,225 | 5,458 |
+| composite ≈32k | 32,499 | 4,849 | 27,670 | 26,903 | 20,811 | 11,708 | 10,941 |
+
+### Break-even
+
+Raw document size (tokens) above which the tools cost less than reading the file, from a straight-line fit of tool cost against raw size over all documents above. "Skill" is the reader skill (descriptions + SKILL.md); with 5 reads in one session the fixed cost is shared by 5.
+
+| Task and method | no fixed cost | skill, 1 read | skill, 5 reads | agent rules | MCP |
+|---|---:|---:|---:|---:|---:|
+| (a) one section: outline + section | 400 | 1,300 | 600 | 700 | 1,000 |
+| (a) one section: `smd read` (+ section) | 700 | 1,600 | 900 | 1,000 | 1,200 |
+| (b) whole doc: agent view | 500 | 3,100 | 1,000 | 1,500 | 2,200 |
+| (b) whole doc: `--brief` | 600 | 2,700 | 1,000 | 1,400 | 2,000 |
+
+Fit: tool cost ≈ a + b × raw. Raw reads cost raw + 20.
+
+"+ skill fixed" adds the reader skill's fixed cost (descriptions + `SKILL.md`, 767 tokens) to one read. On the small samples `smd read` returns the whole agent view, so outline + section is cheaper for a single question. On the large documents it returns the outline and costs about the same. `--brief` trades coverage for tokens (75–95%), and on the two large documents `smd read` returns the outline (10–19% coverage): a map for choosing sections, not the whole document. With the small-document shortcut, an agent with the reader skill reads the five smallest samples raw, so it pays the raw read plus the skill's fixed cost there.
+
+The token counts of the samples match the 2.5.0 run within a token. `docs/COLLABORATION-RFC.smd` is larger (8,313 raw tokens, was 7,986) because it was edited in the 3.0 rename. The break-even points moved up by about 100 tokens, because the skill and agent rules grew by about 30 tokens.
+
+## Earlier results: 2.5.0, as Styled Markdown
+
+Measured on 2026-10-30 with the Styled Markdown 2.5.0 skills and the benchmark's earlier method, from `npm run bench:tokens -- --docs`. The tables are kept as they were published, with their `examples/` paths (those documents now live in `extension/test/samples/`). They are measurements of 2.5.0, not of Semantic Markdown 3.x.
+
+#### (a) Answer a question about one section
 
 | Document | raw | sections | Read raw | outline + section | `smd read` (+ section) | saving | saving incl. skill | coverage raw / outline+section / read |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
@@ -73,7 +146,7 @@ The MCP list is smaller because one `read` tool replaced `outline`, `section` an
 
 "saving" compares `smd read` (+ section) with the raw read; "incl. skill" adds the reader skill's fixed cost (descriptions + `SKILL.md`, 738 tokens) to one read. On the small examples `smd read` returns the whole agent view, so outline + section is cheaper for a single question; on the large documents `smd read` returns the outline, and costs about the same (its outline adds one line on the budget).
 
-### (b) Understand the whole document
+#### (b) Understand the whole document
 
 | Document | Read raw | agent view | `--brief` | `smd read` | agent view saving | `--brief` saving | coverage raw / agent / brief / read |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -89,7 +162,7 @@ The MCP list is smaller because one `read` tool replaced `outline`, `section` an
 
 `--brief` trades coverage for tokens: it replaces diagrams, long code and done tasks with pointers, which is why its coverage drops to 75–95%. On the two large documents `smd read` returns the outline (10–19% coverage): it is a map for choosing sections, not the whole document.
 
-### By document size
+#### By document size
 
 Net = tokens of the raw read minus tokens of the tools (and the reader skill's fixed cost, where shown), for one read in a session. Positive means the tools save.
 
@@ -111,7 +184,7 @@ Net = tokens of the raw read minus tokens of the tools (and the reader skill's f
 
 With the small-document shortcut, an agent with the reader skill reads the five smallest examples raw, so in practice it pays the raw read plus the skill's fixed cost there, not the "(a) net, skill" figure.
 
-### Break-even
+#### Break-even
 
 The raw size, in tokens, above which the tools cost less than reading the file. It comes from a straight-line fit of the tools' cost against raw size over all the documents above. "Skill" is the reader skill's fixed cost (descriptions + `SKILL.md`); with 5 reads in one session it is shared by 5.
 
@@ -139,11 +212,13 @@ The 1,500-token break-even of a one-section read with the skill is where the rea
 cd extension
 npm ci
 npm run build                                  # the MCP cost is asked from dist/cli.js; without it, tools/list only
-npm run bench:tokens                           # examples/
-npm run bench:tokens -- --docs                 # examples/ and docs/*.smd (the tables above)
+npm run bench:tokens                           # extension/test/samples/
+npm run bench:tokens -- --docs --reader cli    # the samples and docs/*.smd through the built CLI (the 3.0.0 tables)
 npm run bench:tokens -- --tokenizer o200k_base # exact OpenAI counts (needs js-tiktoken)
-npm run bench:tokens -- --json                 # raw numbers
+npm run bench:tokens -- --json                 # raw numbers and a record of the run (commit, CLI hash, Node, OS)
 ```
+
+Keep the `--json` record with any results you publish, so a later run can be compared with it without overwriting it.
 
 The output is Markdown with the same tables as this page. The 2.4.0 rows came from the same script run with the 2.4.0 versions of `skills/agent-rules.md`, `skills/semantic-markdown-reader/SKILL.md`, `skills/semantic-markdown-writer/SKILL.md` and `references/syntax.md` checked out.
 

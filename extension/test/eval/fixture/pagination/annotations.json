@@ -1,0 +1,11 @@
+{
+  "guide": "none: harness fixture written by the tool's developers, not independently annotated",
+  "items": [
+    { "id": "cursor-current", "kind": "decision-status", "md": [7, 9], "smd": [13, 15], "evidence": ["list endpoints return a next_cursor token"], "annotator": "harness-developer" },
+    { "id": "offset-rejected", "kind": "decision-status", "md": [11, 13], "smd": [17, 19], "evidence": ["clients pass offset and limit on every request"], "annotator": "harness-developer" },
+    { "id": "page-size-max", "kind": "limit", "md": [17, 17], "smd": [23, 23], "evidence": ["must not exceed 100 items"], "annotator": "harness-developer" },
+    { "id": "page-size-default", "kind": "fact", "md": [17, 17], "smd": [23, 23], "evidence": ["default page size is 25"], "annotator": "harness-developer" },
+    { "id": "no-cursor-logs", "kind": "negation", "md": [19, 19], "smd": [26, 26], "evidence": ["do not write cursors to logs"], "annotator": "harness-developer" },
+    { "id": "cursor-expiry", "kind": "open-question", "md": [23, 25], "smd": [31, 33], "evidence": ["should cursors expire", "valid for 24 hours"], "annotator": "harness-developer" }
+  ]
+}

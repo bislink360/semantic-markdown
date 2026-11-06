@@ -16,6 +16,7 @@ The design in a few sentences: what changes, where, and why this way. Name the r
 
 ```mermaid
 flowchart LR
+    accTitle: What the diagram shows, in a few words
     U[User] --> A[New component] --> S[(Storage)]
 ```
 

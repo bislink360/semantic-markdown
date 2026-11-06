@@ -26,6 +26,8 @@ How to interpret what you read:
 - `<risk …>` is something to design around. `API POST /v1/x` is an endpoint definition.
 - Tasks: `- [ ]` is open, `[P1]` is priority, `@name` is the owner, `(due …, OVERDUE)`.
 - `[section omitted: …]` is a section left out by `--max-tokens`. Run the command it gives if the question needs that section.
+- With `--constraints` (experimental), a section view adds "Constraints elsewhere in the document": `<danger>` blocks from other sections in full, then pointers to warnings, accepted decisions and open questions there. Read a pointed-to block when it bears on your task. An "included file … not checked" line means the list may be incomplete.
+- `--provenance view.json` writes a JSON manifest of what the view shows and leaves out, with reasons and line numbers. It is for tools and evaluations; you don't need it to read a document.
 - Styling never changes meaning.
 
 ## MCP server

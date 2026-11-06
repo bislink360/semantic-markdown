@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { checkMermaid, mermaidBlocks, type MermaidParse } from '../src/core';
 
 const bundle = path.join(__dirname, '..', 'dist', 'mermaid-parse.js');
-const examplesDir = path.join(__dirname, '..', '..', 'examples');
+const samplesDir = path.join(__dirname, 'samples');
 
 test('mermaidBlocks finds diagrams with a known type', () => {
   const src = [
@@ -65,11 +65,11 @@ test('mermaid/syntax follows suppression comments and rule settings', async () =
   assert.deepEqual(await codes('<!-- smd-disable-next-line nope/x -->\n' + src), ['2:mermaid/syntax:error']);
 });
 
-test('the bundled Mermaid parser accepts every example and reports real errors', { skip: !fs.existsSync(bundle) && 'run npm run build first' }, async () => {
+test('the bundled Mermaid parser accepts every sample and reports real errors', { skip: !fs.existsSync(bundle) && 'run npm run build first' }, async () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { parse } = require(bundle) as { parse: MermaidParse };
-  for (const file of fs.readdirSync(examplesDir).filter((f) => f.endsWith('.smd'))) {
-    assert.deepEqual(await checkMermaid(fs.readFileSync(path.join(examplesDir, file), 'utf8'), parse), [], file);
+  for (const file of fs.readdirSync(samplesDir).filter((f) => f.endsWith('.smd'))) {
+    assert.deepEqual(await checkMermaid(fs.readFileSync(path.join(samplesDir, file), 'utf8'), parse), [], file);
   }
   const broken = [
     '```mermaid', 'flowchart LR', '  A --> B', '  B -->> C', '```', '',

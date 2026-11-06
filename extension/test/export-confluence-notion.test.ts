@@ -355,7 +355,7 @@ test('notion: images, Mermaid, callouts, panels and what Notion lacks', () => {
 });
 
 test('notion: output is plain JSON and the same every time', () => {
-  const doc = readFileSync(join(__dirname, '..', '..', 'examples', 'showcase.smd'), 'utf8');
+  const doc = readFileSync(join(__dirname, 'samples', 'showcase.smd'), 'utf8');
   const first = JSON.stringify(smdToNotion(doc));
   assert.equal(JSON.stringify(JSON.parse(first)), first);
   assert.equal(JSON.stringify(smdToNotion(doc)), first);
@@ -366,14 +366,14 @@ test('raw HTML to text: tags, comments, scripts and styles go; entities are deco
 });
 
 // ---------------------------------------------------------------------------
-// Every example and corpus document
+// Every sample and corpus document
 // ---------------------------------------------------------------------------
 
 const root = join(__dirname, '..', '..');
-const documents = [join(root, 'examples'), join(__dirname, 'compat', 'corpus')]
+const documents = [join(__dirname, 'samples'), join(__dirname, 'compat', 'corpus')]
   .flatMap((dir) => readdirSync(dir).filter((f) => f.endsWith('.smd')).map((f) => join(dir, f)));
 
-test('every example and corpus document exports to well-formed Confluence XML and Notion blocks within the limits', () => {
+test('every sample and corpus document exports to well-formed Confluence XML and Notion blocks within the limits', () => {
   assert.ok(documents.length >= 15);
   for (const file of documents) {
     const text = readFileSync(file, 'utf8');
@@ -397,15 +397,15 @@ test('every example and corpus document exports to well-formed Confluence XML an
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('smd export: Confluence and Notion to stdout, and the usage on a bad format', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const run = (args: string[]) => spawnSync(process.execPath, [cli, 'export', ...args], { cwd: root, encoding: 'utf8' });
-  const xml = run(['--to', 'confluence', 'examples/adr-0007-event-bus.smd']);
+  const xml = run(['--to', 'confluence', 'extension/test/samples/adr-0007-event-bus.smd']);
   assert.equal(xml.status, 0, xml.stderr);
   assertWellFormed(xml.stdout);
-  const json = run(['--to', 'notion', 'examples/adr-0007-event-bus.smd']);
+  const json = run(['--to', 'notion', 'extension/test/samples/adr-0007-event-bus.smd']);
   assert.equal(json.status, 0, json.stderr);
   const requests = JSON.parse(json.stdout) as Array<{ children: NotionBlock[] }>;
   assert.ok(requests.length >= 1 && requests[0].children.length);
-  const bad = run(['--to', 'word', 'examples/adr-0007-event-bus.smd']);
+  const bad = run(['--to', 'word', 'extension/test/samples/adr-0007-event-bus.smd']);
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /Unknown export format "word"[\s\S]*smd export <file\.smd> --to html\|md\|pdf\|docx\|confluence\|notion/);
-  assert.equal(run(['examples/adr-0007-event-bus.smd']).status, 2);
+  assert.equal(run(['extension/test/samples/adr-0007-event-bus.smd']).status, 2);
 });

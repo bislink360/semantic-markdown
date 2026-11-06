@@ -72,7 +72,7 @@ test('footnotes: every render numbers from 1, with a fresh or a reused env', () 
 });
 
 test('footnotes: documents without definitions render byte for byte as with footnotes off', () => {
-  const docs = ['examples', path.join('extension', 'test', 'compat', 'corpus')]
+  const docs = [path.join('extension', 'test', 'samples'), path.join('extension', 'test', 'compat', 'corpus')]
     .flatMap((dir) => fs.readdirSync(path.join(__dirname, '..', '..', dir)).filter((f) => f.endsWith('.smd')).map((f) => path.join(__dirname, '..', '..', dir, f)))
     .filter((f) => !/^\[\^[^\]\n]+\]:/m.test(fs.readFileSync(f, 'utf8')));
   assert.ok(docs.length >= 5);

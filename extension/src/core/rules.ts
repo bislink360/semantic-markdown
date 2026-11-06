@@ -32,6 +32,7 @@ export const RULE_CODES: Record<string, string> = {
   'directive/content': 'Inline directive needs `[content]`',
   'mermaid/type': 'Unknown Mermaid diagram type',
   'mermaid/empty': 'Empty Mermaid diagram',
+  'mermaid/acc-title': 'Mermaid diagram that screen readers can only call "Diagram": no `accTitle:`, no `:::figure` caption, no title of its own',
   'mermaid/syntax': 'Mermaid diagram does not parse (checked where a Mermaid parser is available: the editor and the CLI)',
   'math/syntax': 'KaTeX parse error',
   'math/unclosed': 'Display math `$$` is never closed',

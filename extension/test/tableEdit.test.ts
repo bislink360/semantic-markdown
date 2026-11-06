@@ -11,11 +11,11 @@ import {
   alignTable, cellContent, cellText, cellTexts, deleteColumn, deleteRow, insertColumn, insertRow, isRefusal, parseTable, readTable, sameShape,
   setAlign, setCell, tableFromTokens, tableShape, type TableAlign, type TableEdit, type TableRefusal, type TableRow, type TableSource,
 } from '../src/core/tableEdit';
-import { exampleDocuments, fuzzCase, prng, type Random } from './fuzz/generate';
+import { sampleDocuments, fuzzCase, prng, type Random } from './fuzz/generate';
 
 /**
  * Pipe tables for the Block Editor's grid (src/core/tableEdit.ts): the reading agrees with the renderer's for every
- * table block of the examples, the compatibility corpus and generated documents; escaped pipes, code spans, missing
+ * table block of the samples, the compatibility corpus and generated documents; escaped pipes, code spans, missing
  * outer pipes, alignment rows and ragged rows; and edits that touch only the cell, the row's line, or each line's
  * cell and pipe.
  *
@@ -25,7 +25,7 @@ const RUNS = Number(process.env.SMD_FUZZ_RUNS ?? 300);
 const SEED = Number(process.env.SMD_FUZZ_SEED ?? 20261015);
 
 const corpusDir = path.join(__dirname, 'compat', 'corpus');
-const examplesDir = path.join(__dirname, '..', '..', 'examples');
+const samplesDir = path.join(__dirname, 'samples');
 const readDir = (dir: string) =>
   fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort().map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, f), 'utf8') }));
 const options = (dir?: string): RenderOptions => ({
@@ -37,11 +37,11 @@ const options = (dir?: string): RenderOptions => ({
 });
 
 const documents = [
-  ...readDir(examplesDir).map((d) => ({ ...d, name: `examples/${d.name}`, options: options(examplesDir) })),
+  ...readDir(samplesDir).map((d) => ({ ...d, name: `samples/${d.name}`, options: options(samplesDir) })),
   ...readDir(corpusDir).map((d) => ({ ...d, name: `corpus/${d.name}`, options: options(corpusDir) })),
 ];
 const random = prng(SEED);
-const seeds = exampleDocuments();
+const seeds = sampleDocuments();
 const generated = Array.from({ length: RUNS }, (_, i) => ({ name: `fuzz case ${i} (seed ${SEED})`, text: fuzzCase(random, seeds), options: options() }));
 const LINE_BREAK = /\r?\n/;
 
@@ -105,7 +105,7 @@ test('the reading agrees with the rendered table for every table block of every 
   assert.ok(readable > 25, `tables the grid can edit (${readable})`);
 });
 
-test('every cell of the examples and the corpus is placed between its pipes', () => {
+test('every cell of the samples and the corpus is placed between its pipes', () => {
   for (const doc of documents) {
     for (const { lines } of tableBlocks(doc.text, doc.options)) {
       const t = readTable(lines);

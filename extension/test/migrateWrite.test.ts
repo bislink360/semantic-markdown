@@ -381,7 +381,7 @@ test('every tracked v1 document, migrated by the CLI, renders under spec v2 as i
       assert.equal(after, plan.result, `${rel}: written as planned`);
       assert.deepEqual(migrationPlan(after).steps, [], `${rel}: nothing left to migrate`);
       // Values written in the vocabulary's case and values shown as written (proposals 11 and 10) are meant to show
-      // as spec v2 shows them: corpus/vocabulary-case.smd, corpus/migrate.smd and examples/showcase.smd.
+      // as spec v2 shows them: corpus/vocabulary-case.smd, corpus/migrate.smd and samples/showcase.smd.
       if (plan.steps.some((s) => !s.note && (s.kind === 'value-case' || s.kind === 'variable-spelling'))) continue;
       assert.equal(shown(after, readerIn(migrated)), shown(before, readerIn(original)), `${rel}: spec v2 renders the migrated file as v1 rendered it`);
       compared++;

@@ -79,14 +79,14 @@ test('decisionLogMarkdown: a formatted, valid ADR index', () => {
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd decisions lists, filters and writes an ADR index', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
-  const examples = join(__dirname, '..', '..', 'examples');
-  const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'decisions', examples, ...args], { encoding: 'utf8', stdio: 'pipe' });
+  const samples = join(__dirname, 'samples');
+  const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'decisions', samples, ...args], { encoding: 'utf8', stdio: 'pipe' });
   const lines = run().trim().split('\n');
   assert.match(lines[0], /adr-0007-event-bus\.smd:11 {2}2026-09-18 {2}\[accepted\] {2}Publish order events to AWS EventBridge {2}@platform {2}— ADR-0007/);
   assert.ok(lines.some((l) => /\[superseded\] {2}Add a retry queue/.test(l)));
   const json = JSON.parse(run('--status', 'superseded,rejected', '--json'));
   assert.ok(json.length >= 3 && json.every((d: { status: string }) => d.status === 'superseded' || d.status === 'rejected'));
-  const bad = spawnSync(process.execPath, [cli, 'decisions', examples, '--status', 'acepted'], { encoding: 'utf8' });
+  const bad = spawnSync(process.execPath, [cli, 'decisions', samples, '--status', 'acepted'], { encoding: 'utf8' });
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /Did you mean "accepted"/);
 
@@ -94,7 +94,7 @@ test('CLI: smd decisions lists, filters and writes an ADR index', { skip: !exist
   try {
     const out = join(dir, 'decisions.smd');
     run('--md', '-o', out);
-    assert.match(readFileSync(out, 'utf8'), /\]\([^)]*examples\/adr-0007-event-bus\.smd#consequences\)~~/);
+    assert.match(readFileSync(out, 'utf8'), /\]\([^)]*samples\/adr-0007-event-bus\.smd#consequences\)~~/);
     const check = spawnSync(process.execPath, [cli, 'validate', out, '--strict', '--no-mermaid'], { encoding: 'utf8' });
     assert.equal(check.status, 0, check.stdout);
     assert.equal(spawnSync(process.execPath, [cli, 'fmt', '--check', out]).status, 0);

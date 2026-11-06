@@ -107,6 +107,5 @@ Constraints for AI agents working on this document.
 - [Installation guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md)
 - [Agent skills for Claude and other agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/SKILLS.md)
 - [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md)
-- [Examples](https://github.com/bislink360/semantic-markdown/tree/main/examples)
 
 Author: **Roshan Alwis** · License: MIT

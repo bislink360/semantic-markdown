@@ -5,8 +5,8 @@ import * as path from 'node:path';
 import { formatSmd, renderSmd, validateSmd } from '../src/core';
 import { formatAttrs } from '../src/core/format';
 
-const examplesDir = path.join(__dirname, '..', '..', 'examples');
-const examples = fs.readdirSync(examplesDir).filter((f) => f.endsWith('.smd'));
+const samplesDir = path.join(__dirname, 'samples');
+const samples = fs.readdirSync(samplesDir).filter((f) => f.endsWith('.smd'));
 
 const fmt = (lines: string[]) => formatSmd(lines.join('\n')).split('\n').slice(0, -1);
 
@@ -17,9 +17,9 @@ function renderedMeaning(text: string): string {
     .replace(/style="([^"]*)"/g, (_, css: string) => `style="${css.split(';').sort().join(';')}"`);
 }
 
-for (const file of examples) {
-  test(`fmt keeps the meaning of examples/${file}`, () => {
-    const text = fs.readFileSync(path.join(examplesDir, file), 'utf8');
+for (const file of samples) {
+  test(`fmt keeps the meaning of samples/${file}`, () => {
+    const text = fs.readFileSync(path.join(samplesDir, file), 'utf8');
     const formatted = formatSmd(text);
     assert.equal(formatSmd(formatted), formatted, 'formatting is idempotent');
     assert.equal(renderedMeaning(formatted), renderedMeaning(text));

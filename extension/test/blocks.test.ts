@@ -4,10 +4,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { renderSmd, type RenderOptions } from '../src/core';
 import { blocksHtml, renderBlocks, segmentSmd, type Segment } from '../src/core/blocks';
-import { exampleDocuments, fuzzCase, prng } from './fuzz/generate';
+import { sampleDocuments, fuzzCase, prng } from './fuzz/generate';
 
 /**
- * The block editor's segments and per-block rendering (src/core/blocks.ts). Two properties over every example,
+ * The block editor's segments and per-block rendering (src/core/blocks.ts). Two properties over every sample,
  * the compatibility corpus and generated documents: the segments cover every line once, in order (inside each
  * container too), and the blocks rendered one by one make exactly renderSmd's HTML.
  *
@@ -17,7 +17,7 @@ const RUNS = Number(process.env.SMD_FUZZ_RUNS ?? 300);
 const SEED = Number(process.env.SMD_FUZZ_SEED ?? 20261014);
 
 const corpusDir = path.join(__dirname, 'compat', 'corpus');
-const examplesDir = path.join(__dirname, '..', '..', 'examples');
+const samplesDir = path.join(__dirname, 'samples');
 const readDir = (dir: string) =>
   fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort().map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, f), 'utf8') }));
 
@@ -33,11 +33,11 @@ const options = (dir?: string): RenderOptions => ({
 });
 
 const documents = [
-  ...readDir(examplesDir).map((d) => ({ ...d, name: `examples/${d.name}`, options: options(examplesDir) })),
+  ...readDir(samplesDir).map((d) => ({ ...d, name: `samples/${d.name}`, options: options(samplesDir) })),
   ...readDir(corpusDir).map((d) => ({ ...d, name: `corpus/${d.name}`, options: options(corpusDir) })),
 ];
 const random = prng(SEED);
-const seeds = exampleDocuments();
+const seeds = sampleDocuments();
 const generated = Array.from({ length: RUNS }, (_, i) => ({ name: `fuzz case ${i} (seed ${SEED})`, text: fuzzCase(random, seeds), options: options() }));
 
 /** What is wrong with segments over [from, to) of `lines`, or undefined. */
@@ -60,7 +60,7 @@ function coverageProblem(segments: readonly Segment[], lines: readonly string[],
 
 const allKeys = (segments: readonly Segment[]): string[] => segments.flatMap((s) => [s.key, ...allKeys(s.children ?? [])]);
 
-test('segments cover every line once, in order, in every example, corpus and generated document', () => {
+test('segments cover every line once, in order, in every sample, corpus and generated document', () => {
   for (const doc of [...documents, ...generated]) {
     const lines = doc.text.split(/\r?\n/);
     const segments = segmentSmd(doc.text, doc.options);
@@ -79,7 +79,7 @@ test('the blocks rendered one by one make exactly renderSmd’s HTML', () => {
 });
 
 test('renderBlocks returns what renderSmd does besides the HTML, and blocks match the block segments', () => {
-  const doc = documents.find((d) => d.name === 'examples/showcase.smd')!;
+  const doc = documents.find((d) => d.name === 'samples/showcase.smd')!;
   const blocks = renderBlocks(doc.text, doc.options);
   const whole = renderSmd(doc.text, doc.options);
   assert.deepEqual(blocks.headings, whole.headings);

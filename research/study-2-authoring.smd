@@ -1,0 +1,123 @@
+---
+smd: 2
+title: Study 2 authoring for two audiences
+summary: A within-subjects lab study of whether people can mark one document for human and AI readers, predict what the agent will see, and find what it would miss, with and without the agent-view inspector and its omission panel.
+status: draft
+owners: ["@roshanmadhushanka"]
+tags: [research, hci, study, authoring]
+created: 2026-11-05
+updated: 2026-11-05
+related:
+  - research-plan.smd
+  - study-1-agent-evaluation.smd
+toc: true
+---
+
+## Purpose
+
+Audience markup only helps if authors can use it. This study tests whether people predict what an agent will see in a document they marked (RQ2), and whether the inspector, which shows the agent view and what it left out, helps them find and repair omissions (RQ3). The C01 bug is the motivating case. An agent instruction inside a collapsed block was hidden from the agent, and nothing told the author.
+
+## Hypotheses
+
+- **H1.** Without the inspector, authors' predictions of what the agent sees are wrong for at least a fifth of the items.
+- **H2.** With the inspector and omission panel, participants find and repair more seeded omissions than without it.
+- **H3.** The inspector does not raise workload (NASA-TLX) by more than 10 points.
+
+## Design
+
+Within-subjects with two conditions, counterbalanced by order and by document.
+
+| Condition | What the participant has |
+|---|---|
+| Baseline | The source editor and the human preview |
+| Inspector | The same, plus the live agent view with the omission panel |
+
+Two documents of matched length and structure (a feature spec and a runbook, about 1,500 words each) are used, one per condition. A pilot with three people checks that they are equally hard.
+
+## Participants
+
+12 to 20 developers or technical writers who use an AI agent at least weekly and have written project documents in Markdown. None have used Semantic Markdown before. Recruitment and screening as in Study 0, excluding Study 0 participants. Twelve is the minimum for a counterbalanced within-subjects comparison, and the final number follows the pilot's variance.
+
+## Procedure
+
+Remote or in person, 75 to 90 minutes, screen and audio recorded with consent.
+
+:::steps
+1. **Consent and background (5 min).**
+2. **Tutorial (10 min).** A short guided tour of `.smd` audience markup (`:::agent`, `:::human`, `{agent=skip}`, `:::details`) and semantic blocks, with a practice document.
+3. **Block one (30 min).** Tasks T1 to T3 below in the first condition and document.
+4. **Block two (30 min).** The same tasks in the other condition and document.
+5. **Questionnaires (5 min).** NASA-TLX raw after each block, SUS for the inspector after the inspector block.
+6. **Interview (10 min).** What was hard, what they trusted, what they would change.
+:::
+
+Participants think aloud during the tasks.
+
+## Tasks
+
+**T1 Predict.** The participant gets a marked document and the brief "an agent will implement this, and the reviewers will read it". Before seeing any agent view, they mark each paragraph and block as seen or not seen by the agent, and rate their confidence. In the inspector condition they predict first and then open the inspector, so prediction is always measured unaided.
+
+**T2 Mark.** They mark an unmarked plain document for both audiences from a short brief that says what the agent needs and what is for people only.
+
+**T3 Audit.** They get a marked document with six seeded problems and are asked to make sure the agent gets everything it needs and nothing meant only for people. The seeded problems are listed below. Participants are told problems exist but not how many.
+
+| Seeded problem | Why the agent misses or misreads it |
+|---|---|
+| A rule inside `:::details` | Condensed in brief views before the C01 fix |
+| A constraint under a heading marked `{agent=skip}` | The whole section is left out |
+| An `:::agent` block inside `:::human` | Human blocks are dropped |
+| A superseded decision left as accepted | The agent treats it as binding |
+| A private note outside any `:::human` block | The agent sees it |
+| A required section matched by a partial title | `--section` pulls in an unrelated section |
+
+## Measures
+
+| Measure | From | Role |
+|---|---|---|
+| Prediction accuracy (F1 of predicted against actual agent visibility) | T1 | Primary for RQ2 |
+| Seeded problems found and correctly repaired | T3 | Primary for RQ3 |
+| Marking errors against the brief | T2 | Secondary |
+| Time per task | Logs | Secondary |
+| Confidence against accuracy (calibration) | T1 | Secondary |
+| NASA-TLX raw, SUS | Questionnaires | Secondary |
+| Validator diagnostics left at the end | Logs | Secondary |
+| Themes from think-aloud and interview | Recordings | Qualitative |
+
+## Apparatus
+
+VS Code with a study build of the extension. The study build logs editor events (opening the inspector, switching views, edits by line range, validator runs) to a local file with no document text. It is turned on only for the session. The omission panel lists every hidden, condensed or unresolved item, the reason, and a link to its source line.
+
+## Analysis
+
+Paired comparisons with Wilcoxon signed-rank tests, and a mixed model with condition, order and document as fixed effects and participant as a random effect when the sample allows. Effect sizes with 95% intervals. Think-aloud and interview data are analysed with reflexive thematic analysis, as in Study 0. Every participant's seeded-problem outcomes are reported in a table.
+
+## Prerequisites in the tool
+
+- The omission panel in the inspector (review item C10), keyboard accessible.
+- Session-only study logging in the extension, off by default and never sending data anywhere.
+- Two matched documents, the T3 document with its seeded problems, and the T2 brief.
+- A validator warning for an `:::agent` block inside `:::human`, if the pilot shows people expect one.
+
+## Ethics and data
+
+Minimal risk, pending the ethics office's view. Recordings are deleted after transcription, logs hold no document text, and all documents are prepared for the study. Participants can stop at any time and keep their payment.
+
+## Tasks
+
+- [ ] Build the omission panel (C10) :priority[P0] @roshanmadhushanka
+- [ ] Add session-only study logging to a study build of the extension :priority[P0] @roshanmadhushanka
+- [ ] Write the two matched documents, the T2 brief and the seeded T3 document :priority[P0] @roshanmadhushanka
+- [ ] Get ethics approval for the lab study :priority[P0] @roshanmadhushanka
+- [ ] Pilot with three people and check the documents are equally hard :priority[P1] @roshanmadhushanka
+- [ ] Preregister hypotheses and analysis :priority[P1] @roshanmadhushanka
+- [ ] Run 12 to 20 sessions and analyse :priority[P1] @roshanmadhushanka
+
+:::question Remote or in person
+The author decides whether sessions are remote, which is easier to recruit for, or in person, which gives cleaner think-aloud. Until then the materials are written for remote sessions with screen sharing.
+:::
+
+:::agent Study 2 constraints
+- Study logging must stay off by default, write only to a local file and never record document text.
+- In T1, participants always predict before they see any agent view.
+- Do not ship the study build of the extension as a release.
+:::

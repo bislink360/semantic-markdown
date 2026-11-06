@@ -117,7 +117,7 @@ test('the Gantt chart parses with the bundled Mermaid parser', { skip: !fs.exist
 
 // Requires `npm run build`.
 const cli = path.join(__dirname, '..', 'dist', 'cli.js');
-const examples = path.join(__dirname, '..', '..', 'examples');
+const samples = path.join(__dirname, 'samples');
 const smd = (...args: string[]) => spawnSync(process.execPath, [cli, 'tasks', ...args], { encoding: 'utf8' });
 
 test('CLI: smd tasks text and --json output is unchanged', { skip: !fs.existsSync(cli) && 'run npm run build first' }, () => {
@@ -147,31 +147,31 @@ test('CLI: smd tasks text and --json output is unchanged', { skip: !fs.existsSyn
 });
 
 test('CLI: smd tasks --csv, --gantt and --gantt --smd, to stdout or -o', { skip: !fs.existsSync(cli) && 'run npm run build first' }, () => {
-  const csv = smd(examples, '--csv', '--today', TODAY);
+  const csv = smd(samples, '--csv', '--today', TODAY);
   assert.equal(csv.status, 0);
   assert.match(csv.stdout, /^file,line,done,text,owners,priority,due,overdue,section\r\n.*showcase\.smd,\d+,false,Legal review of new terms,'@legal,P0,2026-09-20,true,/);
   assert.match(csv.stderr, /task\(s\) open/);
-  const gantt = smd(examples, '--gantt', '--all', '--today', TODAY);
+  const gantt = smd(samples, '--gantt', '--all', '--today', TODAY);
   assert.match(gantt.stdout, /^gantt\n {2}title Tasks\n {2}dateFormat YYYY-MM-DD\n {2}section .*checkout-redesign\.smd\n/);
   assert.match(gantt.stdout, /Kickoff with design @sam :done, milestone, 2026-09-10, 0d/);
   assert.match(gantt.stderr, /^\[smd\] \d+ task\(s\) on the chart, \d+ without a YYYY-MM-DD due date left out\.\n$/);
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'smd-gantt-'));
   const out = path.join(dir, 'timeline.smd');
-  const written = smd(examples, '--gantt', '--smd', '--title', 'Timeline', '-o', out);
+  const written = smd(samples, '--gantt', '--smd', '--title', 'Timeline', '-o', out);
   assert.equal(written.stdout, '');
   assert.match(written.stderr, /Wrote .*timeline\.smd/);
   assert.match(fs.readFileSync(out, 'utf8'), /^---\nsmd: 2\ntitle: "Timeline"\n---\n\n# Timeline\n\n```mermaid\ngantt\n {2}title Timeline\n/);
   const validate = spawnSync(process.execPath, [cli, 'validate', out], { encoding: 'utf8' });
   assert.equal(validate.status, 0, validate.stdout);
   assert.match(validate.stdout, /0 error\(s\), 0 warning\(s\)/);
-  assert.equal(smd(examples, '--json', '-o', path.join(dir, 't.json')).status, 0);
+  assert.equal(smd(samples, '--json', '-o', path.join(dir, 't.json')).status, 0);
   assert.ok(Array.isArray(JSON.parse(fs.readFileSync(path.join(dir, 't.json'), 'utf8'))));
   fs.rmSync(dir, { recursive: true, force: true });
 
-  const both = smd(examples, '--csv', '--json');
+  const both = smd(samples, '--csv', '--json');
   assert.equal(both.status, 2);
   assert.match(both.stderr, /Choose one output format: --json or --csv/);
-  assert.equal(smd(examples, '--smd').status, 2);
-  assert.equal(execFileSync(process.execPath, [cli, 'tasks', examples, '--gantt'], { encoding: 'utf8', stdio: 'pipe' }).startsWith('gantt\n'), true);
+  assert.equal(smd(samples, '--smd').status, 2);
+  assert.equal(execFileSync(process.execPath, [cli, 'tasks', samples, '--gantt'], { encoding: 'utf8', stdio: 'pipe' }).startsWith('gantt\n'), true);
 });

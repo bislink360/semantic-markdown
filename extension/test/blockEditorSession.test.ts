@@ -610,7 +610,7 @@ test('ready sends a render; status counts blocks and keys', async () => {
 // ---------------------------------------------------------------------------
 
 const corpusDir = path.join(__dirname, 'compat', 'corpus');
-const examplesDir = path.join(__dirname, '..', '..', 'examples');
+const samplesDir = path.join(__dirname, 'samples');
 const readDir = (dir: string) => fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort().map((f) => ({ name: f, dir, text: fs.readFileSync(path.join(dir, f), 'utf8') }));
 const RUNS = Number(process.env.SMD_FUZZ_RUNS ?? 300);
 
@@ -629,9 +629,9 @@ function mutate(random: () => number, source: string): string {
   return text;
 }
 
-test('property: random edits to random blocks (and children) of every example and corpus file change no other line', async () => {
+test('property: random edits to random blocks (and children) of every sample and corpus file change no other line', async () => {
   const random = prng(20261014);
-  const documents = [...readDir(examplesDir), ...readDir(corpusDir)];
+  const documents = [...readDir(samplesDir), ...readDir(corpusDir)];
   const perDoc = Math.max(4, Math.ceil(RUNS / documents.length));
   for (const d of documents) {
     for (const eol of ['\n', '\r\n']) {
@@ -700,7 +700,7 @@ function siblingsOf(views: readonly BlockView[], key: string): BlockView[] {
 
 test('property: insert, move and delete never change a line they do not add, move or remove', async () => {
   const random = prng(7);
-  const documents = [...readDir(examplesDir), ...readDir(corpusDir)];
+  const documents = [...readDir(samplesDir), ...readDir(corpusDir)];
   for (const d of documents) {
     const h = harness(d.text);
     for (let i = 0; i < 6; i++) {
@@ -901,11 +901,11 @@ test('inlineFields and inlineAgree', () => {
   assert.ok(!inlineAgree([badge, span], [{ ...rendered[0], content: 'B' }, rendered[1]], {}));
 });
 
-test('property: setInline on every item of every example and corpus file changes only that item\'s text', async () => {
+test('property: setInline on every item of every sample and corpus file changes only that item\'s text', async () => {
   const random = prng(11);
   const colors = ['red', 'green', 'teal', 'muted'];
   let applied = 0;
-  for (const d of [...readDir(examplesDir), ...readDir(corpusDir)]) {
+  for (const d of [...readDir(samplesDir), ...readDir(corpusDir)]) {
     const h = harness(d.text, INLINE_ON);
     const r = h.render();
     for (const b of r.blocks.filter((v) => v.inline?.some((i) => i.fields))) {
@@ -1124,12 +1124,12 @@ test('inline items in table cells keep their forms around grid edits', async () 
   assert.ok(again.inline![0].fields);
 });
 
-test('property: a random grid change to every table of every example and corpus file changes only that table\'s lines', async () => {
+test('property: a random grid change to every table of every sample and corpus file changes only that table\'s lines', async () => {
   const random = prng(23);
   const pickOf = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
   const all = (views: readonly BlockView[]): BlockView[] => views.flatMap((v) => [v, ...all(v.children ?? [])]);
   let applied = 0;
-  for (const d of [...readDir(examplesDir), ...readDir(corpusDir)]) {
+  for (const d of [...readDir(samplesDir), ...readDir(corpusDir)]) {
     const h = harness(d.text);
     let r = h.render();
     for (const key of all(r.blocks).filter((v) => v.table?.rows).map((v) => v.key)) {

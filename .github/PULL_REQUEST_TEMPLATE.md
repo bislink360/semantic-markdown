@@ -21,7 +21,7 @@ Leave a checkbox empty if it doesn't apply, or if you're not sure: that's fine, 
 
 - [ ] Tests added or updated, and `npm run typecheck` and `npm test` pass in `extension/`
 - [ ] For editor changes: `npm run test:vscode` passes
-- [ ] Examples still validate and are formatted: `node extension/dist/cli.js validate examples docs/gallery` and `node extension/dist/cli.js fmt --check examples docs/gallery`
+- [ ] Test samples and the gallery still validate and are formatted: `node extension/dist/cli.js validate extension/test/samples docs/gallery` and `node extension/dist/cli.js fmt --check extension/test/samples docs/gallery`
 - [ ] New syntax: documented in `docs/SPEC.md`, `docs/FEATURES.md` and the writer skill's `references/syntax.md`, with a corpus document in `extension/test/compat/corpus/`
 - [ ] New syntax: the plain-Markdown export (`toMarkdown.ts`) and the agent view (`agentView.ts`) handle it
 - [ ] Changed `extension/src`: the bundles `npm run build` refreshes (`skills/*/scripts/smd.cjs`, the MkDocs plugin's `bridge.cjs`) are committed too; CI checks that they are up to date

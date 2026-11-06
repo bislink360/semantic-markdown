@@ -127,8 +127,8 @@ test('HTML escapes document text and links matrix cells to register rows', () =>
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd risks prints the register, JSON and HTML, and rejects unknown statuses', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
-  const examples = join(__dirname, '..', '..', 'examples');
-  const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'risks', examples, ...args], { encoding: 'utf8', stdio: 'pipe' });
+  const samples = join(__dirname, 'samples');
+  const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'risks', samples, ...args], { encoding: 'utf8', stdio: 'pipe' });
   const text = run();
   assert.match(text, /checkout-redesign\.smd:\d+  \[6\] high×medium  Apple Pay domain verification delays launch/);
   assert.match(text, /impact ↓ likelihood →/);
@@ -138,7 +138,7 @@ test('CLI: smd risks prints the register, JSON and HTML, and rejects unknown sta
   const owned = JSON.parse(run('--json', '--owner', '@payments'));
   assert.ok(owned.risks.length >= 1 && owned.risks.every((r: { owner: string }) => r.owner === '@payments'));
   assert.match(run('--html'), /<table class="smd-risk-matrix-grid">/);
-  const bad = spawnSync(process.execPath, [cli, 'risks', examples, '--status', 'done'], { encoding: 'utf8' });
+  const bad = spawnSync(process.execPath, [cli, 'risks', samples, '--status', 'done'], { encoding: 'utf8' });
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /Unknown risk status "done"/);
 });
