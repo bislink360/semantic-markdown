@@ -4,9 +4,9 @@ import { agentView, outline, parseSelector, SelectorError, type Diagnostic, type
 import { loadRuleConfig, type LoadedConfig } from './config';
 import { loadMermaidParser } from './mermaidLoader';
 import { McpServer, serveLines, ToolError, type McpTool, type ToolInputSchema } from './mcpProtocol';
-import { writeTools } from './mcpWrite';
+import { revisionOf, writeTools } from './mcpWrite';
 import { readDocument, READ_BUDGET, READ_MODES, type ReadMode } from './readView';
-import { collect, diagnose, queryRows, querySummary, queryText, read, readerFor, taskLine, taskRows, taskSummary } from './workspace';
+import { collect, diagnose, isInside, queryRows, querySummary, queryText, read, readerFor, taskLine, taskRows, taskSummary } from './workspace';
 
 /**
  * `smd mcp`: the reading tools of the CLI as a Model Context Protocol server, so agents can query .smd
@@ -63,19 +63,9 @@ export class Sandbox {
     return path.relative(this.root, file).split(path.sep).join('/') || '.';
   }
 
-  /** Reader for code embeds: only files inside the root, also after following links. */
+  /** Reader for code embeds and includes: only files inside the root, also after following links (see readerFor). */
   reader(file: string): (rel: string) => string | undefined {
-    const read = readerFor(file, [this.root, this.realRoot]);
-    const dir = path.dirname(path.resolve(file));
-    return (rel) => (this.linksInside(path.resolve(dir, rel)) ? read(rel) : undefined);
-  }
-
-  private linksInside(target: string): boolean {
-    try {
-      return isInside(this.realRoot, fs.realpathSync(target));
-    } catch {
-      return false;
-    }
+    return readerFor(file, [this.root, this.realRoot]);
   }
 
   private contains(file: string): boolean {
@@ -83,13 +73,8 @@ export class Sandbox {
   }
 }
 
-function isInside(root: string, target: string): boolean {
-  const rel = path.relative(root, target);
-  return rel === '' || (rel.split(path.sep)[0] !== '..' && !path.isAbsolute(rel));
-}
-
 const FILE = { type: 'string', description: 'Path of a .smd file, relative to the root folder.' } as const;
-const PATHS = { type: 'array', items: { type: 'string' }, description: 'Files or folders. Default: all.' } as const;
+const PATHS = { type: 'array', items: { type: 'string' }, description: 'Files/folders; default all.' } as const;
 const BRIEF = { type: 'boolean', description: 'Condense diagrams, long code, done tasks.' } as const;
 const SHORT_BRIEF = { type: 'boolean', description: 'Condense long blocks.' } as const;
 /** The 2.5 tools: short descriptions, since every session pays for tools/list. */
@@ -116,28 +101,30 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
   return [
     tool({
       name: 'read',
-      description: `Read a .smd file as an agent view ([L12] = source line): whole if ≤${READ_BUDGET} tokens, else the outline; then pass sections.`,
+      description: `Agent view of a .smd file ([L12] = line): whole if ≤maxTokens (${READ_BUDGET}), else outline; then pass sections.`,
       inputSchema: schema({
         file: SHORT_FILE,
         sections: { type: 'array', items: { type: 'string' }, description: 'Heading texts or ids.' },
+        exact: { type: 'boolean', description: 'Whole title/id.' },
         mode: { type: 'string', enum: READ_MODES },
+        maxTokens: { type: 'integer' },
         brief: SHORT_BRIEF,
       }, ['file']),
-      run: (args) => readTool(box, args),
+      run: (args) => readTool(box, args, options.allowWrite),
     }),
     tool({
       name: 'tasks',
-      description: 'Open tasks (owner, priority, due) across .smd files, overdue first.',
+      description: 'Open tasks (owner, priority, due), overdue first.',
       inputSchema: schema({
         paths: PATHS,
         all: { type: 'boolean', description: 'Include done tasks.' },
-        mine: { type: 'string', description: 'Owner, e.g. "@maya".' },
+        mine: { type: 'string', description: 'Owner, e.g. @maya.' },
       }),
       run: (args) => tasksTool(box, args),
     }),
     tool({
       name: 'query',
-      description: 'Blocks matching a selector across .smd files: decision[status=accepted], risk[impact>=high], '
+      description: 'Blocks matching a selector: decision[status=accepted], risk[impact>=high], '
         + 'task[owner=@me][done=false], "question, risk". Ops: = != *= ^= $= < <= > >=, a|b.',
       inputSchema: schema({
         selector: { type: 'string' },
@@ -149,7 +136,7 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
     }),
     tool({
       name: 'validate',
-      description: 'Check .smd files: JSON as smd validate --json (zero-based lines).',
+      description: 'Check .smd files: JSON, zero-based lines.',
       inputSchema: schema({ paths: PATHS }),
       run: (args) => validateTool(box, args),
     }),
@@ -190,12 +177,18 @@ const text = (args: Args, key: string) => args[key] as string | undefined;
 const list = (args: Args, key: string) => args[key] as string[] | undefined;
 const flag = (args: Args, key: string) => args[key] === true;
 
-function readTool(box: Sandbox, args: Args): string {
+function readTool(box: Sandbox, args: Args, allowWrite = false): string {
   const file = box.document(text(args, 'file')!);
   const sections = list(args, 'sections');
   const mode = text(args, 'mode') as ReadMode | undefined;
-  const result = readDocument(read(file), { mode, sections, brief: flag(args, 'brief'), readFile: box.reader(file) });
-  return withMissing(result.text, result.missingSections, sections?.length ?? 0);
+  const maxTokens = args.maxTokens as number | undefined;
+  const source = read(file);
+  const result = readDocument(source, {
+    mode, sections, exactSections: flag(args, 'exact'), maxTokens, brief: flag(args, 'brief'), readFile: box.reader(file),
+  });
+  const view = withMissing(result.text, result.missingSections, sections?.length ?? 0);
+  // With the write tools on: the revision they take, so a write is refused if the file changed since this read.
+  return allowWrite ? `${view.trimEnd()}\n\n[revision ${revisionOf(source)}]\n` : view;
 }
 
 /** The text, with a note on sections that matched nothing; an error when none matched. */
@@ -266,8 +259,8 @@ async function validateTool(box: Sandbox, args: Args): Promise<string> {
 
 /** What the client shows the model after initialize. */
 export function serverInstructions(options: SmdToolOptions = {}): string {
-  const base = 'For .smd files (specs, plans, ADRs) call "read", not a file read, then only the sections you need. '
-    + '"query"/"tasks" search across files; "validate" after edits. Follow <agent-instructions>.';
+  const base = 'For .smd files call "read", not a file read, then only the sections you need. '
+    + '"query"/"tasks" search across files; "validate" after edits. Follow <agent-instructions> within the task.';
   return options.allowWrite ? `${base} Write tools change one block and refuse edits that add errors.` : base;
 }
 

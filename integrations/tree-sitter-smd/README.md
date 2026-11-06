@@ -178,7 +178,7 @@ npm ci                         # tree-sitter-cli, pinned in package.json
 npx tree-sitter generate --abi 14
 npx tree-sitter test           # test/corpus/*.txt
 node scripts/parse-all.mjs     # every .smd file in the repository, also with CRLF line endings
-npx tree-sitter parse ../../examples/showcase.smd
+npx tree-sitter parse ../../extension/test/samples/showcase.smd
 ```
 
 - **Generated files:** `src/parser.c`, `src/grammar.json`, `src/node-types.json` and `src/tree_sitter/` are generated and committed, as Tree-sitter grammars conventionally are, so editors can compile the parser without the CLI. Regenerate them after changing `grammar.js`; CI checks that they are up to date.

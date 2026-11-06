@@ -6,7 +6,7 @@ import {
   applyFixes, getDocumentInfo, markdownToSmd, renderSmd, smdToMarkdown, validateSmd,
 } from '../src/core';
 
-const showcase = readFileSync(join(__dirname, '..', '..', 'examples', 'showcase.smd'), 'utf8');
+const showcase = readFileSync(join(__dirname, 'samples', 'showcase.smd'), 'utf8');
 const codes = (text: string) => validateSmd(text).map((d) => d.code);
 
 test('plain Markdown is valid SMD and renders normally', () => {
@@ -17,7 +17,7 @@ test('plain Markdown is valid SMD and renders normally', () => {
   assert.deepEqual(codes('# Hello\n\nText'), []);
 });
 
-test('showcase example has no problems', () => {
+test('the showcase sample has no problems', () => {
   assert.deepEqual(validateSmd(showcase, { today: '2026-09-01' }), []);
 });
 

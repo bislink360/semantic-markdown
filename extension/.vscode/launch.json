@@ -5,7 +5,7 @@
       "name": "Run Semantic Markdown Extension",
       "type": "extensionHost",
       "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}", "${workspaceFolder}/../examples"],
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}", "${workspaceFolder}/test/samples"],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "npm: build"
     }

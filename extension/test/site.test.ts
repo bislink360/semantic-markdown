@@ -399,12 +399,12 @@ function filesUnder(root: string, prefix = ''): string[] {
 
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
-test('CLI: smd build examples writes a site whose local links all resolve', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
+test('CLI: smd build writes a site whose local links all resolve', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const repo = join(__dirname, '..', '..');
   const dir = tempDir();
   try {
     const out = join(dir, 'site');
-    execFileSync(process.execPath, [cli, 'build', 'examples', '--out', out, '--md', '--today', '2026-09-29'], { cwd: repo, stdio: 'pipe' });
+    execFileSync(process.execPath, [cli, 'build', 'extension/test/samples', '--out', out, '--md', '--today', '2026-09-29'], { cwd: repo, stdio: 'pipe' });
     for (const file of ['index.html', 'dashboard.html', 'checkout-redesign.html', '_smd/smd.css', '_smd/site.js', '_smd/search-index.js', SITE_MARKER]) {
       assert.ok(existsSync(join(out, file)), file);
     }
@@ -419,7 +419,7 @@ test('CLI: smd build examples writes a site whose local links all resolve', { sk
         assert.ok(existsSync(target) && statSync(target).isFile(), `${file} links to missing ${m[1]}`);
       }
     }
-    const refused = spawnSync(process.execPath, [cli, 'build', 'examples', '--out', 'examples/site'], { cwd: repo, encoding: 'utf8' });
+    const refused = spawnSync(process.execPath, [cli, 'build', 'extension/test/samples', '--out', 'extension/test/samples/site'], { cwd: repo, encoding: 'utf8' });
     assert.equal(refused.status, 2);
     assert.match(refused.stderr, /inside the source folder/);
     assert.equal(spawnSync(process.execPath, [cli, 'build'], { cwd: repo }).status, 2);

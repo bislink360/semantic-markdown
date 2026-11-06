@@ -1,4 +1,4 @@
-// Parses every .smd file in the repository (examples, docs, the compatibility corpus, the skill
+// Parses every .smd file in the repository (the test samples, docs, the compatibility corpus, the skill
 // templates and the playground) with this grammar, as written and with CRLF line endings, and
 // fails when any tree has ERROR or MISSING nodes. Needs `npm ci` here (for tree-sitter-cli) and a
 // C compiler.
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const grammarDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = join(grammarDir, '..', '..');
 const cli = join(grammarDir, 'node_modules', 'tree-sitter-cli', 'cli.js');
-const SOURCE_DIRS = ['examples', 'docs', 'extension/test/compat/corpus', 'skills', 'playground'];
+const SOURCE_DIRS = ['extension/test/samples', 'docs', 'extension/test/compat/corpus', 'skills', 'playground'];
 const SKIPPED_DIRS = new Set(['node_modules', '.git']);
 
 function findSmdFiles(dir, found) {

@@ -124,7 +124,7 @@ test('loadTokenizer resolves js-tiktoken at run time, or says how to install it'
 
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
-const example = join(__dirname, '..', '..', 'examples', 'checkout-redesign.smd');
+const example = join(__dirname, 'samples', 'checkout-redesign.smd');
 const run = (args: string[], cwd?: string) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', cwd });
 
 test('CLI: smd agent --max-tokens and --tokenizer', { skip: !existsSync(cli) && 'run npm run build first' }, () => {

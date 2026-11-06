@@ -17,7 +17,6 @@ No labelled issue that suits you? These are good places to start, and need no kn
 - **A quick fix or a clearer message** for a validation rule in `extension/src/core/validate.ts`, with a test.
 - **A language** for the labels smd adds around a document's text (`Note`, `Figure 2`, `overdue`…): copy a locale in `extension/src/core/locales.ts` and translate it.
 - **Docs:** a missing example, a confusing sentence or a broken link in `docs/`.
-- **An example document** in `examples/` that shows a real use (it must pass `smd validate` and `smd fmt --check`).
 
 Pull requests may target the open `release/v*` branch or `main`; the maintainer retargets them. The [pull request template](.github/PULL_REQUEST_TEMPLATE.md) has the checklist.
 
@@ -62,7 +61,6 @@ semantic-markdown/
 ├── playground/           the web playground: a static page that runs the engine in the browser
 ├── site/                 the homepage on GitHub Pages (index.smd, built with smd build)
 ├── validate/             the GitHub Action (smd validate with pull request annotations)
-├── examples/             example documents (+ rendered HTML)
 ├── docs/                 guides, specification, gallery and screenshots
 ├── .claude-plugin/       the Claude Code plugin marketplace (marketplace.json, plugin.json)
 ├── server.json           the MCP Registry entry for the npm package's MCP server
@@ -82,7 +80,7 @@ Every pull request to `main` or a `release/**` branch, and every push to them, r
 
 | Job | Checks |
 |---|---|
-| Build & unit tests (Ubuntu, Windows) | typecheck, build of extension/CLI/npm package, unit tests, examples validate and are formatted (`smd fmt --check`), bundled skill CLIs are up to date, `npm pack` |
+| Build & unit tests (Ubuntu, Windows) | typecheck, build of extension/CLI/npm package, unit tests, test samples and gallery validate and are formatted (`smd fmt --check`), bundled skill CLIs are up to date, `npm pack` |
 | Benchmarks & extended fuzz | `npm run bench -- --check` (fails when a core function gets ~10x slower on 1k/10k-line documents; the table is in the job summary) and 3000 fuzz cases |
 | VS Code integration tests | the extension in a real VS Code (preview, diagnostics, quick fixes, completion, agent view), plus a `.vsix` build uploaded as an artifact |
 | Backward compatibility | `release-check.mjs` against the last `vX.Y.Z` tag; the report appears in the job summary. It fails on blocking issues, e.g. breaking changes without a major version on `release/*` branches. |
@@ -92,7 +90,7 @@ Every pull request to `main` or a `release/**` branch, and every push to them, r
 - `npm run typecheck` and `npm test` pass. `npm run test:vscode` passes for editor-facing changes.
 - `npm test` includes a seeded fuzz test (`test/fuzz.test.ts`). To reproduce or widen it: `SMD_FUZZ_SEED=<seed> SMD_FUZZ_RUNS=5000 npm test`; a failure writes a shrunk input to `test/fuzz-failures/`. A bug it finds gets its own regression test.
 - For changes to parsing or rendering, `npm run bench` shows timings on large documents.
-- `node dist/cli.js validate ../examples ../docs/gallery` reports 0 errors, and `node dist/cli.js fmt --check ../examples ../docs/gallery` reports 0 files to format (run it without `--check` to fix them).
+- `node dist/cli.js validate test/samples ../docs/gallery` reports 0 errors, and `node dist/cli.js fmt --check test/samples ../docs/gallery` reports 0 files to format (run it without `--check` to fix them).
 - The static analysis gate passes: `node .claude/skills/sonarqube-scan/scripts/sonar-scan.mjs` from the repository root (needs Docker). It runs SonarQube locally, since CI has no static analysis. It is mandatory before every release; see the `sonarqube-scan` skill.
 - New syntax is documented in `docs/SPEC.md`, `docs/FEATURES.md` and the writer skill's `references/syntax.md`.
 - The CHANGELOG has an entry.

@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { agentView, parseSmd, type AgentViewOptions } from './core';
 import { readerFor } from './files';
+import { briefOnlyItems, omissionItems, omissionSummary, type OmissionItem } from './omissionPanel';
 
 const SCHEME = 'smd-agent';
 
@@ -20,9 +21,12 @@ class AgentViewProvider implements vscode.TextDocumentContentProvider {
     this.open.add(uri.toString());
     const source = vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.query);
     if (!source) return '(source document is not open)';
-    const result = agentView(source.getText(), { brief: uri.fragment === 'brief', readFile: readerFor(source) });
+    const file = path.basename(source.uri.fsPath);
+    const result = agentView(source.getText(), { brief: uri.fragment === 'brief', readFile: readerFor(source), file, provenance: true });
     const saved = Math.round((1 - result.tokens / Math.max(1, result.originalTokens)) * 100);
-    return `<!-- Agent view: ≈${result.tokens} tokens (source ≈${result.originalTokens}, ${saved}% smaller). Read-only; edit the .smd file. -->\n\n${result.text}`;
+    const left = result.provenance ? omissionSummary(result.provenance) : '';
+    const note = `Agent view: ≈${result.tokens} tokens (source ≈${result.originalTokens}, ${saved}% smaller). Read-only; edit the .smd file.${left ? `\n${left}` : ''}`;
+    return `<!-- ${note} -->\n\n${result.text}`;
   }
 
   refresh(source: vscode.Uri): void {
@@ -74,11 +78,54 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
     vscode.window.setStatusBarMessage(`$(check) Copied ${what} (≈${result.tokens} tokens)`, 4000);
   };
 
+  /** Go to an omission in the source: the document, or the included file it is in. */
+  const reveal = async (doc: vscode.TextDocument, item: OmissionItem) => {
+    const uri = item.own ? doc.uri : vscode.Uri.joinPath(vscode.Uri.file(path.dirname(doc.uri.fsPath)), item.file);
+    try {
+      const target = item.own ? doc : await vscode.workspace.openTextDocument(uri);
+      const end = Math.min(item.end, target.lineCount - 1);
+      const range = new vscode.Range(item.start, 0, end, target.lineAt(end).text.length);
+      await vscode.window.showTextDocument(target, { selection: range, preview: false });
+    } catch {
+      vscode.window.showWarningMessage(`Could not open ${item.file}.`);
+    }
+  };
+
+  /**
+   * What the agent view leaves out, in a quick pick (keyboard first): each omission with its reason, then what the
+   * brief view also condenses. Choosing one selects its lines in the source.
+   */
+  const showOmissions = async () => {
+    const doc = activeSmd();
+    if (!doc) return;
+    const options = { readFile: readerFor(doc), file: path.basename(doc.uri.fsPath), provenance: true };
+    const full = agentView(doc.getText(), options).provenance!;
+    const brief = agentView(doc.getText(), { ...options, brief: true }).provenance!;
+    type Pick = vscode.QuickPickItem & { omission?: OmissionItem };
+    const section = (label: string, items: OmissionItem[]): Pick[] => (items.length
+      ? [{ label, kind: vscode.QuickPickItemKind.Separator }, ...items.map((o) => ({ label: o.label, description: o.description, detail: o.detail, omission: o }))]
+      : []);
+    const picks = [
+      ...section('Agent view', omissionItems(full)),
+      ...section('Also condensed in the brief view', briefOnlyItems(full, brief)),
+    ];
+    if (!picks.length) {
+      vscode.window.showInformationMessage('The agent view leaves nothing out of this document.');
+      return;
+    }
+    const chosen = await vscode.window.showQuickPick(picks, {
+      placeHolder: `What agents don't see in full (≈${full.size.tokens} tokens, brief ≈${brief.size.tokens}). Choose one to go to its lines.`,
+      matchOnDescription: true, matchOnDetail: true,
+    });
+    if (chosen?.omission) await reveal(doc, chosen.omission);
+  };
+
   context.subscriptions.push(
     status,
     vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider),
     vscode.commands.registerCommand('smd.showAgentView', () => show(false)),
     vscode.commands.registerCommand('smd.showAgentViewBrief', () => show(true)),
+    vscode.commands.registerCommand('smd.showAgentViewOmissions', showOmissions),
     vscode.commands.registerCommand('smd.copyAgentView', () => copy({}, 'agent view')),
     vscode.commands.registerCommand('smd.copyAgentSections', async () => {
       const doc = activeSmd();

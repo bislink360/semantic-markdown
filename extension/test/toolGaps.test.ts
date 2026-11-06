@@ -12,7 +12,7 @@ import { openTaskLines } from '../src/core/taskLines';
  */
 
 const corpusDir = join(__dirname, 'compat', 'corpus');
-const examplesDir = join(__dirname, '..', '..', 'examples');
+const samplesDir = join(__dirname, 'samples');
 const corpus = (name: string) => readFileSync(join(corpusDir, name), 'utf8');
 const TODAY = '2026-10-15';
 const view = (src: string, options: Parameters<typeof agentView>[1] = {}) => agentView(src, { today: TODAY, ...options }).text.trim();
@@ -78,9 +78,9 @@ test('tasks: the agent view and the overdue check skip task-shaped text', () => 
   assert.match(view(doc), /- \[ \] real \(due 2020-01-01, OVERDUE\)/);
 });
 
-test('tasks: the scan agrees with rendering on every example and corpus document', () => {
+test('tasks: the scan agrees with rendering on every sample and corpus document', () => {
   const files = [
-    ...readdirSync(examplesDir).filter((f) => f.endsWith('.smd')).map((f) => join(examplesDir, f)),
+    ...readdirSync(samplesDir).filter((f) => f.endsWith('.smd')).map((f) => join(samplesDir, f)),
     ...readdirSync(corpusDir).filter((f) => f.endsWith('.smd')).map((f) => join(corpusDir, f)),
   ];
   for (const file of files) {

@@ -150,11 +150,11 @@ Agents that support the Model Context Protocol (Cursor, VS Code, Claude Desktop,
 
 ## Verify the skills work
 
-Try these prompts in a new session in a repository that contains `.smd` files (this repository's `examples/` folder works):
+Try these prompts in a new session in a repository that contains `.smd` files (this repository's `extension/test/samples/` folder works):
 
 | Prompt | Expected behaviour |
 |---|---|
-| *"What constraints apply to POST /v1/orders in examples/checkout-redesign.smd, and which @api-team tasks are open?"* | The agent runs `smd read` (the whole agent view fits 2,000 tokens, so one call is enough). It doesn't read the raw file, and it reports the idempotency, integer-cents and 422 rules plus the two open tasks, one of them overdue. |
+| *"What constraints apply to POST /v1/orders in extension/test/samples/checkout-redesign.smd, and which @api-team tasks are open?"* | The agent runs `smd read` (the whole agent view fits 2,000 tokens, so one call is enough). It doesn't read the raw file, and it reports the idempotency, integer-cents and 422 rules plus the two open tasks, one of them overdue. |
 | *"Which decisions in the checkout spec are final and what is still open?"* | It lists the accepted and rejected decisions, the open question with its owner and deadline, and the fallback from the agent instructions. |
 | *"Write an ADR for moving our cron jobs to a managed scheduler, as docs/adr-0012-scheduler.smd."* | The agent uses the `adr` template, fills every placeholder, runs `smd validate --fix`, and ends with 0 errors. |
 | *"What's overdue across docs/?"* | It runs `smd tasks docs/`. |
@@ -193,7 +193,7 @@ flowchart LR
 
 3. **The reader skill** turns this into a habit. Files under ≈1,500 tokens (≈6 KB) are read directly, since the tools save little there. Larger files go through `smd read`: one call that prints the whole agent view when it fits 2,000 tokens, else the outline (≈100–300 tokens, every section with its cost), and the agent then pulls only the sections it needs. For documents with `related:` links, `smd outline --related` adds each related document's summary and cost, so the agent opens one only when the question needs it.
 
-Measured on the examples:
+Measured on the sample documents in `extension/test/samples/`:
 
 | Read | ≈ tokens | Saving |
 |---|---:|---:|
@@ -201,8 +201,8 @@ Measured on the examples:
 | outline | 255 | 90% |
 | full agent view (what `smd read` prints here) | 1,540 | 38% |
 | one section (+ agent instructions) | 365–636 | 74–85% |
-| `smd tasks examples/` vs. reading all 7 examples | 690 vs 7,328 | 91% |
-| `smd query "decision, risk" examples/` vs. reading all 7 examples | 821 vs 7,328 | 89% |
+| `smd tasks` on all 7 samples vs. reading them | 690 vs 7,328 | 91% |
+| `smd query "decision, risk"` on all 7 samples vs. reading them | 821 vs 7,328 | 89% |
 
 **What to expect in practice:** the tools cost tokens too. In 2.5.0 the two skill descriptions cost ≈260 tokens per session, the reader `SKILL.md` ≈480 when it loads (≈2,300 before 2.5.0) and the agent rules ≈280 (≈820 before). With the reader skill, answering a question about one section pays off from a document of ≈1,500 tokens; reading a whole document through the agent view pays off from ≈3,000 tokens on one read, or ≈1,000 when a session reads five. The benefit grows with **larger documents, many documents, and repeated reads**. [TOKENS.md](TOKENS.md) has the method, the numbers per document and the break-even table, and `npm run bench:tokens` reproduces them.
 

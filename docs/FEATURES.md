@@ -55,6 +55,8 @@ The short version of this guide; each item is described in full in the sections 
 | `smd index <dir> [-o catalog.json]` | JSON catalog of every doc (title, summary, status, owners, tags, sections, token costs, open tasks, risks…) so agents pick which docs to read |
 | `smd outline <file> [--related]` | Sections with line ranges and token costs; `--related` adds each `related:` doc's title, status, summary and cost |
 | `smd agent <file> [--section …] [--brief] [--max-tokens N]` | Compact agent view; `--max-tokens` condenses it and leaves out the least important sections (with pointers) to fit |
+| `smd agent <file> --provenance view.json` | Also writes a JSON manifest of the view: source hashes, settings, selected sections, a source map and every omission with its reason (also on `smd read`) |
+| `smd agent <file> --section … --constraints` | Experimental: also lists the constraints outside those sections (danger blocks in full, warnings, accepted decisions and open questions as pointers) |
 | `… --tokenizer o200k_base` | Exact token counts next to the estimate on `outline` and `agent`, if you have installed `js-tiktoken` (OpenAI encodings; approximate for Claude) |
 | `smd tasks <dir> [--mine @me]` | Open tasks across docs, overdue first |
 | `smd issues <dir> [--apply] [--create] [--close]` | Sync tasks with GitHub Issues through your `gh` login. A dry run unless `--apply`: checks off tasks whose issue closed, `--create` opens issues for unlinked tasks (and links them), `--close` closes issues of done tasks |
@@ -837,6 +839,7 @@ An optional editor for `.smd` files (since 1.8): the document as the preview ren
 |---|---|
 | **Show Agent View** | 🤖 in the editor title bar: a live, read-only view of exactly what an agent reads |
 | **Show Brief Agent View** | The condensed version (`--brief`) |
+| **What the Agent View Leaves Out…** | Each omission of the agent view and the brief view with its reason; choose one to select its lines in the source |
 | **Copy Agent View to Clipboard** | Right-click menu. Paste into any chat tool. |
 | **Copy Sections for an Agent…** | Pick sections; agent instructions are included automatically |
 | **Token counter** | The status bar shows `🤖 ≈1.5k tok`; hover to compare raw, agent-view and brief sizes |
@@ -1437,7 +1440,7 @@ Token counts are estimates (characters / 4) unless you pass `--tokenizer`.
 2. leaves out whole sections, least important first, until it fits. Each one is replaced by a pointer that says how to read it:
 
 ```text
-[section omitted: ## Architecture, L90-L128, ≈231 tokens — smd agent examples/checkout-redesign.smd --section "Architecture"]
+[section omitted: ## Architecture, L90-L128, ≈231 tokens — smd agent checkout-redesign.smd --section "Architecture"]
 ```
 
 | Rule | Sections |

@@ -22,7 +22,6 @@
   <a href="#for-ai-agents">For agents</a> ·
   <a href="https://bislink360.github.io/semantic-markdown/playground/">Playground</a> ·
   <a href="docs/FEATURES.md">Feature guide</a> ·
-  <a href="examples/">Examples</a> ·
   <a href="docs/SPEC.md">Specification</a>
 </p>
 
@@ -74,9 +73,9 @@ Semantic Markdown makes the meaning of a document explicit, so an agent can tell
 | `smd validate docs/` · MCP `validate` | Problems with rule codes and machine-applicable fixes, as a gate before it commits |
 | `smd mcp --allow-write` | Opt-in write tools: `check_task`, `set_status`, `add_decision`, each validated |
 
-**What it saves, measured.** The agent view drops styling, layout and content marked for people only. On the [examples](examples/), the full agent view is **5–37% smaller** than the file (median ≈17%) and `--brief` **14–43%**; reading the outline plus one section costs **about 80% less** than the file on 6k–8k-token documents. The bigger the document and the more often it is read, the more that adds up. For a small document (under ≈1,500 tokens) the skill and tool overhead costs more than it saves: just read the file, as the reader skill does. Methodology, fixed costs and a break-even table: **[docs/TOKENS.md](docs/TOKENS.md)**; what the agent view keeps and drops: [docs/SKILLS.md](docs/SKILLS.md#how-token-reduction-works). `smd savings docs/` reports the numbers for your own repository.
+**What it saves, measured.** The agent view drops styling, layout and content marked for people only. On seven sample documents ([extension/test/samples](extension/test/samples/)), the full agent view is **5–37% smaller** than the file (median ≈17%) and `--brief` **14–43%**; reading the outline plus one section costs **about 80% less** than the file on 6k–8k-token documents. The bigger the document and the more often it is read, the more that adds up. For a small document (under ≈1,500 tokens) the skill and tool overhead costs more than it saves: just read the file, as the reader skill does. Methodology, fixed costs and a break-even table: **[docs/TOKENS.md](docs/TOKENS.md)**; what the agent view keeps and drops: [docs/SKILLS.md](docs/SKILLS.md#how-token-reduction-works). `smd savings docs/` reports the numbers for your own repository.
 
-Measured on [`examples/checkout-redesign.smd`](examples/checkout-redesign.smd), a ≈2,500-token PRD (≈4 characters per token):
+Measured on [`checkout-redesign.smd`](extension/test/samples/checkout-redesign.smd), a ≈2,500-token PRD (≈4 characters per token):
 
 | How it's read | ≈ tokens | Saving |
 |---|---:|---:|
@@ -84,8 +83,8 @@ Measured on [`examples/checkout-redesign.smd`](examples/checkout-redesign.smd), 
 | `smd agent` (whole document) | 1,540 | 38% |
 | `smd agent --brief` | 1,406 | 43% |
 | `smd outline` + `smd agent --section "open questions"` | 630 | 75% |
-| `smd tasks examples/` vs. reading all 7 examples | 704 vs 7,328 | 90% |
-| `smd query "decision, risk" examples/` vs. reading all 7 examples | 827 vs 7,328 | 89% |
+| `smd tasks` on all 7 samples vs. reading them | 704 vs 7,328 | 90% |
+| `smd query "decision, risk"` on all 7 samples vs. reading them | 827 vs 7,328 | 89% |
 
 **Spec-driven work:** `spec`, `plan` and `tasks` templates turn a feature into three linked documents an agent works through, with `smd tasks` as its queue and `smd validate` as the gate: [docs/SPEC-DRIVEN.md](docs/SPEC-DRIVEN.md). Setup for each agent: [docs/SKILLS.md](docs/SKILLS.md) and [docs/AGENTS.md](docs/AGENTS.md).
 
@@ -167,20 +166,6 @@ GitHub renders `.md` files but shows `.smd` files as source. You can write Seman
     paths: docs
 ```
 
-## Examples
-
-| File | Shows |
-|---|---|
-| [showcase.smd](examples/showcase.smd) | Every feature on one page |
-| [checkout-redesign.smd](examples/checkout-redesign.smd) | A realistic PRD: requirements, API, decisions, risks, rollout, agent constraints |
-| [feature-spec.smd](examples/feature-spec.smd) | A short product spec |
-| [adr-0007-event-bus.smd](examples/adr-0007-event-bus.smd) | Architecture decision record |
-| [runbook-payments-latency.smd](examples/runbook-payments-latency.smd) | On-call runbook with safe-automation rules |
-| [api-orders.smd](examples/api-orders.smd) | API reference with endpoints and embedded source |
-| [status-report-2026-09.smd](examples/status-report-2026-09.smd) | Weekly status report with KPIs, risks and decisions needed |
-
-Each has a rendered `.html` version next to it that you can open in a browser. More in [examples/README.md](examples/README.md).
-
 ## Documentation
 
 | Document | For |
@@ -211,7 +196,7 @@ npm run build:npm      # → ../npm/dist (the npm package)
 npm run build:playground  # → dist/playground (the web playground; open its index.html)
 ```
 
-Press **F5** in `extension/` to launch an Extension Development Host with the examples open.
+Press **F5** in `extension/` to launch an Extension Development Host with the test samples open.
 
 ## Author
 

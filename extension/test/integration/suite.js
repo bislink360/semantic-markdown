@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const vscode = require('vscode');
 
-const examples = path.resolve(__dirname, '..', '..', '..', 'examples');
+const samples = path.resolve(__dirname, '..', 'samples');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, what, timeout = 10000) {
@@ -20,7 +20,7 @@ async function waitFor(fn, what, timeout = 10000) {
 
 const checks = {
   async 'extension activates and .smd gets the smd language'() {
-    const doc = await vscode.workspace.openTextDocument(path.join(examples, 'showcase.smd'));
+    const doc = await vscode.workspace.openTextDocument(path.join(samples, 'showcase.smd'));
     await vscode.window.showTextDocument(doc);
     assert.equal(doc.languageId, 'smd');
     const ext = vscode.extensions.getExtension('bislink360.semantic-markdown');
@@ -47,9 +47,9 @@ const checks = {
     await waitFor(() => doc.getText() === content, 'one undo reverts it');
   },
 
-  async 'valid examples produce no problems'() {
+  async 'valid samples produce no problems'() {
     for (const f of ['showcase.smd', 'feature-spec.smd']) {
-      const doc = await vscode.workspace.openTextDocument(path.join(examples, f));
+      const doc = await vscode.workspace.openTextDocument(path.join(samples, f));
       await wait(500);
       const problems = vscode.languages.getDiagnostics(doc.uri).filter((d) => d.severity <= vscode.DiagnosticSeverity.Warning);
       assert.deepEqual(problems.map((p) => p.message), [], f);
@@ -86,7 +86,7 @@ const checks = {
   },
 
   async 'outline and folding work'() {
-    const doc = await vscode.workspace.openTextDocument(path.join(examples, 'showcase.smd'));
+    const doc = await vscode.workspace.openTextDocument(path.join(samples, 'showcase.smd'));
     const symbols = await vscode.commands.executeCommand('vscode.executeDocumentSymbolProvider', doc.uri);
     assert.ok(symbols.some((s) => s.name === 'Callouts'));
     const folds = await vscode.commands.executeCommand('vscode.executeFoldingRangeProvider', doc.uri);
@@ -94,7 +94,7 @@ const checks = {
   },
 
   async 'preview opens as a webview'() {
-    const doc = await vscode.workspace.openTextDocument(path.join(examples, 'showcase.smd'));
+    const doc = await vscode.workspace.openTextDocument(path.join(samples, 'showcase.smd'));
     await vscode.window.showTextDocument(doc);
     await vscode.commands.executeCommand('smd.openPreviewToSide');
     await waitFor(() => vscode.window.tabGroups.all.flatMap((g) => g.tabs)
@@ -102,7 +102,7 @@ const checks = {
   },
 
   async 'preview renders diagrams, math and tabs under the webview CSP'() {
-    const uri = vscode.Uri.file(path.join(examples, 'showcase.smd')).toString();
+    const uri = vscode.Uri.file(path.join(samples, 'showcase.smd')).toString();
     const status = await waitFor(() => vscode.commands.executeCommand('smd._previewStatus', uri), 'preview render report', 20000);
     console.log(`      preview reported: ${JSON.stringify(status)}`);
     assert.equal(status.diagrams, 3, 'all three Mermaid diagrams rendered to SVG');
@@ -196,7 +196,7 @@ const checks = {
   },
 
   async 'agent view opens and copy puts compact text on the clipboard'() {
-    const doc = await vscode.workspace.openTextDocument(path.join(examples, 'checkout-redesign.smd'));
+    const doc = await vscode.workspace.openTextDocument(path.join(samples, 'checkout-redesign.smd'));
     await vscode.window.showTextDocument(doc);
     await vscode.commands.executeCommand('smd.showAgentView');
     const view = await waitFor(() => vscode.workspace.textDocuments.find((d) => d.uri.scheme === 'smd-agent'), 'agent view document');
@@ -277,7 +277,7 @@ const checks = {
   },
 
   async 'find references and rename follow heading anchors across the workspace'() {
-    // Workspace-wide search only covers the open folder (examples/), so the fixture lives there briefly.
+    // Workspace-wide search only covers the open folder (test/samples/), so the fixture lives there briefly.
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const dir = fs.mkdtempSync(path.join(root, 'zz-refs-'));
     try {
@@ -306,7 +306,7 @@ const checks = {
   },
 
   async 'smd.config.json and suppression comments shape diagnostics, and config edits apply live'() {
-    // The config watcher covers the open folder (examples/), so the fixture lives there briefly.
+    // The config watcher covers the open folder (test/samples/), so the fixture lives there briefly.
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const dir = fs.mkdtempSync(path.join(root, 'zz-rules-'));
     try {
@@ -398,7 +398,7 @@ const checks = {
     const doc = await vscode.workspace.openTextDocument({ language: 'smd', content: '## Setup\n\nInstall it.\n\nSee [setup](#setup).\n' });
     assert.match(await hoverText(doc, 4, 7), /Install it\./);
 
-    const showcase = await vscode.workspace.openTextDocument(path.join(examples, 'showcase.smd'));
+    const showcase = await vscode.workspace.openTextDocument(path.join(samples, 'showcase.smd'));
     const embedLine = showcase.getText().split('\n').findIndex((l) => l.includes('file="src/pricing.ts"'));
     assert.ok(embedLine > 0);
     const embed = await hoverText(showcase, embedLine, 3);
@@ -437,7 +437,7 @@ const checks = {
   },
 
   async 'the SMD Tasks view groups workspace tasks, follows edits and file events, and checks tasks off'() {
-    // The view covers the open folder (examples/), so the fixture lives there briefly.
+    // The view covers the open folder (test/samples/), so the fixture lives there briefly.
     const root = vscode.workspace.workspaceFolders[0].uri.fsPath;
     const dir = fs.mkdtempSync(path.join(root, 'zz-tasks-'));
     const today = new Date().toISOString().slice(0, 10);

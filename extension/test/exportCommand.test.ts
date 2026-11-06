@@ -55,7 +55,7 @@ const cli = join(__dirname, '..', 'dist', 'cli.js');
 const skip = !existsSync(cli) && 'run npm run build first';
 const corpusDir = join(__dirname, 'compat', 'corpus');
 const corpus = readdirSync(corpusDir).filter((f) => f.endsWith('.smd')).sort((a, b) => a.localeCompare(b)).map((f) => join(corpusDir, f));
-const showcase = join(__dirname, '..', '..', 'examples', 'showcase.smd');
+const showcase = join(__dirname, 'samples', 'showcase.smd');
 
 interface Result { status: number; stdout: string; stderr: string }
 

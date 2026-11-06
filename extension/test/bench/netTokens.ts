@@ -1,4 +1,5 @@
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -7,22 +8,26 @@ import { agentViewRanges, sectionCosts, type SectionCost } from '../../src/core/
 import { rulesBody } from '../../src/agentTargets';
 import { Sandbox, smdTools } from '../../src/mcp';
 import { McpServer } from '../../src/mcpProtocol';
+import { readDocument } from '../../src/readView';
 import { loadTokenizer } from '../../src/tokenizer';
 
 /**
  * Net tokens: what an agent spends to use a `.smd` document with plain reading versus the smd tools, counting the
  * tools' own fixed overhead (skill descriptions, the reader SKILL.md, agent rules, MCP tool definitions).
  *
- *   npm run bench:tokens                         examples/ (markdown report on stdout)
+ *   npm run bench:tokens                         test/samples/ (markdown report on stdout)
  *   npm run bench:tokens -- --docs               also docs/*.smd
  *   npm run bench:tokens -- --tokenizer o200k_base   exact OpenAI counts (needs js-tiktoken), else ≈ chars / 4
- *   npm run bench:tokens -- --json               raw numbers
+ *   npm run bench:tokens -- --json               raw numbers, with a record of the run (commit, hashes, Node, OS, settings)
+ *   npm run bench:tokens -- --reader cli         require the built CLI for `smd read` (or `in-process`); default: the
+ *                                                CLI when built. Research runs should name one.
  *
  * Every overhead is read at run time from the files and the MCP server, so the report follows their changes.
  * docs/TOKENS.md explains the method and holds the published results.
  */
 
 const repo = path.join(__dirname, '..', '..', '..');
+const samplesDir = path.join(__dirname, '..', 'samples');
 const cli = path.join(__dirname, '..', '..', 'dist', 'cli.js');
 const TODAY = '2026-10-28';
 /** Tokens per tool call besides its result: the call itself and the result's framing (an assumption, same for every call). */
@@ -87,6 +92,7 @@ async function mcpCost(count: (t: string) => number): Promise<{ tokens: number; 
       { jsonrpc: '2.0', id: 2, method: 'tools/list' },
     ];
     const res = spawnSync(process.execPath, [cli, 'mcp', '--root', repo], { input: messages.map((m) => JSON.stringify(m)).join('\n') + '\n', encoding: 'utf8' });
+    if (res.status !== 0) throw new Error(`smd mcp failed (exit ${res.status}): ${res.stderr || res.error?.message}`);
     const replies = res.stdout.split('\n').filter(Boolean).map((l) => JSON.parse(l) as { id: number; result: Record<string, unknown> });
     const init = replies.find((r) => r.id === 1)?.result;
     const list = replies.find((r) => r.id === 2)?.result;
@@ -104,29 +110,53 @@ async function mcpCost(count: (t: string) => number): Promise<{ tokens: number; 
 // Reads
 // ---------------------------------------------------------------------------
 
-export interface Doc { name: string; text: string; dir: string }
+/** A document: its text, the folder its relative includes and embeds resolve in, and its path when it is a file on disk. */
+export interface Doc { name: string; text: string; dir: string; file?: string }
 
-/** `smd read FILE`: the CLI's when it has the command, else the same rule in process. */
+/** What `smd read` returned, and which of its outputs it was (as it reports it, not guessed from the length). */
+export interface ReadOutput { text: string; shown: 'full' | 'outline' | 'sections' }
+
+export type ReaderMode = 'cli' | 'in-process';
+
+/**
+ * `smd read FILE`: the built CLI's (`cli`), or the same function in process (`in-process`). Every strategy gets the
+ * same date (`TODAY`) and tokenizer. A file on disk is read at its own path, so its relative includes resolve as they
+ * do for an agent; a generated document is written beside the files it was made from. A failed read throws, so it can't
+ * pass for a cheap strategy.
+ */
 export class Reader {
-  readonly viaCli: boolean;
-  constructor() {
-    this.viaCli = fs.existsSync(cli) && spawnSync(process.execPath, [cli, 'read', path.join(repo, 'examples', 'feature-spec.smd')], { encoding: 'utf8' }).status === 0;
+  readonly mode: ReaderMode;
+  constructor(mode?: ReaderMode, private readonly tokenizer?: Tokenizer) {
+    const built = fs.existsSync(cli) && spawnSync(process.execPath, [cli, 'read', path.join(samplesDir, 'feature-spec.smd')], { encoding: 'utf8' }).status === 0;
+    if (mode === 'cli' && !built) throw new Error(`--reader cli needs a working ${cli}: run npm run build first.`);
+    this.mode = mode ?? (built ? 'cli' : 'in-process');
   }
 
-  read(doc: Doc): string {
-    if (this.viaCli) {
-      const file = path.join(os.tmpdir(), `smd-bench-${process.pid}.smd`);
-      fs.writeFileSync(file, doc.text);
-      try {
-        return spawnSync(process.execPath, [cli, 'read', file], { encoding: 'utf8', cwd: doc.dir }).stdout;
-      } finally {
-        fs.rmSync(file, { force: true });
-      }
+  get viaCli(): boolean { return this.mode === 'cli'; }
+
+  read(doc: Doc): ReadOutput {
+    if (this.mode === 'in-process') {
+      const result = readDocument(doc.text, { ...options(doc), tokenizer: this.tokenizer, file: doc.file });
+      return { text: result.text, shown: result.shown };
     }
-    // The rule `smd read` follows: the whole agent view when it fits the budget, else the outline (which ends
-    // with a line telling the agent how to read a section).
-    const full = agentView(doc.text, options(doc));
-    return full.tokens <= READ_BUDGET ? full.text : outline(doc.text, options(doc));
+    if (doc.file) return this.cliRead(doc.file);
+    // A generated document: a hidden file in its folder (smd skips dot files), removed afterwards.
+    const file = path.join(doc.dir, `.smd-bench-${process.pid}.smd`);
+    fs.writeFileSync(file, doc.text);
+    try {
+      return this.cliRead(file);
+    } finally {
+      fs.rmSync(file, { force: true });
+    }
+  }
+
+  private cliRead(file: string): ReadOutput {
+    const args = [cli, 'read', file, '--today', TODAY, ...(this.tokenizer ? ['--tokenizer', this.tokenizer.name] : [])];
+    const res = spawnSync(process.execPath, args, { encoding: 'utf8', cwd: path.dirname(file) });
+    if (res.status !== 0) throw new Error(`smd read ${file} failed (exit ${res.status}): ${res.stderr || res.error?.message}`);
+    const shown = /^\[smd\] (full|outline|sections) ·/m.exec(res.stderr)?.[1] as ReadOutput['shown'] | undefined;
+    if (!shown) throw new Error(`smd read ${file}: no "[smd] full|outline|sections" line on stderr: ${res.stderr}`);
+    return { text: res.stdout, shown };
   }
 }
 
@@ -213,9 +243,8 @@ export function measure(doc: Doc, reader: Reader, count: (t: string) => number):
   const full = agentView(doc.text, opts).text;
   const brief = agentView(doc.text, { ...opts, brief: true }).text;
   const outlineText = outline(doc.text, opts);
-  const readText = reader.read(doc);
-  // `smd read` printed the whole agent view (not the outline) when it is about as long as the view.
-  const readIsFull = Math.abs(count(readText) - count(full)) <= count(full) * 0.1 + 20;
+  const { text: readText, shown } = reader.read(doc);
+  const readIsFull = shown === 'full';
   const range = agentViewRanges(doc.text, { ...opts, lineRefs: false });
 
   const sections = targetSections(doc).map((s) => {
@@ -249,20 +278,20 @@ export function measure(doc: Doc, reader: Reader, count: (t: string) => number):
 }
 
 // ---------------------------------------------------------------------------
-// Documents: the examples, optionally docs/*.smd, and larger documents built from the examples
+// Documents: the test samples, optionally docs/*.smd, and larger documents built from the samples
 // ---------------------------------------------------------------------------
 
 function smdFiles(dir: string): Doc[] {
   return fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort()
-    .map((f) => ({ name: path.relative(repo, path.join(dir, f)).replace(/\\/g, '/'), text: fs.readFileSync(path.join(dir, f), 'utf8'), dir }));
+    .map((f) => ({ name: path.relative(repo, path.join(dir, f)).replace(/\\/g, '/'), text: fs.readFileSync(path.join(dir, f), 'utf8'), dir, file: path.join(dir, f) }));
 }
 
 /**
- * A document of about `target` tokens made from the examples' bodies, one after another. Like a real large
- * spec it keeps one `:::agent` block (the first) and unique headings (each example's are numbered).
+ * A document of about `target` tokens made from the samples' bodies, one after another. Like a real large
+ * spec it keeps one `:::agent` block (the first) and unique headings (each sample's are numbered).
  */
 export function composite(target: number, count: (t: string) => number): Doc {
-  const dir = path.join(repo, 'examples');
+  const dir = samplesDir;
   const bodies = smdFiles(dir).map((d) => d.text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, ''));
   const parts = ['---\nsmd: 1\ntitle: Composite\nsummary: Example documents one after another, for the size benchmark.\nstatus: draft\n---\n'];
   let agentKept = false;
@@ -389,20 +418,56 @@ function report(results: DocResult[], sized: DocResult[], fixed: FixedCosts, rea
   return out.join('\n') + '\n';
 }
 
+const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
+
+function gitOut(args: string[]): string | undefined {
+  try {
+    return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * What a run depends on, for the `--json` report: the commit (and whether the tree had changes), the CLI build's hash,
+ * Node and the OS, the reader mode, the date, the tokenizer for counting and for `smd read`'s routing, the assumed
+ * per-call cost, the arguments and each document's hash.
+ */
+export function runRecord(reader: Reader, tokenizer: Tokenizer | undefined, docs: Doc[], args: string[]) {
+  return {
+    commit: gitOut(['rev-parse', 'HEAD']) ?? null,
+    dirty: (gitOut(['status', '--porcelain', '--', 'extension/src', 'extension/test/bench', 'skills', 'extension/test/samples', 'docs']) ?? '') !== '',
+    cli: fs.existsSync(cli) ? { file: 'extension/dist/cli.js', sha256: sha256(fs.readFileSync(cli)) } : null,
+    node: process.version,
+    platform: `${process.platform} ${os.release()} ${process.arch}`,
+    reader: reader.mode,
+    today: TODAY,
+    tokenizer: tokenizer?.name ?? 'estimate (≈ characters / 4)',
+    routing: tokenizer ? `smd read routes on ${tokenizer.name} counts` : 'smd read routes on the estimate',
+    callTokens: CALL,
+    args,
+    documents: docs.map((d) => ({ name: d.name, sha256: sha256(d.text) })),
+  };
+}
+
 async function main(args: string[]): Promise<void> {
   const tokName = args.includes('--tokenizer') ? args[args.indexOf('--tokenizer') + 1] : undefined;
   const tokenizer: Tokenizer | undefined = tokName ? loadTokenizer(tokName) : undefined;
   const count = tokenizer ? tokenizer.count : estimateTokens;
   const label = tokenizer ? `${tokenizer.name} (exact OpenAI encoding; approximate for Claude)` : '≈ characters / 4 (estimateTokens, as smd outline)';
 
-  const docs = smdFiles(path.join(repo, 'examples'));
+  const readerArg = args.includes('--reader') ? args[args.indexOf('--reader') + 1] : undefined;
+  if (readerArg !== undefined && readerArg !== 'cli' && readerArg !== 'in-process') throw new Error('--reader takes cli or in-process.');
+  const docs = smdFiles(samplesDir);
   if (args.includes('--docs')) docs.push(...smdFiles(path.join(repo, 'docs')));
-  const reader = new Reader();
+  const reader = new Reader(readerArg, tokenizer);
   const results = docs.map((d) => measure(d, reader, count));
-  const sized = [4000, 8000, 16000, 32000].map((t) => measure(composite(t, count), reader, count));
+  const composites = [4000, 8000, 16000, 32000].map((t) => composite(t, count));
+  const sized = composites.map((d) => measure(d, reader, count));
   const fixed = await fixedCosts(count);
   if (args.includes('--json')) {
-    process.stdout.write(JSON.stringify({ tokenizer: label, call: CALL, fixed, results, sized }, null, 2) + '\n');
+    const run = runRecord(reader, tokenizer, [...docs, ...composites], args);
+    process.stdout.write(JSON.stringify({ run, tokenizer: label, call: CALL, fixed, results, sized }, null, 2) + '\n');
     return;
   }
   process.stdout.write(report(results, sized, fixed, reader.viaCli, label));
