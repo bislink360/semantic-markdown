@@ -231,7 +231,7 @@ Collapsed section for long content.
 | `warning` | amber | caveat | `<warning>` | `> [!WARNING]` |
 | `danger` | red | hard constraint | `<danger>` | `> [!CAUTION]` |
 | `question` | purple | open decision | `<question>` | `> [!IMPORTANT]` |
-| `details` | — | long optional content | `<details>` (omitted with `--brief`) | `<details><summary>` |
+| `details` | — | long optional content | `<details>` (omitted with `--brief`, except `:::agent` and `:::danger` blocks inside) | `<details><summary>` |
 
 ### GitHub alerts
 
@@ -618,7 +618,7 @@ See [Pricing](shared/terms.smd#pricing) in the shared terms.
 - **Same rendering.** Included text is parsed like the rest of the document: every block and nested includes work, and links, images and code embeds in it still point where they did from their own folder. A subtle rule in the margin shows its extent on hover.
 - **Ids stay stable.** The document's own heading ids never change; included headings are numbered where they would clash (`#pricing-1`), and the document may link to them.
 - **Safe.** Files are read with the same sandbox as code embeds (the workspace, the document's folder, its Git repository; the MCP server's root). Cycles (`a → b → a`) stop with a note, includes nest at most 8 deep, and a document includes at most 200 times and 2,000,000 characters.
-- **Everywhere it reads.** The preview (it refreshes when the included file is saved), `smd export` (`html`, `pdf`, `docx`, `confluence` and `notion`), `smd build` and the markdown-it, remark and rehype plugins (given a `readFile`) include. The agent view shows the text in `<included file="shared/terms.smd" section="Pricing">…</included>` (`smd agent --no-includes` shows a one-line pointer instead), and `smd export --to md` inlines it, since GitHub can't include. `smd outline`, `query`, `tasks`, `decisions`, `risks`, `index` and `diff` work per file.
+- **Everywhere it reads.** The preview (it refreshes when the included file is saved), `smd export` (`html`, `pdf`, `docx`, `confluence` and `notion`), `smd build` and the markdown-it, remark and rehype plugins (given a `readFile`) include. The agent view shows the text in `<included file="shared/terms.smd" section="Pricing">…</included>` (`smd agent --no-includes` shows a one-line pointer instead). Sections the included file marks `{agent=skip}` stay out, and its `:::agent` blocks apply to the whole document: a section view of another section lists them under "Document-wide agent instructions", and `smd export --to md` inlines it, since GitHub can't include. `smd outline`, `query`, `tasks`, `decisions`, `risks`, `index` and `diff` work per file.
 - **Editor help.** Completion of paths in `file="…"`, go to definition on the path, hover preview of the included document, the `transclude` snippet, and warnings for a missing file or section, a file outside the workspace, cycles and limits (`include/*`).
 
 ## 8. Layout: tabs, columns, cards, boxes, steps
@@ -1187,7 +1187,7 @@ Rendered pages (the preview, `smd export --to html`, `smd build` sites and `smd 
 smd read <file> [--max-tokens <n>]                   one call for agents: the whole agent view if it fits n tokens
                  (default 2000), else the outline and how to read sections with smd agent --section
 smd outline <file> [--related] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs
-smd agent <file> [--section "<heading>"]… [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
+smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
                  [--max-tokens <n>] [--tokenizer <name>]   fit the view into n tokens; exact counts
                  --no-includes: a pointer per :::include instead of the included text
 smd tasks <files|dirs> [--all] [--mine @name] [--json]
@@ -1329,20 +1329,22 @@ How an agent routes with it: read the catalog, pick documents by `summary`, `sta
 
 | Tool | Arguments | Same as |
 |---|---|---|
-| `read` | `file`, `sections?[]`, `brief?`, `mode?` (`auto`, `outline` or `full`) | `smd read`: by default the whole agent view when it is small, else the outline; `sections` reads only those sections, `outline` and `full` force one |
+| `read` | `file`, `sections?[]`, `exact?`, `brief?`, `mode?` (`auto`, `outline` or `full`), `maxTokens?` | `smd read`: by default the whole agent view when it fits `maxTokens` (2,000), else the outline; `sections` reads only those sections (`exact` matches only an id or a whole heading), `outline` and `full` force one |
 | `tasks` | `paths[]?`, `all?`, `mine?` | `smd tasks` |
 | `query` | `selector`, `paths[]?`, `brief?`, `titles?` | `smd query` |
 | `validate` | `paths[]?` | `smd validate --json` |
 
-These four are what `tools/list` shows (under 500 tokens with the server's instructions). The tools of earlier versions, `outline` (`file`), `section` (`file`, `sections[]`, `brief?`) and `agent` (`file`, `brief?`, `includeHuman?`), still answer when called, and `smd mcp --legacy-tools` lists them again, until 3.0.
+These four are what `tools/list` shows (under 500 tokens with the server's instructions). The tools of earlier versions, `outline` (`file`), `section` (`file`, `sections[]`, `brief?`) and `agent` (`file`, `brief?`, `includeHuman?`), still answer when called, and `smd mcp --legacy-tools` lists them again. They are still served in 3.x.
 
 With `--allow-write`, three tools change documents. Each checks the result with the validator and stays inside the root:
 
 | Tool | Arguments | Does |
 |---|---|---|
-| `check_task` | `file`, `line`, `done?` | Ticks the task on that line (`done: false` unticks it) |
-| `set_status` | `file`, `status` | Sets the front matter `status` |
-| `add_decision` | `file`, `section`, `title`, `status?`, `owner?`, `body` | Appends a `:::decision` block at the end of the section |
+| `check_task` | `file`, `line`, `done?`, `text?`, `revision?` | Ticks the task on that line (`done: false` unticks it) |
+| `set_status` | `file`, `status`, `revision?` | Sets the front matter `status` |
+| `add_decision` | `file`, `section`, `title`, `status?`, `owner?`, `body`, `revision?` | Appends a `:::decision` block at the end of the section |
+
+With writes on, `read` ends with `[revision …]`, a hash of the file as read. Pass it back as `revision` and the tool refuses, writing nothing, if the file changed since. Writes check the result with the folder's rule config and Mermaid, and go through a temporary file that replaces the original.
 
 Paths are relative to `--root` (default: the current folder). Paths outside it are refused, and only `.smd` files are read; without `--allow-write`, nothing is written. Register it with, for example:
 
@@ -1438,22 +1440,25 @@ Token counts are estimates (characters / 4) unless you pass `--tokenizer`.
 
 **`smd agent <file> --max-tokens <n>`** fits the agent view into a budget, for prompts with a fixed context size. When the view is too big it:
 
-1. condenses it as `--brief` does (diagrams, long code, `:::details`, completed tasks), then
+1. condenses it as `--brief` does (diagrams, long code, `:::details` except the `:::agent` and `:::danger` blocks inside them, completed tasks), then
 2. leaves out whole sections, least important first, until it fits. Each one is replaced by a pointer that says how to read it:
 
 ```text
 [section omitted: ## Architecture, L90-L128, ≈231 tokens — smd agent checkout-redesign.smd --section "Architecture"]
+[section omitted: ## Rollout, L130-L170, ≈310 tokens, holds danger, question — smd agent checkout-redesign.smd --section "Rollout"]
 ```
+
+When the section shows a danger, a warning or a question, the pointer names them after its tokens, so a budget never hides one silently.
 
 | Rule | Sections |
 |---|---|
-| Never left out | the header (title, front matter, summary), text before the first `##` section, sections with `:::agent` instructions, sections requested with `--section` (and their subsections) |
-| Kept longer | sections with a `:::danger` or `:::warning` callout, an accepted decision, a `:::question` or an open task |
+| Never left out | the header (title, front matter, summary), text before the first `##` section, sections with `:::agent` instructions (their own or from a file they include), sections requested with `--section` (and their subsections) |
+| Kept longer | sections with a `:::danger` or `:::warning` callout (or a CAUTION or WARNING alert), an accepted decision, a `:::question` or an open task |
 | Left out first | everything else; the deepest headings first, then the largest, then the latest. A section is left out after its subsections, and its pointer then replaces theirs |
 
 A section is only left out when its content costs more than its pointer. stderr reports the result, e.g. `[smd] budget 700 tokens: condensed as --brief; omitted 6 section(s): ## Snapshot (≈55), …; now ≈656 tokens.` When even the smallest view is over the budget, smd prints it anyway, warns on stderr and exits 0. Without `--max-tokens` the output is unchanged.
 
-**`--tokenizer <name>`** on `smd agent` and `smd outline` adds exact counts next to the estimate (`≈1531 est · 1402 o200k_base tokens`), and `--max-tokens` then counts with it. Names: `o200k_base` (GPT-4o and later), `cl100k_base`, `p50k_base`, `r50k_base`. smd has no runtime dependencies, so it uses the [`js-tiktoken`](https://www.npmjs.com/package/js-tiktoken) package only if you have installed it, in your project (`npm install --save-dev js-tiktoken`, run smd from the project folder) or globally (`npm install -g js-tiktoken`). When it is missing, smd says how to install it and exits 2.
+**`--tokenizer <name>`** on `smd agent` and `smd outline` adds exact counts next to the estimate (`≈1531 est · 1402 o200k_base tokens`), and `--max-tokens` then counts with it. On `smd read` it decides the routing: the whole view or the outline is chosen by the tokenizer's count, not the estimate. Names: `o200k_base` (GPT-4o and later), `cl100k_base`, `p50k_base`, `r50k_base`. smd has no runtime dependencies, so it uses the [`js-tiktoken`](https://www.npmjs.com/package/js-tiktoken) package only if you have installed it, in your project (`npm install --save-dev js-tiktoken`, run smd from the project folder) or globally (`npm install -g js-tiktoken`). When it is missing, smd says how to install it and exits 2.
 
 These are OpenAI encodings. There is no public tokenizer for current Claude models, so for Claude these counts are approximate too: leave some headroom in a budget.
 

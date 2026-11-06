@@ -62,7 +62,7 @@ If the `smd` MCP server is registered, use its tools instead of the shell. Paths
 | `<included file="shared/terms.smd" section="…">…</included>` | Text included from another document, part of this one. `[L…]` refs inside point into that file, so edit it there. |
 | `[include: shared/terms.smd § Pricing — …]` | An include that wasn't expanded (`--no-includes`, or it can't be read). Run `smd agent shared/terms.smd --section "Pricing"` if you need it. |
 | `[diagram: …]`, `[details: … omitted]` | Condensed by `--brief`. Read the given lines if you need them. |
-| `[section omitted: ## X, L90-L128, ≈231 tokens — smd agent …]` | Left out by `--max-tokens`. Run the given command if the question needs that section. |
+| `[section omitted: ## X, L90-L128, ≈231 tokens — smd agent …]` | Left out by `--max-tokens`. Run the given command if the question needs that section. `holds danger, question` after the tokens names cues inside it: read it if your task could touch them. |
 | `[front matter could not be read]` and a `yaml` fence | The front matter is broken (often a missing closing `---`); the fence holds its raw lines, so title, status and the other keys are unknown |
 | Plain words where the source has `:abbr[HTML]` | In `smd: 2`, a directive the tools don't know shows only its content (`HTML`); `\:abbr[…]` is literal text |
 | `<note>`, `<warning>`… from a `> [!WARNING]` blockquote | A GitHub alert: the same callout as `:::warning` |

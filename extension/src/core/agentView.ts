@@ -438,6 +438,8 @@ interface Draft {
   count: (text: string) => number;
   /** `count` is estimateTokens, so a view's count follows from its length (see draftCount). */
   estimated: boolean;
+  /** Source lines that emitted `:::agent` text, an include's line for its file's blocks (see onAgentLine). */
+  agentLines: Set<number>;
   /** Each section's tokens and pointer, worked out once. */
   costs: Map<BudgetSection, number>;
   pointers: Map<BudgetSection, { text: string; kind: number }>;
@@ -445,11 +447,12 @@ interface Draft {
 
 function draftOf(scope: ViewScope, options: AgentViewOptions): Draft {
   const lines: Array<[number, string]> = [];
-  transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines });
+  const agentLines = new Set<number>();
+  transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines, onAgentLine: (l) => agentLines.add(l) });
   const byLine = lines.map((_, k) => k).sort((a, b) => lines[a][0] - lines[b][0] || a - b);
   return {
     head: viewHead(scope, options), lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
-    file: options.file, count: options.tokenizer?.count ?? estimateTokens, estimated: !options.tokenizer, costs: new Map(), pointers: new Map(),
+    file: options.file, count: options.tokenizer?.count ?? estimateTokens, estimated: !options.tokenizer, agentLines, costs: new Map(), pointers: new Map(),
   };
 }
 
@@ -481,7 +484,7 @@ function sectionTokens(draft: Draft, s: BudgetSection): number {
 function pointerOf(draft: Draft, s: BudgetSection): { text: string; kind: number } {
   let pointer = draft.pointers.get(s);
   if (!pointer) {
-    const text = omissionPointer(s, sectionTokens(draft, s), draft.file);
+    const text = omissionPointer(s, sectionTokens(draft, s), draft.file, keyCues(draftSection(draft, s)));
     draft.pointers.set(s, (pointer = { text, kind: pieceKind(text) }));
   }
   return pointer;
@@ -606,12 +609,21 @@ function budgetedView(text: string, scope: ViewScope, options: AgentViewOptions)
   return viewResult(text, scope, out, options, { maxTokens, tokens, fits: tokens <= maxTokens, condensed, omitted: omittedSections }, draft.head.constraintView);
 }
 
+/** The cues a section's view text holds that its pointer names, so a hidden danger or question is never silent. */
+function keyCues(view: string): string[] {
+  const cues: string[] = [];
+  for (const cue of ['danger', 'warning', 'question']) if (new RegExp(`^<${cue}[ >]`, 'm').test(view)) cues.push(cue);
+  return cues;
+}
+
 /** Omit sections, least important first, until the view fits or nothing more may be omitted. */
 function omitToFit(draft: Draft, scope: ViewScope, maxTokens: number): BudgetSection[] {
   const cost = (s: BudgetSection) => sectionTokens(draft, s);
   // Omitting a section only helps when its content costs more than its pointer.
+  // A section that shows `:::agent` text from an included file is kept, as one with its own `:::agent` block is.
+  const holdsAgentText = (s: BudgetSection) => [...draft.agentLines].some((l) => l >= s.start && l <= s.end);
   const candidates = omittableSections(scope.sections, scope.lines, scope.selected)
-    .filter((s) => cost(s) > draft.count(pointerOf(draft, s).text));
+    .filter((s) => !holdsAgentText(s) && cost(s) > draft.count(pointerOf(draft, s).text));
   let omitted: BudgetSection[] = [];
   for (const s of omissionOrder(candidates, scope.lines, cost)) {
     if (draftCount(draft, omitted) <= maxTokens) break;
@@ -683,6 +695,8 @@ interface TransformOptions extends AgentViewOptions {
   constraintSink?: ConstraintPointer[];
   /** Receives every emitted line with the file and line it came from, and what was left out (see provenance.ts). */
   trace?: Trace;
+  /** Called with the line of every emitted line of an `:::agent` block; inside an include, with the include's line. */
+  onAgentLine?: (line: number) => void;
 }
 
 /**
@@ -716,9 +730,11 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const inAgent = () => stack.some((f) => f.name === 'agent');
   // Inside a danger block or a GitHub alert shown as one (the constraints pass).
   const inDanger = () => stack.some((f) => f.name === 'danger') || alertView.callout() === 'danger';
+  // A danger is a hard constraint: like :::agent, it is kept whole inside a condensed :::details.
   const condensedHere = () => {
+    if (alertView.callout() === 'danger') return false;
     for (let k = stack.length - 1; k >= 0; k--) {
-      if (stack[k].name === 'agent') return false;
+      if (stack[k].name === 'agent' || stack[k].name === 'danger') return false;
       if (stack[k].condensed) return true;
     }
     return false;
@@ -734,6 +750,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     if (!visibleAt(at)) return;
     out.push(line);
     options.collect?.push([at, line]);
+    if (inAgent()) options.onAgentLine?.(at);
     if (traced) trace?.entries.push({ file: trace.file, line: at, end, root: trace.root ?? at, text: line });
   };
   /** Record lines [start, end] (zero-based) as left out of the view, when provenance is asked for. */
@@ -841,7 +858,19 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       if (info.name === 'include') {
         // Traced inside: its lines are the included file's (see includeView).
         const shown = visibleAt(i);
-        includeView(info, lines, i, { ...options, figures, trace: shown ? trace : undefined }).forEach((l) => emit(l, i, false));
+        if (shown) {
+          includeView(info, lines, i, { ...options, figures, trace }).forEach((l) => emit(l, i, false));
+        } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
+          // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
+          // blocks still apply, as the document's own do (C01).
+          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined }, onlyAgentBlocks: true });
+          if (rules.length > 2) {
+            for (const l of rules) {
+              out.push(l);
+              options.collect?.push([i, l]);
+            }
+          }
+        }
         frame.drop = true; // the body is fallback text for renderers that can't include
         continue;
       }
@@ -1016,8 +1045,23 @@ function includeView(info: ContainerInfo, lines: string[], line: number, options
     figureKey: includeKey(options.figureKey ?? '', line),
     // Its lines are traced as the included file's lines, under the line of the outermost include.
     trace: trace && { ...trace, file: inc.path, root: trace.root ?? line },
+    // Its :::agent lines count as the include's line (see budgetedView).
+    onAgentLine: options.onAgentLine && (() => options.onAgentLine!(line)),
   };
-  const body = transform(includedLines(inc).slice(0, inc.end + 1), inc.start, () => true, inner);
+  const all = includedLines(inc);
+  // Sections the included file marks {agent=skip} stay out, as in the document itself.
+  const skipped = sectionsOf(parseSmd(all.join('\n')).headings, all.length)
+    .filter((s) => s.heading.agent === 'skip' && s.end >= inc.start && s.start <= inc.end);
+  if (trace?.omissions) {
+    for (const s of skipped) {
+      addOmission(trace.omissions, {
+        kind: 'skipped-section', file: inc.path, lines: [Math.max(s.start, inc.start) + 1, Math.min(s.end, inc.end) + 1], heading: s.heading.text,
+        reason: 'the included file marks this section {agent=skip}',
+      });
+    }
+  }
+  const inScope = (l: number) => !skipped.some((s) => l >= s.start && l <= s.end);
+  const body = transform(all.slice(0, inc.end + 1), inc.start, inScope, inner);
   const section = request.section ? ` section="${request.section}"` : '';
   return [`<included file="${inc.path}"${section}>`, ...withoutBlankEnds(body.split('\n')), '</included>'];
 }
