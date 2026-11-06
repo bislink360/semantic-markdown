@@ -18,8 +18,8 @@ const corpus = join(root, 'extension', 'test', 'compat', 'corpus');
 const localized = readFileSync(join(corpus, 'localized.smd'), 'utf8');
 const TODAY = '2026-02-01';
 
-/** Every example and corpus document, by path. */
-const documents = (): Array<[string, string]> => [join(root, 'examples'), corpus]
+/** Every sample and corpus document, by path. */
+const documents = (): Array<[string, string]> => [join(__dirname, 'samples'), corpus]
   .flatMap((dir) => readdirSync(dir).filter((f) => f.endsWith('.smd')).map((f) => join(dir, f)))
   .map((file): [string, string] => [file, readFileSync(file, 'utf8')]);
 
@@ -100,7 +100,7 @@ test('a label a locale lacks, or leaves empty, falls back to English', () => {
 // Rendering
 // ---------------------------------------------------------------------------
 
-test('without lang, or with an English lang, every example and corpus document renders as before', () => {
+test('without lang, or with an English lang, every sample and corpus document renders as before', () => {
   for (const [file, text] of documents()) {
     if (/^lang:/m.test(text)) continue;
     const base = renderSmd(withKey(text, 'custom: en'), { today: TODAY }).html;

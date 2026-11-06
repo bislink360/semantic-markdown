@@ -7,7 +7,7 @@ import vm from 'node:vm';
 
 // The page runtime (media/runtime.js) exports its pure helpers when loaded outside a browser.
 const runtimePath = join(__dirname, '..', 'media', 'runtime.js');
-const { mapLine, pickAnchor, findLine, stableKeys, lruCache, diagramKey } = createRequire(__filename)(runtimePath);
+const { mapLine, pickAnchor, findLine, stableKeys, lruCache, diagramKey, diagramTitle, diagramName } = createRequire(__filename)(runtimePath);
 
 test('mapLine follows lines through inserted and deleted lines', () => {
   // Enter at the end of line 3: lines after it move down one.
@@ -47,6 +47,19 @@ test('stableKeys depend on content and repeats, not on position', () => {
   assert.deepEqual(stableKeys(['tabs:A|B', 'details:Why', 'tabs:A|B']), ['tabs:A|B#0', 'details:Why#0', 'tabs:A|B#1']);
   // Inserting an unrelated block above keeps the keys of the ones below.
   assert.deepEqual(stableKeys(['details:New', 'tabs:A|B']).slice(1), stableKeys(['tabs:A|B']));
+});
+
+test('diagrams are named from accTitle, the figure caption, their own title, else "Diagram"', () => {
+  assert.equal(diagramTitle('pie title Effort split\n  "A" : 1'), 'Effort split');
+  assert.equal(diagramTitle('pie showData title "Share"\n  "A" : 1'), 'Share');
+  assert.equal(diagramTitle('---\ntitle: Order states\n---\nstateDiagram-v2\n  [*] --> Open'), 'Order states');
+  assert.equal(diagramTitle('gantt\n  title Release plan\n  section A'), 'Release plan');
+  assert.equal(diagramTitle('flowchart LR\n  A --> B'), '');
+  // Mermaid already named it from accTitle: nothing to add.
+  assert.equal(diagramName(true, 'Figure 1: Flow', 'pie title X', 'Diagram'), '');
+  assert.equal(diagramName(false, '  Figure 1:\n  Flow ', 'pie title X', 'Diagram'), 'Figure 1: Flow');
+  assert.equal(diagramName(false, null, 'pie title X', 'Diagram'), 'X');
+  assert.equal(diagramName(false, '', 'flowchart LR', 'Diagramm'), 'Diagramm');
 });
 
 test('diagram cache is keyed by theme and source and evicts the least recently used', () => {

@@ -105,13 +105,13 @@ test('querySmd selects headings with their whole section', () => {
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd query prints matches and exits 1 when nothing matches', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
-  const examples = join(__dirname, '..', '..', 'examples');
-  const out = execFileSync(process.execPath, [cli, 'query', 'risk[impact>=high]', examples, '--titles'], { encoding: 'utf8', stdio: 'pipe' });
+  const samples = join(__dirname, 'samples');
+  const out = execFileSync(process.execPath, [cli, 'query', 'risk[impact>=high]', samples, '--titles'], { encoding: 'utf8', stdio: 'pipe' });
   assert.match(out, /checkout-redesign\.smd:\d+-\d+ {2}risk {2}Apple Pay domain verification delays launch {2}\{impact=high /);
-  const json = JSON.parse(execFileSync(process.execPath, [cli, 'query', 'api[method=POST]', examples, '--json'], { encoding: 'utf8', stdio: 'pipe' }));
+  const json = JSON.parse(execFileSync(process.execPath, [cli, 'query', 'api[method=POST]', samples, '--json'], { encoding: 'utf8', stdio: 'pipe' }));
   assert.ok(json.length >= 2 && json.every((m: { type: string; text: string }) => m.type === 'api' && m.text.startsWith('API POST ')));
-  assert.equal(spawnSync(process.execPath, [cli, 'query', 'decision[status=deprecated]', examples]).status, 1);
-  const bad = spawnSync(process.execPath, [cli, 'query', 'decison', examples], { encoding: 'utf8' });
+  assert.equal(spawnSync(process.execPath, [cli, 'query', 'decision[status=deprecated]', samples]).status, 1);
+  const bad = spawnSync(process.execPath, [cli, 'query', 'decison', samples], { encoding: 'utf8' });
   assert.equal(bad.status, 2);
   assert.match(bad.stderr, /Did you mean "decision"/);
 });

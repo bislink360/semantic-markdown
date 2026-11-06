@@ -129,7 +129,7 @@ code --install-extension semantic-markdown-3.0.0.vsix
 
 ## Verify the installation
 
-1. Open [`examples/showcase.smd`](../examples/showcase.smd) (or create any file ending in `.smd`).
+1. Open or create any file ending in `.smd`.
 2. The language mode in the status bar shows **Semantic Markdown**, and the file has the Semantic Markdown icon in the Explorer.
 3. Press **`Ctrl+K V`** (`Cmd+K V` on macOS). A live preview opens beside the editor with callouts, diagrams and math rendered.
 4. Type `:::warnign` on a new line. A squiggle appears; press `Ctrl+.` and choose **Change to ":::warning"**.
@@ -424,11 +424,11 @@ To update, install the new zip the same way. Settings, what the plugin does and 
 
 ## Moving from Styled Markdown
 
-Styled Markdown became Semantic Markdown in 3.0. The format is the same: `.smd` files, the `smd` command, `smd: 2`, the `smd.*` settings, commands and keybindings, and the diagnostic codes don't change. Only the published names do. Each old name got one last 3.0.0 release that moves you over, and gets no updates after that.
+Styled Markdown became Semantic Markdown in 3.0. The format is the same: `.smd` files, the `smd` command, `smd: 2`, the `smd.*` settings, commands and keybindings, and the diagnostic codes don't change. Only the published names do. The old names get no more updates.
 
 | What | Before 3.0 | From 3.0 | What to do |
 |---|---|---|---|
-| VS Code extension | `bislink360.styled-markdown` | `bislink360.semantic-markdown` | Nothing: the old entry's last update installs the new one. Then uninstall the old entry. |
+| VS Code extension | `bislink360.styled-markdown` | `bislink360.semantic-markdown` | Install **Semantic Markdown** (`code --install-extension bislink360.semantic-markdown`), then uninstall the old entry. |
 | npm package | `styled-markdown` | `semantic-markdown` | `npm install semantic-markdown`, and change imports to `semantic-markdown/…` |
 | MkDocs plugin | `mkdocs-styled-markdown` | `mkdocs-semantic-markdown` | `pip install mkdocs-semantic-markdown`. `plugins: [styled-markdown]` in `mkdocs.yml` keeps working. |
 | Agent skills | `styled-markdown-reader`, `-writer` | `semantic-markdown-reader`, `-writer` | Re-run `smd skills install`. It removes the old copies it installed. |
@@ -474,7 +474,7 @@ npm run test:vscode    # integration tests in a real VS Code (uses your installe
 npm run package        # semantic-markdown-3.0.0.vsix
 ```
 
-Press **F5** with the `extension/` folder open to start an Extension Development Host with the examples loaded.
+Press **F5** with the `extension/` folder open to start an Extension Development Host with the test samples (`extension/test/samples/`) loaded.
 
 The Obsidian plugin builds with the same toolchain: after `npm install` in `extension/`, run `npm ci`, `npm run typecheck` and `npm run build` in `integrations/obsidian/` (see its [README](../integrations/obsidian/README.md#building-from-source)).
 

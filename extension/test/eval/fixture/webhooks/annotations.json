@@ -1,0 +1,16 @@
+{
+  "guide": "none: harness fixture written by the tool's developers, not independently annotated",
+  "items": [
+    { "id": "hmac-signing", "kind": "constraint", "md": [7, 7], "smd": [12, 12], "evidence": ["sign every payload with HMAC-SHA256"], "annotator": "harness-developer" },
+    { "id": "no-body-logs", "kind": "negation", "md": [8, 8], "smd": [13, 13], "evidence": ["never log payload bodies"], "annotator": "harness-developer" },
+    { "id": "https-only", "kind": "constraint", "md": [12, 12], "smd": [18, 18], "evidence": ["only HTTPS endpoints receive events"], "annotator": "harness-developer" },
+    { "id": "retry-limit", "kind": "limit", "md": [16, 16], "smd": [22, 22], "evidence": ["retried up to 8 times"], "annotator": "harness-developer" },
+    { "id": "no-retry-4xx", "kind": "negation", "md": [16, 16], "smd": [22, 22], "evidence": ["retries are not attempted for 4xx responses", "except 429"], "annotator": "harness-developer" },
+    { "id": "backoff-current", "kind": "decision-status", "md": [18, 20], "smd": [24, 26], "evidence": ["exponential backoff with jitter", "double each time"], "annotator": "harness-developer" },
+    { "id": "fixed-interval-superseded", "kind": "decision-status", "md": [22, 24], "smd": [28, 30], "evidence": ["fixed 60-second interval"], "annotator": "harness-developer", "notes": "Superseded. Only the .smd markup says so." },
+    { "id": "payload-limit", "kind": "limit", "md": [30, 33], "smd": [36, 41], "evidence": ["256 KB", "dropped, not truncated"], "annotator": "harness-developer" },
+    { "id": "replay-open", "kind": "open-question", "md": [37, 39], "smd": [45, 47], "evidence": ["should failed deliveries be replayable from the dashboard", "kept for 7 days", "replayed only through the API"], "annotator": "harness-developer" },
+    { "id": "oncall-channel", "kind": "fact", "md": [43, 43], "smd": [50, 50], "evidence": ["#webhooks-oncall"], "annotator": "harness-developer", "notes": "Inside :::human in the .smd version." },
+    { "id": "outage-duration", "kind": "fact", "md": [47, 47], "smd": [55, 55], "evidence": [{ "regex": "outage lasted (3|three) hours" }], "annotator": "harness-developer", "notes": "In a section marked {agent=skip}." }
+  ]
+}

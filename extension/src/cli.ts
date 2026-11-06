@@ -7,7 +7,7 @@ import {
   ganttDocument, getDocumentInfo, markdownToSmd, outline, parseSelector, relatedDocs, renderRiskPage,
   RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, SelectorError, LATEST_SPEC, smdIndex,
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
-  type BudgetResult, type Diagnostic, type DiffResult, type ReportDocument, type Selector, type Tokenizer,
+  type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Selector, type Tokenizer,
 } from './core';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
@@ -43,19 +43,23 @@ const pkg = { version: typeof __SMD_PKG_VERSION__ === 'string' ? __SMD_PKG_VERSI
 const HELP = `smd — Semantic Markdown tool (spec v${LATEST_SPEC})
 
 Reading (token-efficient, for agents):
-  smd read <file.smd> [--max-tokens <n>] [--section "<heading>"]... [--brief] [--outline | --full] [--no-lines]
+  smd read <file.smd> [--max-tokens <n>] [--section "<heading>"]... [--exact] [--brief] [--outline | --full]
+           [--no-lines] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
       Start here. The whole agent view when it fits n tokens (default ${READ_BUDGET}), else the outline,
-      so one call replaces outline + agent. --section reads only those sections.
+      so one call replaces outline + agent. --section reads only those sections. --tokenizer counts
+      the view with that encoding to decide. --constraints and --provenance as on agent.
   smd savings <files|dirs...> [--json] [--price <USD per million input tokens>]
       Tokens an agent saves by reading the agent view instead of the raw files, per document and in
       total, in tokens and dollars (default price 3).
   smd outline <file.smd> [--related] [--tokenizer <name>]
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost
-  smd agent <file.smd> [--section "<heading>"]... [--brief] [--include-human] [--embed] [--no-includes]
-                       [--no-lines] [--max-tokens <n>] [--tokenizer <name>]
+  smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
+                       [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
       --section    only these sections (repeatable; agent instructions elsewhere are still included)
+      --exact      --section matches a heading's id or whole text only (by default a part of the text,
+                   so "API" also selects "API details")
       --brief      also condense diagrams, long code, :::details and completed tasks
       --embed      inline file="…" code embeds instead of referencing the file
       --no-includes a one-line pointer for each :::include instead of the included text (by default
@@ -65,6 +69,10 @@ Reading (token-efficient, for agents):
       --tokenizer  exact counts next to the ≈ estimate (also on outline, and used by --max-tokens) for an
                    OpenAI encoding: ${TOKENIZERS.join(', ')}. Approximate for Claude models.
                    Needs the js-tiktoken package in your project or installed globally; smd doesn't bundle it.
+      --constraints with --section, also list the constraints elsewhere in the document (experimental):
+                   :::danger blocks in full; warnings, accepted decisions and open questions as pointers
+      --provenance write a JSON manifest of the view to a file: source hashes, settings, resolved
+                   sections, a source map and every omission with its reason. The text doesn't change.
   smd tasks <files|dirs...> [--all] [--mine @name] [--json | --csv | --gantt [--smd] [--title "…"]] [-o <file>]
       Open tasks across documents with owner, priority and due date (overdue first).
       --csv     CSV for spreadsheets (1-based lines, owners joined with ";", formula-like cells prefixed with ')
@@ -206,7 +214,7 @@ interface Args { command?: string; positional: string[]; flags: Set<string>; val
 const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
-  '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command',
+  '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -601,27 +609,52 @@ function readCommand(file: string, args: Args, today?: string): number {
   if (flags.has('--outline')) mode = 'outline';
   else if (flags.has('--full')) mode = 'full';
   const sections = args.values.get('--section');
-  const result = readDocument(read(file), {
-    mode, maxTokens, sections, brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), readFile: readerFor(file), today, file,
+  const manifest = provenanceTarget(args);
+  if (manifest === null) return fail(PROVENANCE_USAGE);
+  return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => {
+    const result = readDocument(read(file), {
+      mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
+      readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined,
+    });
+    if (result.missingSections.length) {
+      console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd read ${file} --outline" to list sections.`);
+      if (result.missingSections.length === sections?.length) return 1;
+    }
+    if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
+    process.stdout.write(result.text);
+    const exact = result.counted ? ` (${result.counted.tokens} ${result.counted.tokenizer})` : '';
+    console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens${exact} · file ≈${result.fileTokens} tokens`);
+    return 0;
   });
-  if (result.missingSections.length) {
-    console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd read ${file} --outline" to list sections.`);
-    if (result.missingSections.length === sections?.length) return 1;
-  }
-  process.stdout.write(result.text);
-  console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens · file ≈${result.fileTokens} tokens`);
-  return 0;
+}
+
+/** `--provenance <file>`: undefined when not given, null when it has no file name. */
+function provenanceTarget(args: Args): string | undefined | null {
+  const raw = args.values.get('--provenance')?.[0];
+  if (raw === undefined) return undefined;
+  return raw.trim() && !raw.startsWith('-') ? raw : null;
+}
+
+const PROVENANCE_USAGE = '--provenance needs a file to write the manifest to, e.g. --provenance view.json.';
+
+function writeProvenance(target: string, manifest: Provenance): void {
+  fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
 }
 
 function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 'maxTokens' | 'tokenizer' | 'today'>): number {
   const sections = args.values.get('--section');
+  const manifest = provenanceTarget(args);
+  if (manifest === null) return fail(PROVENANCE_USAGE);
   const result = agentView(read(file), {
     sections,
+    exactSections: args.flags.has('--exact'),
     brief: args.flags.has('--brief'),
     includeHuman: args.flags.has('--include-human'),
     embed: args.flags.has('--embed'),
     includes: !args.flags.has('--no-includes'),
     lineRefs: !args.flags.has('--no-lines'),
+    constraints: args.flags.has('--constraints'),
+    provenance: manifest !== undefined,
     readFile: readerFor(file),
     file,
     ...extra,
@@ -630,6 +663,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
     console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd outline ${file}" to list sections.`);
     if (result.missingSections.length === (sections?.length ?? 0)) return 1;
   }
+  if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
   process.stdout.write(result.text);
   console.error(sizeLine(result));
   if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer)) console.error(line);

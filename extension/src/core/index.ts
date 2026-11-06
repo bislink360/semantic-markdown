@@ -23,8 +23,11 @@ export { tasksToCsv, tasksToGantt, ganttDocument, ganttDate, TASK_CSV_COLUMNS } 
 export type { TaskExportRow, GanttOptions } from './taskExport';
 export { markdownToSmd, fillTemplate } from './fromMarkdown';
 export { agentView, outline, estimateTokens, inlineText } from './agentView';
-export type { AgentViewOptions, AgentViewResult, InlineTextOptions } from './agentView';
+export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection } from './agentView';
 export type { BudgetResult, OmittedSection, Tokenizer } from './budget';
+export { outlineProvenance, PROVENANCE_SCHEMA } from './provenance';
+export type { Dependency, Omission, OmissionKind, Provenance, ProvenanceSettings, SourceSpan } from './provenance';
+export type { ConstraintPointer, ConstraintView } from './constraints';
 export { querySmd, parseSelector, SelectorError } from './query';
 export type { QueryMatch, QueryOptions, Selector, AttributeTest, QueryOperator } from './query';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';

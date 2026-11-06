@@ -6,7 +6,7 @@ import { rehypeSmd, remarkSmd, renderSmd, renderSmdFile, type SmdTree, type SmdV
 
 // unified is not a dependency: these tests drive the plugins with hand-built trees and files,
 // the way unified calls a transformer (tree, file).
-const showcase = readFileSync(join(__dirname, '..', '..', 'examples', 'showcase.smd'), 'utf8');
+const showcase = readFileSync(join(__dirname, 'samples', 'showcase.smd'), 'utf8');
 const today = '2026-09-01';
 const mdast = (): SmdTree => ({ type: 'root', children: [{ type: 'paragraph' }, { type: 'code', value: 'x' }] });
 

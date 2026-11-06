@@ -38,6 +38,27 @@ export function mermaidBlocks(text: string): MermaidBlock[] {
   return blocks;
 }
 
+/** Whether a diagram's lines name it with Mermaid's `accTitle:` (which Mermaid turns into the SVG's title). */
+export function hasAccTitle(content: readonly string[]): boolean {
+  return content.some((l) => /^\s*accTitle\s*:\s*\S/.test(l));
+}
+
+/**
+ * The title a diagram gives itself, or '': `title:` in its front matter, `pie title …`, or a `title …` line (gantt,
+ * journey, quadrant and XY charts). The page runtime (diagramTitle in media/runtime.js) names the SVG with it.
+ */
+export function mermaidTitle(content: readonly string[]): string {
+  const unquote = (s: string) => s.trim().replace(/^(["'])(.*)\1$/, '$2').trim();
+  let inConfig = false;
+  for (const line of content) {
+    const t = line.trim();
+    if (t === '---') { inConfig = !inConfig; continue; }
+    const m = inConfig ? /^title:\s*(.+)$/.exec(t) : /^(?:pie\s+(?:showData\s+)?)?title\s+(.+)$/.exec(t);
+    if (m && unquote(m[1])) return unquote(m[1]);
+  }
+  return '';
+}
+
 /** The first line that is not config front matter, a comment or blank names the diagram type. */
 function hasKnownType(content: string[]): boolean {
   let inConfig = false;

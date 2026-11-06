@@ -23,11 +23,9 @@ export function prng(seed: number): Random {
 const pick = <T>(random: Random, list: readonly T[]): T => list[Math.floor(random() * list.length)];
 const int = (random: Random, max: number) => Math.floor(random() * max);
 
-const repo = path.join(__dirname, '..', '..', '..');
-
-/** The example documents, as seeds for mutation and as realistic benchmark content. */
-export function exampleDocuments(): string[] {
-  const dir = path.join(repo, 'examples');
+/** The sample documents (test/samples), as seeds for mutation and as realistic benchmark content. */
+export function sampleDocuments(): string[] {
+  const dir = path.join(__dirname, '..', 'samples');
   return fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort().map((f) => fs.readFileSync(path.join(dir, f), 'utf8'));
 }
 
@@ -100,17 +98,17 @@ export function mutatedDocument(random: Random, base: string): string {
   return lines.join('\n');
 }
 
-/** A generated fuzz case: random construct soup or a mutated example. */
-export function fuzzCase(random: Random, examples: readonly string[]): string {
-  return random() < 0.5 ? randomDocument(random) : mutatedDocument(random, pick(random, examples));
+/** A generated fuzz case: random construct soup or a mutated sample. */
+export function fuzzCase(random: Random, samples: readonly string[]): string {
+  return random() < 0.5 ? randomDocument(random) : mutatedDocument(random, pick(random, samples));
 }
 
 /**
- * A realistic document of about `lines` lines for benchmarks: example bodies under numbered
+ * A realistic document of about `lines` lines for benchmarks: sample bodies under numbered
  * sections, the same for every run.
  */
 export function largeDocument(lines: number): string {
-  const bodies = exampleDocuments().map((d) => d.replace(/^---[\s\S]*?\n---\n/, ''));
+  const bodies = sampleDocuments().map((d) => d.replace(/^---[\s\S]*?\n---\n/, ''));
   const parts = ['---\nsmd: 1\ntitle: Benchmark\n---\n'];
   let count = 4;
   for (let i = 0; count < lines; i++) {

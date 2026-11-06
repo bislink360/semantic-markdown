@@ -30,7 +30,7 @@ BREAKING CHANGE: documents with unclosed blocks now fail `smd validate`.
 ```
 
 - Write the subject in the imperative, under 72 characters.
-- Use scopes that match the areas: `format`, `render`, `validate`, `agent-view`, `cli`, `npm`, `vscode`, `skills`, `docs`, `examples`.
+- Use scopes that match the areas: `format`, `render`, `validate`, `agent-view`, `cli`, `npm`, `vscode`, `skills`, `docs`.
 - Don't add AI co-author trailers or "Generated with …" lines.
 
 ## Pull request checklist
@@ -52,7 +52,7 @@ Copy this into the PR description:
 - [ ] New syntax has a corpus document in `extension/test/compat/corpus/`
 - [ ] Docs updated: SPEC.md, FEATURES.md, writer skill `references/syntax/<topic>.md` (and its index `references/syntax.md` for a new topic), README feature list
 - [ ] Plain-Markdown fallback (`toMarkdown.ts`) and agent view (`agentView.ts`) handle the new construct
-- [ ] Examples still validate: `node extension/dist/cli.js validate examples`
+- [ ] Test samples and the gallery still validate: `node extension/dist/cli.js validate extension/test/samples docs/gallery`
 ```
 
 ## Merging and tagging

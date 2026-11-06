@@ -31,7 +31,7 @@ try {
     ...(vscodeExecutablePath ? { vscodeExecutablePath } : {}),
     extensionDevelopmentPath,
     extensionTestsPath,
-    launchArgs: [resolve(extensionDevelopmentPath, '..', 'examples'), '--disable-extensions', `--user-data-dir=${userDataDir}`, '--skip-welcome', '--skip-release-notes'],
+    launchArgs: [resolve(extensionDevelopmentPath, 'test', 'samples'), '--disable-extensions', `--user-data-dir=${userDataDir}`, '--skip-welcome', '--skip-release-notes'],
   });
 } catch (err) {
   console.error(err);

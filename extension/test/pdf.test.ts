@@ -194,7 +194,7 @@ test('print stylesheet: @page margins, light palette, stacked tabs, hidden agent
 
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
-const example = join(__dirname, '..', '..', 'examples', 'checkout-redesign.smd');
+const example = join(__dirname, 'samples', 'checkout-redesign.smd');
 const run = (args: string[]) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
 
 test('CLI: smd render includes the print stylesheet and readiness signal; smd pdf without a browser exits 2',

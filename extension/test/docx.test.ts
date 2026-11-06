@@ -249,8 +249,8 @@ test('exportDocx: runs Pandoc with the HTML on stdin and returns its warnings; f
 // ---- CLI (requires `npm run build`) ----
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
-const examples = join(__dirname, '..', '..', 'examples');
-const showcase = join(examples, 'showcase.smd');
+const samples = join(__dirname, 'samples');
+const showcase = join(samples, 'showcase.smd');
 
 /** The environment without PATH and SMD_PANDOC (any case), with PATH set to `path`. */
 function envWithPath(path: string): NodeJS.ProcessEnv {
@@ -352,7 +352,7 @@ test('integration: Pandoc turns the showcase into a .docx with headings, tables,
   async () => {
     const dir = mkdtempSync(join(tmpdir(), 'smd-docx-'));
     try {
-      // The CLI, on the example as it is.
+      // The CLI, on the sample as it is.
       const out = join(dir, 'showcase.docx');
       const result = run(['docx', showcase, '-o', out]);
       assert.equal(result.status, 0, result.stderr);
@@ -373,7 +373,7 @@ test('integration: Pandoc turns the showcase into a .docx with headings, tables,
 
       // The library and exportDocx, on the showcase with a footnote: a real Word footnote.
       const source = `${readFileSync(showcase, 'utf8')}\nA claim that needs a source.[^src]\n\n[^src]: The source, with **bold** text.\n`;
-      const html = smdToPandocHtml(source, { readFile: (rel) => { try { return readFileSync(join(examples, rel), 'utf8'); } catch { return undefined; } } });
+      const html = smdToPandocHtml(source, { readFile: (rel) => { try { return readFileSync(join(samples, rel), 'utf8'); } catch { return undefined; } } });
       const noted = join(dir, 'noted.docx');
       await exportDocx(pandoc!, html, { out: noted, resourcePath: dirname(showcase) });
       const notedFiles = unzip(noted);

@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { documentPreview, documentSymbols, embedPreview, fuzzyMatch, sectionExcerpt } from '../src/core/symbols';
 
-const showcase = fs.readFileSync(path.join(__dirname, '..', '..', 'examples', 'showcase.smd'), 'utf8');
+const showcase = fs.readFileSync(path.join(__dirname, 'samples', 'showcase.smd'), 'utf8');
 
 test('documentSymbols lists headings, decisions, risks and API endpoints', () => {
   const src = [

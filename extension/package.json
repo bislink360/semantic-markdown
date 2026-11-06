@@ -241,6 +241,11 @@
         "category": "Semantic Markdown"
       },
       {
+        "command": "smd.showAgentViewOmissions",
+        "title": "What the Agent View Leaves Out…",
+        "category": "Semantic Markdown"
+      },
+      {
         "command": "smd.copyAgentView",
         "title": "Copy Agent View to Clipboard",
         "category": "Semantic Markdown"
@@ -436,6 +441,10 @@
           "when": "editorLangId == smd"
         },
         {
+          "command": "smd.showAgentViewOmissions",
+          "when": "editorLangId == smd"
+        },
+        {
           "command": "smd.copyAgentView",
           "when": "editorLangId == smd"
         },
@@ -618,7 +627,10 @@
     "test": "node scripts/test.mjs",
     "bench": "node --import tsx test/bench/bench.ts",
     "bench:tokens": "node --import tsx test/bench/netTokens.ts",
+    "bench:profile": "node --expose-gc --import tsx test/bench/profile.ts",
+    "eval": "node --import tsx test/eval/cli.ts",
     "test:vscode": "npm run build && node test/integration/run.mjs",
+    "test:a11y": "node --import tsx test/browser/a11y.ts",
     "package": "npm run build && vsce package --no-dependencies",
     "vscode:prepublish": "npm run build",
     "build:npm": "npm run build && node scripts/build-npm.mjs && tsc -p tsconfig.npm.json",

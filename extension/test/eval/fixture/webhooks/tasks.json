@@ -1,0 +1,27 @@
+{
+  "tasks": [
+    { "id": "wh-01", "type": "fact-lookup", "prompt": "How many times is a failed delivery retried?", "items": ["retry-limit"],
+      "expected": { "accepted": ["8", "8 times", "eight", "eight times", "up to 8 times"] } },
+    { "id": "wh-02", "type": "constraint-check", "prompt": "May a customer register a plain HTTP endpoint?", "items": ["https-only"],
+      "expected": { "verdict": ["no"], "constraint": "https-only" } },
+    { "id": "wh-03", "type": "constraint-check", "prompt": "Should a delivery that got a 429 response be retried?", "items": ["no-retry-4xx"],
+      "expected": { "verdict": ["yes"], "constraint": "no-retry-4xx" } },
+    { "id": "wh-04", "type": "decision-status", "prompt": "Which retry schedule should be implemented?", "items": ["backoff-current", "fixed-interval-superseded"],
+      "expected": { "option": ["exponential backoff with jitter", "exponential backoff"], "superseded": ["fixed 60-second interval", "fixed interval", "every 60 seconds"] } },
+    { "id": "wh-05", "type": "open-question", "prompt": "Can support replay a failed delivery from the dashboard?", "items": ["replay-open"],
+      "expected": { "fallback": ["only through the API", "through the API", "API only", "replay it through the API"] } },
+    { "id": "wh-06", "type": "edit-plan", "prompt": "Which lines must change to raise the retry limit to 10?", "items": ["retry-limit"],
+      "expected": { "md": [[16, 16]], "smd": [[22, 22]] } },
+    { "id": "wh-07", "type": "qualification", "prompt": "In two sentences, state the rules for signing and logging payloads.", "items": ["hmac-signing", "no-body-logs"],
+      "expected": { "rubric": [
+        { "id": "signing", "text": "Says every payload is signed with HMAC-SHA256 using the endpoint secret.", "items": ["hmac-signing"] },
+        { "id": "logging", "text": "Says payload bodies are never logged.", "items": ["no-body-logs"] }
+      ] } },
+    { "id": "wh-08", "type": "fact-lookup", "prompt": "Where are delivery incidents escalated?", "items": ["oncall-channel"],
+      "expected": { "accepted": ["#webhooks-oncall", "the #webhooks-oncall channel", "webhooks-oncall"] } },
+    { "id": "wh-09", "type": "fact-lookup", "prompt": "How long did the March 2026 outage last?", "items": ["outage-duration"],
+      "expected": { "accepted": ["3 hours", "three hours"] } },
+    { "id": "wh-10", "type": "constraint-check", "prompt": "Can a 300 KB payload be delivered if it is truncated first?", "items": ["payload-limit"],
+      "expected": { "verdict": ["no"], "constraint": "payload-limit" } }
+  ]
+}

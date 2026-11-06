@@ -408,6 +408,6 @@ People read this; agents skip it.
 
 - **VS Code extension:** live preview, Block Editor, validation, IntelliSense and agent view. Install **Semantic Markdown** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.semantic-markdown), or `semantic-markdown-X.Y.Z.vsix` from the [latest GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) for Cursor, VSCodium and Windsurf (the Open VSX listing is coming); see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md).
 - **AI agent skills** for Claude and other agents: [skills guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/SKILLS.md)
-- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md) · [Examples](https://github.com/bislink360/semantic-markdown/tree/main/examples)
+- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md)
 
 Author: **Roshan Alwis** · License: MIT

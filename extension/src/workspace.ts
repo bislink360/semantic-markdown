@@ -47,15 +47,30 @@ function embedRoots(file: string): string[] {
 }
 
 /**
- * File reader for code embeds. Only files inside `roots` (by default the current working directory, the enclosing Git
- * repository or the document's own folder) can be embedded, so a document cannot pull in e.g. ~/.ssh keys.
+ * Is `target` the folder `root` or inside it? Compared with path.relative, so `/a/bc` is not inside `/a/b`, and on
+ * Windows letter case doesn't matter.
+ */
+export function isInside(root: string, target: string): boolean {
+  const rel = path.relative(root, target);
+  return rel === '' || (rel.split(path.sep)[0] !== '..' && !path.isAbsolute(rel));
+}
+
+/**
+ * File reader for code embeds and includes. Only files inside `roots` (by default the current working directory, the
+ * enclosing Git repository or the document's own folder) can be read, so a document cannot pull in e.g. ~/.ssh keys.
+ * The path as written and the real path (links and junctions followed) must both be inside: the CLI and the MCP server
+ * read with the same check. A file swapped for a link between the check and the read is not guarded against.
  */
 export function readerFor(file: string, roots = embedRoots(file)) {
   const dir = path.dirname(path.resolve(file));
+  const realRoots = roots.map(realPath);
   return (rel: string): string | undefined => {
     const target = path.resolve(dir, rel);
-    if (!roots.some((r) => target === r || target.startsWith(r + path.sep))) return undefined;
-    try { return fs.readFileSync(target, 'utf8'); } catch { return undefined; }
+    if (!roots.some((r) => isInside(r, target))) return undefined;
+    let real: string;
+    try { real = fs.realpathSync.native(target); } catch { return undefined; }
+    if (!realRoots.some((r) => isInside(r, real))) return undefined;
+    try { return fs.readFileSync(real, 'utf8'); } catch { return undefined; }
   };
 }
 

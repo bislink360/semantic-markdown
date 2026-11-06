@@ -319,9 +319,20 @@ export function resetParseCache(): void {
   states.length = 0;
 }
 
+/**
+ * Internal, for test/bench/profile.ts only: how much parsing ran since the benchmark last zeroed it. Not API and read
+ * by nothing else. `calls` and `cached` are parseSmd calls and cache hits, `full` and `incremental` the block parses
+ * behind the misses, `ranges` and `lines` the markdown-it runs and the lines they read; `figures` is expandedFigures.
+ */
+export const parseCounts = { calls: 0, cached: 0, full: 0, incremental: 0, ranges: 0, lines: 0, figures: 0 };
+
 export function parseSmd(text: string): ParseResult {
+  parseCounts.calls++;
   const hit = results.find((r) => r.text === text);
-  if (hit) return hit.result;
+  if (hit) {
+    parseCounts.cached++;
+    return hit.result;
+  }
 
   const fm = parseFrontMatter(text);
   // markdown-it treats a lone \r as a line break, but line numbers everywhere else split on \r?\n.
@@ -517,6 +528,7 @@ function update(lines: string[], vars: ParseVariables): State {
 
 /** Parse everything. Inline parsing needs every reference label, so repeat once if new ones turn up. */
 function full(lines: string[], vars: ParseVariables, labels: string[] = []): State {
+  parseCounts.full++;
   for (;;) {
     const parsed = parseRange(lines, 0, lines.length, { labels, vars: vars.data, spec: vars.spec }, true);
     const state: State = { lines, ...parsed, refKey: labels.join('\u0001'), vars };
@@ -527,6 +539,7 @@ function full(lines: string[], vars: ParseVariables, labels: string[] = []): Sta
 }
 
 function incremental(old: State, lines: string[], prefix: number, suffix: number): State | undefined {
+  parseCounts.incremental++;
   const delta = lines.length - old.lines.length;
   const damageEnd = lines.length - suffix; // first unchanged line after the edit, in new lines
   // Restart at the last block that starts before the changed line (the edit may extend or end it), or
@@ -620,6 +633,8 @@ function shift(block: Block, delta: number): Block {
 function parseRange(
   lines: string[], from: number, to: number, scope: { labels: string[]; vars: Variables; spec: SpecVersion }, complete: boolean, carried: Definition[] = [],
 ): { blocks: Block[]; trailing: Definition[]; mathHorizon: number } {
+  parseCounts.ranges++;
+  parseCounts.lines += to - from;
   const env = newEnv(from, scope.labels, scope.vars, scope.spec);
   acceptAnyFootnote(env); // which labels are defined is known once every block is (footnoteIds)
   const items: ItemsByText = new Map();

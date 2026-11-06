@@ -86,6 +86,14 @@ test('variables: the markdown-it plugin reads the front matter, can be turned of
   assert.match(new MarkdownIt().use(smd, { frontMatter: true }).render(src), /<h1 class="smd-doc-title">Release \{\{version\}\}<\/h1>/);
 });
 
+/** A document that defines a front-matter key and writes {{key}} in its body uses variables on purpose. */
+function usesOwnVariables(text: string): boolean {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(text);
+  if (!match) return false;
+  const keys = [...match[1].matchAll(/^([A-Za-z_][\w-]*):/gm)].map((m) => m[1]);
+  return keys.some((key) => match[2].includes(`{{${key}`));
+}
+
 test('variables: documents that do not use them render exactly as before', () => {
   const files = execFileSync('git', ['ls-files', '*.smd', '*.md'], { cwd: root, encoding: 'utf8' }).split('\n')
     // variables.smd and the migrate corpus (its variable-spelling step) use {{…}} on purpose.
@@ -97,6 +105,7 @@ test('variables: documents that do not use them render exactly as before', () =>
     const text = readFileSync(join(root, f), 'utf8');
     // Writer templates use {{title}} as a placeholder that `smd init` fills in before anyone renders them.
     if (f.includes('assets/templates/') && /\{\{title\}\}/.test(text.split('---')[2] ?? '')) continue;
+    if (usesOwnVariables(text)) continue;
     assert.equal(on.render(text, {}), off.render(text, {}), f);
   }
 });

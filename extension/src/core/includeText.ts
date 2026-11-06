@@ -6,7 +6,7 @@ import {
 } from './include';
 import { findLinks } from './links';
 import {
-  alertLines, inlineItemLines, inlineMathLines, literalLines, parseSmd, renderedTaskLines, type AlertLines, type InlineItemLines, type InlineMathLines,
+  alertLines, inlineItemLines, inlineMathLines, literalLines, parseCounts, parseSmd, renderedTaskLines, type AlertLines, type InlineItemLines, type InlineMathLines,
 } from './parse';
 import type { SpecVersion } from './specVersion';
 
@@ -124,6 +124,7 @@ export const figuresOf = (figures: ExpandedFigures, key: string): ReadonlyMap<nu
  * `smd to-md` expand them. Without `readFile` nothing is included and the numbers are parseSmd's.
  */
 export function expandedFigures(text: string, readFile?: (relativePath: string) => string | undefined): ExpandedFigures {
+  parseCounts.figures++;
   const lines = text.split(/\r?\n/);
   const parsed = parseSmd(text);
   const walk: FigureWalk = { counter: new FigureCounter(), byId: new Map(), byDocument: new Map(), source: includeSource(readFile), root: text, spec: parsed.spec };

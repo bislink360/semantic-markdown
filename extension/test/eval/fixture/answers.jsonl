@@ -1,0 +1,19 @@
+{"task":"wh-01","condition":"M1","run":1,"model":"fixture-model","answer":"8 times","usage":{"input_tokens":420,"output_tokens":6}}
+{"task":"wh-01","condition":"S2","run":1,"model":"fixture-model","answer":"Eight.","usage":{"input_tokens":380,"output_tokens":4}}
+{"task":"wh-02","condition":"M1","run":1,"model":"fixture-model","answer":{"verdict":"No"},"cited":["https-only"]}
+{"task":"wh-02","condition":"S2","run":1,"model":"fixture-model","answer":{"verdict":"no"},"lines":[[18,18]]}
+{"task":"wh-03","condition":"M1","run":1,"model":"fixture-model","answer":{"verdict":"no"},"cited":["no-retry-4xx"]}
+{"task":"wh-03","condition":"S2","run":1,"model":"fixture-model","answer":{"verdict":"yes"}}
+{"task":"wh-04","condition":"M1","run":1,"model":"fixture-model","answer":"Fixed 60-second interval"}
+{"task":"wh-04","condition":"S2","run":1,"model":"fixture-model","answer":{"option":"Exponential backoff with jitter"}}
+{"task":"wh-05","condition":"M1","run":1,"model":"fixture-model","answer":{"undecided":true,"fallback":"only through the API"}}
+{"task":"wh-05","condition":"S2","run":1,"model":"fixture-model","answer":{"undecided":false,"fallback":"through the API"}}
+{"task":"wh-06","condition":"M1","run":1,"model":"fixture-model","answer":"","lines":[[16,16]]}
+{"task":"wh-06","condition":"S2","run":1,"model":"fixture-model","answer":"","lines":[[20,23]]}
+{"task":"wh-07","condition":"M1","run":1,"model":"fixture-model","answer":"Every payload is signed with HMAC-SHA256 using the endpoint secret. Payload bodies are never logged."}
+{"task":"wh-07","condition":"S2","run":1,"model":"fixture-model","answer":"Payloads are signed with HMAC-SHA256."}
+{"task":"pg-01","condition":"M1","run":1,"model":"fixture-model","answer":"offset pagination"}
+{"task":"pg-01","condition":"S2","run":1,"model":"fixture-model","answer":"Cursor pagination"}
+{"task":"pg-01","condition":"S2","run":2,"model":"fixture-model","answer":"cursor"}
+{"task":"pg-05","condition":"M1","run":1,"model":"fixture-model","answer":{"verdict":"no"},"cited":["no-cursor-logs"]}
+{"task":"pg-05","condition":"S2","run":1,"model":"fixture-model","answer":{"verdict":"yes, log it"}}
