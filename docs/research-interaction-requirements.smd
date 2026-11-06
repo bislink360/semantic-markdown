@@ -9,7 +9,6 @@ created: 2026-11-06
 updated: 2026-11-06
 toc: true
 related:
-  - ../ROADMAP.smd
   - semantic-tags-requirement.smd
   - static-and-graph-based-filtering-requirement.smd
   - COLLABORATION-RFC.smd
