@@ -17,8 +17,9 @@ npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--jso
 npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
 npm run eval -- render [corpus] --out <dir> [--tokenizer o200k_base]
 npm run eval -- check [corpus] [--json] [--out <dir>]
-npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
+npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
 npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl] [--model <label>]
+npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
 ```
 
 - `validate` exits with 1 when there are errors. Warnings and the similarity number do not fail it.
@@ -27,8 +28,9 @@ npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resampl
 - `compare-marks` compares the corpus marking with an independent re-marking (see [Marker comparison](#marker-comparison)). With `--out` it also writes `marker-comparison.json` and `marker-comparison.md`.
 - `render` writes `<doc>/<condition>.txt`, `<doc>/<task>/<condition>.txt` and `manifest.json` (tokens and metadata, no text).
 - `check` prints the survival tables. With `--out` it also writes `survival.json` and `survival.md`.
-- `run` asks the models (see [Model runs](#model-runs)). It exits with 1 when an answer failed.
+- `run` asks the models (see [Model runs](#model-runs)). It exits with 1 when an answer failed. With `--setup-probe` it sends only the setup probe (see [Token accounting](#token-accounting)).
 - `score` writes `outcomes.json`, `outcomes.csv`, `summary.json`, `summary.md`, `judge-packets.jsonl` and `judge-key.jsonl`. The summary pools every answer of a condition, so score one model at a time with `--model <label>` (it keeps records whose `model` is the label or starts with `<label>:`).
+- `tokens` reads a run folder and writes the token accounting (see [Token accounting](#token-accounting)). It exits with 1 when the folder holds no transcripts.
 
 `--tokenizer` needs the optional `js-tiktoken` package. Without it every count is an estimate (characters / 4).
 
@@ -165,6 +167,8 @@ Both markings are placed on `doc.md` lines through the same line alignment `map-
 npm run eval -- run research/corpus --config run.json --out runs/pilot --dry-run
 EVAL_MODEL_A_KEY=... npm run eval -- run research/corpus --config run.json --out runs/pilot --docs s01-ledger-export-spec --runs 3
 npm run eval -- score research/corpus runs/pilot/answers.jsonl --out runs/pilot/scores --model model-a
+EVAL_MODEL_A_KEY=... npm run eval -- run research/corpus --config run.json --out runs/pilot --setup-probe
+npm run eval -- tokens runs/pilot --scored runs/pilot/scores/outcomes.json --model model-a
 ```
 
 `run` sends every (model, task, condition, run) to a model through a Chat Completions-compatible API: `POST {baseUrl}/chat/completions` with `Authorization: Bearer <key>`. Most providers offer one, so the code names none. It uses Node's `fetch` and no other package.
@@ -230,13 +234,41 @@ The model cannot know annotation ids, so constraint checks are cited by line spa
 ### Output
 
 - `<out>/answers.jsonl`: one `AnswerRecord` per answer, with `doc`, `model` as `<label>:<model id>`, `seed` when one was sent, `usage` (the provider's numbers summed over the requests of the answer, nested ones flattened as `prompt_tokens_details.cached_tokens`, plus `requests`), and `toolCalls`.
-- `<out>/transcripts/<label>/<task>/<condition>/run-<n>.json`: the request settings, every message, every tool call with its arguments and result, each response's id, model, fingerprint, finish reason, usage, attempts and latency, and the parsed record. Never the key.
+- `<out>/transcripts/<label>/<task>/<condition>/run-<n>.json`: the request settings, every message, every tool call with its arguments and result, each response's id, model, fingerprint, finish reason, usage, attempts, failed attempts (`failures`: status, error and time of each attempt that was retried) and latency, and the parsed record. Never the key.
+- `<out>/transcripts/<label>/<task>/<condition>/run-<n>.failed-<k>.json`: an answer that failed, with every request it made before the failure and their usage, then one `"failed": true` entry with the failed request's attempts. Each failure gets the next free `k`, so a later retry of the job never overwrites what an earlier try spent.
 - `<out>/run-manifest.json`: the corpus, the config (it holds no secrets), the settings, the system prompt, both tool definitions, notes on the design, and one entry per invocation with the date, the tool's commit and whether its tree had changes, the extension version, the Node version, the filters and the counts.
-- `<out>/errors.jsonl`: answers that failed (an HTTP error, a response without a message, retries used up). A failed answer is not written to `answers.jsonl`.
+- `<out>/errors.jsonl`: answers that failed (an HTTP error, a response without a message, retries used up), with the usage of the requests made before the failure and the path of the failed transcript. A failed answer is not written to `answers.jsonl`.
+- `<out>/setup.jsonl`: one row per setup probe (see [Token accounting](#token-accounting)).
 
 The run resumes: an answer already in `answers.jsonl` (same model, document, task, condition and run) is skipped, so running the same command again fills only what is missing, including failed answers. Requests run `concurrency` at a time. 408, 409, 429, 5xx, timeouts and network errors are retried up to `retries` times, after the server's `Retry-After` or 1, 2, 4, … up to 32 seconds.
 
 `--dry-run` sends nothing and reads no key. It prints the number of requests per model and condition, the estimated input tokens (characters / 4, labelled as estimates) and, with `price`, an estimated cost range. For M2 and S3 the estimate covers the first request only, and every later request repeats the conversation, so their tokens and cost are labelled lower bounds. It writes `dry-run/plan.json` and the first request body of each model and condition to `dry-run/<label>/`, without the `Authorization` header.
+
+## Token accounting
+
+`tokens` follows `research/token-accounting.smd`. It reads a run folder and sends nothing.
+
+```sh
+npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
+```
+
+Each request of each transcript, answered or failed, becomes one call record with a class:
+
+| class | the request |
+|-|-|
+| `retrieval` | asks for a read |
+| `repeat-read` | asks only for reads the episode already made (same tool and arguments, key order ignored) |
+| `repair` | comes after a tool result that was an error (`Error: …`) or a view over its budget (`[budget: …, required content does not fit]`) |
+| `answer` | gives the final text |
+| `retry` | a failed attempt that was retried or ended the answer, logged with no usage when the provider billed nothing |
+
+Usage is mapped from the provider's own fields, which stay in `usage_raw`: Chat Completions (`prompt_tokens`, `completion_tokens`, `prompt_tokens_details.cached_tokens`, `completion_tokens_details.reasoning_tokens`) or `input_tokens` APIs (`input_tokens`, `output_tokens`, cache fields inside `input_tokens_details` or beside it as `cache_read_input_tokens` and `cache_creation_input_tokens`). `input` always includes cached input: cache fields reported beside `input_tokens` are added to it. A usage shape it does not know is counted as `unmapped`.
+
+The total is input plus output, with cached input counted as ordinary input. Uncached input, cache reads, cache writes, output and reasoning tokens are reported beside it, never folded into another number. Per model and condition, `tokens` reports answered and failed episodes, the median and quartiles of the total per answered episode, its mean with the scorer's paired bootstrap interval and the difference from the baseline (M1 when present), the tokens failed episodes spent, the share of tokens per call class, and the numbers of calls, repair calls, repeat reads and retries. With `--scored` (the scorer's `outcomes.json`) it puts mean correctness beside the tokens, and `by-task.csv` gives tokens and correctness per task. They are never combined into one score.
+
+`run --setup-probe` measures the fixed part of every request: one request per model and tool definition (the M tool for M conditions, MCP `read` for S conditions) with the system prompt, the tool and a one-line message, appended to `setup.jsonl`. `tokens` then reports the setup input per request and its share of all input. The probe's own message is a few tokens, given as `probeMessageEstimate`.
+
+`tokens` writes `calls.jsonl`, `episodes.jsonl`, `tokens.json`, `tokens.md` and `by-task.csv` to `<run dir>/tokens/`, or to `--out`.
 
 ## Evidence survival check
 

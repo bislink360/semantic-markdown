@@ -260,8 +260,11 @@ export function defaultDeps(log: (s: string) => void = (s) => process.stdout.wri
 }
 
 /** A failed request: the status (0 for network errors and timeouts) and whether trying again may help. */
+/** One attempt that failed (HTTP error, timeout or network error), kept so retries are logged even when nothing is billed. */
+export interface FailedAttempt { status: number; error: string; ms: number }
+
 export class RequestError extends Error {
-  constructor(message: string, readonly status: number, readonly retryable: boolean) { super(message); }
+  constructor(message: string, readonly status: number, readonly retryable: boolean, readonly failures: FailedAttempt[] = []) { super(message); }
 }
 
 /** Removes a key, and any bearer token, from a text before it is logged or written. */
@@ -280,11 +283,13 @@ export function backoff(attempt: number, retryAfter: string | null): number {
   return Math.min(32_000, 1000 * 2 ** attempt);
 }
 
-interface Posted { json: Record<string, any>; status: number; attempts: number; latencyMs: number }
+interface Posted { json: Record<string, any>; status: number; attempts: number; latencyMs: number; failures: FailedAttempt[] }
 
 async function post(url: string, key: string, body: unknown, opts: { timeoutMs: number; retries: number }, deps: RunDeps): Promise<Posted> {
   const started = deps.now().getTime();
+  const failures: FailedAttempt[] = [];
   for (let attempt = 0; ; attempt++) {
+    const attemptStarted = deps.now().getTime();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
     let error: RequestError;
@@ -296,9 +301,11 @@ async function post(url: string, key: string, body: unknown, opts: { timeoutMs: 
       const text = await res.text();
       if (res.ok) {
         try {
-          return { json: JSON.parse(text), status: res.status, attempts: attempt + 1, latencyMs: deps.now().getTime() - started };
+          return { json: JSON.parse(text), status: res.status, attempts: attempt + 1, latencyMs: deps.now().getTime() - started, failures };
         } catch {
-          throw new RequestError(`HTTP ${res.status}: the response is not JSON: ${redact(text.slice(0, 300), key)}`, res.status, false);
+          const message = `HTTP ${res.status}: the response is not JSON: ${redact(text.slice(0, 300), key)}`;
+          failures.push({ status: res.status, error: message, ms: deps.now().getTime() - attemptStarted });
+          throw new RequestError(message, res.status, false, failures);
         }
       }
       retryAfter = res.headers.get('retry-after');
@@ -310,7 +317,8 @@ async function post(url: string, key: string, body: unknown, opts: { timeoutMs: 
     } finally {
       clearTimeout(timer);
     }
-    if (!error.retryable || attempt >= opts.retries) throw new RequestError(`${error.message}${attempt ? ` (after ${attempt + 1} attempts)` : ''}`, error.status, false);
+    failures.push({ status: error.status, error: error.message, ms: deps.now().getTime() - attemptStarted });
+    if (!error.retryable || attempt >= opts.retries) throw new RequestError(`${error.message}${attempt ? ` (after ${attempt + 1} attempts)` : ''}`, error.status, false, failures);
     await deps.sleep(backoff(attempt, retryAfter));
   }
 }
@@ -337,6 +345,11 @@ export interface Transcript {
   final?: string;
   record?: AnswerRecord;
   error?: string;
+}
+
+/** An answer that failed part way: the transcript keeps every request made before the failure and their usage. */
+export class EpisodeError extends Error {
+  constructor(message: string, readonly transcript: Transcript) { super(message); }
 }
 
 /** Adds a provider usage object into a running total: numbers summed, nested objects flattened as `a.b`. */
@@ -372,44 +385,57 @@ export async function answerJob(job: Job, setup: Setup, key: string, settings: S
     model: { label: m.label, id: m.model, baseUrl: m.baseUrl }, doc: job.doc.name, task: job.task.id, condition: job.condition, run: job.run,
     ...(job.seed !== undefined ? { seed: job.seed } : {}), startedAt: deps.now().toISOString(), request, messages, toolCalls: [], responses: [], usage: {},
   };
-  let executed = 0;
-  let overLimit = false;
-  let error: string | undefined;
   let final = '';
-  for (;;) {
-    const res = await post(url, key, { ...request, messages }, { timeoutMs: m.timeoutMs ?? settings.timeoutMs, retries: settings.retries }, deps);
-    const choice = res.json.choices?.[0];
-    t.responses.push({
-      id: res.json.id, model: res.json.model, created: res.json.created, system_fingerprint: res.json.system_fingerprint,
-      finish_reason: choice?.finish_reason, usage: res.json.usage, status: res.status, attempts: res.attempts, latencyMs: res.latencyMs,
-    });
-    addUsage(t.usage, res.json.usage);
-    const message = choice?.message;
-    if (!message) throw new RequestError('the response has no message', res.status, false);
-    const calls: any[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
-    if (!calls.length) {
-      final = contentText(message.content);
-      messages.push({ role: 'assistant', content: final });
-      break;
-    }
-    messages.push({ role: 'assistant', content: message.content ?? null, tool_calls: calls });
-    if (overLimit) {
-      // It was told the limit is reached and called again: stop, recording the calls it made.
-      error = 'tool-limit';
-      for (const call of calls) t.toolCalls.push({ id: String(call.id ?? ''), name: String(call.function?.name), arguments: parseArguments(call.function?.arguments), result: '', executed: false });
-      break;
-    }
-    for (const call of calls) {
-      const name = call.function?.name;
-      const args = parseArguments(call.function?.arguments);
-      let result: string;
-      let ran = false;
-      if (executed >= settings.maxToolCalls) { result = LIMIT_RESULT(settings.maxToolCalls); overLimit = true; }
-      else if (name !== setup.tool.function.name) result = `Error: unknown tool ${String(name)}. The only tool is ${setup.tool.function.name}.`;
-      else if (typeof args === 'string') result = 'Error: the arguments are not valid JSON.';
-      else { result = setup.execute(args); executed++; ran = true; }
-      t.toolCalls.push({ id: String(call.id ?? ''), name: String(name), arguments: args, result, executed: ran });
-      messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+  let error: string | undefined;
+  try {
+    ({ final, error } = await converse());
+  } catch (e) {
+    // Keep what the answer spent before it failed: the failed request's attempts, then the transcript so far.
+    const failures = e instanceof RequestError ? e.failures : [];
+    t.responses.push({ status: e instanceof RequestError ? e.status : 0, failed: true, error: (e as Error).message, attempts: failures.length, failures });
+    t.error = (e as Error).message;
+    t.finishedAt = deps.now().toISOString();
+    throw new EpisodeError((e as Error).message, t);
+  }
+
+  async function converse(): Promise<{ final: string; error?: string }> {
+    let executed = 0;
+    let overLimit = false;
+    for (;;) {
+      const res = await post(url, key, { ...request, messages }, { timeoutMs: m.timeoutMs ?? settings.timeoutMs, retries: settings.retries }, deps);
+      const choice = res.json.choices?.[0];
+      t.responses.push({
+        id: res.json.id, model: res.json.model, created: res.json.created, system_fingerprint: res.json.system_fingerprint,
+        finish_reason: choice?.finish_reason, usage: res.json.usage, status: res.status, attempts: res.attempts, latencyMs: res.latencyMs,
+        ...(res.failures.length ? { failures: res.failures } : {}),
+      });
+      addUsage(t.usage, res.json.usage);
+      const message = choice?.message;
+      if (!message) throw new RequestError('the response has no message', res.status, false);
+      const calls: any[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+      if (!calls.length) {
+        const text = contentText(message.content);
+        messages.push({ role: 'assistant', content: text });
+        return { final: text };
+      }
+      messages.push({ role: 'assistant', content: message.content ?? null, tool_calls: calls });
+      if (overLimit) {
+        // It was told the limit is reached and called again: stop, recording the calls it made.
+        for (const call of calls) t.toolCalls.push({ id: String(call.id ?? ''), name: String(call.function?.name), arguments: parseArguments(call.function?.arguments), result: '', executed: false });
+        return { final: '', error: 'tool-limit' };
+      }
+      for (const call of calls) {
+        const name = call.function?.name;
+        const args = parseArguments(call.function?.arguments);
+        let result: string;
+        let ran = false;
+        if (executed >= settings.maxToolCalls) { result = LIMIT_RESULT(settings.maxToolCalls); overLimit = true; }
+        else if (name !== setup.tool.function.name) result = `Error: unknown tool ${String(name)}. The only tool is ${setup.tool.function.name}.`;
+        else if (typeof args === 'string') result = 'Error: the arguments are not valid JSON.';
+        else { result = setup.execute(args); executed++; ran = true; }
+        t.toolCalls.push({ id: String(call.id ?? ''), name: String(name), arguments: args, result, executed: ran });
+        messages.push({ role: 'tool', tool_call_id: call.id, content: result });
+      }
     }
   }
   const parsed = error ? { answer: final, error } : parseAnswer(final);
@@ -449,6 +475,15 @@ const safe = (s: string) => s.replace(/[^\w.-]+/g, '_');
 
 export function transcriptPath(out: string, job: Pick<Job, 'model' | 'task' | 'condition' | 'run'>): string {
   return path.join(out, 'transcripts', safe(job.model.label), safe(job.task.id), safe(job.condition), `run-${job.run}.json`);
+}
+
+/** The next free `run-<n>.failed-<k>.json` beside the job's transcript. */
+export function failedTranscriptPath(out: string, job: Pick<Job, 'model' | 'task' | 'condition' | 'run'>): string {
+  const ok = transcriptPath(out, job);
+  for (let k = 1; ; k++) {
+    const file = ok.replace(/\.json$/, `.failed-${k}.json`);
+    if (!fs.existsSync(file)) return file;
+  }
 }
 
 function writeFile(file: string, text: string): void {
@@ -554,6 +589,59 @@ async function pool<T>(items: T[], size: number, fn: (item: T, index: number) =>
   await Promise.all(Array.from({ length: Math.max(1, Math.min(size, items.length)) }, worker));
 }
 
+/** The user message of a setup probe: no document and no task, so the input is the fixed part every request repeats. */
+export const SETUP_PROBE_MESSAGE = 'This request only measures the instructions and the tool definition. Reply with OK.';
+
+export interface SetupProbe {
+  at: string; model: string; tool: 'md' | 'smd'; conditions: string[];
+  usage?: Record<string, number>; usage_raw?: unknown; status: number; attempts: number; failures?: FailedAttempt[]; error?: string;
+  /** The probe's own user message, estimated (≈ characters / 4), so readers can subtract it. */
+  probeMessageEstimate: number;
+}
+
+/**
+ * The setup probe: one request per model and tool definition (the md tool for M conditions, MCP `read` for S
+ * conditions) with the system prompt, the tool and a one-line message. Its input usage is the fixed cost every
+ * request of those conditions carries. Rows are appended to `<out>/setup.jsonl`.
+ */
+export async function probeSetup(options: Pick<RunOptions, 'corpusDir' | 'config' | 'out' | 'conditions'>, deps: RunDeps): Promise<{ probes: number; failed: number }> {
+  const config = checkConfig(options.config);
+  const corpus = loadCorpus(options.corpusDir);
+  const conds = new Conditions(corpus);
+  const conditions = options.conditions ?? config.conditions ?? [...RUN_CONDITIONS];
+  conditions.forEach(checkCondition);
+  const byTool = new Map<'md' | 'smd', string[]>();
+  for (const c of conditions) byTool.set(formatOf(c), [...(byTool.get(formatOf(c)) ?? []), c]);
+  fs.mkdirSync(options.out, { recursive: true });
+  let failed = 0;
+  let probes = 0;
+  for (const m of config.models) {
+    const key = deps.env[m.apiKeyEnv];
+    if (!key) throw new Error(`model ${m.label}: the environment variable ${m.apiKeyEnv} is not set.`);
+    for (const [tool, list] of byTool) {
+      const body = {
+        model: m.model, tools: [conds.toolFor(list[0])], [m.outputLimitField ?? DEFAULTS.outputLimitField]: m.maxOutputTokens ?? DEFAULTS.maxOutputTokens,
+        ...(m.extraBody ?? {}), messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: SETUP_PROBE_MESSAGE }],
+      };
+      const row: SetupProbe = { at: deps.now().toISOString(), model: modelName(m), tool, conditions: list, status: 0, attempts: 0, probeMessageEstimate: estimate(SETUP_PROBE_MESSAGE) };
+      try {
+        const res = await post(`${m.baseUrl.replace(/\/+$/, '')}/chat/completions`, key, body, { timeoutMs: m.timeoutMs ?? config.timeoutMs ?? DEFAULTS.timeoutMs, retries: config.retries ?? DEFAULTS.retries }, deps);
+        const usage: Record<string, number> = {};
+        addUsage(usage, res.json.usage);
+        Object.assign(row, { usage, usage_raw: res.json.usage, status: res.status, attempts: res.attempts, ...(res.failures.length ? { failures: res.failures } : {}) });
+      } catch (e) {
+        failed++;
+        const failures = e instanceof RequestError ? e.failures : [];
+        Object.assign(row, { status: e instanceof RequestError ? e.status : 0, attempts: failures.length, failures, error: (e as Error).message });
+      }
+      probes++;
+      fs.appendFileSync(path.join(options.out, 'setup.jsonl'), redact(JSON.stringify(row), key) + '\n');
+      deps.log(`setup probe ${m.label} ${tool}: ${row.error ? `failed: ${redact(row.error, key)}` : `input ${row.usage?.prompt_tokens ?? row.usage?.input_tokens ?? '-'}`}\n`);
+    }
+  }
+  return { probes, failed };
+}
+
 /** Runs (or, with dryRun, plans) every job not yet in `<out>/answers.jsonl`. */
 export async function runEval(options: RunOptions, deps: RunDeps): Promise<RunSummary> {
   const config = checkConfig(options.config);
@@ -596,6 +684,7 @@ export async function runEval(options: RunOptions, deps: RunDeps): Promise<RunSu
       'S3 runs MCP read as the server does: the model picks the mode, and without one it is auto.',
       'Temperature is not sent (provider default). A seed is sent only for models with sendSeed.',
       'Token counts in answers.jsonl are provider usage summed over the requests of each answer.',
+      'A failed answer keeps its transcript as run-<n>.failed-<k>.json and its usage in errors.jsonl, so a retry never overwrites what it spent. npm run eval -- tokens counts both.',
     ],
     invocations: [...(previous?.invocations ?? []), { ...invocation, ...(summary ? { finished: deps.now().toISOString(), counts: summary } : {}) }],
   }, null, 2) + '\n');
@@ -617,12 +706,16 @@ export async function runEval(options: RunOptions, deps: RunDeps): Promise<RunSu
     } catch (e) {
       summary.failed++;
       const message = redact((e as Error).message, key);
-      writeFile(transcriptPath(options.out, job), JSON.stringify({
+      // A failed answer keeps its own file, so a later retry of the same job never overwrites what it spent.
+      const partial = e instanceof EpisodeError ? e.transcript : undefined;
+      const file = failedTranscriptPath(options.out, job);
+      writeFile(file, redact(JSON.stringify(partial ?? {
         model: { label: job.model.label, id: job.model.model }, doc: job.doc.name, task: job.task.id, condition: job.condition, run: job.run, startedAt, error: message,
-      }, null, 2) + '\n');
-      fs.appendFileSync(path.join(options.out, 'errors.jsonl'), JSON.stringify({
+      }, null, 2), key) + '\n');
+      fs.appendFileSync(path.join(options.out, 'errors.jsonl'), redact(JSON.stringify({
         at: deps.now().toISOString(), model: modelName(job.model), doc: job.doc.name, task: job.task.id, condition: job.condition, run: job.run, error: message,
-      }) + '\n');
+        usage: { ...(partial?.usage ?? {}), requests: partial?.responses.length ?? 0 }, transcript: path.relative(options.out, file).split(path.sep).join('/'),
+      }), key) + '\n');
       deps.log(`${where}: failed: ${message}\n`);
     }
   });
