@@ -336,9 +336,11 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 - [ ] Idempotent order creation :priority[P0] @api-team :due[2026-10-03]
 - [ ] Legal review of new terms :priority[P1] @legal :due[2026-09-20]
 - [x] Kickoff with design @sam
+- [ ] Ship the migration @ops {#ship-migration}
 ```
 
 - **Preview:** checkboxes are clickable and update the source. Overdue dates turn red.
+- **Task ids:** a trailing `{#id}` gives a task an id, as on headings, so links (`[x](#ship-migration)`), and later answers and reviews, can point at it. The line stays a GitHub task. The preview puts the id on the task and hides it from the text, the agent view and `smd tasks` show it, `--json` has `id`, and `smd query "task[id=ship-migration]"` finds it. Ids share one namespace per document with headings, figures and containers: two blocks with one id get `id/duplicate`, and a link to it gets `link/ambiguous-anchor`, since it resolves to neither.
 - **SMD Tasks view** (VS Code Explorer): open tasks from every `.smd` file in the workspace, grouped by owner, due date or document; see [section 13](#13-vs-code-editing-assistance).
 - **Problems panel:** open tasks past their due date show a `task/overdue` notice.
 - **`smd tasks docs/`** lists open tasks across every document, overdue first, then by priority. `--mine @api-team` filters by owner, `--json` gives machine-readable output, `--csv` and `--gantt` export (below).

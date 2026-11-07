@@ -7,7 +7,8 @@ import {
 } from './include';
 import { githubIds, markdownHeadings, type MarkdownHeading } from './githubSlug';
 import { expandedFigures, figuresOf, includedLines, includeKey, includeSource, type ExpandedFigures } from './includeText';
-import { aroundInlineMath, convertedParts, inlineItemLines, inlineMathLines, literalLines, parseSmd, type InlinePart } from './parse';
+import { aroundInlineMath, convertedParts, inlineItemLines, inlineMathLines, literalLines, parseSmd, renderedTaskLines, type InlinePart } from './parse';
+import { splitTaskId } from './taskId';
 import { quoteCite } from './quote';
 import { renderSmd } from './render';
 import { riskMatrixMarkdown } from './risks';
@@ -47,6 +48,7 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
   const inlineMath = inlineMathLines(text);
   // So may an inline item's text (`:badge[foo` on one line, `bar]{color=green}` on the next): it converts as a whole.
   const inlineItems = inlineItemLines(text);
+  const tasks = renderedTaskLines(text);
   const stack: Frame[] = [];
   const prefix = () => stack.map((f) => f.prefix).join('');
   const emit = (line: string) => {
@@ -123,7 +125,8 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
       for (const l of head.inside ?? []) emit(l);
       continue;
     }
-    emit(lineMarkdown(line, literal.has(i), { variables, figures: figures.byId, spec }, inlineMath.get(i), inlineItems.get(i)));
+    const converted = lineMarkdown(line, literal.has(i), { variables, figures: figures.byId, spec }, inlineMath.get(i), inlineItems.get(i));
+    emit(tasks.has(i) ? taskAnchor(converted) : converted);
   }
   return headingAnchors(text, out.join('\n').replace(/\n{3,}/g, '\n\n'), options);
 }
@@ -227,6 +230,12 @@ function lineMarkdown(
   const convert = (text: string) => convertInline(substituteLine(text, document.variables, document.spec), document.figures, document.spec);
   const asWritten = content === line;
   return aroundInlineMath(content, convert, asWritten ? math : undefined, asWritten ? convertedParts(parts, (whole) => aroundInlineMath(whole, convert)) : []);
+}
+
+/** A task's `{#id}` as an anchor, as a container's id is written, so `#id` links still lead to it on GitHub. */
+function taskAnchor(line: string): string {
+  const { text, id } = splitTaskId(line);
+  return id ? `${text} <a id="${id}"></a>` : line;
 }
 
 /** A container being converted: its colon count, the prefix of its lines, and what closes it. */

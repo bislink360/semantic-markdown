@@ -100,6 +100,16 @@
           ],
           "description": "Every fence/… rule. Exact codes win."
         },
+        "id/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every id/… rule. Exact codes win."
+        },
         "include/*": {
           "enum": [
             "off",
@@ -620,6 +630,16 @@
           ],
           "description": "The :::include section matches no heading in the file"
         },
+        "id/duplicate": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Two blocks share an id (a heading, task, container, figure or HTML element); links and feedback naming it resolve to neither"
+        },
         "include/cycle": {
           "enum": [
             "off",
@@ -659,6 +679,16 @@
             "hint"
           ],
           "description": "Includes read more than a document may (200 includes, 2,000,000 characters)"
+        },
+        "link/ambiguous-anchor": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Link to an #anchor that two or more blocks share, which resolves to none of them"
         },
         "link/github-anchor": {
           "enum": [

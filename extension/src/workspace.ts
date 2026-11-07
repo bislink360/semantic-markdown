@@ -113,7 +113,7 @@ export function taskRows(files: string[], filter: TaskFilter, name = (file: stri
   return rows.sort(compareTasks);
 }
 
-/** `docs/plan.smd:12  [ ] [P0] Ship it @maya (due 2026-10-01)  — Section` */
+/** `docs/plan.smd:12  [ ] [P0] Ship it @maya (due 2026-10-01) {#ship}  — Section`: the id as the task's line writes it. */
 export function taskLine(r: TaskRow): string {
   const bits = [
     r.done ? '[x]' : '[ ]',
@@ -121,6 +121,7 @@ export function taskLine(r: TaskRow): string {
     r.text,
     r.assignees.length ? r.assignees.join(' ') : '',
     r.due ? `(due ${r.due}${r.overdue ? ', OVERDUE' : ''})` : '',
+    r.id ? `{#${r.id}}` : '',
   ].filter(Boolean);
   return `${r.file}:${r.line + 1}  ${bits.join(' ')}${r.section ? `  — ${r.section}` : ''}`;
 }
