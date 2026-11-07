@@ -29,6 +29,9 @@ export const MD_READ_BUDGET = 2000;
 /** At most this many search hits are listed. */
 export const MAX_HITS = 20;
 
+/** The description the model harness gives the M2 tool, in the style of the MCP `read` tool's. */
+export const MD_READ_DESCRIPTION = `Markdown file as written: whole if ≤maxTokens (${MD_READ_BUDGET}), else heading list (L12-30 = lines); then pass sections, query or lines.`;
+
 /** The JSON schema the model harness gives the model for M2, next to the `read` schema it gives for S3. */
 export const MD_READ_SCHEMA = {
   type: 'object',

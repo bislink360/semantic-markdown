@@ -1,5 +1,6 @@
 import { agentView, outline, type AgentViewOptions, type AgentViewResult, type Tokenizer } from '../../src/core';
-import { readDocument } from '../../src/readView';
+import { matchesExactly, matchesHeading } from '../../src/core/sections';
+import { READ_BUDGET, readDocument } from '../../src/readView';
 import { corpusReader, DEFAULT_TODAY, estimate, type Corpus, type CorpusDoc } from './corpus';
 import { documentSections, plainBlocks, sectionsHolding, withoutAgentBlocks, withoutSkipMarks } from './markup';
 import { mdRead, transcriptResults, transcriptText, type MdReadArgs, type ToolCall, type Transcript } from './mdTool';
@@ -145,13 +146,48 @@ function oracleSections(text: string, items: AnnotationItem[], format: 'md' | 's
   return { ids, ranges, unplaced };
 }
 
-/** `read` as the MCP tool runs it, with `includeHuman` for the all-audiences ablation (readDocument has no such option). */
-function smdRead(text: string, args: { mode?: 'outline' | 'full'; sections?: string[]; exact?: boolean }, ctx: RenderContext, includeHuman?: boolean): string {
+/** The arguments of the MCP `read` tool, less `file`. */
+export interface SmdReadArgs { mode?: 'auto' | 'outline' | 'full'; sections?: string[]; exact?: boolean; maxTokens?: number; brief?: boolean }
+
+/**
+ * `read` as the MCP tool runs it (readDocument, then a note on sections that matched nothing), with `includeHuman`
+ * for the all-audiences ablation, which readDocument has no option for, so its routing is repeated here. Throws when
+ * no section matched, as the tool does.
+ */
+export function smdRead(text: string, args: SmdReadArgs, ctx: RenderContext, includeHuman?: boolean): string {
   const view = viewOptions(ctx);
-  if (!includeHuman) return readDocument(text, { ...view, mode: args.mode, sections: args.sections, exactSections: args.exact }).text;
-  if (args.sections?.length) return agentView(text, { ...view, includeHuman, sections: args.sections, exactSections: args.exact }).text;
-  if (args.mode === 'full') return agentView(text, { ...view, includeHuman }).text;
-  return `${outline(text, { ...view, includeHuman }).trimEnd()}\n\nRead only the sections you need next.\n`;
+  const { mode = 'auto', sections, exact, maxTokens = READ_BUDGET, brief } = args;
+  let result: { text: string; missing: string[] };
+  if (!includeHuman) {
+    const r = readDocument(text, { ...view, mode, sections, exactSections: exact, maxTokens, brief });
+    result = { text: r.text, missing: r.missingSections };
+  } else if (sections?.length) {
+    const r = agentView(text, { ...view, includeHuman, sections, exactSections: exact, brief });
+    result = { text: r.text, missing: r.missingSections };
+  } else {
+    const full = agentView(text, { ...view, includeHuman, brief });
+    if (mode === 'full' || (mode === 'auto' && full.tokens <= maxTokens)) result = { text: full.text, missing: [] };
+    else {
+      const why = mode === 'auto' ? `The agent view (≈${full.tokens} tokens) is over the ${maxTokens}-token budget, so this is the outline. ` : '';
+      result = { text: `${outline(text, { ...view, includeHuman }).trimEnd()}\n\n${why}Read only the sections you need next.\n`, missing: [] };
+    }
+  }
+  if (!result.missing.length) return result.text;
+  const note = `No section matching: ${result.missing.join(', ')}. Call "read" with mode "outline" to list the sections.`;
+  if (result.missing.length === (sections?.length ?? 0)) throw new Error(note);
+  return `${result.text.trimEnd()}\n\n(${note})\n`;
+}
+
+/**
+ * The source an S3 read uses under an ablation. For no-doc-context, the `:::agent` blocks outside the sections the
+ * call asks for are removed; a call for the outline or the whole view reads the source as it is, as the oracle does.
+ */
+export function ablatedForRead(smd: string, ablation: Ablation | undefined, args: SmdReadArgs): { text: string; includeHuman?: boolean } {
+  if (ablation !== 'no-doc-context') return ablated(smd, ablation);
+  if (!args.sections?.length) return { text: smd };
+  const match = args.exact ? matchesExactly : matchesHeading;
+  const ranges = documentSections(smd).filter((s) => args.sections!.some((q) => match(s.heading, q))).map((s): [number, number] => [s.start, s.end]);
+  return ranges.length ? ablated(smd, ablation, ranges) : { text: smd };
 }
 
 /** Said when every item of a task is above the first heading, so no section holds it and the oracle reads the whole view. */

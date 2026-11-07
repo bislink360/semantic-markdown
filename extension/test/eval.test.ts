@@ -1,17 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { agentView } from '../src/core';
+import { agreement, cohensKappa, matchItems } from './eval/agreement';
 import { main } from './eval/cli';
 import { docConditions, renderContext, renderDoc, taskConditions } from './eval/conditions';
-import { evidenceFound, loadCorpus, normalise, type Corpus, type CorpusDoc } from './eval/corpus';
-import { lineSimilarity, markupSimilarity, plainBlocks, withoutAgentBlocks, withoutMarkup, withoutSkipMarks } from './eval/markup';
+import { corpusReader, evidenceFound, loadCorpus, normalise, type Corpus, type CorpusDoc } from './eval/corpus';
+import { expandIncludes, lineSimilarity, markupSimilarity, plainBlocks, withoutAgentBlocks, withoutMarkup, withoutSkipMarks } from './eval/markup';
 import { headingList, mdRead } from './eval/mdTool';
 import {
   normaliseAnswer, packetId, pairedBootstrap, parseAnswers, providerTokens, scoreAnswer, scoreAnswers, seededRandom,
 } from './eval/score';
+import { alignLines, formatJson, mapCorpus, spanReportText, spansOk } from './eval/spans';
 import { survival, survivalText } from './eval/survival';
 import type { AnswerRecord, Task } from './eval/types';
 import { validateCorpus } from './eval/validate';
@@ -384,5 +386,186 @@ test('the CLI validates, checks, renders and scores into a folder', () => {
     assert.equal(main(['nope'], capture), 1);
   } finally {
     rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// map-spans
+// ---------------------------------------------------------------------------
+
+/** A copy of the fixture in a temporary folder that stays until `done` is called. */
+function fixtureCopy(): { dir: string; done: () => void } {
+  const dir = mkdtempSync(join(tmpdir(), 'smd-eval-'));
+  cpSync(fixture, dir, { recursive: true });
+  return { dir, done: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+test('map-spans fills the smd spans of items and edit plans from the md spans', () => {
+  const { dir, done } = fixtureCopy();
+  try {
+    const original = JSON.parse(readFileSync(join(dir, 'webhooks', 'annotations.json'), 'utf8'));
+    editJson(join(dir, 'webhooks', 'annotations.json'), (a) => {
+      for (const item of a.items) delete item.smd;
+      a.items[0] = { notes: 'kept', annotator: a.items[0].annotator, evidence: a.items[0].evidence, md: a.items[0].md, kind: a.items[0].kind, id: a.items[0].id };
+    });
+    editJson(join(dir, 'webhooks', 'tasks.json'), (t) => { delete t.tasks[5].expected.smd; });
+    editJson(join(dir, 'pagination', 'annotations.json'), (a) => { for (const item of a.items) item.smd = [1, 1]; });
+    assert.equal(validateCorpus(loadCorpus(dir)).ok, false, 'a missing smd span is still an error');
+    let log = '';
+    assert.equal(main(['map-spans', dir], (s) => { log += s; }), 0);
+    assert.match(log, /report only/);
+    assert.match(log, /changed: cursor-current smd \[1, 1\] → \[13, 15\]/);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'webhooks', 'annotations.json'), 'utf8')).items[3].smd, undefined, 'nothing written without --write');
+    assert.equal(main(['map-spans', dir, '--write'], () => {}), 0);
+    const text = readFileSync(join(dir, 'webhooks', 'annotations.json'), 'utf8');
+    const mapped = JSON.parse(text);
+    assert.deepEqual(mapped.items.map((i: { smd: number[] }) => i.smd), original.items.map((i: { smd: number[] }) => i.smd));
+    assert.deepEqual(Object.keys(mapped.items[0]), ['id', 'kind', 'md', 'smd', 'evidence', 'annotator', 'notes']);
+    assert.match(text, /^\{\n {2}"guide": .*,\n {2}"items": \[\n {4}\{ "id": "hmac-signing", "kind": "constraint", "md": \[7, 7\], "smd": \[12, 12\],/);
+    const tasks = JSON.parse(readFileSync(join(dir, 'webhooks', 'tasks.json'), 'utf8'));
+    assert.deepEqual(tasks.tasks[5].expected, { md: [[16, 16]], smd: [[22, 22]] });
+    assert.ok(validateCorpus(loadCorpus(dir)).ok);
+  } finally {
+    done();
+  }
+});
+
+/** A corpus with one document that includes a shared file, written out in doc.md. */
+function includeCorpus(items: unknown[]): { dir: string; done: () => void } {
+  const dir = mkdtempSync(join(tmpdir(), 'smd-eval-inc-'));
+  mkdirSync(join(dir, '_shared'));
+  mkdirSync(join(dir, 'doc'));
+  writeFileSync(join(dir, '_shared', 'levels.smd'), '---\nsmd: 2\ntitle: Levels\n---\n\nEvery incident gets one level.\n\n:::danger\nNever lower a SEV1 without the commander.\n:::\n');
+  writeFileSync(join(dir, 'doc', 'doc.smd'), [
+    '---', 'smd: 2', 'title: Runbook', '---', '', '## Severity', '', 'We use the shared levels.', '',
+    ':::include{file=../_shared/levels.smd}', ':::', '', 'Scanning stopped for 10 minutes is SEV1.', '',
+  ].join('\n'));
+  writeFileSync(join(dir, 'doc', 'doc.md'), [
+    '# Runbook', '', '## Severity', '', 'We use the shared levels.', '', 'Every incident gets one level.', '',
+    'Never lower a SEV1 without the commander.', '', 'Scanning stopped for 10 minutes is SEV1.', '',
+  ].join('\n'));
+  writeFileSync(join(dir, 'doc', 'annotations.json'), JSON.stringify({ items }));
+  writeFileSync(join(dir, 'doc', 'tasks.json'), JSON.stringify({ tasks: [] }));
+  return { dir, done: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+test('map-spans maps included text to its :::include line, and the validator reads the included text there', () => {
+  const item = (id: string, md: number[], evidence: string[]) => ({ id, kind: 'constraint', md, evidence, annotator: 'x' });
+  const { dir, done } = includeCorpus([
+    item('no-lower', [9, 9], ['never lower a SEV1']),
+    item('stop-sev1', [11, 11], ['10 minutes is SEV1']),
+    item('across', [5, 9], ['shared levels', 'one level']),
+    item('blank', [10, 10], ['x']),
+    item('wrong', [11, 11], ['one level']),
+  ]);
+  try {
+    const report = mapCorpus(loadCorpus(dir));
+    const byId = new Map(report.docs[0].items.map((i) => [i.id, i]));
+    assert.deepEqual(byId.get('no-lower')!.smd, [10, 11], 'the :::include block');
+    assert.deepEqual(byId.get('no-lower')!.evidenceOutside, []);
+    assert.deepEqual(byId.get('stop-sev1')!.smd, [13, 13]);
+    assert.deepEqual(byId.get('across')!.smd, [8, 11]);
+    assert.equal(byId.get('blank')!.smd, undefined);
+    assert.deepEqual(byId.get('wrong')!.evidenceOutside, ['"one level"']);
+    const text = spanReportText(report, false);
+    assert.match(text, /not mapped: blank md \[10, 10\]/);
+    assert.match(text, /evidence outside: wrong md \[11, 11\] → smd \[13, 13\]: "one level"/);
+    assert.equal(spansOk(report), false);
+    const md = readFileSync(join(dir, 'doc', 'doc.md'), 'utf8');
+    const smd = readFileSync(join(dir, 'doc', 'doc.smd'), 'utf8');
+    assert.equal(alignLines(md, smd, corpusReader(dir, join(dir, 'doc')))[8], 9, 'md L9 aligns with the include on smd L10');
+    assert.equal(alignLines(md, smd)[8], -1, 'without a reader the included text is not there');
+    // After writing, the validator accepts the included items and still rejects the wrong one.
+    mapCorpus(loadCorpus(dir), true);
+    const errors = validateCorpus(loadCorpus(dir)).docs[0].errors.join('\n');
+    assert.doesNotMatch(errors, /no-lower|across|stop-sev1/);
+    assert.match(errors, /wrong: evidence "one level" is not in doc\.smd L13-13/);
+    assert.match(errors, /blank \(smd\): span must be/);
+  } finally {
+    done();
+  }
+});
+
+test('include expansion keeps the origin line of every included line', () => {
+  const { dir, done } = includeCorpus([]);
+  try {
+    const smd = readFileSync(join(dir, 'doc', 'doc.smd'), 'utf8');
+    const lines = expandIncludes(smd, corpusReader(dir, join(dir, 'doc')));
+    assert.ok(lines.some((l) => l.text === 'Never lower a SEV1 without the commander.' && l.origin === 9));
+    assert.ok(!lines.some((l) => l.text.startsWith(':::include')));
+    assert.equal(lines.find((l) => l.text.startsWith('Scanning'))!.origin, 12);
+    assert.ok(expandIncludes(smd, undefined).some((l) => l.text.startsWith(':::include')), 'an include that cannot be read stays');
+    assert.equal(formatJson({ a: [1, 2], b: { c: [[1, 2]] } }, 1), '{\n  "a": [1, 2],\n  "b": { "c": [[1, 2]] }\n}\n');
+  } finally {
+    done();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Agreement
+// ---------------------------------------------------------------------------
+
+test('Cohen\'s kappa, with its degenerate cases', () => {
+  const k = cohensKappa([['a', 'a'], ['a', 'b'], ['b', 'b'], ['b', 'b']]);
+  assert.equal(k.observed, 0.75);
+  assert.equal(k.expected, 0.5);
+  assert.equal(k.kappa, 0.5);
+  assert.equal(cohensKappa([]).kappa, null);
+  const same = cohensKappa([['fact', 'fact'], ['fact', 'fact']]);
+  assert.equal(same.kappa, null);
+  assert.match(same.note!, /same single kind/);
+  assert.equal(cohensKappa([['fact', 'limit'], ['limit', 'fact']]).kappa, -1);
+});
+
+test('items match one to one by line overlap, then evidence words', () => {
+  const it = (id: string, md: [number, number], evidence: string[], kind = 'fact') => ({ id, kind, md, evidence });
+  const pairs = matchItems(
+    [it('a1', [10, 12], ['retried up to 8 times']), it('a2', [11, 11], ['except 429']), it('a3', [40, 40], ['nowhere'])],
+    [it('b1', [11, 11], ['except 429']), it('b2', [10, 12], ['retried up to 8 times'], 'limit'), it('b3', [11, 11], ['retried'])],
+  );
+  assert.deepEqual(pairs.map((p) => [p.a, p.b]), [['a1', 'b2'], ['a2', 'b1']]);
+  assert.equal(pairs[0].lineJaccard, 1);
+  // Same lines both ways: the evidence words decide.
+  const tie = matchItems([it('a', [5, 5], ['never log bodies'])], [it('x', [5, 5], ['retry']), it('y', [5, 5], ['never log payload bodies'])]);
+  assert.deepEqual(tie.map((p) => p.b), ['y']);
+});
+
+test('the agreement command reports F1, kappa and unmatched items per document and pooled', () => {
+  const { dir, done } = fixtureCopy();
+  try {
+    const items = JSON.parse(readFileSync(join(dir, 'webhooks', 'annotations.json'), 'utf8')).items;
+    writeFileSync(join(dir, 'webhooks', 'annotations.a1.json'), JSON.stringify({ items: items.slice(0, 6) }));
+    const b = items.slice(1, 7).map((i: { id: string; kind: string }) => ({ ...i, id: `b-${i.id}`, kind: i.id === 'https-only' ? 'fact' : i.kind }));
+    writeFileSync(join(dir, 'webhooks', 'annotations.a2.json'), JSON.stringify({ items: b }));
+    writeFileSync(join(dir, 'pagination', 'annotations.a1.json'), JSON.stringify({ items: [] }));
+    const r = agreement(dir, 'annotations.a1.json', 'annotations.a2.json');
+    assert.deepEqual(r.skipped, ['pagination']);
+    const d = r.docs[0];
+    // retry-limit and no-retry-4xx share a line; the evidence words keep them apart.
+    assert.deepEqual([d.nA, d.nB, d.matched], [6, 6, 5]);
+    assert.ok(d.pairs.some((p) => p.a === 'retry-limit' && p.b === 'b-retry-limit'));
+    assert.ok(d.pairs.some((p) => p.a === 'no-retry-4xx' && p.b === 'b-no-retry-4xx'));
+    assert.equal(d.f1, 10 / 12);
+    assert.ok(d.kappa! > 0 && d.kappa! < 1);
+    assert.deepEqual(d.unmatchedA.map((u) => u.id), ['hmac-signing']);
+    assert.deepEqual(d.unmatchedB.map((u) => u.id), ['b-fixed-interval-superseded']);
+    assert.deepEqual(d.unmatchedA[0].evidence, ['"sign every payload with HMAC-SHA256"']);
+    assert.equal(r.pooled.confusion.constraint.fact, 1);
+    // An adjudicator's pairs replace the automatic matching for that document.
+    const pairsFile = join(dir, 'pairs.json');
+    writeFileSync(pairsFile, JSON.stringify({ webhooks: [['retry-limit', 'b-retry-limit'], ['https-only', 'nope']] }));
+    const out = join(dir, 'out');
+    let log = '';
+    assert.equal(main(['agreement', dir, '--a', 'annotations.a1.json', '--b', 'annotations.a2.json', '--pairs', pairsFile, '--out', out], (s) => { log += s; }), 0);
+    const saved = JSON.parse(readFileSync(join(out, 'agreement.json'), 'utf8'));
+    assert.equal(saved.docs[0].matching, 'pairs');
+    assert.equal(saved.docs[0].matched, 1);
+    assert.match(saved.docs[0].problems.join('\n'), /no item nope in B/);
+    assert.equal(saved.docs[0].kappa, null);
+    assert.match(log, /^# Inter-annotator agreement/);
+    assert.match(readFileSync(join(out, 'agreement.md'), 'utf8'), /Unmatched in A \(5\):/);
+    assert.throws(() => main(['agreement', dir, '--a', 'x.json'], () => {}), /needs --a <file> --b <file>/);
+  } finally {
+    done();
   }
 });

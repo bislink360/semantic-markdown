@@ -3,18 +3,25 @@ import * as path from 'node:path';
 import type { Tokenizer } from '../../src/core';
 import { loadTokenizer } from '../../src/tokenizer';
 import { renderDoc, type Rendered } from './conditions';
+import { agreement, agreementText, type PairsFile } from './agreement';
 import { DEFAULT_CORPUS, loadCorpus } from './corpus';
+import { defaultDeps, runEval, type RunConfig, type RunDeps } from './runner';
 import { outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord } from './score';
+import { mapCorpus, spanReportText, spansOk } from './spans';
 import { survival, survivalText } from './survival';
 import { validateCorpus, validationText } from './validate';
 
 /**
- * The evaluation harness (see README.md). No model is called and nothing leaves the machine.
+ * The evaluation harness (see README.md). Only `run` calls a model, with an explicit config and keys from the
+ * environment; every other command sends nothing anywhere.
  *
  *   npm run eval -- validate [corpus] [--json]
  *   npm run eval -- render [corpus] --out <dir> [--tokenizer o200k_base]
  *   npm run eval -- check [corpus] [--json] [--out <dir>]
- *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl]
+ *   npm run eval -- map-spans [corpus] [--write] [--json]
+ *   npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
+ *   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
+ *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl] [--model <label>]
  *
  * The corpus defaults to research/corpus/. Relative paths are read from the folder npm was run in.
  */
@@ -23,10 +30,16 @@ const USAGE = `Usage:
   npm run eval -- validate [corpus] [--json]
   npm run eval -- render [corpus] --out <dir> [--tokenizer <name>]
   npm run eval -- check [corpus] [--json] [--out <dir>]
-  npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <file>]
+  npm run eval -- map-spans [corpus] [--write] [--json]
+  npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
+  npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs <a,b>] [--tasks <a,b>] [--conditions <a,b>] [--runs <n>] [--limit <n>] [--concurrency <n>]
+  npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <file>] [--model <label>]
 `;
 
-const VALUE_FLAGS = new Set(['--out', '--tokenizer', '--seed', '--resamples', '--baseline', '--judged']);
+const VALUE_FLAGS = new Set([
+  '--out', '--tokenizer', '--seed', '--resamples', '--baseline', '--judged', '--model',
+  '--a', '--b', '--pairs', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency',
+]);
 
 interface Parsed { command?: string; positional: string[]; flags: Map<string, string | true> }
 
@@ -85,11 +98,48 @@ export function renderCorpus(corpusDir: string, out: string, tokenizer?: Tokeniz
   return { files: manifest.length };
 }
 
-export function main(args: string[], log: (s: string) => void = (s) => process.stdout.write(s)): number {
+const stringFlag = (flags: Parsed['flags'], name: string) => (typeof flags.get(name) === 'string' ? flags.get(name) as string : undefined);
+const listFlag = (flags: Parsed['flags'], name: string) => stringFlag(flags, name)?.split(',').map((s) => s.trim()).filter(Boolean);
+const readJsonFile = (file: string) => JSON.parse(fs.readFileSync(resolvePath(file), 'utf8').replace(/^﻿/, ''));
+
+/**
+ * Runs one command. `run` returns a promise (it waits on the network); the others return the exit code at once.
+ * `deps` replaces the runner's network, environment and clock, for tests.
+ */
+export function main(args: string[], log: (s: string) => void = (s) => process.stdout.write(s), deps?: Partial<RunDeps>): number | Promise<number> {
   const { command, positional, flags } = parseArgs(args);
   const corpusDir = positional[0] ? resolvePath(positional[0]) : DEFAULT_CORPUS;
   const out = typeof flags.get('--out') === 'string' ? resolvePath(flags.get('--out') as string) : undefined;
   switch (command) {
+    case 'map-spans': {
+      const writeFiles = flags.has('--write');
+      const report = mapCorpus(loadCorpus(corpusDir), writeFiles);
+      log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : spanReportText(report, writeFiles));
+      return spansOk(report) ? 0 : 1;
+    }
+    case 'agreement': {
+      const a = stringFlag(flags, '--a');
+      const b = stringFlag(flags, '--b');
+      if (!a || !b) throw new Error('agreement needs --a <file> --b <file> (file names inside each document folder)');
+      const pairsFile = stringFlag(flags, '--pairs');
+      const report = agreement(corpusDir, a, b, pairsFile ? readJsonFile(pairsFile) as PairsFile : undefined, pairsFile);
+      const text = agreementText(report);
+      if (out) {
+        write(path.join(out, 'agreement.json'), JSON.stringify(report, null, 2) + '\n');
+        write(path.join(out, 'agreement.md'), text);
+      }
+      log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : text);
+      return 0;
+    }
+    case 'run': {
+      const configFile = stringFlag(flags, '--config');
+      if (!configFile || !out) throw new Error('run needs --config <run.json> --out <dir>');
+      return runEval({
+        corpusDir, config: readJsonFile(configFile) as RunConfig, out, configFile: resolvePath(configFile), dryRun: flags.has('--dry-run'),
+        docs: listFlag(flags, '--docs'), tasks: listFlag(flags, '--tasks'), conditions: listFlag(flags, '--conditions'),
+        runs: numberFlag(flags, '--runs'), limit: numberFlag(flags, '--limit'), concurrency: numberFlag(flags, '--concurrency'),
+      }, { ...defaultDeps(log), ...deps }).then((s) => (s.failed ? 1 : 0));
+    }
     case 'validate': {
       const report = validateCorpus(loadCorpus(corpusDir));
       log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : validationText(report));
@@ -116,7 +166,11 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       const answersFile = positional[1];
       if (!positional[0] || !answersFile || !out) throw new Error('score needs <corpus> <answers.jsonl> --out <dir>');
       const corpus = loadCorpus(corpusDir);
-      const { records, problems } = parseAnswers(fs.readFileSync(resolvePath(answersFile), 'utf8'));
+      const parsed = parseAnswers(fs.readFileSync(resolvePath(answersFile), 'utf8'));
+      const { problems } = parsed;
+      // `run` writes model as "<label>:<model id>"; --model keeps one model's answers.
+      const only = stringFlag(flags, '--model');
+      const records = only ? parsed.records.filter((r) => r.model === only || r.model?.startsWith(`${only}:`)) : parsed.records;
       const judgedFile = flags.get('--judged');
       const judged = typeof judgedFile === 'string' ? (parseJudged(fs.readFileSync(resolvePath(judgedFile), 'utf8'))) : undefined;
       const result = scoreAnswers(corpus, records, {
@@ -144,10 +198,13 @@ export function parseJudged(text: string): JudgedRecord[] {
 }
 
 if (require.main === module) {
-  try {
-    process.exitCode = main(process.argv.slice(2));
-  } catch (e) {
+  const fail = (e: unknown) => {
     process.stderr.write(`${(e as Error).message}\n\n${USAGE}`);
     process.exitCode = 1;
+  };
+  try {
+    Promise.resolve(main(process.argv.slice(2))).then((code) => { process.exitCode = code; }, fail);
+  } catch (e) {
+    fail(e);
   }
 }

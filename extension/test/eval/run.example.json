@@ -1,0 +1,31 @@
+{
+  "models": [
+    {
+      "label": "model-a",
+      "model": "<provider model id, pinned>",
+      "baseUrl": "https://api.example.com/v1",
+      "apiKeyEnv": "EVAL_MODEL_A_KEY",
+      "maxOutputTokens": 1024,
+      "price": { "inputPerMTok": 0, "outputPerMTok": 0 }
+    },
+    {
+      "label": "model-b",
+      "model": "<another provider's model id, pinned>",
+      "baseUrl": "https://api.example.org/v1",
+      "apiKeyEnv": "EVAL_MODEL_B_KEY",
+      "maxOutputTokens": 1024,
+      "outputLimitField": "max_completion_tokens",
+      "sendSeed": true,
+      "price": { "inputPerMTok": 0, "outputPerMTok": 0 }
+    }
+  ],
+  "runs": 5,
+  "seed": 1,
+  "maxToolCalls": 8,
+  "concurrency": 2,
+  "conditions": [
+    "M1", "M2", "S1", "S2", "S3", "S4-brief", "S4-budget", "O",
+    "S2.all-audiences", "S2.plain-blocks", "S2.no-agent-block",
+    "S3.all-audiences", "S3.plain-blocks", "S3.no-agent-block", "S3.no-doc-context"
+  ]
+}
