@@ -14,7 +14,7 @@ val smdVersion = (JsonSlurper().parse(repoRoot.resolve("extension/package.json")
 group = "com.bislink360"
 version = smdVersion
 
-// IntelliJ Platform 2025.1+ runs on Java 21. Compile for it with whatever JDK runs Gradle (21 or newer).
+// IntelliJ Platform 2025.3+ runs on Java 21. Compile for it with whatever JDK runs Gradle (21 or newer).
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
@@ -47,10 +47,10 @@ intellijPlatform {
     instrumentCode = false
     buildSearchableOptions = false
     // ./gradlew verifyPlugin runs JetBrains' Plugin Verifier, the check the Marketplace runs on every upload,
-    // against the oldest IDE the plugin supports and a current one (-PverifyIdes=IU-2025.1.7.2,IU-2026.3 to change them).
+    // against the oldest IDE the plugin supports and a current one (-PverifyIdes=IU-2025.3.2,IU-2026.3 to change them).
     pluginVerification {
         ides {
-            val list = providers.gradleProperty("verifyIdes").orElse("IU-2025.1.7.2,IU-2026.3").get()
+            val list = providers.gradleProperty("verifyIdes").orElse("IU-2025.3.2,IU-2026.3").get()
             for (entry in list.split(',').map { it.trim() }.filter { it.isNotEmpty() }) {
                 val (code, ideVersion) = entry.split('-', limit = 2)
                 create(IntelliJPlatformType.fromCode(code), ideVersion)
@@ -60,7 +60,7 @@ intellijPlatform {
     pluginConfiguration {
         version = smdVersion
         ideaVersion {
-            sinceBuild = "251"
+            sinceBuild = "253"
             untilBuild = provider { null }
         }
     }

@@ -281,7 +281,7 @@ Editors build the grammar from this repository's URL, the `integrations/tree-sit
 
 ## JetBrains IDEs
 
-IntelliJ IDEA, PyCharm, WebStorm and the other JetBrains IDEs don't need any of the setup above: the [Semantic Markdown plugin](../integrations/jetbrains/README.md) (since 2.1.0) runs this language server itself, with the `smd` CLI shipped inside the plugin, and highlights `.smd` files with the VS Code extension's TextMate grammar. It needs an IDE with the LSP API (IntelliJ IDEA 2025.3 or newer, the others 2025.1 or newer) and Node.js 22 or newer. Install it from the GitHub release: [docs/INSTALL.md](INSTALL.md#jetbrains-ides).
+IntelliJ IDEA, PyCharm, WebStorm and the other JetBrains IDEs don't need any of the setup above: the [Semantic Markdown plugin](../integrations/jetbrains/README.md) (since 2.1.0) runs this language server itself, with the `smd` CLI shipped inside the plugin, and highlights `.smd` files with the VS Code extension's TextMate grammar. It needs a JetBrains IDE 2025.3 or newer with the LSP API, and Node.js 22 or newer. Install it from the GitHub release: [docs/INSTALL.md](INSTALL.md#jetbrains-ides).
 
 ## Other editors
 

@@ -30,7 +30,7 @@ Not in the plugin: the agent view, the tasks view and the Block Editor. Those ar
 
 ## Requirements
 
-- A JetBrains IDE with the **LSP API**: IntelliJ IDEA 2025.3 or newer (the unified IDE, with or without a subscription), or PyCharm, WebStorm, PhpStorm, GoLand, RubyMine, CLion, RustRover, DataGrip, Rider 2025.1 or newer. Not Android Studio, and not builds of IntelliJ IDEA from its open-source code ([JetBrains: LSP](https://plugins.jetbrains.com/docs/intellij/language-server-protocol.html)).
+- A JetBrains IDE with the **LSP API**: 2025.3 or newer: IntelliJ IDEA (the unified IDE, with or without a subscription), PyCharm, WebStorm, PhpStorm, GoLand, RubyMine, CLion, RustRover, DataGrip or Rider. Older IDEs name the LSP module differently (`com.intellij.modules.ultimate`), so the plugin cannot load there. Not Android Studio, and not builds of IntelliJ IDEA from its open-source code ([JetBrains: LSP](https://plugins.jetbrains.com/docs/intellij/language-server-protocol.html)).
 - **Node.js 22 or newer** for the language server and the preview. Highlighting works without it.
 
 ## Settings
@@ -69,4 +69,4 @@ cd integrations/jetbrains
 
 The plugin zip is in `build/distributions/semantic-markdown-jetbrains-X.Y.Z.zip`. `./gradlew runIde` opens an IDE with the plugin installed, for trying it. The build copies the language server (`skills/semantic-markdown-reader/scripts/smd.cjs`) and the TextMate grammar (`extension/syntaxes`, `extension/language-configuration.json`) into the plugin; `bundle/package.json` lists them for the IDE's TextMate support, and a unit test ([`extension/test/jetbrains.test.ts`](../../extension/test/jetbrains.test.ts)) fails when it no longer matches the extension's `package.json`.
 
-The plugin uses the LSP API's names from before IntelliJ 2026.1.4 (`LspServerSupportProvider`, `ProjectWideLspServerDescriptor`), which every IDE from 2025.1 on has; newer IDEs keep them as deprecated aliases.
+The plugin uses the LSP API's names from before IntelliJ 2026.1.4 (`LspServerSupportProvider`, `ProjectWideLspServerDescriptor`), which every IDE from 2025.3 on has; newer IDEs keep them as deprecated aliases, which is why the Plugin Verifier reports deprecated API usages on 2026.1.4 and later.
