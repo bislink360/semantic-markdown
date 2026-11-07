@@ -702,8 +702,8 @@ stateDiagram-v2
 ````
 
 - **`:::figure`** puts a caption under an image, diagram, table or code block, numbered in document order: *Figure 1: Order states*. `kind=table` counts *Table 1, 2…* separately (its caption sits above the table) and `kind=listing` *Listing 1, 2…* for code.
-- **`:ref[id]`** shows the figure's number as a link (*Figure 1*), before or after the figure and in titles. Numbers are computed, so they stay right when figures move.
-- The validator warns about a `:ref` to an id no figure has (`figure/unknown-ref`, with a fix for a near miss) about two figures with one id (`figure/duplicate-id`) and reports an unknown `kind` as an error (`attrs/value`, with a fix; the warning `figure/kind` before 2.0).
+- **`:ref[id]`** shows the figure's number as a link (*Figure 1*), before or after the figure and in titles. Numbers are computed, so they stay right when figures move. Since 3.1 it also names any other block with that `{#id}`, a heading, task or container: it shows the id as written (*R1*), linked, with the block's title as its tooltip.
+- The validator warns about a `:ref` to an id no block has (`figure/unknown-ref`, with a fix for a near miss), about a `:ref` to an id two blocks give (`ref/ambiguous`) about two figures with one id (`figure/duplicate-id`) and reports an unknown `kind` as an error (`attrs/value`, with a fix; the warning `figure/kind` before 2.0).
 - **Agent view:** `<figure id="fig-states"> Figure 1: Order states` … `</figure>`, and references read `Figure 1 (fig-states)`, so an agent can find the figure by id. **GitHub** (`smd export --to md`): an `<a id>` anchor, the content and a `**Figure 1:** Order states` line; references become `[Figure 1](#fig-states)` links.
 - Older `.smd` tools (1.5 and earlier) show a figure's content in a plain box without the caption, with a `container/unknown` warning, and `:ref[…]` as written.
 

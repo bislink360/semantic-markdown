@@ -8,7 +8,7 @@ import { label, term, type MessageKey, type Messages } from './i18n';
 import { includeHref, includeLabel, includeProblemText, includeRequest } from './include';
 import { figureLabel, PRIORITY_COLORS } from './markdownItHtml';
 import {
-  envFigures, type ContainerMeta, type DirectiveMeta, type FootnoteMeta, type SpanMeta, type TaskBoxMeta,
+  envBlockIds, envFigures, type ContainerMeta, type DirectiveMeta, type FootnoteMeta, type SpanMeta, type TaskBoxMeta,
 } from './markdownItRules';
 import { quoteCite } from './quote';
 import { parseSmdTokens, type ParsedTokens } from './render';
@@ -634,10 +634,14 @@ class InlineReader {
     }
   }
 
-  /** `:ref[id]`: the figure's label ("Figure 2"), linking to it. */
+  /**
+   * `:ref[id]`: the figure's label ("Figure 2"), linking to it; for another block, its id, linking to it (D4). An id
+   * two blocks give links to neither (R17).
+   */
   private ref(id: string): void {
     const figure = envFigures(this.b.parsed.env).get(id);
-    this.text(figure ? figureLabel(figure, this.b.m) : id, { href: `#${id}` });
+    if (!figure && (envBlockIds(this.b.parsed.env).get(id)?.count ?? 0) > 1) this.text(id);
+    else this.text(figure ? figureLabel(figure, this.b.m) : id, { href: `#${id}` });
   }
 
   /** A directive or task box from the .smd rules, else raw HTML: tags are dropped (the text between them is in text tokens). */

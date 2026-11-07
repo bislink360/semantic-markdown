@@ -77,6 +77,7 @@ export const EN = {
   'figure.table': 'Table {n}',
   'figure.listing': 'Listing {n}',
   'figure.missingRef': 'No figure with this id',
+  'ref.ambiguous': 'More than one block has this id',
   'quote.caption': '— {by}',
   'quote.separator': ', ',
   'footnote.heading': 'Footnotes',

@@ -168,6 +168,7 @@ flowchart LR
 - **Numbering:** figures are numbered in document order, nested ones included, with one counter per `kind`: `figure` (the default; an unknown value also counts as `figure`) is labelled *Figure n*, `table` *Table n*, `listing` *Listing n*. Numbers are computed, never written, so they stay right when figures move.
 - **Rendering:** `<figure id="…" class="smd-figure smd-figure-{kind}">`, the content, then `<figcaption class="smd-figure-caption"><span class="smd-figure-label">Figure 1:</span> Caption</figcaption>`. The stylesheet shows a table's caption above it.
 - **References:** the inline directive `:ref[id]` (§4.2) stands for the label of the figure with that `{#id}`, e.g. *Figure 2*, linked to it: `<a class="smd-ref" href="#id">Figure 2</a>`. It may come before the figure and may appear in titles. An id that names no figure renders as written, marked `smd-ref-missing`, and is a `figure/unknown-ref` warning. When two figures share an id, references go to the first (`figure/duplicate-id`).
+- **References to other blocks** (since 3.1, semantic tags RFC D4): when no figure has the id, `:ref[id]` names the one block that gives it, a heading, task, container or raw HTML element (§4.2.3). It shows the id as written, linked, with the block's title as its tooltip and accessible name: `<a class="smd-ref" href="#R1" title="Export rules" aria-label="R1, Export rules">R1</a>`. The agent view shows `R1`, and `smd to-md` writes `[R1](#R1)`. An id two blocks give names neither: it renders as `<span class="smd-ref smd-ref-ambiguous">`, stays as written in the agent view and plain Markdown, and is a `ref/ambiguous` warning. A figure still wins over any other block with the same id.
 
 Why a directive and not a link: an empty-text link `[](#fig-checkout)` would be invisible in every renderer that doesn't know figures (GitHub, older `.smd` tools), and `[@fig-checkout]` could already appear in documents as plain text (a bracketed mention). `:ref[…]` follows the existing directive rules (a `:` after whitespace or opening punctuation), so no existing text changes meaning, and an older renderer shows it as the readable text `:ref[fig-checkout]`.
 
@@ -311,7 +312,7 @@ The `:` must be at the start of a line or preceded by whitespace or opening punc
 
 **Names are read in any case** (proposal 11): `:Badge[x]` is `:badge[x]`, and an unknown `:Abbr[x]` renders in `smd-directive-abbr`. `smd fmt` leaves a name's case as written.
 
-**Spec v1 (documents without `smd: 2`):** only the names in the table, written in lower case, are directives. Any other `:name[…]` (`:abbr[HTML]`, `:Badge[x]`) is text, and the validator reports a name only when it is close to a known one. `smd migrate --to 2` escapes such text as `\:name[…]`, so it stays text in spec v2 (§10.1).
+**Spec v1 (documents without `smd: 2`):** only the nine names v1 has always had (`badge` `status` `kbd` `mention` `progress` `priority` `due` `metric` `ref`), written in lower case, are directives. The list is frozen: directives added later exist only in spec v2, so no v1 document changes when one is added (semantic tags RFC D5). Any other `:name[…]` (`:abbr[HTML]`, `:Badge[x]`) is text, and the validator reports a name only when it is close to a known one. `smd migrate --to 2` escapes such text as `\:name[…]`, so it stays text in spec v2 (§10.1).
 
 The content, like CommonMark link text and a styled span's text (§4.1), may run over a line break: `:badge[on track` on one line and `for the beta]{color=green}` on the next is one badge. Tools read it as one item, as rendering does.
 
@@ -325,7 +326,7 @@ The content, like CommonMark link text and a styled span's text (§4.1), may run
 | `priority` | required: `P0`–`P4` or `critical` `high` `medium` `low` | — | `:priority[P1]` |
 | `due` | required: `YYYY-MM-DD` | — | `:due[2026-10-15]` (overdue = red, ≤ 7 days = amber) |
 | `metric` | required: the value | `label` (recommended), `delta`, `trend` (`up` `down` `flat`), `good` (`up` `down`) | `:metric[42%]{label="Activation" delta="+3%" trend=up}` |
-| `ref` | required: the id of a `figure` | — | `:ref[fig-checkout]` → *Figure 2*, linked (§3.3) |
+| `ref` | required: the id of a `figure` or another block | — | `:ref[fig-checkout]` → *Figure 2*, linked; `:ref[R1]` → *R1*, linked (§3.3) |
 
 ### 4.2.1 Task metadata
 
@@ -586,7 +587,9 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `link/github-anchor` | info | `[x](#max_tokens)`: the anchor is the GitHub id of a heading whose own id differs (`#maxtokens`, §4.2.3). It works on GitHub but not in the rendered HTML (fix: the heading's id) |
 | `link/missing-file` | warning | Relative link, image, reference definition, HTML `href`/`src` or `related:` entry does not exist |
 | `link/undefined-reference` | warning | `[text][label]` or `[label][]` with no `[label]: …` definition |
-| `figure/unknown-ref` | warning | `:ref[id]` names no `figure` in the document (fix: closest figure id) |
+| `figure/unknown-ref` | warning | `:ref[id]` names no `figure` or other block in the document (fix: closest id) |
+| `ref/unknown` | warning | Since 3.1: an id in an id attribute (`verifies` on `acceptance`, `applies-to` on `constraint`) names no block of the document (fix: closest id). An id in another document (`other.smd#R1`) is reported too until references across documents exist |
+| `ref/ambiguous` | warning | Since 3.1: an id attribute or `:ref[id]` names an id two or more blocks give, so it names none of them (figures keep their first-match rule) |
 | `figure/duplicate-id` | warning | Two `figure` blocks share an `{#id}`; references go to the first |
 | `id/duplicate` | warning | Since 3.1: a block gives an id that an earlier block already gives (a heading's id or slug, a task's, container's or figure's `{#id}`, a raw HTML id), so links and feedback naming it resolve to neither (§4.2.1). Two figures get `figure/duplicate-id` instead |
 | `link/ambiguous-anchor` | warning | Since 3.1: `[x](#id)` or `[x](../other.smd#id)` names an id that two or more blocks of that document give, so it resolves to none of them |

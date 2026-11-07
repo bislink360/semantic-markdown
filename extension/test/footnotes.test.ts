@@ -66,8 +66,9 @@ test('footnotes: every render numbers from 1, with a fresh or a reused env', () 
   const env = {};
   const first = md.render('A[^z].\n\n[^z]: Z.\n', env);
   assert.equal(md.render('A[^z].\n\n[^z]: Z.\n', env), first);
-  // smdFigures (the figure-number map) and smdSpec (the spec version) are documented; footnotes leave nothing of their own.
-  assert.deepEqual(Object.keys(env).filter((key) => key !== 'smdFigures' && key !== 'smdSpec'), [], 'footnotes leave nothing on the host env');
+  // smdFigures (the figure-number map), smdBlockIds (the block ids :ref names) and smdSpec (the spec version) are
+  // documented; footnotes leave nothing of their own.
+  assert.deepEqual(Object.keys(env).filter((key) => !['smdFigures', 'smdBlockIds', 'smdSpec'].includes(key)), [], 'footnotes leave nothing on the host env');
   assert.match(first, /href="#fn-1"/);
 });
 

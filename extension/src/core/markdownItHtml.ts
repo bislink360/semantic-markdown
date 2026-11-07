@@ -341,11 +341,20 @@ function quoteCaption(c: ContainerView, href: string | undefined): string {
   return `<figcaption class="smd-quote-caption">${label(c.m, 'quote.caption', { by: parts.join(c.m['quote.separator']) })}</figcaption>`;
 }
 
-/** `:ref[id]`: the number of the figure with that id, linked to it; an unknown id is shown as written. */
-export function renderRef(id: string, figure: FigureNumber | undefined, m: Messages = EN): string {
+/**
+ * `:ref[id]`: the number of the figure with that id, linked to it. Any other block with the id (semantic tags RFC,
+ * D4) shows the id as written, linked, with the block's title as its tooltip and accessible name; an id two blocks
+ * give links to neither (R17). An unknown id is shown as written.
+ */
+export function renderRef(id: string, figure: FigureNumber | undefined, m: Messages = EN, block?: { count: number; title?: string }): string {
   const safe = escapeHtml(id);
-  if (!figure) return `<span class="smd-ref smd-ref-missing" title="${escapeHtml(m['figure.missingRef'])}">${safe}</span>`;
-  return `<a class="smd-ref" href="#${safe}">${figureLabel(figure, m)}</a>`;
+  if (figure) return `<a class="smd-ref" href="#${safe}">${figureLabel(figure, m)}</a>`;
+  if (block && block.count > 1) return `<span class="smd-ref smd-ref-ambiguous" title="${escapeHtml(m['ref.ambiguous'])}">${safe}</span>`;
+  if (block) {
+    const title = block.title ? ` title="${escapeHtml(block.title)}" aria-label="${escapeHtml(`${id}, ${block.title}`)}"` : '';
+    return `<a class="smd-ref" href="#${safe}"${title}>${safe}</a>`;
+  }
+  return `<span class="smd-ref smd-ref-missing" title="${escapeHtml(m['figure.missingRef'])}">${safe}</span>`;
 }
 
 const CONTAINERS = new Map<string, ContainerOpen>([

@@ -6,7 +6,7 @@ import {
 } from './include';
 import { findLinks } from './links';
 import {
-  alertLines, inlineItemLines, inlineMathLines, literalLines, parseCounts, parseSmd, renderedTaskLines, type AlertLines, type InlineItemLines, type InlineMathLines,
+  alertLines, idOwners, inlineItemLines, inlineMathLines, literalLines, parseCounts, parseSmd, renderedTaskLines, type AlertLines, type InlineItemLines, type InlineMathLines,
 } from './parse';
 import type { SpecVersion } from './specVersion';
 
@@ -109,6 +109,11 @@ export interface ExpandedFigures {
    * document under `''`, an included document under the key `includeKey` gives the include that brings it in.
    */
   byDocument: ReadonlyMap<string, ReadonlyMap<number, Figure>>;
+  /**
+   * The ids exactly one block of the root document gives (a heading, task, container or raw HTML element), which
+   * `:ref[id]` names when no figure has the id (semantic tags RFC, D4). An id two blocks give is left out (R17).
+   */
+  blocks: ReadonlySet<string>;
 }
 
 /** The key of the document that the `:::include` on zero-based `line` of the document `parent` brings in. */
@@ -130,7 +135,8 @@ export function expandedFigures(text: string, readFile?: (relativePath: string) 
   const walk: FigureWalk = { counter: new FigureCounter(), byId: new Map(), byDocument: new Map(), source: includeSource(readFile), root: text, spec: parsed.spec };
   const from = parseFrontMatter(text).bodyStartLine;
   numberDocument({ key: '', lines, figures: parsed.figures, from, to: lines.length - 1 }, walk);
-  return { byId: walk.byId, byDocument: walk.byDocument };
+  const blocks = new Set([...idOwners(text)].filter(([, owners]) => owners.length === 1).map(([id]) => id));
+  return { byId: walk.byId, byDocument: walk.byDocument, blocks };
 }
 
 interface FigureWalk {

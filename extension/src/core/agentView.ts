@@ -26,7 +26,7 @@ import {
 import { dueState, type Heading } from './render';
 import { matchesExactly, matchesHeading, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
 import { quoteCite } from './quote';
-import { CALLOUT_TYPES, INLINE_DIRECTIVES } from './spec';
+import { CALLOUT_TYPES, INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { openTaskLines } from './taskLines';
 import { own } from './util';
@@ -768,7 +768,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   // The document's spec version, from its front matter: an included document's is the including one's, as in rendering.
   const spec = specVersion(variables);
   const text = (s: string, openTask = false, math?: ReadonlyArray<[number, number]>, parts?: ReadonlyArray<InlinePart>) => {
-    const read: TextContext = { today: options.today, openTask, figures: figures.byId, variables, spec };
+    const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec };
     // An item that runs over several lines is read whole, as rendering reads it; each line shows its part.
     return styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read)));
   };
@@ -1207,7 +1207,12 @@ export function plainInlineText(line: string, spec: SpecVersion, variables?: Var
 }
 
 /** How inlineText reads a line: the date for overdue tasks, whether it is an open task's, the figures and front matter. */
-interface TextContext { today?: string; openTask: boolean; figures?: ReadonlyMap<string, FigureNumber>; variables?: Variables; spec: SpecVersion }
+interface TextContext {
+  today?: string; openTask: boolean; figures?: ReadonlyMap<string, FigureNumber>;
+  /** The ids exactly one block gives, which `:ref[id]` shows as written when no figure has them (D4). */
+  blocks?: ReadonlySet<string>;
+  variables?: Variables; spec: SpecVersion;
+}
 
 /**
  * inlineText, with parts of the line already converted (see convertedParts): they are put back as converted, and the
@@ -1220,13 +1225,17 @@ function styledText(line: string, read: TextContext, math?: ReadonlyArray<[numbe
     .join(''), math, replaced);
 }
 
-/** `:ref[id]` → `Figure 2 (id)`; references to unknown ids stay as written. */
-function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion): string {
-  if (!figures?.size) return s;
+/**
+ * `:ref[id]` → `Figure 2 (id)`, or the id for another block that gives it (D4); references to unknown or ambiguous ids
+ * stay as written.
+ */
+function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
+  if (!figures?.size && !blocks?.size) return s;
   return s.replace(refDirective(spec), (m, pre: string, raw: string) => {
     const id = raw.trim();
-    const figure = figures.get(id);
-    return figure ? `${pre}${figure.label} (${id})` : m;
+    const figure = figures?.get(id);
+    if (figure) return `${pre}${figure.label} (${id})`;
+    return blocks?.has(id) ? `${pre}${id}` : m;
   });
 }
 
@@ -1238,8 +1247,8 @@ function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefin
 const DIRECTIVE_TEXT_V1 = /(^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 const DIRECTIVE_TEXT_V2 = /(^|[\s([{>*_~"'-]):([A-Za-z][A-Za-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 
-function plain(s: string, { today, openTask, figures, spec }: TextContext): string {
-  return refText(s, figures, spec)
+function plain(s: string, { today, openTask, figures, blocks, spec }: TextContext): string {
+  return refText(s, figures, spec, blocks)
     .replace(/!\[([^\]\n]*)\]\([^)\n]*\)/g, (_m, alt) => (alt ? `[image: ${alt}]` : ''))
     .replace(spec >= 2 ? DIRECTIVE_TEXT_V2 : DIRECTIVE_TEXT_V1, (m, pre: string, name: string, content?: string, rawAttrs?: string) =>
       (content === undefined && rawAttrs === undefined
@@ -1280,6 +1289,8 @@ function directiveText(
   // In spec v2 a list that can't be read leaves the whole item as text, as rendering does.
   if (spec >= 2 && !attrs) return m;
   if (spec >= 2 && !Object.hasOwn(INLINE_DIRECTIVES, name)) return `${pre}${content}`;
+  // Spec v1 reads only its own frozen names (D5): a directive added later is text there.
+  if (!isKnownDirective(name, spec)) return m;
   const v = attrs?.values ?? {};
   const status = own(STATUS_WORDS, v.color ?? '');
   switch (name) {

@@ -197,6 +197,33 @@ export const INLINE_DIRECTIVES: Readonly<Record<string, InlineDirectiveSpec>> = 
 };
 
 /**
+ * The inline directives spec v1 reads, frozen for good (semantic tags RFC, D5). New directives exist only in spec v2,
+ * so adding one to INLINE_DIRECTIVES changes no `smd: 1` document, and `smd migrate --to 2` keeps escaping v1 text
+ * such as `:since[1.6]`. Never add a name here.
+ */
+export const V1_DIRECTIVES: readonly string[] = ['badge', 'kbd', 'progress', 'mention', 'status', 'priority', 'due', 'metric', 'ref'];
+
+/**
+ * Attributes whose value names blocks by id, one id or a comma-separated list (`verifies=R1,R2`, semantic tags R15),
+ * with the containers that take each. The validator checks every id they name (`ref/unknown`, `ref/ambiguous`).
+ * Phase 2 adds `depends-on`, `supports`, `contradicts`, `supersedes` and `between`.
+ */
+export const ID_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+  verifies: ['acceptance'],
+  'applies-to': ['constraint'],
+};
+
+/** The ids an id attribute's value lists: `R1,R2` and `"R1, R2"` are both `R1` and `R2`. */
+export function idList(value: string): string[] {
+  return value.split(',').map((id) => id.trim()).filter(Boolean);
+}
+
+/** Whether `name` (as written in spec v1, lower-cased in v2) is a directive of the vocabulary in spec version `spec`. */
+export function isKnownDirective(name: string, spec: number): boolean {
+  return spec >= 2 ? Object.hasOwn(INLINE_DIRECTIVES, name) : V1_DIRECTIVES.includes(name);
+}
+
+/**
  * Front matter variables (spec §4.7): `{{name}}` in text shows the value of the front matter key `name`.
  * Only names the front matter defines are replaced; `\{{name}}` and code keep the braces.
  */
@@ -247,6 +274,6 @@ function deepFreeze(value: unknown, seen = new Set<object>()): void {
 // The shared tables, frozen once so no caller (in this package or using it) can change them for everyone else.
 deepFreeze([
   NAMED_COLORS, DECISION_STATUS, RISK_LEVELS, RISK_STATUS, HTTP_METHODS, PRIORITY_VALUES, CALLOUT_TYPES, FIGURE_KINDS, CONTAINERS,
-  STYLE_KEYS, SIZE_VALUES, WEIGHT_VALUES, FONT_VALUES, ALIGN_VALUES, TEXT_STYLE_VALUES, INLINE_DIRECTIVES, VARIABLE_SYNTAX,
+  STYLE_KEYS, SIZE_VALUES, WEIGHT_VALUES, FONT_VALUES, ALIGN_VALUES, TEXT_STYLE_VALUES, INLINE_DIRECTIVES, V1_DIRECTIVES, ID_ATTRIBUTES, VARIABLE_SYNTAX,
   FRONTMATTER_KEYS, STATUS_VALUES, AUDIENCE_VALUES, MERMAID_TYPES,
 ]);

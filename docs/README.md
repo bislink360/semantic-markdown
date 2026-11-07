@@ -45,6 +45,7 @@ Design proposals and the decisions taken on them.
 | [rfcs/spec-v2.smd](rfcs/spec-v2.smd) | Accepted 2026-10-15, shipped in 2.0 |
 | [rfcs/collaboration.smd](rfcs/collaboration.smd) | Accepted 2026-10-31; phase 1 (`smd merge`) shipped in 2.6 |
 | [rfcs/research-contract.smd](rfcs/research-contract.smd) | Accepted; research gate G0 |
+| [rfcs/semantic-tags.smd](rfcs/semantic-tags.smd) | In review; decisions D1–D6 accepted 2026-11-07, block id groundwork built |
 
 ## Requirements
 

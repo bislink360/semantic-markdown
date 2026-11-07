@@ -24,7 +24,7 @@ import { hasAccTitle, mermaidTitle } from './mermaid';
 import { headingAttrList, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
 import { outsideCode } from './include';
 import { findVariables, lookupVariable, substituteLine, variableNames, type Variables, type VariableUse } from './variables';
-import { own, suggest } from './util';
+import { escapeRegExp, own, suggest } from './util';
 import {
   checkCloser, checkContainerHints, checkHeadingHints, checkInlineAttrLists, checkSmdVersion, removedAgentPriority, type OpenContainer,
 } from './v2Hints';
@@ -33,7 +33,7 @@ import {
 } from './fixes';
 import {
   ALIGN_VALUES, FONT_VALUES, NAMED_COLORS, PRIORITY_VALUES, SIZE_VALUES, STYLE_KEYS, WEIGHT_VALUES,
-  CONTAINERS, INLINE_DIRECTIVES, MERMAID_TYPES, type InlineDirectiveSpec,
+  CONTAINERS, ID_ATTRIBUTES, idList, INLINE_DIRECTIVES, isKnownDirective, MERMAID_TYPES, V1_DIRECTIVES, type InlineDirectiveSpec,
 } from './spec';
 import { FRONTMATTER_SCHEMA, frontMatterProperty } from './frontmatterSchema';
 import { languageTag, matchLanguage, SUPPORTED_LANGUAGES } from './i18n';
@@ -113,6 +113,8 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   // Directives whose text runs over several lines are checked whole, at the line their attributes end on.
   const multiLine = multiLineDirectives(text, lines, spec);
   const multiLineEnds = new Map(multiLine.map((d) => [d.line, [d.col, d.end] as [number, number]]));
+  // Containers with id attributes (verifies, applies-to…), checked once every block's id is known.
+  const idAttrBlocks: IdAttrBlock[] = [];
 
   for (let i = fm.bodyStartLine; i < lines.length; i++) {
     const raw = lines[i];
@@ -179,6 +181,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
         const nameEnd = nameStart + info.name.length;
         checkContainer(info, i, nameStart, nameEnd, parent?.name, push, raw);
         checkContainerHints(info, i, raw, nameEnd, push, spec);
+        if (Object.entries(ID_ATTRIBUTES).some(([key, names]) => names.includes(info.name) && info.attrs.values[key] !== undefined)) idAttrBlocks.push({ line: i, raw, info });
         stack.push({ name: info.name, len, line: i });
       }
       continue;
@@ -220,6 +223,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkIncludes(text, (line, column, endColumn, code, message, severity = 'warning', fix) => push(line, column, endColumn, severity, code, message, fix), options);
   checkFigures(text, lines, fm.bodyStartLine, pushText, () => includedFigureIds(text, options.readFile));
   checkDuplicateIds(text, lines, pushText);
+  checkIdAttributes(text, idAttrBlocks, pushText);
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));
@@ -642,7 +646,8 @@ interface DirectiveUse { name: string; col: number; end: number; content?: strin
 
 function checkDirective(at: InlineAt, d: DirectiveUse, variables: Variables): void {
   const { line, push } = at;
-  const spec = own(INLINE_DIRECTIVES, d.name);
+  // Spec v1 knows only its frozen names (D5); a directive added later is text there.
+  const spec = isKnownDirective(d.name, at.spec) ? own(INLINE_DIRECTIVES, d.name) : undefined;
   if (!spec) { unknownDirective(at, d); return; }
   if (spec.content && !d.content) push(line, d.col, d.end, 'error', 'directive/content', `":${d.name}" needs content in brackets, e.g. ${spec.example}.`);
   const attrs = d.attrList ? parseAttrs(d.attrList.slice(1, -1), at.spec) : null;
@@ -662,7 +667,7 @@ function checkDirective(at: InlineAt, d: DirectiveUse, variables: Variables): vo
 function unknownDirective(at: InlineAt, d: DirectiveUse): void {
   const { line, push, spec } = at;
   const { name, col, end } = d;
-  const hint = suggest(name, Object.keys(INLINE_DIRECTIVES));
+  const hint = suggest(name, spec < 2 ? [...V1_DIRECTIVES] : Object.keys(INLINE_DIRECTIVES));
   const fix: Fix | undefined = hint ? { line, column: col + 1, endColumn: col + 1 + name.length, replacement: hint, title: `Change to ":${hint}"` } : undefined;
   if (spec < 2) {
     if (hint) push(line, col, end, 'warning', 'directive/unknown', `Unknown inline directive ":${name}" — did you mean ":${hint}"?`, fix);
@@ -908,8 +913,11 @@ function missingAnchor(
     fixed ? { line, column, endColumn: end, replacement: fixed, title: `Change to "${fixed}"` } : undefined);
 }
 
-/** Figure ids are unique, and every `:ref[id]` names a figure of this document. */
-/** Figure ids and `:ref[id]` references; `included` lists the ids of figures brought in by `:::include`. */
+/**
+ * Figure ids and `:ref[id]` references; `included` lists the ids of figures brought in by `:::include`. A reference
+ * names a figure first (the first with the id, as released), else the one block that gives the id (D4). An id two
+ * blocks give names neither: `ref/ambiguous` (R17).
+ */
 function checkFigures(text: string, lines: string[], bodyStart: number, push: Push, included: () => Set<string>): void {
   const { figures, spec } = parseSmd(text);
   const targets = figureTargets(figures);
@@ -918,11 +926,68 @@ function checkFigures(text: string, lines: string[], bodyStart: number, push: Pu
     if (first && first !== f) duplicateFigure(f, first, lines[f.line], push);
   }
   let fromIncludes: Set<string> | undefined;
+  const owners = idOwners(text);
   for (const ref of findRefs(lines, bodyStart, spec)) {
     if (targets.has(ref.id)) continue;
+    const blocks = owners.get(ref.id);
+    if (blocks?.length === 1) continue;
+    if (blocks) {
+      ambiguousRef(ref.id, blocks, ':ref', { line: ref.line, column: ref.column, end: ref.endColumn }, push);
+      continue;
+    }
     fromIncludes ??= included();
-    if (!fromIncludes.has(ref.id)) unknownRef(ref, [...targets.keys(), ...fromIncludes], push);
+    if (!fromIncludes.has(ref.id)) unknownRef(ref, [...new Set([...targets.keys(), ...fromIncludes, ...owners.keys()])], push);
   }
+}
+
+/** A container whose attributes name blocks by id (see ID_ATTRIBUTES). */
+interface IdAttrBlock { line: number; raw: string; info: ContainerInfo }
+
+/**
+ * Every id an id attribute names (`verifies=R1,R2`, `applies-to=C1`) is the id of exactly one block of this document:
+ * `ref/unknown` when it names nothing (R16), with a fix to the closest id, and `ref/ambiguous` when two blocks give it
+ * (R17). An id in another document (`other.smd#R1`) names nothing here until references across documents exist (R19).
+ */
+function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: Push): void {
+  if (!blocks.length) return;
+  const owners = idOwners(text);
+  const known = [...owners.keys()];
+  for (const { line, raw, info } of blocks) {
+    for (const [key, names] of Object.entries(ID_ATTRIBUTES)) {
+      const value = info.attrs.values[key];
+      if (value === undefined || !names.includes(info.name)) continue;
+      for (const id of idList(value)) {
+        const [column, end] = idColumns(raw, key, id);
+        const found = owners.get(id);
+        if (found && found.length > 1) ambiguousRef(id, found, key, { line, column, end }, push);
+        else if (!found) unknownIdAttr(id, key, info.name, known, { line, column, end }, push);
+      }
+    }
+  }
+}
+
+/** Where `id` is written in the value of `key` on a container's opening line; the whole line when it can't be found. */
+function idColumns(raw: string, key: string, id: string): [number, number] {
+  const at = raw.search(new RegExp(`(?<![\\w-])${escapeRegExp(key)}\\s*=`));
+  const found = at < 0 ? null : new RegExp(`(?<![\\w.-])${escapeRegExp(id)}(?![\\w.-])`).exec(raw.slice(at + key.length));
+  if (!found) return [raw.length - raw.trimStart().length, raw.length];
+  const start = at + key.length + found.index;
+  return [start, start + id.length];
+}
+
+
+function unknownIdAttr(id: string, key: string, name: string, known: string[], at: { line: number; column: number; end: number }, push: Push): void {
+  const hint = id.includes('#') ? undefined : suggest(id, known);
+  const elsewhere = id.includes('#') ? ' References to other documents are not read yet.' : '';
+  push(at.line, at.column, at.end, 'warning', 'ref/unknown',
+    `No block with id "${id}" in this document, so ${key} on ":::${name}" names nothing${hint ? ` — did you mean "${hint}"?` : '.'}${elsewhere}`,
+    hint ? { line: at.line, column: at.column, endColumn: at.end, replacement: hint, title: `Change to "${hint}"` } : undefined);
+}
+
+/** An id two or more blocks give, named by `where` (`:ref` or an id attribute): it resolves to none of them (R17). */
+function ambiguousRef(id: string, owners: readonly IdBlock[], where: string, at: { line: number; column: number; end: number }, push: Push): void {
+  push(at.line, at.column, at.end, 'warning', 'ref/ambiguous',
+    `"${id}" in ${where} is the id of ${owners.length} blocks (lines ${listLines(owners)}), so it names none of them. Give each block its own id.`);
 }
 
 /**
@@ -968,7 +1033,7 @@ function unknownRef(ref: FigureRef, ids: string[], push: Push): void {
   const hint = ref.id ? suggest(ref.id, ids) : undefined;
   const start = ref.column + ':ref['.length;
   push(ref.line, ref.column, ref.endColumn, 'warning', 'figure/unknown-ref',
-    `No figure with id "${ref.id}" in this document${hint ? ` — did you mean "${hint}"?` : '.'} Give a :::figure that id with {#${ref.id || 'fig-id'}}.`,
+    `No block with id "${ref.id}" in this document${hint ? ` — did you mean "${hint}"?` : '.'} Give a :::figure, heading or other block that id with {#${ref.id || 'fig-id'}}.`,
     hint ? { line: ref.line, column: start, endColumn: ref.endColumn - 1, replacement: hint, title: `Change to ":ref[${hint}]"` } : undefined);
 }
 

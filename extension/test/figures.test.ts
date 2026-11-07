@@ -159,7 +159,7 @@ test('figures: validation reports duplicate ids and unknown references, with a f
   const [duplicate, typo, other] = diagnostics;
   assert.deepEqual([duplicate.column, duplicate.endColumn], [13, 26]);
   assert.match(duplicate.message, /line 1 already has the id "fig-checkout"/);
-  assert.match(typo.message, /No figure with id "fig-chekout" in this document — did you mean "fig-checkout"\?/);
+  assert.match(typo.message, /No block with id "fig-chekout" in this document — did you mean "fig-checkout"\?/);
   assert.equal(other.fix, undefined);
   assert.match(applyFixes(src, diagnostics).text, /See :ref\[fig-checkout\] and :ref\[other\]/);
 });
