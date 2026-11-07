@@ -11,9 +11,10 @@ import { openTaskLines } from './taskLines';
  *   [section omitted: ## Rollout plan, L120-L160, ≈420 tokens — smd agent plan.smd --section "Rollout plan"]
  *
  * Never omitted: the header (title, front matter facts, summary), text before the first
- * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions (their own or from a file
- * they include), and
- * sections requested with `sections` (and their subsections).
+ * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions or a danger (`:::danger`
+ * or a CAUTION alert, their own or from a file they include), and
+ * sections requested with `sections` (and their subsections). When these alone are over the budget, the view ends
+ * with a `[budget: …, required content does not fit]` line (see agentView's withOverflowLine).
  *
  * Order: sections without key content go first; sections with a danger or warning callout (or alert), an
  * accepted decision, a question or an open task are kept longer. Within each group the deepest

@@ -666,7 +666,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
   process.stdout.write(result.text);
   console.error(sizeLine(result));
-  if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer)) console.error(line);
+  if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer, !!result.resolvedSections)) console.error(line);
   return 0;
 }
 
@@ -680,8 +680,11 @@ function sizeLine(result: AgentViewResult): string {
   return `[smd] ≈${result.tokens} est · ${tokens} ${exact} tokens (file ≈${result.originalTokens} est · ${original} ${exact}, ${saved}% smaller)`;
 }
 
-/** What `--max-tokens` did, and a warning when even the smallest view is over the budget. */
-function budgetLines(budget: BudgetResult, tokenizer?: string): string[] {
+/**
+ * What `--max-tokens` did, and a warning when even the smallest view is over the budget. The warning suggests fewer
+ * sections only when sections were requested (contract GAP-10).
+ */
+function budgetLines(budget: BudgetResult, tokenizer?: string, sectionsRequested = false): string[] {
   const unit = tokenizer ? `${tokenizer} tokens` : 'tokens';
   const size = tokenizer ? `${budget.tokens} ${unit}` : `≈${budget.tokens} ${unit}`;
   const steps = [
@@ -690,8 +693,11 @@ function budgetLines(budget: BudgetResult, tokenizer?: string): string[] {
   ].filter(Boolean);
   const lines = [`[smd] budget ${budget.maxTokens} ${unit}: ${steps.join('; ') || 'fits as is'}; now ${size}.`];
   if (!budget.fits) {
-    lines.push(`[smd] warning: still over the budget of ${budget.maxTokens} ${unit}. The header, agent instructions and `
-      + 'requested sections are never omitted; ask for fewer sections or a larger budget.');
+    const ask = sectionsRequested
+      ? 'ask for fewer sections or a larger budget.'
+      : 'ask for a larger budget, or read one section at a time with --section.';
+    lines.push(`[smd] warning: still over the budget of ${budget.maxTokens} ${unit}. The header, agent instructions, `
+      + `dangers and requested sections are never omitted; ${ask}`);
   }
   return lines;
 }

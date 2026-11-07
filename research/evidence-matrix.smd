@@ -78,7 +78,7 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
-|AF01|Agent view tags for question, danger, warning, decision, risk, tasks (`core/agentView.ts`). GAP-3 fixed, GAP-6 and GAP-8 open|[Cue contract](../docs/RESEARCH-CONTRACT-RFC.smd#cue-to-agent-meaning-contract)|G0 recorded, G1 fix gaps|partial|locked by `researchContract.test.ts`, gaps as todo|3.0.0 rendering|none|
+|AF01|Agent view tags for question, danger, warning, decision, risk, tasks (`core/agentView.ts`). GAP-3 and GAP-6 fixed (`:metric` keeps its trend and tone), GAP-8 open|[Cue contract](../docs/RESEARCH-CONTRACT-RFC.smd#cue-to-agent-meaning-contract)|G0 recorded, G1 fix gaps|partial|locked by `researchContract.test.ts`|3.0.0 rendering, GAP-6 on the G1 budgets branch|none|
 |AF02|None. Questions carry only a title|Semantic tags R50 (owner, due), this contract|G1|no|no|no|none|
 |AF03|`smd tasks`, `smd decisions --status open`, catalog question counts. No review list|G2 feedback workflow|G2|no|no|no|none|
 |AF04|None|G2 feedback workflow|G2|no|no|no|none|
@@ -88,8 +88,8 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
-|AF06|Heading ids, figure ids (duplicates go to the first), Block Editor session keys (not stable)|[Identity](../docs/RESEARCH-CONTRACT-RFC.smd#identity), semantic tags R13–R19|G0 decide, G1 build|no|no|no|none|
-|AF07|Task checkbox only, question has no state|[Lifecycle](../docs/RESEARCH-CONTRACT-RFC.smd#lifecycle)|G0 decide, G1 build|no|no|no|none|
+|AF06|Heading ids, figure ids (duplicates go to the first), Block Editor session keys (not stable)|[Identity](../docs/RESEARCH-CONTRACT-RFC.smd#identity), semantic tags R13–R19|G0 decided, G1 build|no|no|no|none|
+|AF07|Task checkbox only, question has no state|[Lifecycle](../docs/RESEARCH-CONTRACT-RFC.smd#lifecycle)|G0 decided, G1 build|no|no|no|none|
 |AF08|MCP write `revision` (C08) is a file hash, no attribution|Lifecycle, collaboration RFC phase 3|G1, G2|partial (file revision)|partial|3.1.0 train|none|
 |AF09|None (`suggest` accepted in the collaboration RFC, not built)|Collaboration RFC phase 3, this contract|G2|no|no|no|none|
 |AF10|C08 refuses a write when the file changed since read. Block Editor compare-and-swap per block|Lifecycle|G1|partial|yes for C08 and the Block Editor|3.1.0 train (C08), 1.8.0 (Block Editor)|none|
@@ -103,17 +103,17 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 |AF13|`:::agent` and dangers are document-wide (dangers decided 2026-11-06). `--constraints` (policy `constraints/1`) adds pointers to the rest and is opt-in|[Scope](../docs/RESEARCH-CONTRACT-RFC.smd#scope-and-applicability), semantic tags R25–R29|G0 decided for dangers, G1 build for `:::constraint` scope|partial|yes for dangers|3.1.0 train|none|
 |AF14|Section selection, `--brief`, `--max-tokens` chosen per call by the agent. No author-declared task view|G2 task views|G2|no|no|no|none|
 |AF15|`:::agent` and dangers kept through selection and condensation, from included files too (C01, GAP-1 to GAP-3 and GAP-5 fixed). No declared dependencies|Scope, edges|G1|partial|yes for `:::agent` and dangers|3.1.0 train, include fixes on the G0 branch|none|
-|AF16|`budget.fits=false` when mandatory content exceeds the budget, on stderr and in the manifest only. A pointer names the danger, warning or question it hides (GAP-4 fixed)|[Budgets](../docs/RESEARCH-CONTRACT-RFC.smd#budgets-routing-and-truncation)|G0 recorded, G1 report|partial|locked by `researchContract.test.ts`|3.1.0 train|none|
-|AF17|Containment check (C07), trust wording (C04), opt-in writes|[Trust](../docs/RESEARCH-CONTRACT-RFC.smd#host-trust-and-authorization)|G0 decide|partial|yes for C07|3.1.0 train|none|
+|AF16|Sections with `:::agent` text or a danger are never omitted. A view over budget ends with a `[budget: …]` line, as well as stderr and the manifest. A pointer names the warning or question it hides (GAP-4, GAP-10 fixed)|[Budgets](../docs/RESEARCH-CONTRACT-RFC.smd#budgets-routing-and-truncation)|G0 decided, G1 built for agent blocks and dangers|partial|yes, `researchContract.test.ts`|3.1.0 train, overflow line on the G1 budgets branch|none|
+|AF17|Containment check (C07), trust wording (C04), opt-in writes|[Trust](../docs/RESEARCH-CONTRACT-RFC.smd#host-trust-and-authorization)|G0 decided|partial|yes for C07|3.1.0 train|none|
 
 ### Tree, graph and update retrieval
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
 |AF18|CSS-like `smd query` selectors with attribute filters|Filtering requirement T1–T7|G2|partial|yes for existing selectors|1.3.0|none|
-|AF19|No typed edges. Links, `:ref`, `related:` and includes exist as text|[Edges](../docs/RESEARCH-CONTRACT-RFC.smd#edge-semantics), filtering G1–G7|G0 decide, G2 build|no|no|no|none|
+|AF19|No typed edges. Links, `:ref`, `related:` and includes exist as text|[Edges](../docs/RESEARCH-CONTRACT-RFC.smd#edge-semantics), filtering G1–G7|G0 decided, G2 build|no|no|no|none|
 |AF20|None|Edges, filtering G3–G5|G2|no|no|no|none|
-|AF21|Bare `question` matches every question. No lifecycle filter|[Legacy queries](../docs/RESEARCH-CONTRACT-RFC.smd#legacy-query-compatibility)|G0 decide, G2 build|partial|locked by `researchContract.test.ts`|1.3.0 behavior|none|
+|AF21|Bare `question` matches every question. No lifecycle filter|[Legacy queries](../docs/RESEARCH-CONTRACT-RFC.smd#legacy-query-compatibility)|G0 decided, G2 build|partial|locked by `researchContract.test.ts`|1.3.0 behavior|none|
 |AF22|`smd diff --since <git-ref>` shows changed sections|G2 update retrieval|G2|partial|yes for diff|1.3.0|none|
 |AF23|Provenance manifest `smd-projection/1` (C05)|G2 task views|G2|partial|yes|3.1.0 train|none|
 |AF24|C11 profile: no cache warranted, each call parses once|Filtering decision "compute the graph from the source"|G2|partial|bench only|3.1.0 train|none|
@@ -123,7 +123,7 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
 |AF25|`:progress{value=…}` is a number the author types. Outline task counts|G3|G3|no|no|no|none|
-|AF26|None. A checked box is a claim|Lifecycle (task states), semantic tags acceptance and evidence|G0 decide, G3 build|no|no|no|none|
+|AF26|None. A checked box is a claim|Lifecycle (task states), semantic tags acceptance and evidence|G0 decided, G3 build|no|no|no|none|
 |AF27|None|Semantic tags R45, G3|G3|no|no|no|none|
 |AF28|None|G3|G3|no|no|no|none|
 

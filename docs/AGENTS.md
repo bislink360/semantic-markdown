@@ -25,7 +25,7 @@ How to interpret what you read:
 - `<decision status="accepted">` is binding. `proposed` isn't decided yet; `rejected`/`superseded` means don't do it.
 - `<risk …>` is something to design around. `API POST /v1/x` is an endpoint definition.
 - Tasks: `- [ ]` is open, `[P1]` is priority, `@name` is the owner, `(due …, OVERDUE)`.
-- `[section omitted: …]` is a section left out by `--max-tokens`. Run the command it gives if the question needs that section. `holds danger, question` in it names the cues it hides.
+- `[section omitted: …]` is a section left out by `--max-tokens`. Run the command it gives if the question needs that section. `holds warning, question` in it names the cues it hides. Sections with `:::agent` instructions or a `<danger>` are never left out. A view ending in `[budget: … required content does not fit]` is over its budget because of what can never be left out: it is still complete, just longer.
 - A section view always adds "Dangers elsewhere in the document": the `<danger>` blocks of other sections and included files, in full. They are hard constraints wherever you read.
 - With `--constraints` (experimental), a section view instead adds "Constraints elsewhere in the document": the same `<danger>` blocks in full, then pointers to warnings, accepted decisions and open questions there. Read a pointed-to block when it bears on your task. An "included file … not checked" line means the list may be incomplete.
 - `--provenance view.json` writes a JSON manifest of what the view shows and leaves out, with reasons and line numbers. It is for tools and evaluations; you don't need it to read a document.
