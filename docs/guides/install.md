@@ -28,7 +28,7 @@ This guide covers the **VS Code extension**, the **`smd` command-line tool** and
 | CLI and agent skills | **Node.js 22 or newer** |
 | MkDocs plugin | Python 3.9+, MkDocs 1.6+ and **Node.js 22 or newer** on `PATH` |
 | Obsidian plugin | Obsidian **1.4 or newer**, desktop or mobile |
-| JetBrains plugin | A JetBrains IDE with the LSP API: IntelliJ IDEA **2025.3 or newer** (any edition of the unified IDE), or PyCharm, WebStorm, GoLand, RustRover and the others **2025.1 or newer**; not Android Studio. **Node.js 22 or newer** for the language server |
+| JetBrains plugin | A JetBrains IDE with the LSP API: **2025.3 or newer**: IntelliJ IDEA (any edition of the unified IDE), PyCharm, WebStorm, GoLand, RustRover and the others; not Android Studio. **Node.js 22 or newer** for the language server |
 | Building from source | Node.js 22+, npm, Git |
 | Word export | Nothing (built in). Optionally [Pandoc](https://pandoc.org/installing.html) **3.0 or newer**, for Word equations in `smd export --to docx` and **Export to Word (.docx)** |
 | PDF export | Google Chrome, Microsoft Edge (comes with Windows), Chromium or Brave, for `smd export --to pdf` and **Export to PDF** in VS Code and JetBrains IDEs; or Playwright or Puppeteer |
