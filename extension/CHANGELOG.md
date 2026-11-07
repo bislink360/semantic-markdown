@@ -2,15 +2,9 @@
 
 ## 4.0.1 — 2026-11-07
 
-### ⚠️ Breaking changes
-
-### Added
-
-### Changed
-
-### Deprecated
-
 ### Fixed
+- **The JetBrains plugin installs only where it can run: IDEs 2025.3 or newer.** 4.0.0 declared 2025.1 (build 251) as its oldest IDE, but it needs the `com.intellij.modules.lsp` module, which not every 2025.1 and 2025.2 IDE has, and it looked itself up with the platform's `PluginId`, which changed in 2025.3. The JetBrains Marketplace's verifier rejected it on IntelliJ IDEA 2025.1. The plugin now declares build 253 (2025.3) and finds its own folder from its jar. Nothing changes in 2025.3 and newer.
+- **The JetBrains plugin no longer uses internal, deprecated or scheduled-for-removal platform APIs.** It finds Node.js on the IDE's PATH itself (with Windows' executable extensions) instead of the deprecated `PathEnvironmentVariableUtil`, and the preview reads the document with `Application.runReadAction` instead of `ReadAction.compute`, so it keeps working as JetBrains removes those APIs.
 
 ## 4.0.0 — 2026-11-07
 
