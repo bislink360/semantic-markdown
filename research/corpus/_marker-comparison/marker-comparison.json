@@ -1,0 +1,389 @@
+{
+  "corpus": "research/corpus",
+  "other": "research/corpus/_marker-comparison",
+  "docs": [
+    {
+      "doc": "p01-source-encoding-pep",
+      "marksA": 6,
+      "marksB": 5,
+      "matched": 5,
+      "exact": 5,
+      "share": 0.9090909090909091,
+      "statusA": "approved",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            195,
+            195
+          ],
+          "line": 206
+        }
+      ],
+      "onlyB": [],
+      "problems": []
+    },
+    {
+      "doc": "p02-json-simple-api-pep",
+      "marksA": 5,
+      "marksB": 7,
+      "matched": 3,
+      "exact": 3,
+      "share": 0.5,
+      "statusA": "approved",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [
+        {
+          "kind": "decision",
+          "status": "superseded",
+          "title": "",
+          "md": [
+            120,
+            126
+          ],
+          "line": 125
+        },
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            382,
+            382
+          ],
+          "line": 393
+        }
+      ],
+      "onlyB": [
+        {
+          "kind": "api",
+          "title": "Project List",
+          "md": [
+            75,
+            96
+          ],
+          "line": 80
+        },
+        {
+          "kind": "api",
+          "title": "Project Detail",
+          "md": [
+            100,
+            157
+          ],
+          "line": 107
+        },
+        {
+          "kind": "risk",
+          "title": "",
+          "md": [
+            233,
+            233
+          ],
+          "line": 244
+        },
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            380,
+            382
+          ],
+          "line": 395
+        }
+      ],
+      "problems": []
+    },
+    {
+      "doc": "p03-sidecar-containers-kep",
+      "marksA": 10,
+      "marksB": 15,
+      "matched": 9,
+      "exact": 9,
+      "share": 0.72,
+      "statusA": "approved",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [
+        {
+          "kind": "question",
+          "title": "",
+          "md": [
+            227,
+            238
+          ],
+          "line": 232
+        }
+      ],
+      "onlyB": [
+        {
+          "kind": "question",
+          "title": "",
+          "md": [
+            235,
+            238
+          ],
+          "line": 240
+        },
+        {
+          "kind": "risk",
+          "title": "Scenario 1. User decides to use sidecars as a way to run regular containers",
+          "md": [
+            307,
+            330
+          ],
+          "line": 314
+        },
+        {
+          "kind": "risk",
+          "title": "Scenario 1.a",
+          "md": [
+            334,
+            341
+          ],
+          "line": 343
+        },
+        {
+          "kind": "risk",
+          "title": "Scenario 3. Long initialization tasks running in-parallel",
+          "md": [
+            356,
+            377
+          ],
+          "line": 367
+        },
+        {
+          "kind": "risk",
+          "title": "Scenario 7. Risk of porting existing sidecars to the new mechanism naively",
+          "md": [
+            399,
+            422
+          ],
+          "line": 412
+        },
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            706,
+            711
+          ],
+          "line": 723
+        }
+      ],
+      "problems": []
+    },
+    {
+      "doc": "p06-free-threading-pep",
+      "marksA": 11,
+      "marksB": 12,
+      "matched": 10,
+      "exact": 10,
+      "share": 0.8695652173913043,
+      "statusA": "approved",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [
+        {
+          "kind": "decision",
+          "status": "superseded",
+          "title": "",
+          "md": [
+            1126,
+            1138
+          ],
+          "line": 1137
+        }
+      ],
+      "onlyB": [
+        {
+          "kind": "decision",
+          "status": "superseded",
+          "title": "",
+          "md": [
+            1126,
+            1129
+          ],
+          "line": 1137
+        },
+        {
+          "kind": "question",
+          "title": "Integration",
+          "md": [
+            1549,
+            1555
+          ],
+          "line": 1572
+        }
+      ],
+      "problems": []
+    },
+    {
+      "doc": "s02-clinic-booking-prd",
+      "marksA": 19,
+      "marksB": 21,
+      "matched": 19,
+      "exact": 19,
+      "share": 0.95,
+      "statusA": "review",
+      "statusB": "review",
+      "statusDiffers": [],
+      "onlyA": [],
+      "onlyB": [
+        {
+          "kind": "api",
+          "title": "",
+          "line": 205
+        },
+        {
+          "kind": "api",
+          "title": "",
+          "line": 208
+        }
+      ],
+      "problems": [
+        "B L205 api: no doc.md line aligns",
+        "B L208 api: no doc.md line aligns"
+      ]
+    },
+    {
+      "doc": "s03-warehouse-scanner-spec",
+      "marksA": 21,
+      "marksB": 22,
+      "matched": 19,
+      "exact": 19,
+      "share": 0.8837209302325582,
+      "statusA": "approved",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            676,
+            676
+          ],
+          "line": 683
+        },
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            684,
+            684
+          ],
+          "line": 693
+        }
+      ],
+      "onlyB": [
+        {
+          "kind": "danger",
+          "title": "",
+          "md": [
+            570,
+            570
+          ],
+          "line": 589
+        },
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            676,
+            680
+          ],
+          "line": 697
+        },
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            684,
+            686
+          ],
+          "line": 707
+        }
+      ],
+      "problems": []
+    },
+    {
+      "doc": "s09-payments-oncall-runbook",
+      "marksA": 16,
+      "marksB": 16,
+      "matched": 15,
+      "exact": 15,
+      "share": 0.9375,
+      "statusA": "approved",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [
+        {
+          "kind": "decision",
+          "status": "superseded",
+          "title": "",
+          "md": [
+            250,
+            250
+          ],
+          "line": 249
+        }
+      ],
+      "onlyB": [
+        {
+          "kind": "danger",
+          "title": "",
+          "md": [
+            169,
+            169
+          ],
+          "line": 176
+        }
+      ],
+      "problems": []
+    },
+    {
+      "doc": "s10-mobile-release-status",
+      "marksA": 6,
+      "marksB": 7,
+      "matched": 6,
+      "exact": 6,
+      "share": 0.9230769230769231,
+      "statusA": "draft",
+      "statusB": "approved",
+      "statusDiffers": [],
+      "onlyA": [],
+      "onlyB": [
+        {
+          "kind": "decision",
+          "status": "accepted",
+          "title": "",
+          "md": [
+            67,
+            67
+          ],
+          "line": 80
+        }
+      ],
+      "problems": []
+    }
+  ],
+  "pooled": {
+    "marksA": 94,
+    "marksB": 105,
+    "matched": 86,
+    "exact": 86,
+    "share": 0.864321608040201
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "guide": "research/annotation-guide.smd 0.2",
+  "items": [
+    { "id": "annual-october-cadence", "kind": "fact", "md": [16, 16], "smd": [21, 21], "evidence": ["released predictably every twelve months, in October every year"], "annotator": "ai-annotator-f" },
+    { "id": "dev-17-months", "kind": "limit", "md": [22, 22], "smd": [27, 27], "evidence": ["developed for around 17 months"], "annotator": "ai-annotator-f" },
+    { "id": "beta-no-new-features", "kind": "constraint", "md": [26, 26], "smd": [31, 31], "evidence": ["no new features can be added"], "annotator": "ai-annotator-f" },
+    { "id": "beta-four-releases", "kind": "limit", "md": [26, 26], "smd": [31, 31], "evidence": ["four versioned beta releases"], "annotator": "ai-annotator-f" },
+    { "id": "rc-two-or-more", "kind": "limit", "md": [27, 27], "smd": [32, 32], "evidence": ["two release candidates (or more, if necessary)"], "annotator": "ai-annotator-f" },
+    { "id": "next-dev-starts-at-beta1", "kind": "fact", "md": [39, 39], "smd": [46, 46], "evidence": ["starts as soon as Python 3.X.0 Beta 1 is released"], "annotator": "ai-annotator-f" },
+    { "id": "deprecation-two-releases", "kind": "constraint", "md": [99, 99], "smd": [107, 107], "evidence": ["at least two releases before making a breaking change"], "annotator": "ai-annotator-f", "notes": "Prose-only constraint; line 97 states the same policy as the current one." },
+    { "id": "rm-term-two-releases", "kind": "constraint", "md": [103, 103], "smd": [112, 112], "evidence": ["single Release Manager to handle two feature releases", "approval from the Steering Council and the Cabal of Release Managers"], "annotator": "ai-annotator-f", "notes": "Term of two releases, extendable only with approval of both bodies." },
+    { "id": "calver-undecided", "kind": "open-question", "md": [118, 118], "smd": [128, 128], "evidence": ["versioning question will be dealt with in a separate PEP", "feature versions keep the 3.X numbering"], "annotator": "ai-annotator-f" },
+    { "id": "no-support-shortening", "kind": "negation", "md": [122, 122], "smd": [133, 133], "evidence": ["does not shorten the currently documented support calendar"], "annotator": "ai-annotator-f" },
+    { "id": "nine-month-cadence-rejected", "kind": "decision-status", "md": [132, 134], "smd": [143, 147], "evidence": ["9 months between feature versions", "rejected as both too irregular and too short"], "annotator": "ai-annotator-f", "notes": "Current option (twelve-month cadence) is stated at lines 16 and 39, outside this span." },
+    { "id": "no-lts-releases", "kind": "negation", "md": [140, 140], "smd": [153, 153], "evidence": ["No extended support in the vein of Python 2.7 is planned"], "annotator": "ai-annotator-f" },
+    { "id": "full-support-two-years", "kind": "decision-status", "md": [144, 146], "smd": [157, 159], "evidence": ["replaces the 1½ year support calendar under Implementation for Python 3.13 and newer", "first twenty four months"], "annotator": "ai-annotator-f", "notes": "Superseded 18-month full-support calendar reads authoritative under Implementation (lines 29-35, 'first eighteen months') and again at line 138." },
+    { "id": "security-36-months", "kind": "limit", "md": [147, 147], "smd": [160, 160], "evidence": ["next thirty six months"], "annotator": "ai-annotator-f", "notes": "Applies to 3.13 and newer; superseded value 'forty two months' at line 34." },
+    { "id": "bugfix-release-every-other-month", "kind": "limit", "md": [146, 146], "smd": [159, 159], "evidence": ["approximately every other month"], "annotator": "ai-annotator-f", "notes": "Phrase also appears at line 33 (superseded calendar, same cadence); no more specific phrase exists." },
+    { "id": "five-year-maintenance", "kind": "limit", "md": [148, 148], "smd": [161, 161], "evidence": ["final source-only release is made five years after"], "annotator": "ai-annotator-f", "notes": "Same sentence at line 35; the five-year total is unchanged by the 2023 update." },
+    { "id": "legacy-versions-18-months", "kind": "negation", "md": [150, 150], "smd": [163, 163], "evidence": ["Python versions 3.9 - 3.12 operate on a calendar with 1½ year of full support"], "annotator": "ai-annotator-f", "notes": "Exception to the 2-year rule for 3.9 to 3.12." }
+  ]
+}

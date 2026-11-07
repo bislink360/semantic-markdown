@@ -1,0 +1,128 @@
+{
+  "tasks": [
+    {
+      "id": "p01-01",
+      "type": "decision-status",
+      "author": "ai-task-writer-h",
+      "prompt": "Under the rules as they now stand, which encoding does the parser use to read a Python source file that has neither a magic encoding comment nor a UTF-8 signature?",
+      "items": ["utf8-default-replaces-ascii"],
+      "expected": { "option": ["UTF-8", "utf8", "UTF-8 encoding", "UTF-8 (from Python 3.0 on)"], "superseded": ["ASCII", "ascii", "7-bit ASCII", "iso-8859-1", "latin-1"] },
+      "notes": "The superseded ASCII default reads authoritative in 'Defining the Encoding' and example 4; only the Phases section records the replacement."
+    },
+    {
+      "id": "p01-02",
+      "type": "open-question",
+      "author": "ai-task-writer-h",
+      "prompt": "A team has Python source files saved as UTF-16. Can Python compile them as they are, and if not, what should the team do with them?",
+      "items": ["utf16-undecided", "no-utf16-source"],
+      "expected": { "fallback": ["convert them to an ASCII compatible encoding such as UTF-8", "convert them to an ASCII compatible encoding", "convert to an ASCII compatible encoding", "convert them to UTF-8", "convert to UTF-8", "convert the files to UTF-8", "re-encode them as UTF-8"] },
+      "notes": "cross-section: the exclusion is in Concepts, the undecided status and fallback in Open Issues."
+    },
+    {
+      "id": "p01-03",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "May a module declare its encoding by appending the magic comment to the statement on its first line, as in `import os, sys  # -*- coding: latin-1 -*-`?",
+      "items": ["no-statement-on-decl-line"],
+      "expected": { "verdict": ["no"], "constraint": "no-statement-on-decl-line" },
+      "violations": [{ "item": "no-statement-on-decl-line", "answers": ["yes"] }]
+    },
+    {
+      "id": "p01-04",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "A Windows editor saves a source file with the UTF-8 BOM signature, and the file's first line is `# -*- coding: utf-8 -*-`. Is this combination allowed, so that the file compiles?",
+      "items": ["bom-comment-utf8-only", "bom-means-utf8"],
+      "expected": { "verdict": ["yes"], "constraint": "bom-comment-utf8-only" }
+    },
+    {
+      "id": "p01-05",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "An automated tool rewrites a script whose first line is `# coding: latin-1`. It wants to add a `#!/usr/bin/env python` interpreter line above that comment and change nothing else. Is that allowed?",
+      "items": ["tools-keep-declaration", "tools-only-interpreter-line-above", "decl-line-1-or-2"],
+      "expected": { "verdict": ["yes"], "constraint": "tools-keep-declaration" },
+      "notes": "cross-section: the tool rule is in Examples, the line 1 or 2 bound in Defining the Encoding. Within the interpreter-line exception."
+    },
+    {
+      "id": "p01-06",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "An automated formatter wants to insert a one-line license comment at the very top of a file whose first line is `# -*- coding: latin-1 -*-`, pushing the declaration down to line 2. Is that allowed?",
+      "items": ["tools-keep-declaration", "tools-only-interpreter-line-above"],
+      "expected": { "verdict": ["no"], "constraint": "tools-keep-declaration" },
+      "violations": [{ "item": "tools-only-interpreter-line-above", "answers": ["yes"] }],
+      "notes": "The declaration would still sit on line 2, so only the tool rule (no line above except an interpreter line) decides it."
+    },
+    {
+      "id": "p01-07",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "A migration tool changes a file's declaration from `# -*- coding: latin-1 -*-` to `# -*- coding: utf-8 -*-` but leaves the file's bytes as they were. Is that allowed?",
+      "items": ["tools-reencode-on-change"],
+      "expected": { "verdict": ["no"], "constraint": "tools-reencode-on-change" },
+      "violations": [{ "item": "tools-reencode-on-change", "answers": ["yes"] }]
+    },
+    {
+      "id": "p01-08",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "A source file declared as latin-1 contains one string literal whose bytes were pasted in UTF-8 encoded form. Is mixing encodings in one file like this allowed?",
+      "items": ["single-encoding-per-file"],
+      "expected": { "verdict": ["no"], "constraint": "single-encoding-per-file" },
+      "violations": [{ "item": "single-encoding-per-file", "answers": ["yes"] }]
+    },
+    {
+      "id": "p01-09",
+      "type": "constraint-check",
+      "author": "ai-task-writer-h",
+      "prompt": "May a tool pass an 8-bit byte string whose first line is `# -*- coding: latin-1 -*-` to the builtin `compile()`?",
+      "items": ["compile-unicode-with-decl"],
+      "expected": { "verdict": ["yes"], "constraint": "compile-unicode-with-decl" },
+      "notes": "Outside the constraint: only a Unicode string with a coding declaration raises SyntaxError; 8-bit input goes through normal encoding detection."
+    },
+    {
+      "id": "p01-10",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-h",
+      "prompt": "In Python 2.3, how was a source file with non-ASCII bytes and no encoding declaration treated, that is, which encoding was it internally assumed to declare?",
+      "items": ["phase1-iso-8859-1", "ascii-default-in-2-5"],
+      "expected": { "accepted": ["iso-8859-1", "ISO 8859-1", "iso8859-1", "latin-1", "latin1", "Latin-1 (iso-8859-1)", "iso-8859-1 (latin-1)"] },
+      "notes": "cross-section: the phase 1 treatment is in Implementation, the fact that 2.3 stopped before the ASCII default is in Phases. A reader trusting 'Python will default to ASCII' answers ASCII."
+    },
+    {
+      "id": "p01-11",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-h",
+      "prompt": "In which Python version did the default source encoding become \"ascii\"?",
+      "items": ["ascii-default-in-2-5"],
+      "expected": { "accepted": ["2.5", "Python 2.5", "version 2.5", "in 2.5", "in Python 2.5"] }
+    },
+    {
+      "id": "p01-12",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-h",
+      "prompt": "Both line 1 and line 2 of a source file contain a valid coding comment, naming different encodings. Which of the two does the parser use?",
+      "items": ["first-line-wins"],
+      "expected": { "accepted": ["line 1", "first line", "the first line", "the first one", "the one on line 1", "the comment on line 1", "the first line's encoding", "the encoding on line 1", "line 1's encoding"] }
+    },
+    {
+      "id": "p01-13",
+      "type": "qualification",
+      "author": "ai-task-writer-h",
+      "prompt": "Explain in a short paragraph how the parser decides which encoding to read a Python source file with, including what happens when no declaration is given and the cases that end in an error.",
+      "items": ["utf8-default-replaces-ascii", "decl-line-1-or-2", "coding-regex", "first-line-wins", "bom-means-utf8", "bom-comment-utf8-only", "unknown-encoding-error", "no-utf16-source"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Without a declaration or UTF-8 signature the file is read as UTF-8 from Python 3.0 on (ASCII was the earlier default), not ASCII today.", "items": ["utf8-default-replaces-ascii"] }, { "id": "r2", "text": "The magic comment only counts on line 1 or 2 and must match the coding[:=] pattern; if line 1 matches, line 2 is ignored.", "items": ["decl-line-1-or-2", "coding-regex", "first-line-wins"] }, { "id": "r3", "text": "A UTF-8 signature (BOM) means utf-8 even without a comment, and a BOM plus a comment naming any encoding other than utf-8 is an error.", "items": ["bom-means-utf8", "bom-comment-utf8-only"] }, { "id": "r4", "text": "An encoding name unknown to Python raises an error during compilation.", "items": ["unknown-encoding-error"] }, { "id": "r5", "text": "Encodings that use two or more bytes for every character, such as UTF-16, are not accepted as source encodings.", "items": ["no-utf16-source"] }] },
+      "notes": "cross-section: Defining the Encoding, Concepts and Phases."
+    },
+    {
+      "id": "p01-14",
+      "type": "edit-plan",
+      "author": "ai-task-writer-h",
+      "prompt": "Which lines must change if the rule is relaxed so that a file starting with the UTF-8 signature and carrying a magic comment that names another encoding is read with the comment's encoding instead of failing?",
+      "items": ["bom-comment-utf8-only"],
+      "expected": { "md": [[53, 53], [63, 63]], "smd": [[61, 61], [72, 72]] },
+      "notes": "The warning and the last row of the summary table both state the rule."
+    }
+  ]
+}
