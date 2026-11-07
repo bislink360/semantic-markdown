@@ -1,4 +1,91 @@
-# Agent skills: import guide
+# Set up an AI agent
+
+Agents read `.smd` documents through the CLI or the MCP server instead of reading the files whole, and write them from templates with the validator as a check. Pick one way in: the Claude Code plugin, one command per project, the MCP server on its own, or the agent skills. What an agent should do with the documents once it is set up is in [the agent guide](../reference/agents.md).
+
+## Contents
+
+- [Claude Code plugin](#claude-code-plugin)
+- [One command for a project: `smd init --agent`](#one-command-for-a-project-smd-init---agent)
+- [MCP server](#mcp-server)
+- [The agent skills](#the-agent-skills)
+- [Skills in Claude Code](#skills-in-claude-code)
+- [Claude.ai and the Claude desktop app](#claudeai-and-the-claude-desktop-app)
+- [Claude API and Claude Agent SDK](#claude-api-and-claude-agent-sdk)
+- [GitHub Copilot, Cursor, Codex, Windsurf and other agents](#github-copilot-cursor-codex-windsurf-and-other-agents)
+- [Verify the skills work](#verify-the-skills-work)
+- [Writing documents that stay cheap to read](#writing-documents-that-stay-cheap-to-read)
+- [Update or remove](#update-or-remove)
+
+## Claude Code plugin
+
+In Claude Code (2.1 or later), add this repository as a plugin marketplace and install the plugin:
+
+```text
+/plugin marketplace add bislink360/semantic-markdown
+/plugin install semantic-markdown@semantic-markdown
+```
+
+From a shell, the same is `claude plugin marketplace add bislink360/semantic-markdown` and `claude plugin install semantic-markdown@semantic-markdown`. The plugin brings:
+
+- the **`semantic-markdown-reader`** and **`semantic-markdown-writer`** skills (as `semantic-markdown:semantic-markdown-reader` and `semantic-markdown:semantic-markdown-writer`), each with the `smd` CLI bundled;
+- the **`smd` MCP server**, read-only: it serves the `.smd` files under the folder it is started in, your project when you run Claude Code from its root.
+
+It needs Node.js 22 or newer on the `PATH`. The plugin's version is the release's: after a release, `claude plugin marketplace update semantic-markdown` and `claude plugin update semantic-markdown@semantic-markdown` bring it up to date. The two skill descriptions add about 320 tokens to each session; a skill's full instructions load only when a task needs them.
+
+## One command for a project: `smd init --agent`
+
+From your project's root, one command installs everything an agent needs and can be committed for the whole team:
+
+```bash
+npx semantic-markdown init --agent claude     # or cursor, copilot, agents
+```
+
+| `--agent` | Writes |
+|---|---|
+| `claude` | The skills in `.claude/skills/`, the MCP server in `.mcp.json` |
+| `cursor` | `.cursor/rules/semantic-markdown.mdc`, the MCP server in `.cursor/mcp.json` |
+| `copilot` | `.github/instructions/semantic-markdown.instructions.md`, the MCP server in `.vscode/mcp.json` |
+| `agents` | A Semantic Markdown section in `AGENTS.md` (Codex, Windsurf and other agents that read it) |
+
+Every target also gets the CLI at `.smd/smd.cjs` and the `AGENTS.md` snippet. `--dir <project>` sets the project folder. Give several targets separated by commas (`--agent cursor,agents`). Running it again updates the files in place. MCP config files that already exist are merged, so your other servers stay; a file that isn't plain JSON, such as one with comments, is left alone and the entry to add is printed. `--no-mcp` skips the MCP config.
+
+`npx semantic-markdown` works once the package is on the npm registry. Until then, use the CLI from a release: `node smd.cjs init --agent claude` with the single file from [Install the `smd` CLI](install.md#install-the-smd-cli), or `smd init --agent claude` after installing the release's `.tgz`. The older `smd skills install --target claude,cursor,copilot,agents` still works and installs the skills or rules without the MCP config ([The agent skills](#the-agent-skills)).
+
+## MCP server
+
+`smd mcp` serves the reading tools (`read`, `tasks`, `query`, `validate`) over stdio to any MCP client, without shell access. `smd mcp --allow-write` adds tools that change documents, each checked by the validator and kept inside the root folder: `check_task` (tick or untick a task), `set_status` (the front matter `status`) and `add_decision` (a `:::decision` at the end of a section). Every tool and its arguments: [the agent guide](../reference/agents.md#mcp-server).
+
+`smd init --agent` registers it for you. To register it by hand, use the npm package (`npx` downloads it on first use) or the CLI bundled in the reader skill:
+
+```bash
+# Claude Code (add --scope project to share it through .mcp.json)
+claude mcp add smd -- npx -y -p semantic-markdown smd mcp
+claude mcp add smd -- node skills/semantic-markdown-reader/scripts/smd.cjs mcp
+```
+
+Cursor (`.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "smd": { "command": "npx", "args": ["-y", "-p", "semantic-markdown", "smd", "mcp", "--root", "/path/to/project"] }
+  }
+}
+```
+
+VS Code (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "smd": { "type": "stdio", "command": "npx", "args": ["-y", "-p", "semantic-markdown", "smd", "mcp", "--root", "${workspaceFolder}"] }
+  }
+}
+```
+
+Pass `--root` whenever the client may start the server outside your project, such as Claude Desktop. On Windows, clients that cannot run `npx` directly need `cmd /c npx …` (for Claude Code: `claude mcp add smd -- cmd /c npx -y -p semantic-markdown smd mcp`). Logs go to stderr; stdout carries only protocol messages.
+
+## The agent skills
 
 Semantic Markdown ships two **agent skills**: folders of instructions, references, templates and a bundled tool that an AI agent loads when a task needs them.
 
@@ -9,22 +96,9 @@ Semantic Markdown ships two **agent skills**: folders of instructions, reference
 
 `scripts/smd.cjs` is the complete `smd` CLI in one file (Node.js 22+, no `npm install`).
 
-The skills load in stages to keep their own cost low. Only the two descriptions (≈260 tokens together) are in context every session. The reader's `SKILL.md` (≈480 tokens) loads when a task needs a `.smd` file, and `references/reading.md` only when the agent needs more than the basics. The writer reads its syntax index and then only the topic file for the construct it is writing. Measured costs and the break-even document size: [TOKENS.md](TOKENS.md).
+The skills load in stages to keep their own cost low. Only the two descriptions (≈260 tokens together) are in context every session. The reader's `SKILL.md` (≈480 tokens) loads when a task needs a `.smd` file, and `references/reading.md` only when the agent needs more than the basics. The writer reads its syntax index and then only the topic file for the construct it is writing. How the skills, the agent view and author markup cut tokens, what they cost and the break-even document size: [the token report](../reports/tokens.md).
 
-## Contents
-
-- [Claude Code](#claude-code)
-- [Claude.ai and the Claude desktop app](#claudeai-and-the-claude-desktop-app)
-- [Claude API and Claude Agent SDK](#claude-api-and-claude-agent-sdk)
-- [GitHub Copilot, Cursor, Codex, Windsurf and other agents](#github-copilot-cursor-codex-windsurf-and-other-agents)
-- [Verify the skills work](#verify-the-skills-work)
-- [How token reduction works](#how-token-reduction-works)
-- [Writing documents that stay cheap to read](#writing-documents-that-stay-cheap-to-read)
-- [Update or remove](#update-or-remove)
-
----
-
-## Claude Code
+## Skills in Claude Code
 
 Claude Code discovers skills in two places:
 
@@ -91,7 +165,7 @@ Agents without skill support follow the same workflow through their instruction 
 
 ### Option 1 — install with the CLI (recommended)
 
-Run this from your repository root (get `smd.cjs` as in [Claude Code](#claude-code)), then commit the files it writes:
+Run this from your repository root (get `smd.cjs` as in [Skills in Claude Code](#skills-in-claude-code)), then commit the files it writes:
 
 ```bash
 node smd.cjs skills install --target cursor,copilot,agents
@@ -102,7 +176,7 @@ node smd.cjs skills install --target cursor,copilot,agents
 | `cursor` | `.cursor/rules/semantic-markdown.mdc` | When a `.smd` file is in context (`globs: **/*.smd`) |
 | `copilot` | `.github/instructions/semantic-markdown.instructions.md` | When Copilot works on a `.smd` file (`applyTo: "**/*.smd"`) |
 | `agents` | A section in `AGENTS.md` between `<!-- semantic-markdown:start -->` and `<!-- semantic-markdown:end -->` | Always, by OpenAI Codex and other agents that read `AGENTS.md` |
-| `claude` | The Claude Code skills (the default) | See [Claude Code](#claude-code) |
+| `claude` | The Claude Code skills (the default) | See [Skills in Claude Code](#skills-in-claude-code) |
 
 Pick any combination: repeat `--target` or separate targets with commas. Each run also copies the CLI to `.smd/smd.cjs`, and the rules tell the agent to run `node .smd/smd.cjs read <file>` and so on, so the agent needs Node.js 22+ and nothing else. The rules are short (≈280 tokens) because `AGENTS.md` is in context in every session.
 
@@ -117,7 +191,7 @@ Updated …/AGENTS.md  (semantic-markdown section)
 
 Notes:
 - `AGENTS.md` is created if it's missing. If it exists, only the semantic-markdown section is added or replaced; the rest of the file is kept, and re-running never adds a second section.
-- The rule file, the instructions file and the section all have the same content, a short version of [docs/AGENTS.md](AGENTS.md).
+- The rule file, the instructions file and the section all have the same content, a short version of [docs/reference/agents.md](../reference/agents.md).
 - `--dir <project>` writes into another project root. `--global` and `--only` apply to the Claude skills only, and `--dir` means the skills folder for `claude`, so install `claude` and the other targets in separate runs when you use `--dir`.
 
 ### Option 2 — add the guide by hand
@@ -125,7 +199,7 @@ Notes:
 For other agents, or to customize the text:
 
 1. Make the CLI available in the repository, for example by committing `.smd/smd.cjs` (copied from `skills/semantic-markdown-reader/scripts/smd.cjs`) or installing it with `npm link`.
-2. Add the one-page guide [docs/AGENTS.md](AGENTS.md) to the agent's instructions, either by copying it or by referencing it:
+2. Add the one-page guide [docs/reference/agents.md](../reference/agents.md) to the agent's instructions, either by copying it or by referencing it:
 
    | Agent | Instruction file |
    |---|---|
@@ -139,14 +213,14 @@ For other agents, or to customize the text:
 
    ```markdown
    ## Semantic Markdown (.smd)
-   Project docs use Semantic Markdown. Follow docs/AGENTS.md.
+   Project docs use Semantic Markdown. Follow docs/reference/agents.md.
    - Reading: run `node .smd/smd.cjs read <file>`, then `node .smd/smd.cjs agent <file> --section "<heading>"`
      if it printed the outline. Read files under ≈6 KB directly.
    - Writing: start from `node .smd/smd.cjs init <file> --template prd|adr|rfc|runbook|api|status-report|meeting-notes|postmortem|release-notes|okrs|onboarding|test-plan|pr-description|spec|plan|tasks`,
      then run `node .smd/smd.cjs validate <file> --fix` until there are 0 errors.
    ```
 
-Agents that support the Model Context Protocol (Cursor, VS Code, Claude Desktop, Claude Code) can instead register the MCP server, `smd mcp`, which offers the same reading commands as tools. See [MCP server](AGENTS.md#mcp-server).
+Agents that support the Model Context Protocol (Cursor, VS Code, Claude Desktop, Claude Code) can instead register the MCP server, `smd mcp`, which offers the same reading commands as tools. See [MCP server](#mcp-server).
 
 ## Verify the skills work
 
@@ -161,50 +235,6 @@ Try these prompts in a new session in a repository that contains `.smd` files (t
 | *"Which high-impact risks are still open, and what did we decide about payments?"* | It runs `smd query "risk[impact>=high][status!=closed], decision[title*=pay]" docs/` and reads only those blocks. |
 | *"Which of our docs covers refunds, and what does it say about retries?"* | It runs `smd index docs/`, picks the document by title, summary and tags, then reads only the matching section with `smd agent … --section …`. |
 | *"The spec changed since last week. What's different?"* | It runs `smd diff docs/spec.smd --since "HEAD@{1.week.ago}"` (or a commit) and reads only the changed sections. |
-
-## How token reduction works
-
-Three layers, each optional and each adding to the others:
-
-```mermaid
-flowchart LR
-    A["1 · Authors mark intent<br/>{agent=skip} · :::human · :::agent"] --> B["2 · Agent view<br/>strip presentation<br/>select sections"]
-    B --> C["3 · Reader skill<br/>smd read → sections →<br/>raw lines only to edit"]
-```
-
-1. **Author intent.** `## Background {agent=skip}` and `:::human` mark content for people only. `:::agent` holds constraints for implementers and is **always** included, even when an agent reads a single section.
-2. **The agent view** (`smd agent`) keeps meaning and drops presentation:
-
-   | In the file | What the agent reads |
-   |---|---|
-   | `:::warning Breaking change` … `:::` | `<warning title="Breaking change">` … `</warning>` |
-   | `:::decision{status=accepted date=… owner=@maya} Title` | `<decision status="accepted" date="…" owner="@maya"> Title` |
-   | `:badge[Beta]{color=amber}` · `[text]{color=red}` | `[Beta]` · `text` |
-   | `- [ ] Task :priority[P1] @api :due[2026-09-25]` | `- [ ] Task [P1] @api (due 2026-09-25, OVERDUE)` |
-   | `## Requirements` | `## Requirements  [L53]`, with a line ref for precise edits |
-   | Tabs, columns, cards, boxes | Labels only (`Tab "npm":`) |
-   | Images, HTML comments, table padding | `[image: alt]`, removed, trimmed |
-   | ```` ```ts file="src/x.ts" lines="7-13" ```` | `[code: src/x.ts lines 7-13 — read that file]` |
-   | `:::human`, `{agent=skip}` sections | *(omitted)* |
-   | With `--brief`: diagrams, long code, details, done tasks | One-line pointers with line ranges |
-   | With `--max-tokens N`: the least important sections, when the view is still too big | `[section omitted: ## Architecture, L90-L128, ≈231 tokens — smd agent … --section "Architecture"]` |
-
-   Token counts are estimates (characters / 4). `--tokenizer o200k_base` on `smd outline` and `smd agent` adds exact counts for that OpenAI encoding if `js-tiktoken` is installed; there is no public tokenizer for current Claude models, so for Claude they are approximate too. See [Token budgets and exact counts](FEATURES.md#token-budgets-and-exact-counts).
-
-3. **The reader skill** turns this into a habit. Files under ≈1,500 tokens (≈6 KB) are read directly, since the tools save little there. Larger files go through `smd read`: one call that prints the whole agent view when it fits 2,000 tokens, else the outline (≈100–300 tokens, every section with its cost), and the agent then pulls only the sections it needs. For documents with `related:` links, `smd outline --related` adds each related document's summary and cost, so the agent opens one only when the question needs it.
-
-Measured on the sample documents in `extension/test/samples/`:
-
-| Read | ≈ tokens | Saving |
-|---|---:|---:|
-| `checkout-redesign.smd` raw | 2,471 | — |
-| outline | 255 | 90% |
-| full agent view (what `smd read` prints here) | 1,540 | 38% |
-| one section (+ agent instructions) | 365–636 | 74–85% |
-| `smd tasks` on all 7 samples vs. reading them | 690 vs 7,328 | 91% |
-| `smd query "decision, risk"` on all 7 samples vs. reading them | 821 vs 7,328 | 89% |
-
-**What to expect in practice:** the tools cost tokens too. In 2.5.0 the two skill descriptions cost ≈260 tokens per session, the reader `SKILL.md` ≈480 when it loads (≈2,300 before 2.5.0) and the agent rules ≈280 (≈820 before). With the reader skill, answering a question about one section pays off from a document of ≈1,500 tokens; reading a whole document through the agent view pays off from ≈3,000 tokens on one read, or ≈1,000 when a session reads five. The benefit grows with **larger documents, many documents, and repeated reads**. [TOKENS.md](TOKENS.md) has the method, the numbers per document and the break-even table, and `npm run bench:tokens` reproduces them.
 
 ## Writing documents that stay cheap to read
 

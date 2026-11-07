@@ -36,7 +36,7 @@ Press **F5** in `extension/` to run the extension in a development host.
 
 | Change | Files |
 |---|---|
-| New block or directive | `src/core/spec.ts` (vocabulary; drives validation, completion and hover) → `src/core/render.ts` (HTML) → `media/smd.css` (style) → `src/core/agentView.ts` (agent view) → `src/core/toMarkdown.ts` (GitHub fallback) → `syntaxes/smd-directives.injection.json` (for new inline directives) → `docs/SPEC.md`, `docs/FEATURES.md`, `skills/semantic-markdown-writer/references/syntax.md` |
+| New block or directive | `src/core/spec.ts` (vocabulary; drives validation, completion and hover) → `src/core/render.ts` (HTML) → `media/smd.css` (style) → `src/core/agentView.ts` (agent view) → `src/core/toMarkdown.ts` (GitHub fallback) → `syntaxes/smd-directives.injection.json` (for new inline directives) → `docs/reference/spec.md`, `docs/reference/features.md`, `skills/semantic-markdown-writer/references/syntax.md` |
 | Validation rule | `src/core/validate.ts`, with a stable `code` and, when safe, a `fix` |
 | Agent skills | `skills/*/SKILL.md`, references and templates. `npm run build` refreshes the bundled `scripts/smd.cjs`. |
 | Preview behaviour | `media/runtime.js`, `src/preview.ts` |
@@ -61,7 +61,7 @@ semantic-markdown/
 ├── playground/           the web playground: a static page that runs the engine in the browser
 ├── site/                 the homepage on GitHub Pages (index.smd, built with smd build)
 ├── validate/             the GitHub Action (smd validate with pull request annotations)
-├── docs/                 guides, specification, gallery and screenshots
+├── docs/                 guides, reference, reports, RFCs, requirements, gallery and screenshots (index and naming rules: docs/README.md)
 ├── .claude-plugin/       the Claude Code plugin marketplace (marketplace.json, plugin.json)
 ├── server.json           the MCP Registry entry for the npm package's MCP server
 ├── .pre-commit-hooks.yaml    hooks for the pre-commit framework
@@ -92,5 +92,5 @@ Every pull request to `main` or a `release/**` branch, and every push to them, r
 - For changes to parsing or rendering, `npm run bench` shows timings on large documents.
 - `node dist/cli.js validate test/samples ../docs/gallery` reports 0 errors, and `node dist/cli.js fmt --check test/samples ../docs/gallery` reports 0 files to format (run it without `--check` to fix them).
 - The static analysis gate passes: `node .claude/skills/sonarqube-scan/scripts/sonar-scan.mjs` from the repository root (needs Docker). It runs SonarQube locally, since CI has no static analysis. It is mandatory before every release; see the `sonarqube-scan` skill.
-- New syntax is documented in `docs/SPEC.md`, `docs/FEATURES.md` and the writer skill's `references/syntax.md`.
+- New syntax is documented in `docs/reference/spec.md`, `docs/reference/features.md` and the writer skill's `references/syntax.md`.
 - The CHANGELOG has an entry.

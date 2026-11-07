@@ -1,6 +1,6 @@
 # Semantic Markdown for JetBrains IDEs
 
-A plugin that gives `.smd` files highlighting and the Semantic Markdown language server in IntelliJ IDEA, PyCharm, WebStorm, GoLand, RustRover and the other JetBrains IDEs. Install it from the GitHub release: [docs/INSTALL.md](../../docs/INSTALL.md#jetbrains-ides).
+A plugin that gives `.smd` files highlighting and the Semantic Markdown language server in IntelliJ IDEA, PyCharm, WebStorm, GoLand, RustRover and the other JetBrains IDEs. Install it from the GitHub release: [docs/guides/install.md](../../docs/guides/editors.md#jetbrains-ides).
 
 > [!WARNING]
 > The plugin is new in 2.1.0. CI builds it against IntelliJ IDEA 2025.3 and runs the platform's plugin structure checks, and it builds against IntelliJ IDEA 2026.1; the language server it starts is the one tested in this repository. It has not yet been tried in every IDE it supports. If something doesn't work in your IDE, please [open an issue](https://github.com/bislink360/semantic-markdown/issues) with the IDE's name and version (**Help → About**) and the log (**Help → Show Log in Explorer/Finder**).
@@ -10,7 +10,7 @@ A plugin that gives `.smd` files highlighting and the Semantic Markdown language
 | Feature | How |
 |---|---|
 | Highlighting of the `.smd` syntax and the Markdown around it | The VS Code extension's TextMate grammar ([`extension/syntaxes`](../../extension/syntaxes)), made into one file for the IDE, with its own copy of VS Code's Markdown grammar and the IDE's YAML grammar for the front matter (see [Highlighting](#highlighting)) |
-| Problems as you type, with quick fixes | The language server (`smd lsp`, [docs/EDITORS.md](../../docs/EDITORS.md#what-the-server-does)), the same checks as `smd validate` |
+| Problems as you type, with quick fixes | The language server (`smd lsp`, [docs/guides/editors.md](../../docs/guides/editors.md#what-the-server-does)), the same checks as `smd validate` |
 | Completion: block names after `:::`, attributes, front matter, inline directives, fence languages, link paths and `#anchors` | The language server |
 | Hover, go to definition, the outline (**Structure**), symbol search, **Reformat Code** | The language server |
 | **Live preview** beside the editor (since 2.2.0): the rendered page, updated as you type, in the IDE's light or dark theme | The language server's `smd/renderHtml` (the page `smd export --to html` writes, from the editor's current text) in the IDE's embedded browser (JCEF) |
@@ -18,7 +18,7 @@ A plugin that gives `.smd` files highlighting and the Semantic Markdown language
 | **Export Semantic Markdown to PDF** (editor right-click menu, or **Tools**; since 2.3.0): the rendered page as a PDF, with diagrams as vectors | `smd export --to pdf` to the file you choose, printed by an installed Chrome, Edge, Chromium or Brave (or the browser in the settings) |
 | **Export Semantic Markdown to Word (.docx)** (editor right-click menu, or **Tools**; since 2.4.0): a Word document for Word, LibreOffice or Google Docs | `smd export --to docx` to the file you choose, written by the CLI's built-in writer, or by Pandoc when it is installed (or set in the settings) |
 
-The language server is the `smd` CLI's, shipped in the plugin as one file (`server/smd.cjs`, the same file as the agent skills' bundle), and runs on Node.js. Everything the server does is the same as in Neovim, Helix or Zed: see [docs/EDITORS.md](../../docs/EDITORS.md).
+The language server is the `smd` CLI's, shipped in the plugin as one file (`server/smd.cjs`, the same file as the agent skills' bundle), and runs on Node.js. Everything the server does is the same as in Neovim, Helix or Zed: see [docs/guides/editors.md](../../docs/guides/editors.md).
 
 ### The preview
 

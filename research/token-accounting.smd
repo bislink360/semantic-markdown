@@ -13,20 +13,20 @@ related:
   - study-2-authoring.smd
   - annotation-guide.smd
   - evidence-matrix.smd
-  - ../docs/TOKENS.md
-  - ../docs/research-interaction-requirements.smd
+  - ../docs/reports/tokens.md
+  - ../docs/requirements/research-interaction.smd
 ---
 
 ## Why a separate method
 
-`docs/TOKENS.md` measures what the tools print, with characters divided by four, and counts the skill and tool definitions once per session. That answers a product question. It is not what a study participant's agent spends. A provider bills the tool definitions and the system prompt on every request, retries and repair calls cost tokens, and a cached prefix is billed differently. The paper must report totals that a reader could check against a provider invoice, and keep estimates apart (AF33).
+`docs/reports/tokens.md` measures what the tools print, with characters divided by four, and counts the skill and tool definitions once per session. That answers a product question. It is not what a study participant's agent spends. A provider bills the tool definitions and the system prompt on every request, retries and repair calls cost tokens, and a cached prefix is billed differently. The paper must report totals that a reader could check against a provider invoice, and keep estimates apart (AF33).
 
 This document fixes how Study 1, Study 3 and any full-loop pilot count tokens, and how pilots choose the thresholds and sizes that later get preregistered (AF34). It does not set any threshold itself.
 
 :::agent Accounting constraints
 - Provider-reported usage is the only source for reported totals. Label every other count as an estimate and name its method (characters / 4, or a named tokenizer and version).
 - Never merge cached and uncached input into one number. Report them side by side.
-- No number in this document, in `docs/TOKENS.md` or in an earlier draft is a study threshold or a sample size until a pilot has produced it and the author has frozen it.
+- No number in this document, in `docs/reports/tokens.md` or in an earlier draft is a study threshold or a sample size until a pilot has produced it and the author has frozen it.
 :::
 
 ## Units
@@ -101,7 +101,7 @@ Tokens an agent spends writing or updating `.smd` markup, and minutes a person s
 
 ## Historical numbers
 
-The 2.5.0 and 2.6.0 measurements under the Styled Markdown name keep their executable version and their estimate method. They are not re-labelled, re-scaled or mixed into tables with provider-reported counts (C12). New 3.x runs of `docs/TOKENS.md` stay estimates and say so.
+The 2.5.0 and 2.6.0 measurements under the Styled Markdown name keep their executable version and their estimate method. They are not re-labelled, re-scaled or mixed into tables with provider-reported counts (C12). New 3.x runs of `docs/reports/tokens.md` stay estimates and say so.
 
 ## Pilot-based thresholds and sizing
 

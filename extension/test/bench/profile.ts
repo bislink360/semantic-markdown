@@ -11,7 +11,7 @@ import { readDocument } from '../../src/readView';
 
 /**
  * Profiles the read paths: how often each call parses the document, how many included and embedded files it reads,
- * its latency (p50/p95 over warm runs) and rough heap growth. Measurement only; docs/PERFORMANCE.md has the results.
+ * its latency (p50/p95 over warm runs) and rough heap growth. Measurement only; docs/reports/performance.md has the results.
  *
  *   npm run bench:profile                     table on stdout
  *   npm run bench:profile -- --runs 50        timed runs per call and cache state (default 30)
@@ -264,7 +264,7 @@ export function includeComposite(target: number): ProfileDoc {
 
 function documents(): { docs: ProfileDoc[]; temp: string[] } {
   const docs = [
-    ...['docs/COLLABORATION-RFC.smd', 'docs/SPEC-V2-PROPOSALS.smd', 'implementation-changes.smd'].map((f) => path.join(repo, f)).filter((f) => fs.existsSync(f)),
+    ...['docs/rfcs/collaboration.smd', 'docs/rfcs/spec-v2.smd', 'implementation-changes.smd'].map((f) => path.join(repo, f)).filter((f) => fs.existsSync(f)),
     ...fs.readdirSync(samplesDir).filter((f) => f.endsWith('.smd')).sort().map((f) => path.join(samplesDir, f)),
   ].map(smdFile);
   for (const target of [8000, 20000, 50000]) docs.push({ name: `composite ≈${target / 1000}k`, text: composite(target), dir: samplesDir });

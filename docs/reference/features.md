@@ -1,6 +1,6 @@
 # Semantic Markdown feature guide
 
-Every Semantic Markdown feature, with its syntax, what it renders, what an AI agent reads (the **agent view**), and what it becomes in plain GitHub Markdown (`smd export --to md`). The formal rules are in [SPEC.md](SPEC.md).
+Every Semantic Markdown feature, with its syntax, what it renders, what an AI agent reads (the **agent view**), and what it becomes in plain GitHub Markdown (`smd export --to md`). The formal rules are in [reference/spec.md](spec.md).
 
 ## At a glance
 
@@ -66,9 +66,9 @@ The short version of this guide; each item is described in full in the sections 
 | `smd report <dir> --since <date\|git-ref> [-o status.smd]` | Draft a status report: tasks done and added since, open tasks (overdue and due this week first), decisions since, high-impact risks, linked to their sections |
 | `smd query "<selector>" <paths> [--json]` | Decisions, risks, APIs, callouts, tasks or headings by type and attributes, e.g. `risk[impact>=high]` |
 | `smd diff <paths> --since <git-ref>` / `smd diff <old> <new>` | Only the sections that changed, in the agent view: catch up on a doc without rereading it |
-| `smd validate <paths> [--fix] [--json] [--strict]` | Check files (CI-friendly exit codes); rules configurable in `smd.config.json` / `.smdrc` and with `<!-- smd-disable-next-line code -->`; `--format github` for pull request annotations ([GitHub Action](INSTALL.md#github-actions)) |
+| `smd validate <paths> [--fix] [--json] [--strict]` | Check files (CI-friendly exit codes); rules configurable in `smd.config.json` / `.smdrc` and with `<!-- smd-disable-next-line code -->`; `--format github` for pull request annotations ([GitHub Action](../guides/github-and-ci.md#github-actions)) |
 | `smd fmt <paths> [--check]` | Format files in place; `--check` fails CI on unformatted files |
-| `smd migrate <paths> --to 2 [--dry-run \| --check]` | Migrate docs to spec v2 (`smd: 2`) so each keeps its meaning: only `.smd` files that need it, each written whole or not at all, then checked; the notes it prints are left to you. `--dry-run` reports the plan, `--check` fails CI when a doc still needs it ([steps](SPEC.md#101-migrating-to-spec-v2)); also **Migrate to Spec v2** in VS Code |
+| `smd migrate <paths> --to 2 [--dry-run \| --check]` | Migrate docs to spec v2 (`smd: 2`) so each keeps its meaning: only `.smd` files that need it, each written whole or not at all, then checked; the notes it prints are left to you. `--dry-run` reports the plan, `--check` fails CI when a doc still needs it ([steps](spec.md#101-migrating-to-spec-v2)); also **Migrate to Spec v2** in VS Code |
 | `smd init <file> --template prd` | New doc from 16 templates (`smd templates` lists them), with `smd: 2` |
 | `smd export <file> --to <format> [-o out]` | Every export in one command. Without `--to`, the extension of `-o` picks the format (`.html`, `.md`, `.pdf`, `.docx`). The older names `smd render`, `to-md`, `pdf` and `docx` still work |
 | `… --to html` · `md` | A standalone page with a print stylesheet (Print → Save as PDF), or plain GitHub Markdown |
@@ -77,8 +77,8 @@ The short version of this guide; each item is described in full in the sections 
 | `… --to confluence` · `notion` | A page for your wiki: Confluence storage format (callouts, code, expands, tasks and statuses as built-in macros) or Notion API blocks cut into request bodies. It only writes the file: no network, no credentials ([mapping](#confluence-and-notion-smd-export)) |
 | `smd from-md` · `meta` | Upgrade Markdown to `.smd`; a document's full JSON summary |
 | `smd build <dir> --out site` | Static docs site: a page per doc, sidebar, breadcrumbs, search, backlinks and a task/decision/risk dashboard |
-| `smd mcp [--root <dir>] [--allow-write]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision` ([setup](AGENTS.md#mcp-server)) |
-| `smd lsp --stdio` | Language server for Neovim, Helix, Zed and other LSP editors: diagnostics, quick fixes, outline, hover, completion, go to definition, formatting (also `smd-language-server`; [setup](EDITORS.md)) |
+| `smd mcp [--root <dir>] [--allow-write]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision` ([setup](agents.md#mcp-server)) |
+| `smd lsp --stdio` | Language server for Neovim, Helix, Zed and other LSP editors: diagnostics, quick fixes, outline, hover, completion, go to definition, formatting (also `smd-language-server`; [setup](../guides/editors.md)) |
 | `smd init --agent claude|cursor|copilot|agents` | Set up an agent in a project in one command: skills or rules, the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet |
 | `smd skills install [--global] [--target …]` | Install the agent skills, or rules for Cursor, Copilot and `AGENTS.md` |
 | `smd savings <dirs> [--json] [--price N]` | Repo-wide token report: raw files vs agent view vs `--brief`, and the saving in tokens and dollars per full read of every document |
@@ -92,7 +92,7 @@ The short version of this guide; each item is described in full in the sections 
 
 | Skill | What it teaches an agent |
 |---|---|
-| **`semantic-markdown-writer`** | Create and edit `.smd` that follows every rule: choose a template (PRD, ADR, RFC, runbook, API, status report, meeting notes, postmortem, release notes, OKRs, onboarding, test plan, PR description, and spec, plan and tasks for [spec-driven work](SPEC-DRIVEN.md)), fill it, validate with `--fix`, and keep it cheap for agents to read |
+| **`semantic-markdown-writer`** | Create and edit `.smd` that follows every rule: choose a template (PRD, ADR, RFC, runbook, API, status report, meeting notes, postmortem, release notes, OKRs, onboarding, test plan, PR description, and spec, plan and tasks for [spec-driven work](../guides/spec-driven.md)), fill it, validate with `--fix`, and keep it cheap for agents to read |
 | **`semantic-markdown-reader`** | Read `.smd` with minimal tokens: `outline` first, then only the relevant sections through the agent view, and raw lines only when editing |
 
 </details>
@@ -133,7 +133,7 @@ The short version of this guide; each item is described in full in the sections 
 
 ## 1. Documents and front matter
 
-![Document header with status, version, owners and tags](images/01-overview.png)
+![Document header with status, version, owners and tags](../images/01-overview.png)
 
 ```yaml
 ---
@@ -156,7 +156,7 @@ typography: true          # smd: 2 only: curly quotes, dashes and ellipses (opti
 - **Preview:** a header card with a status pill, version, date, owners and tags, plus an optional table of contents.
 - **Agent view:** `# Saved Searches`, one `status: review · owners: … · tags: …` line, and `summary: …`.
 - **Tip:** the `summary` is the first thing every agent reads. Make it self-contained.
-- **Schema:** keys and values are completed and checked from one JSON Schema, published as [`smd-frontmatter.schema.json`](../extension/schemas/smd-frontmatter.schema.json) and as `semantic-markdown/frontmatter.schema.json` on npm for YAML tooling and pipelines. Typing `updated: ` suggests today's date.
+- **Schema:** keys and values are completed and checked from one JSON Schema, published as [`smd-frontmatter.schema.json`](../../extension/schemas/smd-frontmatter.schema.json) and as `semantic-markdown/frontmatter.schema.json` on npm for YAML tooling and pipelines. Typing `updated: ` suggests today's date.
 - **Status workflow:** in VS Code the status bar shows `status` and changes it, bumping `updated`; see [section 13](#13-vs-code-editing-assistance).
 - **Variables:** any key can be shown in the text with `{{key}}`, e.g. `Version {{version}}`; see [Front matter variables](#front-matter-variables).
 - **Broken front matter stays visible (2.0):** front matter that doesn't parse, often because the closing `---` was forgotten and a later `---` rule closed it, shows as written in a red "Front matter could not be read" block in the preview, the Block Editor and the exports, and as a `[front matter could not be read]` line with the lines in the agent view, instead of hiding everything above that `---`. `smd validate` reports it as `frontmatter/invalid`. `...` also closes front matter.
@@ -182,7 +182,7 @@ What readers see differently in a spec v2 document:
 | `version: 2.10`, shown by `{{version}}` and the header | `2.1` | `2.10` |
 | `:::include{section="refund"}` with a `## Refunds` heading | Includes it (a part of the heading's text matches) | A missing section (only the id or the whole text match) |
 
-What writers must watch: in spec v2, `$$` display math opens and closes only on a line of its own, a closing fence closes the container opened with as many colons, and `\\` in a quoted attribute value is one backslash. The stricter checks of 2.0 (duplicate attributes, title conflicts, Mermaid syntax, figure `kind`, front matter that can't be read) apply to both versions. Every rule, side by side: [SPEC.md §10](SPEC.md#10-versioning). To move a document: [`smd migrate`](#migrating-to-spec-v2-smd-migrate).
+What writers must watch: in spec v2, `$$` display math opens and closes only on a line of its own, a closing fence closes the container opened with as many colons, and `\\` in a quoted attribute value is one backslash. The stricter checks of 2.0 (duplicate attributes, title conflicts, Mermaid syntax, figure `kind`, front matter that can't be read) apply to both versions. Every rule, side by side: [reference/spec.md §10](spec.md#10-versioning). To move a document: [`smd migrate`](#migrating-to-spec-v2-smd-migrate).
 
 ### Localized labels
 
@@ -402,7 +402,7 @@ A bare `#123` is not a link (it is too common in prose), and neither are pull re
 
 | Task | Its issue | With `--apply` |
 |---|---|---|
-| open, no link | — | with `--create`: a new issue in `--repo` (default: the current folder's repository, from `gh repo view`); ` [#N](url)` is appended to the task line |
+| open, no link | — | with `--create`: a new issue in `--repo` (default: the current folder's repository, from `gh repo view`); ` [#N](../url)` is appended to the task line |
 | open | closed as completed | the task is checked off (`- [ ]` → `- [x]`) |
 | open | closed as not planned | left alone, listed under "Skipped" |
 | done | open | with `--close`: the issue is closed as completed, with a comment pointing to the task |
@@ -431,7 +431,7 @@ Close issues whose task is done (1):
 
 ## 6. Project blocks: decisions, risks, timelines
 
-![KPI tiles, tasks, decision, risk and timeline](images/02-project-management.png)
+![KPI tiles, tasks, decision, risk and timeline](../images/02-project-management.png)
 
 ```markdown
 :::decision{status=accepted date=2026-09-08 owner=@maya} Accordion layout on mobile
@@ -571,7 +571,7 @@ smd report docs/ --since v1.3.0 --title "Checkout squad"             # since a t
 
 ## 7. Developer blocks: APIs, code, embeds
 
-![API endpoint, embedded source with highlighted lines, sequence diagram](images/03-developers.png)
+![API endpoint, embedded source with highlighted lines, sequence diagram](../images/03-developers.png)
 
 ````markdown
 :::api{method=POST path="/v1/orders" auth="bearer token"} Create an order
@@ -625,7 +625,7 @@ See [Pricing](shared/terms.smd#pricing) in the shared terms.
 
 ## 8. Layout: tabs, columns, cards, boxes, steps
 
-![Cards in columns, tabs, flowchart and agent block in dark mode](images/04-dark-layout.png)
+![Cards in columns, tabs, flowchart and agent block in dark mode](../images/04-dark-layout.png)
 
 ```markdown
 ::::columns
@@ -738,7 +738,7 @@ The Analytical Engine weaves algebraic patterns just as the Jacquard loom weaves
 
 - Renders as `<figure class="smd-quote">` with the body in a `<blockquote cite="…">` and the attribution below: "— Ada Lovelace, *Notes on the Analytical Engine*" (`<figcaption>— Author, <cite>Source</cite></figcaption>`). The source links to `cite` when both are given. A quote is never numbered as a figure, so `:ref[…]` and figure numbers ignore it.
 - `cite` must be an `http(s)` or relative URL; anything else (`javascript:`, `data:`, `mailto:`) is left out and reported (`quote/cite`). The validator also warns about a quote with no text (`quote/empty`) or no `author` (`quote/author`).
-- **Agent view:** `<quote author="Ada Lovelace" source="…" cite="…">` … `</quote>`. **GitHub** (`smd export --to md`): a blockquote ending with a `— Ada Lovelace, *[Source](url)*` line. `smd query 'quote[author*=lovelace]'` finds quotes; snippet `quote`.
+- **Agent view:** `<quote author="Ada Lovelace" source="…" cite="…">` … `</quote>`. **GitHub** (`smd export --to md`): a blockquote ending with a `— Ada Lovelace, *[Source](../url)*` line. `smd query 'quote[author*=lovelace]'` finds quotes; snippet `quote`.
 - Older `.smd` tools (1.5 and earlier) show the text in a plain box without the attribution, with a `container/unknown` warning.
 
 ## 10. Audience: agent, human, agent=skip
@@ -768,7 +768,7 @@ An `:::agent` block inside a section marked `{agent=skip}` is omitted with the s
 ## 11. Headings, links and anchors
 
 - `## Title {#custom-id}` sets a stable anchor, and `{.lead}` adds a class (`{.page-break}` starts a new page when printed: [section 16](#pdf-and-printing)).
-- Headings get automatic ids, so `[see API](#api)` works. Broken anchors and missing relative files are reported. How ids are made is in [SPEC.md §4.2.3](SPEC.md#423-heading-ids).
+- Headings get automatic ids, so `[see API](#api)` works. Broken anchors and missing relative files are reported. How ids are made is in [reference/spec.md §4.2.3](spec.md#423-heading-ids).
 - **GitHub ids** work too. GitHub keeps `_` and doesn't collapse hyphens, so `## max_tokens` is `#maxtokens` here and `#max_tokens` on GitHub. A link by the GitHub id is accepted, with an info note and a quick fix to `#maxtokens` (it doesn't work in the preview), and go to definition, hover, find references and rename follow it. `smd export --to md` writes `<a id="maxtokens"></a>` before such headings, so links by either id work on GitHub; `smd from-md` drops those lines again.
 - The outline view and folding follow headings and blocks.
 
@@ -810,7 +810,7 @@ An `:::agent` block inside a section marked `{agent=skip}` is omitted with the s
 | Workspace symbols | `Ctrl+T` searches every `.smd` in the workspace: headings, `:::decision` and `:::risk` titles, and `:::api` endpoints by method and path (`post orders` finds `POST /v1/orders — Create an order`) |
 | Hover previews | Hover a link's text or target: `#anchor` and `other.smd#anchor` show the start of that section, `other.smd` shows its title, status, summary and sections. Hover a ```` ```ts file="…" lines="…" ```` line to see the embedded code |
 | Lists on Enter | Enter on `- [x] Ship it @maya` starts `- [ ] ` with the cursor before ` @maya`. Bullets repeat, numbers count up, Enter on an empty item ends the list, and code blocks are left alone (`smd.editor.continueLists`) |
-| Images | Paste an image, or drop image files, to save them in `docs/images/` (`smd.images.folder`) and insert `![alt](relative/path.png)`. Images already in the workspace are linked where they are; name clashes get `-1`, `-2`… |
+| Images | Paste an image, or drop image files, to save them in `docs/images/` (`smd.images.folder`) and insert `![alt](../relative/path.png)`. Images already in the workspace are linked where they are; name clashes get `-1`, `-2`… |
 | Spell checking | **Set Up Spell Checking (cSpell)** adds an `smd` entry to cSpell's `languageSettings`, so container and directive names, attribute lists, `@mentions`, link targets, front matter and code aren't flagged; titles and link text still are |
 | Snippets (41) | `frontmatter` `callout` `details` `card` `tabs` `columns` `steps` `agent` `human` `decision` `risk` `risk-matrix` `api` `timeline` `figure` `ref` `glossary` `changelog` `quote` `task` `priority` `due` `metric` `badge` `status` `progress` `kbd` `mermaid` `sequence` `gantt` `pie` `math` `code` `embed` `skip` `table` `tasks`… |
 
@@ -832,7 +832,7 @@ An optional editor for `.smd` files (since 1.8): the document as the preview ren
 | Tables | Press `Enter` on a table, click a cell or choose **Edit as grid** to edit it cell by cell, also inside a container. Arrow keys and `Tab` move between cells, `Enter` writes the cell and goes down, `Escape` undoes the cell or closes the grid. The grid's toolbar adds a row above or below and a column left or right, deletes a row or column, sets a column's alignment and has **Align table** (`smd fmt`'s table layout, for that table only). Only the cell you edit changes, nothing is realigned unless you ask, and a pipe you type is written escaped. `F2` and **Edit** edit the table's source; a table whose rows have more or fewer cells than the header opens there |
 | Front matter | Select it and choose **Properties**: text fields for `title`, `summary`, `version` and `lang`, lists of choices for `status`, `audience`, `theme`, `accent`, `toc`, `typography` and `smd`, date pickers for `updated` and `created`, and comma-separated `owners`, `tags` and `related`. Only that key's value changes; comments, key order and quoting stay, a new key goes at the end, and emptying a field removes the key. Front matter the form can't edit safely (anchors, aliases, flow mappings, a block scalar on the key you change) opens with **Edit YAML**; `Enter` always edits the YAML |
 | Drag and drop | A handle appears left of the block under the mouse: drag it to move the block among its siblings (the top-level blocks, or the blocks of the same container), as `Alt+↑` `Alt+↓` do. A block never moves into or out of a container |
-| Images | Paste an image (`Ctrl+V`) to add it after the current block, or drop image files from your file manager onto a block. They are saved where image paste in the text editor saves them (`smd.images.folder`, `docs/images` by default, never over an existing file) and linked as `![name](relative/path.png)`. PNG, JPEG, GIF, WebP, BMP, AVIF and SVG, up to 10 MB each. Files dragged from VS Code's Explorer can't be dropped here (a webview gets a dropped file's contents, not its location); if VS Code opens a dropped file instead, hold `Shift` while dropping |
+| Images | Paste an image (`Ctrl+V`) to add it after the current block, or drop image files from your file manager onto a block. They are saved where image paste in the text editor saves them (`smd.images.folder`, `docs/images` by default, never over an existing file) and linked as `![name](../relative/path.png)`. PNG, JPEG, GIF, WebP, BMP, AVIF and SVG, up to 10 MB each. Files dragged from VS Code's Explorer can't be dropped here (a webview gets a dropped file's contents, not its location); if VS Code opens a dropped file instead, hold `Shift` while dropping |
 | Not yet | Formatted (WYSIWYG) text editing, dragging a block into or out of a container, and selecting several blocks. Link and footnote definitions show as small source boxes; lines inside a container that render nothing are edited with the container |
 
 ## 14. VS Code: agent view and token counter
@@ -866,9 +866,9 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | `$$\frac{1}{$$` | `math/syntax` | — |
 | `file="nope.ts"` | `fence/embed-missing` | — |
 | `:::include{file="nope.smd"}`, `section="Nope"`, `a.smd` including `b.smd` including `a.smd` | `include/missing-file`, `include/missing-section`, `include/cycle` | — |
-| `[x](#rolout)`, `[x](plan.smd#rolout)` | `link/missing-anchor` | → closest heading id |
+| `[x](#rolout)`, `[x](../plan.smd#rolout)` | `link/missing-anchor` | → closest heading id |
 | `[x](#max_tokens)` to `## max_tokens` (GitHub's id) | `link/github-anchor` (info) | → `#maxtokens` |
-| `[x](gone.md)`, `related: [gone.smd]` | `link/missing-file` | — |
+| `[x](../gone.md)`, `related: [gone.smd]` | `link/missing-file` | — |
 | `[x][undefined-ref]` | `link/undefined-reference` | — |
 | `:ref[fig-chekout]` | `figure/unknown-ref` | → closest figure id |
 | two `:::figure{#fig-a}` | `figure/duplicate-id` | — |
@@ -908,9 +908,9 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 
 **Errors since 2.0, in every document.** Duplicate attributes, container title conflicts, an invalid figure `kind` and Mermaid syntax errors are errors, so `smd validate` fails on them. Rendering doesn't change: the last duplicate is used and `title=` wins. `smd validate --fix` and `smd migrate --to 2` fix the duplicates, the title conflicts and `priority` on `:::agent` (now an unknown attribute); a Mermaid error is fixed by hand. A rule setting or suppression comment that names a removed code (`figure/kind`, `deprecated/agent-priority`) gets a `rules/unknown` warning that names the code to use instead.
 
-The full list is in [SPEC.md §7](SPEC.md#7-validation-rules). **Validate All .smd Files in Workspace** checks the whole project.
+The full list is in [reference/spec.md §7](spec.md#7-validation-rules). **Validate All .smd Files in Workspace** checks the whole project.
 
-To check documents before they are committed, use the `smd-validate`, `smd-fmt` and `smd-fmt-check` hooks for the [pre-commit](https://pre-commit.com) framework, lint-staged, or a plain Git hook: see [INSTALL.md › Pre-commit hooks](INSTALL.md#pre-commit-hooks).
+To check documents before they are committed, use the `smd-validate`, `smd-fmt` and `smd-fmt-check` hooks for the [pre-commit](https://pre-commit.com) framework, lint-staged, or a plain Git hook: see [guides/install.md › Pre-commit hooks](../guides/github-and-ci.md#pre-commit-hooks).
 
 ### What `--fix` changes
 
@@ -938,7 +938,7 @@ Everything else needs a decision only the author can make (which file was meant,
 
 ### In GitHub Actions
 
-`uses: bislink360/semantic-markdown/validate@v3.0.0` validates on every pull request and shows each problem as an inline annotation on the changed lines, plus a job summary with counts per severity and the first 50 problems linked to their lines. It runs the bundled CLI with the runner's Node.js 22+, without installing anything; the inputs (`paths`, `fail-on: error|warning|never`, `strict`, `config`, `mermaid`, `stale-after`, `summary`, `cli`) are in [INSTALL.md](INSTALL.md#github-actions).
+`uses: bislink360/semantic-markdown/validate@v3.0.0` validates on every pull request and shows each problem as an inline annotation on the changed lines, plus a job summary with counts per severity and the first 50 problems linked to their lines. It runs the bundled CLI with the runner's Node.js 22+, without installing anything; the inputs (`paths`, `fail-on: error|warning|never`, `strict`, `config`, `mermaid`, `stale-after`, `summary`, `cli`) are in [guides/install.md](../guides/github-and-ci.md#github-actions).
 
 Underneath it is `smd validate --format github`, which prints one [workflow command](https://docs.github.com/actions/reference/workflow-commands-for-github-actions) per problem:
 
@@ -1000,7 +1000,7 @@ Every export of a document is one command, **`smd export <file> --to <format> [-
 | **Convert Markdown File to .smd** / `smd from-md` | Adds front matter (`smd: 2` since 2.0) and turns GitHub alerts into callouts |
 | `smd build <dir> --out site` | A static docs site: every document as a page, with navigation, search, backlinks and a dashboard |
 
-**Older names.** The commands before 2.0 still work, with the same options, output and exit codes: `smd render` is `smd export --to html`, `smd to-md` is `--to md`, `smd pdf` is `--to pdf` and `smd docx` is `--to docx`. They are deprecated and may be removed in 3.0 (SPEC.md §11). `smd build` stays its own command: it writes a folder from many documents, not one file.
+**Older names.** The commands before 2.0 still work, with the same options, output and exit codes: `smd render` is `smd export --to html`, `smd to-md` is `--to md`, `smd pdf` is `--to pdf` and `smd docx` is `--to docx`. They are deprecated and may be removed in a later major release ([spec §11](spec.md#11-deprecated)). `smd build` stays its own command: it writes a folder from many documents, not one file.
 
 ### Publish a docs site: `smd build`
 
@@ -1080,13 +1080,13 @@ Static site generators built on remark/rehype can render `.smd` content with the
 - The page needs `semantic-markdown/smd.css`, KaTeX's CSS for math, and Mermaid plus the runtime (`SMD_RUNTIME_JS`) for diagrams and tabs.
 - Front matter works whether the source still has it or the host removed it (Astro's `file.data.astro.frontmatter` is read); `header: false` leaves out the title header when the site layout shows the title.
 
-Configuration for Astro, Docusaurus and Next.js, and which hosts are tested: [npm package README](../npm/README.md#remark-and-rehype-plugins-astro-docusaurus-nextjs).
+Configuration for Astro, Docusaurus and Next.js, and which hosts are tested: [npm package README](../../npm/README.md#remark-and-rehype-plugins-astro-docusaurus-nextjs).
 
-**MkDocs.** The `mkdocs-semantic-markdown` plugin builds the `.smd` files of an MkDocs site as pages in its theme: front matter `title` is the page title, the theme's table of contents comes from the document's headings and ids, links between `.smd` and `.md` pages point at the built pages, `smd.css` and the runtime are added, and `.smd` blocks follow the theme's light or dark mode. `:::include` and code embeds read only inside `docs_dir`. `validate: true` reports `smd validate`'s problems in the build log, with errors as MkDocs warnings so `mkdocs build --strict` fails on them; `md_syntax: true` renders `.smd` syntax in `.md` pages too. It needs Node.js 22+ on `PATH`. Install and options: [INSTALL.md](INSTALL.md#mkdocs-plugin) and the [plugin README](../integrations/mkdocs/README.md).
+**MkDocs.** The `mkdocs-semantic-markdown` plugin builds the `.smd` files of an MkDocs site as pages in its theme: front matter `title` is the page title, the theme's table of contents comes from the document's headings and ids, links between `.smd` and `.md` pages point at the built pages, `smd.css` and the runtime are added, and `.smd` blocks follow the theme's light or dark mode. `:::include` and code embeds read only inside `docs_dir`. `validate: true` reports `smd validate`'s problems in the build log, with errors as MkDocs warnings so `mkdocs build --strict` fails on them; `md_syntax: true` renders `.smd` syntax in `.md` pages too. It needs Node.js 22+ on `PATH`. Install and options: [guides/install.md](../guides/install.md#mkdocs-plugin) and the [plugin README](../../integrations/mkdocs/README.md).
 
-**Obsidian.** The Semantic Markdown plugin for Obsidian renders `.smd` syntax in notes with the same engine, bundled into the plugin. In reading view, `:::` containers are drawn from their full source although Obsidian splits them into several Markdown blocks, inline directives and `[text]{…}` spans are rendered inside Obsidian's own text, and `[[wikilinks]]`, math and Mermaid inside containers are Obsidian's. ```` ```smd ```` blocks render in reading view and Live Preview, `.smd` files open as notes, and `smd.css` follows the Obsidian theme in light and dark mode. Settings turn containers, inline directives and `:::agent` blocks (collapsed, expanded, hidden) on and off. A note's raw HTML is never rendered: the engine runs with raw HTML off and its output goes through Obsidian's sanitizer. Live Preview shows the rest of the syntax as source. Install and limitations: [INSTALL.md](INSTALL.md#obsidian-plugin) and the [plugin README](../integrations/obsidian/README.md).
+**Obsidian.** The Semantic Markdown plugin for Obsidian renders `.smd` syntax in notes with the same engine, bundled into the plugin. In reading view, `:::` containers are drawn from their full source although Obsidian splits them into several Markdown blocks, inline directives and `[text]{…}` spans are rendered inside Obsidian's own text, and `[[wikilinks]]`, math and Mermaid inside containers are Obsidian's. ```` ```smd ```` blocks render in reading view and Live Preview, `.smd` files open as notes, and `smd.css` follows the Obsidian theme in light and dark mode. Settings turn containers, inline directives and `:::agent` blocks (collapsed, expanded, hidden) on and off. A note's raw HTML is never rendered: the engine runs with raw HTML off and its output goes through Obsidian's sanitizer. Live Preview shows the rest of the syntax as source. Install and limitations: [guides/install.md](../guides/install.md#obsidian-plugin) and the [plugin README](../../integrations/obsidian/README.md).
 
-**Use in other tools.** Anything that renders Markdown with [markdown-it](https://github.com/markdown-it/markdown-it) can render `.smd` syntax with the npm package's plugin, `md.use(require('semantic-markdown/markdown-it'))`, styled by `semantic-markdown/smd.css`. It adds rules to the host's own instance and leaves plain Markdown alone; options are in the [package README](../npm/README.md#markdown-it-plugin). Other tools can call `renderSmd()` from the same package or run `smd export --to html`.
+**Use in other tools.** Anything that renders Markdown with [markdown-it](https://github.com/markdown-it/markdown-it) can render `.smd` syntax with the npm package's plugin, `md.use(require('semantic-markdown/markdown-it'))`, styled by `semantic-markdown/smd.css`. It adds rules to the host's own instance and leaves plain Markdown alone; options are in the [package README](../../npm/README.md#markdown-it-plugin). Other tools can call `renderSmd()` from the same package or run `smd export --to html`.
 
 ### PDF and printing
 
@@ -1129,7 +1129,7 @@ It waits until the page has finished rendering: the runtime sets `data-smd-ready
 
 **`smd export plan.smd --to docx [-o plan.docx] [--engine builtin|pandoc] [--reference-doc house-style.docx]`** writes `plan.docx` (by default next to the document), a Word document that Microsoft Word, LibreOffice, Apple Pages and Google Docs (upload it to Drive, then **Open with Google Docs**) open. One of two engines writes it:
 
-1. **[Pandoc](https://pandoc.org/installing.html)** 3.0 or newer, when you have it: at **`--pandoc <path>`**, else the **`SMD_PANDOC`** environment variable, else `pandoc` on the `PATH` (a `--pandoc` or `SMD_PANDOC` path that doesn't exist exits with code 2). smd does not bundle it; see [INSTALL.md](INSTALL.md#optional-pandoc-for-word-export). Its documents have Word's own equations and syntax-highlighted code.
+1. **[Pandoc](https://pandoc.org/installing.html)** 3.0 or newer, when you have it: at **`--pandoc <path>`**, else the **`SMD_PANDOC`** environment variable, else `pandoc` on the `PATH` (a `--pandoc` or `SMD_PANDOC` path that doesn't exist exits with code 2). smd does not bundle it; see [guides/install.md](../guides/install.md#optional-pandoc-for-word-export). Its documents have Word's own equations and syntax-highlighted code.
 2. **The built-in writer** (since 2.4.0), otherwise: smd writes the `.docx` itself, so Word export works with nothing to install. The message names it: `Wrote plan.docx (written by the built-in writer)`.
 
 **`--engine builtin`** or **`--engine pandoc`** picks one (`pandoc` without Pandoc exits with code 2 and an install link). Before 2.4.0 a missing Pandoc was an error; now it means the built-in writer, and anyone with Pandoc gets the same file as before.
@@ -1180,7 +1180,7 @@ Rendered pages (the preview, `smd export --to html`, `smd build` sites and `smd 
 - **Contrast:** text has at least 4.5:1 against its background, and focus rings and status dots 3:1, in the light and the dark theme. Named colors, badges, pills, callouts, due dates and risk matrix bands are checked by a test that reads the colors from `smd.css`.
 - **Keyboard:** every control has a visible focus ring. Tabs follow the WAI-ARIA tabs pattern: Tab enters the tab list, **←/→** move between tabs (wrapping), **Home/End** jump to the first and last, and the panel is next in the Tab order. Collapsibles (`:::details`, collapsible callouts, `:::agent`) are native `<details>` and open with **Enter** or **Space**. Copy buttons appear on keyboard focus and announce "Code copied". Code blocks, tables and diagrams that scroll sideways can be focused and scrolled with the arrow keys. Sites have a "Skip to content" link, and **Escape** closes the sidebar menu (back to its button) and the search results.
 - **Screen readers:** pages declare their language (`lang="en"`, or the document's `lang:`; see [Localized labels](#localized-labels)) and use `main`, `header` and named `nav` landmarks. Task checkboxes are named by their text, table header cells have `scope`, progress bars have a name and value, and status dots are hidden behind their text. Meaning carried by color also comes in words: a callout with its own title starts with its type ("Warning:"), overdue dates say "overdue" (and due-soon dates "due soon" to screen readers), and metric deltas say "up, good". Search announces the number of results.
-- **Images and diagrams:** `![alt](…)` becomes the image's alt text; an empty alt marks a decorative image. Name a Mermaid diagram with `accTitle:` and `accDescr:` lines, which Mermaid turns into the SVG's title and description. Without `accTitle`, the page names the diagram after the caption of the `:::figure` around it, then after the diagram's own title, and otherwise calls it "Diagram". Without `accDescr`, its source is its description. The hint `mermaid/acc-title` points out diagrams that would only be called "Diagram". Math is rendered with MathML for screen readers.
+- **Images and diagrams:** `![alt](../…)` becomes the image's alt text; an empty alt marks a decorative image. Name a Mermaid diagram with `accTitle:` and `accDescr:` lines, which Mermaid turns into the SVG's title and description. Without `accTitle`, the page names the diagram after the caption of the `:::figure` around it, then after the diagram's own title, and otherwise calls it "Diagram". Without `accDescr`, its source is its description. The hint `mermaid/acc-title` points out diagrams that would only be called "Diagram". Math is rendered with MathML for screen readers.
 - **Motion:** with the system's "reduce motion" setting, transitions and smooth scrolling are turned off.
 
 ## 17. CLI reference
@@ -1237,11 +1237,11 @@ smd skills install --target cursor,copilot,agents [--dir <project>]   rules for 
 smd --version
 ```
 
-`validate` and `fmt` take any number of files and directories, so Git hooks pass them just the staged files (setups for pre-commit, lint-staged and plain Git hooks are in [INSTALL.md](INSTALL.md#pre-commit-hooks)). After `--`, every argument is a file, even one whose name starts with `-`.
+`validate` and `fmt` take any number of files and directories, so Git hooks pass them just the staged files (setups for pre-commit, lint-staged and plain Git hooks are in [guides/install.md](../guides/github-and-ci.md#pre-commit-hooks)). After `--`, every argument is a file, even one whose name starts with `-`.
 
 ### Migrating to spec v2: `smd migrate`
 
-`smd migrate <files|dirs> --to 2` migrates each document so that it means the same under spec v2 (`smd: 2`, Semantic Markdown 2.0) as it does today, and `--dry-run` reports what it would change: closing fences with their container's colon count, duplicate attributes collapsed, hidden container title text removed, `$$` delimiters on their own lines, `{}` and bare `{word}` after headings removed, quoted attribute values written with spec v2's `\\` escapes, literal unknown `:name[…]` escaped, include sections by the heading's id, enumerated values in the vocabulary's case, and `smd: 2`. The steps, and which RFC proposal each follows, are in [SPEC.md §10.1](SPEC.md#101-migrating-to-spec-v2). Unlike `smd fmt`, it changes text, so it is a command of its own.
+`smd migrate <files|dirs> --to 2` migrates each document so that it means the same under spec v2 (`smd: 2`, Semantic Markdown 2.0) as it does today, and `--dry-run` reports what it would change: closing fences with their container's colon count, duplicate attributes collapsed, hidden container title text removed, `$$` delimiters on their own lines, `{}` and bare `{word}` after headings removed, quoted attribute values written with spec v2's `\\` escapes, literal unknown `:name[…]` escaped, include sections by the heading's id, enumerated values in the vocabulary's case, and `smd: 2`. The steps, and which RFC proposal each follows, are in [reference/spec.md §10.1](spec.md#101-migrating-to-spec-v2). Unlike `smd fmt`, it changes text, so it is a command of its own.
 
 ```text
 docs/plan.smd: 2 changes and 1 note to migrate from smd: 1 to spec v2
@@ -1354,7 +1354,7 @@ Paths are relative to `--root` (default: the current folder). Paths outside it a
 claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 ```
 
-Cursor, VS Code and Claude Desktop settings: [AGENTS.md](AGENTS.md#mcp-server).
+Cursor, VS Code and Claude Desktop settings: [reference/agents.md](agents.md#mcp-server).
 
 ### Language server
 
@@ -1371,11 +1371,11 @@ Cursor, VS Code and Claude Desktop settings: [AGENTS.md](AGENTS.md#mcp-server).
 | Go to definition for links and anchors | `textDocument/definition` |
 | Formatting (as `smd fmt`) | `textDocument/formatting` |
 
-Positions are UTF-16 columns, as LSP specifies (UTF-8 or UTF-32 when the client offers only those). Setups for Neovim, Helix and Zed: [EDITORS.md](EDITORS.md).
+Positions are UTF-16 columns, as LSP specifies (UTF-8 or UTF-32 when the client offers only those). Setups for Neovim, Helix and Zed: [guides/editors.md](../guides/editors.md).
 
 ### Syntax highlighting with Tree-sitter
 
-Editors that highlight with Tree-sitter (Neovim, Helix, Zed, Emacs 29+) can use the grammar in [`integrations/tree-sitter-smd`](../integrations/tree-sitter-smd). It highlights front matter, `:::` containers with their names, attributes and titles, inline directives, `[text]{…}` spans, `==highlight==`, `$math$` and `$$` blocks, `{{variables}}`, footnotes, task boxes and `{#id}` attribute lists, and folds containers, code, math and front matter. Known container and directive names (from `spec.ts`) are highlighted differently from unknown ones, which still parse. The grammar parses only the `.smd` syntax: the rest of each document is injected into the editor's own Markdown grammars, the front matter into YAML, math into LaTeX and fenced code into its language. Fenced code and math stay opaque, so a `:::` inside a code block never ends a container. Since 2.0.2 it reads each document with the rules of its spec version, as the renderer does: in an `smd: 2` document, closing fences pair by colon count, `$$` math opens and closes only on lines that are just `$$`, and directive names are read in any case ([the grammar's README](../integrations/tree-sitter-smd/README.md#spec-versions)). Setup for each editor: [the grammar's README](../integrations/tree-sitter-smd/README.md#editor-setup) and [EDITORS.md](EDITORS.md#syntax-highlighting-with-tree-sitter).
+Editors that highlight with Tree-sitter (Neovim, Helix, Zed, Emacs 29+) can use the grammar in [`integrations/tree-sitter-smd`](../../integrations/tree-sitter-smd). It highlights front matter, `:::` containers with their names, attributes and titles, inline directives, `[text]{…}` spans, `==highlight==`, `$math$` and `$$` blocks, `{{variables}}`, footnotes, task boxes and `{#id}` attribute lists, and folds containers, code, math and front matter. Known container and directive names (from `spec.ts`) are highlighted differently from unknown ones, which still parse. The grammar parses only the `.smd` syntax: the rest of each document is injected into the editor's own Markdown grammars, the front matter into YAML, math into LaTeX and fenced code into its language. Fenced code and math stay opaque, so a `:::` inside a code block never ends a container. Since 2.0.2 it reads each document with the rules of its spec version, as the renderer does: in an `smd: 2` document, closing fences pair by colon count, `$$` math opens and closes only on lines that are just `$$`, and directive names are read in any case ([the grammar's README](../../integrations/tree-sitter-smd/README.md#spec-versions)). Setup for each editor: [the grammar's README](../../integrations/tree-sitter-smd/README.md#editor-setup) and [guides/editors.md](../guides/editors.md#syntax-highlighting-with-tree-sitter).
 
 ### What changed: `smd diff`
 
@@ -1411,7 +1411,7 @@ Ship to 10% of EU traffic first, then 50%.
 
 ### Collaborating on .smd
 
-A `.smd` file is plain text, so people and agents collaborate on it the way they do on code. The plan behind this section is [COLLABORATION-RFC.smd](COLLABORATION-RFC.smd).
+A `.smd` file is plain text, so people and agents collaborate on it the way they do on code. The plan behind this section is [rfcs/collaboration.smd](../rfcs/collaboration.smd).
 
 **Git, with `smd merge`.** Git's line merge conflicts when two branches edit neighbouring lines, even in different blocks: two items of one list, two rows of one table, two front matter keys, a heading and the paragraph under it. `smd merge` is a Git merge driver that resolves those. Set it up once per clone:
 
@@ -1487,7 +1487,7 @@ These are OpenAI encodings. There is no public tokenizer for current Claude mode
 | `plan` | `related:` the spec; Approach (diagram), Decisions, Risks, Phases (steps), Testing, Open questions, Rules for following the plan (agent) |
 | `tasks` | `related:` the spec and the plan; work rules (agent) first, then tasks by phase with requirement, priority, owner and due date, and Done when |
 
-`spec`, `plan` and `tasks` are the spec-driven workflow kit: put them side by side in one folder per feature (`specs/saved-searches/spec.smd`, `plan.smd`, `tasks.smd`), so their `related:` links resolve. How an agent works through them: [SPEC-DRIVEN.md](SPEC-DRIVEN.md).
+`spec`, `plan` and `tasks` are the spec-driven workflow kit: put them side by side in one folder per feature (`specs/saved-searches/spec.smd`, `plan.smd`, `tasks.smd`), so their `related:` links resolve. How an agent works through them: [guides/spec-driven.md](../guides/spec-driven.md).
 
 ## 19. Web playground
 
@@ -1504,6 +1504,6 @@ A static page that runs the engine in the browser: edit `.smd` on the left, and 
 
 The editor is a plain text area: Tab and Shift+Tab indent and outdent (Esc, then Tab, moves focus on), with line numbers. There is no file system, so `:::include` blocks and `file="…"` code embeds show their fallback notes.
 
-Shared documents are untrusted: the preview renders in a sandboxed frame with an opaque origin, under a Content Security Policy that runs only the playground's own scripts and loads nothing remote (not even images). The threat model is in [playground/README.md](../playground/README.md).
+Shared documents are untrusted: the preview renders in a sandboxed frame with an opaque origin, under a Content Security Policy that runs only the playground's own scripts and loads nothing remote (not even images). The threat model is in [playground/README.md](../../playground/README.md).
 
 Build it with `npm run build:playground` in `extension/` and open `extension/dist/playground/index.html` (it works from `file://` and from any static host), or unzip `semantic-markdown-playground.zip` from a GitHub Release. The latest release's playground is hosted at [bislink360.github.io/semantic-markdown/playground/](https://bislink360.github.io/semantic-markdown/playground/) (the Pages workflow publishes it from `main`, next to the homepage).

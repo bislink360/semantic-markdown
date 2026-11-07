@@ -4,7 +4,7 @@ import { isV2, type SpecEnv } from './specVersion';
 import { own } from './util';
 
 /**
- * Spec v2's text rules (RFC proposal 8, docs/SPEC.md §4.8), for every markdown-it instance the .smd rules are on:
+ * Spec v2's text rules (RFC proposal 8, docs/reference/spec.md §4.8), for every markdown-it instance the .smd rules are on:
  * renderSmd's, the plugin's hosts', the exporters' and the Block Editor's.
  *
  * - **Typography:** no typographic replacements (curly quotes, `–` and `—` from `--` and `---`, `…`, `©`, `™`, `®`,

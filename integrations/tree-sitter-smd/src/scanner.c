@@ -10,7 +10,7 @@
  * It also scans the bodies of fenced code, `$$` math and front matter as single tokens, so that
  * nothing inside them is parsed as .smd and they can be injected as one range.
  *
- * The front matter decides the rules (docs/SPEC.md §10): `smd: 2` (or a higher whole number) reads
+ * The front matter decides the rules (docs/reference/spec.md §10): `smd: 2` (or a higher whole number) reads
  * the document with the spec v2 rules, anything else with the v1 rules. The v2 rules here: a closing
  * fence closes the innermost container opened with as many colons; `$$` math opens and closes only on
  * lines that are just `$$`; directive names in any case; and a heading's trailing `{}` or `{word}` is

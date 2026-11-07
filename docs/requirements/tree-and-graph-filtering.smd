@@ -9,7 +9,7 @@ tags: [requirements, agents, query, tokens]
 version: 0.1
 created: 2026-11-06
 updated: 2026-11-06
-related: [TOKENS.md, SPEC.md]
+related: [../reports/tokens.md, ../reference/spec.md]
 toc: true
 ---
 
@@ -27,7 +27,7 @@ The idea came from a question about whether a graph helps when language models a
 
 The model is still better than a tool at noticing loose, unstated links once the text is in front of it. So the tool should compute only the structure it can find for certain, and leave interpretation to the model.
 
-Measured in 2.5.0 (see TOKENS.md), reading one section of a 6k to 8k token document costs about 80% less than reading the raw file, and the tools stop paying for their own instructions below about 1,500 tokens. Any new filter has to keep within that budget, because its instructions are paid in every session whether or not it is used.
+Measured in 2.5.0 (see [the token report](../reports/tokens.md)), reading one section of a 6k to 8k token document costs about 80% less than reading the raw file, and the tools stop paying for their own instructions below about 1,500 tokens. Any new filter has to keep within that budget, because its instructions are paid in every session whether or not it is used.
 
 ## Terms
 

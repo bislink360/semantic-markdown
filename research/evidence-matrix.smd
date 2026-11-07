@@ -9,8 +9,8 @@ created: 2026-11-06
 updated: 2026-11-07
 toc: true
 related:
-  - ../docs/research-interaction-requirements.smd
-  - ../docs/RESEARCH-CONTRACT-RFC.smd
+  - ../docs/requirements/research-interaction.smd
+  - ../docs/rfcs/research-contract.smd
   - ../implementation-changes.smd
   - annotation-guide.smd
   - token-accounting.smd
@@ -56,9 +56,9 @@ All of this work is merged into `release/v3.1.0`: #155 (findings, provenance, di
 |ID|Source|Tests|Adverse case tested|Released|Not covered|
 |-|-|-|-|-|-|
 |C01|`core/agentView.ts` keeps `:::agent` in condensed `:::details` and collects it outside sections, from included files too since the G0 fixes. The budget never omits a section that shows `:::agent` text|`implementationReview.test.ts` (7 tests, one through MCP `read`), `researchContract.test.ts` (GAP-1, GAP-5 and their edges)|Yes. Over-budget instruction kept with `fits=false`, fake `:::agent` in code, outside selected sections, nested includes, `:::human` around an include, MCP brief and sections|3.1.0 train (#155, include fixes #157)|Nothing in code|
-|C02|`test/bench/netTokens.ts` reads files at their own path, passes `--today`, takes full or outline from `smd read`, records commit, CLI hash, Node and OS|`implementationReview.test.ts` (relative include, fixed date, both readers, a failing read throws, the run record's fields, a bad `--reader` is refused)|Yes|3.1.0 train (`docs/TOKENS.md` re-run)|Nothing in code|
+|C02|`test/bench/netTokens.ts` reads files at their own path, passes `--today`, takes full or outline from `smd read`, records commit, CLI hash, Node and OS|`implementationReview.test.ts` (relative include, fixed date, both readers, a failing read throws, the run record's fields, a bad `--reader` is refused)|Yes|3.1.0 train (`docs/reports/tokens.md` re-run)|Nothing in code|
 |C03|`test/eval/` (corpus validator, conditions M1–O and four ablations, survival check, scorer with paired bootstrap, span mapper, agreement, marker comparison, model runner, token accounting)|`eval.test.ts` (30 tests, CLI end to end), `evalRunner.test.ts` (14, fake network) and `evalTokens.test.ts` (6, call classes, failed answers, setup probe)|Yes (broken ids, spans, evidence, violations, superseded options, failed and retried requests)|3.1.0 train (#162, corpus #163). Token accounting on `docs/evidence-reconcile`|`research/corpus/` holds draft 0.2: 24 documents (12 study-written, 12 adapted from PEPs, KEPs, Kubernetes docs, a Backstage ADR and Rust project goals; 8 per size, 6 per kind, 6 with includes), 897 resolved items and 618 tasks, every role drafted by a separate AI agent within the guide's information limits (guide 0.2). Agreement on the seeded quarter before resolution: item F1 0.79, kind kappa 0.905. Marker comparison on 8 documents: 86% of marks match exactly. `npm run eval -- run` runs the model-selected M2 and S3 through any Chat Completions-compatible API, dry run checked. Not done: people verify every mark, item and task, the 4 translated documents, the paid pilot and model runs|
-|C04 trust|Reader `SKILL.md` and `skills/agent-rules.md`. `docs/AGENTS.md` updated in G0 to match|`implementationReview.test.ts` (the three files say agent instructions grant no permissions)|n/a|3.1.0 train (skills)|Nothing in code|
+|C04 trust|Reader `SKILL.md` and `skills/agent-rules.md`. `docs/reference/agents.md` updated in G0 to match|`implementationReview.test.ts` (the three files say agent instructions grant no permissions)|n/a|3.1.0 train (skills)|Nothing in code|
 |C04 scope|`core/constraints.ts`, `--constraints`, policy `constraints/1`. Decided 2026-11-06: dangers apply document-wide, so every section view shows the dangers of other sections and included files in full (`outsideDangers` in `core/agentView.ts`); warnings, accepted decisions and open questions stay behind `--constraints`|`provenance.test.ts` (5 tests), `researchContract.test.ts` (GAP-7 and 7 C04 tests), `implementationReview.test.ts` (conflicts listed as written, CLI)|Yes (skipped and human excluded, a danger in `:::agent` shown once, no duplicate with `--constraints`, survives budgets and brief, text unchanged by provenance, include listed and not opened by `--constraints`, disagreeing constraints all listed and none resolved)|3.1.0 train (default dangers #158)|Nothing in code. Scope rules for future `:::constraint` blocks belong to the semantic-tags RFC|
 |C05|`core/provenance.ts`, schema `smd-projection/1`, CLI `--provenance`|`provenance.test.ts` (8 tests), `implementationReview.test.ts` (CLI `agent` and `read`, stdout unchanged, hash and revision)|Yes (text unchanged, nested include files, changed revision, hidden text not exposed, no file name refused)|3.1.0 train|Not on MCP `read` by design|
 |C06|`readView.ts` routes on the tokenizer count and reports `tokenBasis`. MCP `read` takes `maxTokens`|`implementationReview.test.ts` (3 tests)|Yes (unknown tokenizer exits 2, estimate fits but exact count does not)|3.1.0 train|Docs fixed in G0 (`AGENTS.md`, `FEATURES.md` lacked `maxTokens` and said `--tokenizer` was not on `read`)|
@@ -66,8 +66,8 @@ All of this work is merged into `release/v3.1.0`: #155 (findings, provenance, di
 |C08|`mcpWrite.ts` revision hash, stale refusal, temp file and rename, folder rule config and Mermaid|`implementationReview.test.ts` (4 tests, one over the built MCP server for Mermaid)|Yes (stale revision refused with bytes unchanged, changed during the write, a Mermaid syntax error refused with nothing written)|3.1.0 train|The Windows non-atomic fallback (EPERM, EBUSY, EACCES) is untested, since it needs a locked file. Docs fixed in G0 (`revision` was missing)|
 |C09|`agentView.ts` exact section selection, CLI `--exact`, MCP `exact`|`implementationReview.test.ts` (6 tests)|Yes (missing section, no prefix match, non-ASCII, duplicate titles select both and are reported ambiguous, punctuation, custom ids)|3.1.0 train|Nothing in code. Docs fixed in G0 (`--exact` was undocumented)|
 |C10|`omissionPanel.ts`, VS Code "What the Agent View Leaves Out…", `npm run test:a11y`, Mermaid text alternative, named Block Editor child blocks (`childNaming`, `nameChild`)|`omissionPanel.test.ts`, `browserA11y.test.ts` (pure parts), `blockEditorWebview.test.ts` and `accessibility.test.ts` (child names), `npm run test:a11y` in Chrome: 78 passed, 0 warnings|Partly|3.1.0 train (child names #157)|The quick pick itself is untested. `test:a11y` is not in `npm test`. Screen-reader checks are Study 2|
-|C11|`test/bench/profile.ts`, `docs/PERFORMANCE.md`. #156 loads includes once per view and fits budgets in linear passes|`profile.test.ts` (each included file read exactly once per view), `viewOutput.test.ts` (190 view groups)|Yes for include reads|3.1.0 train|Linear budget passes are measured in `docs/PERFORMANCE.md`, not asserted|
-|C12|`docs/TOKENS.md` keeps the 2.5.0 tables and adds a 3.0.0 run|None (docs)|n/a|3.1.0 train (docs)|The "3.0.0" run is 750ef2e with local changes, not a released executable. The paper's own measurement files still need a fresh run from a released 3.x|
+|C11|`test/bench/profile.ts`, `docs/reports/performance.md`. #156 loads includes once per view and fits budgets in linear passes|`profile.test.ts` (each included file read exactly once per view), `viewOutput.test.ts` (190 view groups)|Yes for include reads|3.1.0 train|Linear budget passes are measured in `docs/reports/performance.md`, not asserted|
+|C12|`docs/reports/tokens.md` keeps the 2.5.0 tables and adds a 3.0.0 run|None (docs)|n/a|3.1.0 train (docs)|The "3.0.0" run is 750ef2e with local changes, not a released executable. The paper's own measurement files still need a fresh run from a released 3.x|
 
 ## Research requirements
 
@@ -77,7 +77,7 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
-|AF01|Agent view tags for question, danger, warning, decision, risk, tasks (`core/agentView.ts`). GAP-3 and GAP-6 fixed (`:metric` keeps its trend and tone), GAP-8 open|[Cue contract](../docs/RESEARCH-CONTRACT-RFC.smd#cue-to-agent-meaning-contract)|G0 recorded, G1 fix gaps|partial|locked by `researchContract.test.ts`|3.0.0 rendering, GAP-6 in the 3.1.0 train (#160)|none|
+|AF01|Agent view tags for question, danger, warning, decision, risk, tasks (`core/agentView.ts`). GAP-3 and GAP-6 fixed (`:metric` keeps its trend and tone), GAP-8 open|[Cue contract](../docs/rfcs/research-contract.smd#cue-to-agent-meaning-contract)|G0 recorded, G1 fix gaps|partial|locked by `researchContract.test.ts`|3.0.0 rendering, GAP-6 in the 3.1.0 train (#160)|none|
 |AF02|None. Questions carry only a title|Semantic tags R50 (owner, due), this contract|G1|no|no|no|none|
 |AF03|`smd tasks`, `smd decisions --status open`, catalog question counts. No review list|G2 feedback workflow|G2|no|no|no|none|
 |AF04|None|G2 feedback workflow|G2|no|no|no|none|
@@ -87,8 +87,8 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
-|AF06|Tasks take a trailing `{#id}` that every task reader, the renderer, `smd query task[id=…]` and to-md agree on (#161). One id namespace per document: a shared id resolves to nothing, with `id/duplicate` and `link/ambiguous-anchor` warnings, and library `resolveId` reports a heading slug as unstable. Figures keep first-match. Questions and other blocks have no ids yet, `:ref` still names figures only, and Block Editor session keys are not stable|[Identity](../docs/RESEARCH-CONTRACT-RFC.smd#identity), semantic tags R13–R19|G0 decided, G1 identity part built|partial (task ids and the id namespace)|yes for task ids and duplicates (`taskIds.test.ts`, the Identity and R17 tests in `researchContract.test.ts`)|3.1.0 train (#161)|none|
-|AF07|Task checkbox only, question has no state|[Lifecycle](../docs/RESEARCH-CONTRACT-RFC.smd#lifecycle)|G0 decided, G1 build|no|no|no|none|
+|AF06|Tasks take a trailing `{#id}` that every task reader, the renderer, `smd query task[id=…]` and to-md agree on (#161). One id namespace per document: a shared id resolves to nothing, with `id/duplicate` and `link/ambiguous-anchor` warnings, and library `resolveId` reports a heading slug as unstable. Figures keep first-match. Questions and other blocks have no ids yet, `:ref` still names figures only, and Block Editor session keys are not stable|[Identity](../docs/rfcs/research-contract.smd#identity), semantic tags R13–R19|G0 decided, G1 identity part built|partial (task ids and the id namespace)|yes for task ids and duplicates (`taskIds.test.ts`, the Identity and R17 tests in `researchContract.test.ts`)|3.1.0 train (#161)|none|
+|AF07|Task checkbox only, question has no state|[Lifecycle](../docs/rfcs/research-contract.smd#lifecycle)|G0 decided, G1 build|no|no|no|none|
 |AF08|MCP write `revision` (C08) is a file hash, no attribution|Lifecycle, collaboration RFC phase 3|G1, G2|partial (file revision)|partial|3.1.0 train|none|
 |AF09|None (`suggest` accepted in the collaboration RFC, not built)|Collaboration RFC phase 3, this contract|G2|no|no|no|none|
 |AF10|C08 refuses a write when the file changed since read. Block Editor compare-and-swap per block|Lifecycle|G1|partial|yes for C08 and the Block Editor|3.1.0 train (C08), 1.8.0 (Block Editor)|none|
@@ -99,20 +99,20 @@ AF rows record foundations, not delivery. "Contract home" names where the decisi
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
-|AF13|`:::agent` and dangers are document-wide (dangers decided 2026-11-06). `--constraints` (policy `constraints/1`) adds pointers to the rest and is opt-in|[Scope](../docs/RESEARCH-CONTRACT-RFC.smd#scope-and-applicability), semantic tags R25–R29|G0 decided for dangers, G1 build for `:::constraint` scope|partial|yes for dangers|3.1.0 train|none|
+|AF13|`:::agent` and dangers are document-wide (dangers decided 2026-11-06). `--constraints` (policy `constraints/1`) adds pointers to the rest and is opt-in|[Scope](../docs/rfcs/research-contract.smd#scope-and-applicability), semantic tags R25–R29|G0 decided for dangers, G1 build for `:::constraint` scope|partial|yes for dangers|3.1.0 train|none|
 |AF14|Section selection, `--brief`, `--max-tokens` chosen per call by the agent. No author-declared task view|G2 task views|G2|no|no|no|none|
 |AF15|`:::agent` and dangers kept through selection and condensation, from included files too (C01, GAP-1 to GAP-3 and GAP-5 fixed). A section holding a danger from an included file or a CAUTION alert is never omitted, nor its parent (#160). No declared dependencies|Scope, edges|G1|partial|yes for `:::agent` and dangers|3.1.0 train (#157, #160)|none|
-|AF16|Sections with `:::agent` text or a danger are never omitted. A view over budget ends with a `[budget: …]` line, as well as stderr and the manifest. A pointer names the warning or question it hides (GAP-4, GAP-10 fixed)|[Budgets](../docs/RESEARCH-CONTRACT-RFC.smd#budgets-routing-and-truncation)|G0 decided, G1 built for agent blocks and dangers|partial|yes, `researchContract.test.ts`|3.1.0 train (overflow line #160)|none|
-|AF17|Containment check (C07), trust wording (C04), opt-in writes|[Trust](../docs/RESEARCH-CONTRACT-RFC.smd#host-trust-and-authorization)|G0 decided|partial|yes for C07|3.1.0 train|none|
+|AF16|Sections with `:::agent` text or a danger are never omitted. A view over budget ends with a `[budget: …]` line, as well as stderr and the manifest. A pointer names the warning or question it hides (GAP-4, GAP-10 fixed)|[Budgets](../docs/rfcs/research-contract.smd#budgets-routing-and-truncation)|G0 decided, G1 built for agent blocks and dangers|partial|yes, `researchContract.test.ts`|3.1.0 train (overflow line #160)|none|
+|AF17|Containment check (C07), trust wording (C04), opt-in writes|[Trust](../docs/rfcs/research-contract.smd#host-trust-and-authorization)|G0 decided|partial|yes for C07|3.1.0 train|none|
 
 ### Tree, graph and update retrieval
 
 |ID|Foundation in source today|Contract home|Gate|Source|Tested|Released|Study|
 |-|-|-|-|-|-|-|-|
 |AF18|CSS-like `smd query` selectors with attribute filters|Filtering requirement T1–T7|G2|partial|yes for existing selectors|1.3.0|none|
-|AF19|No typed edges. Links, `:ref`, `related:` and includes exist as text|[Edges](../docs/RESEARCH-CONTRACT-RFC.smd#edge-semantics), filtering G1–G7|G0 decided, G2 build|no|no|no|none|
+|AF19|No typed edges. Links, `:ref`, `related:` and includes exist as text|[Edges](../docs/rfcs/research-contract.smd#edge-semantics), filtering G1–G7|G0 decided, G2 build|no|no|no|none|
 |AF20|None|Edges, filtering G3–G5|G2|no|no|no|none|
-|AF21|Bare `question` matches every question. No lifecycle filter|[Legacy queries](../docs/RESEARCH-CONTRACT-RFC.smd#legacy-query-compatibility)|G0 decided, G2 build|partial|locked by `researchContract.test.ts`|1.3.0 behavior|none|
+|AF21|Bare `question` matches every question. No lifecycle filter|[Legacy queries](../docs/rfcs/research-contract.smd#legacy-query-compatibility)|G0 decided, G2 build|partial|locked by `researchContract.test.ts`|1.3.0 behavior|none|
 |AF22|`smd diff --since <git-ref>` shows changed sections|G2 update retrieval|G2|partial|yes for diff|1.3.0|none|
 |AF23|Provenance manifest `smd-projection/1` (C05)|G2 task views|G2|partial|yes|3.1.0 train|none|
 |AF24|C11 profile: no cache warranted, each call parses once|Filtering decision "compute the graph from the source"|G2|partial|bench only|3.1.0 train|none|
