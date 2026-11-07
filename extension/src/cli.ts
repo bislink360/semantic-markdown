@@ -48,9 +48,9 @@ Reading (token-efficient, for agents):
       Start here. The whole agent view when it fits n tokens (default ${READ_BUDGET}), else the outline,
       so one call replaces outline + agent. --section reads only those sections. --tokenizer counts
       the view with that encoding to decide. --constraints and --provenance as on agent.
-  smd savings <files|dirs...> [--json] [--price <USD per million input tokens>]
+  smd savings <files|dirs...> [--json]
       Tokens an agent saves by reading the agent view instead of the raw files, per document and in
-      total, in tokens and dollars (default price 3).
+      total, as a number and a percentage.
   smd outline <file.smd> [--related] [--tokenizer <name>]
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost

@@ -3,6 +3,7 @@
 ## 3.1.0 — 2026-11-05
 
 ### ⚠️ Breaking changes
+- **`smd savings` reports tokens and percentages only; `--price` and the dollar figures are removed.** Token prices change over time and differ by model, so a default price of $3 per million tokens went stale. The text report and `--json` now give the tokens saved as a number and a percentage, for the whole agent view and for `--brief`. The `--json` fields `price`, `dollars` and `dollarsBrief` are gone. *Migration:* multiply `total.saved` (or `total.savedBrief`) by your own price per token. A leftover `--price <n>` is accepted and ignored with a note on stderr, so scripts that pass it keep running.
 
 ### Added
 - **`smd build` sites are ready for search engines, link previews and AI tools.** Every page gets a meta description from its front matter `summary:`, and Open Graph and Twitter card tags. The site gets an `llms.txt` ([llmstxt.org](https://llmstxt.org)) listing its documents with their summaries. The new `--url https://example.com/docs/` (or an absolute `--base`) adds canonical links, `og:url` and a `sitemap.xml`, plus a `robots.txt` naming the sitemap when the site is at the root of its host. The new `--image` sets the link-preview image. Links between pages stay relative with `--url`. A linked file of the same name in the documents (such as your own `llms.txt`) is copied instead of the generated one.

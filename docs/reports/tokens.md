@@ -255,4 +255,4 @@ Keep the `--json` record with any results you publish, so a later run can be com
 
 The output is Markdown with the same tables as this page. The 2.4.0 rows came from the same script run with the 2.4.0 versions of `skills/agent-rules.md`, `skills/semantic-markdown-reader/SKILL.md`, `skills/semantic-markdown-writer/SKILL.md` and `references/syntax.md` checked out.
 
-For your own documents, `smd outline FILE` prints the raw and agent-view cost of one document and of each section, and `smd savings docs/` reports the raw, agent-view and `--brief` tokens of every document in a folder, with the saving in tokens and dollars.
+For your own documents, `smd outline FILE` prints the raw and agent-view cost of one document and of each section, and `smd savings docs/` reports the raw, agent-view and `--brief` tokens of every document in a folder, with the saving in tokens and as a percentage.

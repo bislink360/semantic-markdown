@@ -32,18 +32,20 @@ test('readDocument: the whole view when it fits, else the outline', () => {
   assert.ok(part.fullTokens < long.fullTokens);
 });
 
-test('savings: per file and total, in tokens and dollars', () => {
+test('savings: per file and total, in tokens and percent, no prices', () => {
   const styled = `${big}\n## Background {agent=skip}\n\n${'history '.repeat(300)}\n`;
   const rows = [savingsRow('a.smd', small), savingsRow('b.smd', styled)];
   // A tiny document's agent view can be a little larger than the file (its header line): savings may be negative.
   assert.ok(rows[1].agent < rows[1].raw && rows[1].brief < rows[1].raw);
-  const report = savingsReport(rows, 3);
+  const report = savingsReport(rows);
   assert.equal(report.total.raw, rows[0].raw + rows[1].raw);
   assert.equal(report.total.saved, report.total.raw - report.total.agent);
-  assert.equal(report.dollars, Math.round(((report.total.saved * 3) / 1e6) * 10000) / 10000);
+  assert.equal(report.total.percent, Math.round((report.total.saved / report.total.raw) * 100));
+  assert.deepEqual(Object.keys(report), ['files', 'total']);
   assert.match(savingsText(report), /^file +raw +agent/);
   assert.match(savingsText(report), /Reading all 2 document\(s\) once/);
-  assert.equal(savingsReport([], 3).total.percent, 0);
+  assert.doesNotMatch(savingsText(report), /\$|dollar|price/i);
+  assert.equal(savingsReport([]).total.percent, 0);
 });
 
 test('agent setup: MCP config per agent, merged into existing files', () => {
@@ -162,10 +164,13 @@ test('CLI: smd read and smd savings', { skip: !existsSync(cli) && 'run npm run b
   assert.match(smd('read', join(root, 'big.smd'), '--section', 'Part 1').stdout, /Part 1/);
   assert.equal(smd('read', join(root, 'big.smd'), '--section', 'nope').status, 1);
   assert.equal(smd('read', join(root, 'big.smd'), '--max-tokens', 'x').status, 2);
-  const savings = smd('savings', root, '--json', '--price', '15');
+  const savings = smd('savings', root, '--json');
   assert.equal(savings.status, 0, savings.stderr);
-  assert.equal(JSON.parse(savings.stdout).price, 15);
-  assert.equal(smd('savings', root, '--price', '-1').status, 2);
+  assert.equal(JSON.parse(savings.stdout).price, undefined);
+  // A leftover --price from older scripts is ignored with a note, not read as a folder.
+  const legacy = smd('savings', root, '--price', '15');
+  assert.equal(legacy.status, 0, legacy.stderr);
+  assert.match(legacy.stderr, /--price was removed/);
 });
 
 test('CLI: smd init --agent sets up skills, rules and MCP configs', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
