@@ -6,8 +6,9 @@ import { renderDoc, type Rendered } from './conditions';
 import { agreement, agreementText, type PairsFile } from './agreement';
 import { compareMarks, marksText } from './marks';
 import { DEFAULT_CORPUS, loadCorpus } from './corpus';
-import { defaultDeps, runEval, type RunConfig, type RunDeps } from './runner';
-import { outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord } from './score';
+import { accountRun, byTaskCsv, tokenReportText } from './accounting';
+import { defaultDeps, probeSetup, runEval, type RunConfig, type RunDeps } from './runner';
+import { outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord, type Outcome } from './score';
 import { mapCorpus, spanReportText, spansOk } from './spans';
 import { survival, survivalText } from './survival';
 import { validateCorpus, validationText } from './validate';
@@ -22,8 +23,8 @@ import { validateCorpus, validationText } from './validate';
  *   npm run eval -- map-spans [corpus] [--write] [--json]
  *   npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
  *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
- *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
-  npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
+ *   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
+ *   npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
  *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl] [--model <label>]
  *
  * The corpus defaults to research/corpus/. Relative paths are read from the folder npm was run in.
@@ -35,13 +36,15 @@ const USAGE = `Usage:
   npm run eval -- check [corpus] [--json] [--out <dir>]
   npm run eval -- map-spans [corpus] [--write] [--json]
   npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
-  npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs <a,b>] [--tasks <a,b>] [--conditions <a,b>] [--runs <n>] [--limit <n>] [--concurrency <n>]
+  npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
+  npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs <a,b>] [--tasks <a,b>] [--conditions <a,b>] [--runs <n>] [--limit <n>] [--concurrency <n>]
   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <file>] [--model <label>]
+  npm run eval -- tokens <run dir> [--out <dir>] [--scored <outcomes.json>] [--model <label>] [--seed <n>] [--resamples <n>] [--baseline <condition>] [--json]
 `;
 
 const VALUE_FLAGS = new Set([
   '--out', '--tokenizer', '--seed', '--resamples', '--baseline', '--judged', '--model',
-  '--a', '--b', '--pairs', '--other', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency',
+  '--a', '--b', '--pairs', '--scored', '--other', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency',
 ]);
 
 interface Parsed { command?: string; positional: string[]; flags: Map<string, string | true> }
@@ -149,6 +152,11 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
     case 'run': {
       const configFile = stringFlag(flags, '--config');
       if (!configFile || !out) throw new Error('run needs --config <run.json> --out <dir>');
+      if (flags.has('--setup-probe')) {
+        if (flags.has('--dry-run')) throw new Error('--setup-probe sends requests; it cannot be combined with --dry-run');
+        return probeSetup({ corpusDir, config: readJsonFile(configFile) as RunConfig, out, conditions: listFlag(flags, '--conditions') }, { ...defaultDeps(log), ...deps })
+          .then((s) => (s.failed ? 1 : 0));
+      }
       return runEval({
         corpusDir, config: readJsonFile(configFile) as RunConfig, out, configFile: resolvePath(configFile), dryRun: flags.has('--dry-run'),
         docs: listFlag(flags, '--docs'), tasks: listFlag(flags, '--tasks'), conditions: listFlag(flags, '--conditions'),
@@ -201,6 +209,25 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       write(path.join(out, 'judge-key.jsonl'), jsonl(result.key));
       log(summaryText(result));
       return 0;
+    }
+    case 'tokens': {
+      // The run folder is the first positional argument, not a corpus.
+      if (!positional[0]) throw new Error('tokens needs <run dir> (the --out folder of run)');
+      const runDir = resolvePath(positional[0]);
+      const scored = stringFlag(flags, '--scored');
+      const report = accountRun(runDir, {
+        seed: numberFlag(flags, '--seed'), resamples: numberFlag(flags, '--resamples'), baseline: stringFlag(flags, '--baseline'), model: stringFlag(flags, '--model'),
+        outcomes: scored ? readJsonFile(scored) as Outcome[] : undefined,
+      });
+      const text = tokenReportText(report);
+      const dir = out ?? path.join(runDir, 'tokens');
+      write(path.join(dir, 'calls.jsonl'), jsonl(report.calls));
+      write(path.join(dir, 'episodes.jsonl'), jsonl(report.episodes));
+      write(path.join(dir, 'tokens.json'), JSON.stringify({ rules: report.rules, settings: report.settings, conditions: report.conditions, problems: report.problems }, null, 2) + '\n');
+      write(path.join(dir, 'tokens.md'), text);
+      write(path.join(dir, 'by-task.csv'), byTaskCsv(report));
+      log(flags.has('--json') ? JSON.stringify({ conditions: report.conditions, problems: report.problems }, null, 2) + '\n' : text);
+      return report.episodes.length ? 0 : 1;
     }
     default:
       log(USAGE);
