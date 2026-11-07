@@ -8,14 +8,15 @@ import { compareMarks, marksText } from './marks';
 import { DEFAULT_CORPUS, loadCorpus } from './corpus';
 import { accountRun, byTaskCsv, tokenReportText } from './accounting';
 import { defaultDeps, probeSetup, runEval, type RunConfig, type RunDeps } from './runner';
+import { judgeAgreement, judgeAgreementText, parseJudged, parsePackets, runJudge, samplePackets, scoringSheet } from './judge';
 import { outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord, type Outcome } from './score';
 import { mapCorpus, spanReportText, spansOk } from './spans';
 import { survival, survivalText } from './survival';
 import { validateCorpus, validationText } from './validate';
 
 /**
- * The evaluation harness (see README.md). Only `run` calls a model, with an explicit config and keys from the
- * environment; every other command sends nothing anywhere.
+ * The evaluation harness (see README.md). Only `run` and `judge` call a model, with an explicit config and keys from
+ * the environment; every other command sends nothing anywhere.
  *
  *   npm run eval -- validate [corpus] [--json]
  *   npm run eval -- render [corpus] --out <dir> [--tokenizer o200k_base]
@@ -25,7 +26,10 @@ import { validateCorpus, validationText } from './validate';
  *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
  *   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
  *   npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
- *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl] [--model <label>]
+ *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>]
+ *   npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit n] [--concurrency n]
+ *   npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share 0.15 | --count 50] [--seed 1]
+ *   npm run eval -- judge-agreement <judge-packets.jsonl> --judged <file> --human <file> [--out <dir>] [--json]
  *
  * The corpus defaults to research/corpus/. Relative paths are read from the folder npm was run in.
  */
@@ -38,13 +42,16 @@ const USAGE = `Usage:
   npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs <a,b>] [--tasks <a,b>] [--conditions <a,b>] [--runs <n>] [--limit <n>] [--concurrency <n>]
-  npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <file>] [--model <label>]
+  npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <files>] [--model <label>]
   npm run eval -- tokens <run dir> [--out <dir>] [--scored <outcomes.json>] [--model <label>] [--seed <n>] [--resamples <n>] [--baseline <condition>] [--json]
+  npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit <n>] [--concurrency <n>]
+  npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share <0..1> | --count <n>] [--seed <n>]
+  npm run eval -- judge-agreement <judge-packets.jsonl> --judged <files> --human <files> [--out <dir>] [--json]
 `;
 
 const VALUE_FLAGS = new Set([
   '--out', '--tokenizer', '--seed', '--resamples', '--baseline', '--judged', '--model',
-  '--a', '--b', '--pairs', '--scored', '--other', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency',
+  '--a', '--b', '--pairs', '--scored', '--other', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency', '--human', '--share', '--count',
 ]);
 
 interface Parsed { command?: string; positional: string[]; flags: Map<string, string | true> }
@@ -194,8 +201,8 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       // `run` writes model as "<label>:<model id>"; --model keeps one model's answers.
       const only = stringFlag(flags, '--model');
       const records = only ? parsed.records.filter((r) => r.model === only || r.model?.startsWith(`${only}:`)) : parsed.records;
-      const judgedFile = flags.get('--judged');
-      const judged = typeof judgedFile === 'string' ? (parseJudged(fs.readFileSync(resolvePath(judgedFile), 'utf8'))) : undefined;
+      const judgedFiles = stringFlag(flags, '--judged');
+      const judged = judgedFiles ? readJudged(judgedFiles) : undefined;
       const result = scoreAnswers(corpus, records, {
         seed: numberFlag(flags, '--seed'), resamples: numberFlag(flags, '--resamples'),
         baseline: typeof flags.get('--baseline') === 'string' ? flags.get('--baseline') as string : undefined, judged,
@@ -208,6 +215,40 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       write(path.join(out, 'judge-packets.jsonl'), jsonl(result.packets));
       write(path.join(out, 'judge-key.jsonl'), jsonl(result.key));
       log(summaryText(result));
+      return 0;
+    }
+    case 'judge': {
+      // The packets file is the first positional argument, not a corpus.
+      const configFile = stringFlag(flags, '--config');
+      if (!positional[0] || !configFile || !out) throw new Error('judge needs <judge-packets.jsonl> --config <run.json> --out <dir>');
+      return runJudge({
+        packets: readPackets(positional[0]), config: readJsonFile(configFile) as RunConfig, out, model: stringFlag(flags, '--model'),
+        dryRun: flags.has('--dry-run'), limit: numberFlag(flags, '--limit'), concurrency: numberFlag(flags, '--concurrency'),
+      }, { ...defaultDeps(log), ...deps }).then((s) => (s.failed ? 1 : 0));
+    }
+    case 'sample': {
+      if (!positional[0] || !out) throw new Error('sample needs <judge-packets.jsonl> --out <dir>');
+      const picked = samplePackets(readPackets(positional[0]), { share: numberValue(flags, '--share'), count: numberFlag(flags, '--count'), seed: numberFlag(flags, '--seed') });
+      write(path.join(out, 'human-packets.jsonl'), jsonl(picked));
+      write(path.join(out, 'human-sheet.md'), scoringSheet(picked));
+      log(`Drew ${picked.length} packet(s) for blind human scoring: ${path.join(out, 'human-packets.jsonl')} and human-sheet.md\n`);
+      return 0;
+    }
+    case 'judge-agreement': {
+      const judgedFiles = stringFlag(flags, '--judged');
+      const humanFiles = stringFlag(flags, '--human');
+      if (!positional[0] || !judgedFiles || !humanFiles) throw new Error('judge-agreement needs <judge-packets.jsonl> --judged <file> --human <file>');
+      const packets = readPackets(positional[0]);
+      const report = judgeAgreement(packets, readJudged(judgedFiles), readJudged(humanFiles));
+      const text = judgeAgreementText(report);
+      if (out) {
+        const rescore = packets.filter((p) => report.rescore.includes(p.task.id));
+        write(path.join(out, 'judge-agreement.json'), JSON.stringify(report, null, 2) + '\n');
+        write(path.join(out, 'judge-agreement.md'), text);
+        write(path.join(out, 'rescore-packets.jsonl'), jsonl(rescore));
+        write(path.join(out, 'rescore-sheet.md'), scoringSheet(rescore));
+      }
+      log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : text);
       return 0;
     }
     case 'tokens': {
@@ -235,9 +276,26 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
   }
 }
 
-export function parseJudged(text: string): JudgedRecord[] {
-  return text.split(/\r?\n/).filter((l) => l.trim()).map((l) => JSON.parse(l) as JudgedRecord);
+export { parseJudged };
+
+/** Reads one or more judged files (comma-separated); for a packet in several, the last file wins. */
+function readJudged(files: string): JudgedRecord[] {
+  const byPacket = new Map<string, JudgedRecord>();
+  for (const f of files.split(',').map((s) => s.trim()).filter(Boolean)) {
+    for (const r of parseJudged(fs.readFileSync(resolvePath(f), 'utf8'), f)) byPacket.set(r.packet, r);
+  }
+  return [...byPacket.values()];
 }
+
+const readPackets = (file: string) => parsePackets(fs.readFileSync(resolvePath(file), 'utf8'));
+
+const numberValue = (flags: Parsed['flags'], name: string) => {
+  const v = stringFlag(flags, name);
+  if (v === undefined) return undefined;
+  const n = Number(v);
+  if (!Number.isFinite(n)) throw new Error(`${name} needs a number`);
+  return n;
+};
 
 if (require.main === module) {
   const fail = (e: unknown) => {

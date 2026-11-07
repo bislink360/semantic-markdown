@@ -1,8 +1,8 @@
 # Evaluation harness (C03)
 
-Tooling for Study 1 (`research/study-1-agent-evaluation.smd`): a corpus format and validator, a span mapper and an agreement report for the annotations, a renderer for every condition, an offline evidence survival check, a model runner and a task scorer. The corpus, the annotations and the tasks are the research author's work, not this code's.
+Tooling for Study 1 (`research/study-1-agent-evaluation.smd`): a corpus format and validator, a span mapper and an agreement report for the annotations, a renderer for every condition, an offline evidence survival check, a model runner, a task scorer, and a model judge with its blind human check. The corpus, the annotations and the tasks are the research author's work, not this code's.
 
-Only `run` calls a model, and only with an explicit config file and keys read from environment variables. Every other command sends nothing anywhere.
+Only `run` and `judge` call a model, and only with an explicit config file and keys read from environment variables. Every other command sends nothing anywhere.
 
 The fixture in `fixture/` only tests the harness. It is not study data (see `fixture/README.md`).
 
@@ -18,7 +18,10 @@ npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
 npm run eval -- render [corpus] --out <dir> [--tokenizer o200k_base]
 npm run eval -- check [corpus] [--json] [--out <dir>]
 npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
-npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl] [--model <label>]
+npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>]
+npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit n] [--concurrency n]
+npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share 0.15 | --count 50] [--seed 1]
+npm run eval -- judge-agreement <judge-packets.jsonl> --judged <files> --human <files> [--out <dir>] [--json]
 npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
 ```
 
@@ -31,6 +34,7 @@ npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model
 - `run` asks the models (see [Model runs](#model-runs)). It exits with 1 when an answer failed. With `--setup-probe` it sends only the setup probe (see [Token accounting](#token-accounting)).
 - `score` writes `outcomes.json`, `outcomes.csv`, `summary.json`, `summary.md`, `judge-packets.jsonl` and `judge-key.jsonl`. The summary pools every answer of a condition, so score one model at a time with `--model <label>` (it keeps records whose `model` is the label or starts with `<label>:`).
 - `tokens` reads a run folder and writes the token accounting (see [Token accounting](#token-accounting)). It exits with 1 when the folder holds no transcripts.
+- `judge`, `sample` and `judge-agreement` score qualification answers with a model judge and check it against people (see [Model judge](#model-judge)). `judge` exits with 1 when a packet failed.
 
 `--tokenizer` needs the optional `js-tiktoken` package. Without it every count is an estimate (characters / 4).
 
@@ -292,4 +296,22 @@ Provider token counts (`usage`) and estimates (characters / 4) are kept in separ
 
 ### Judge packets
 
-Qualification answers are written to `judge-packets.jsonl` in a seeded random order. A packet holds the task, the rubric, the annotated items as plain Markdown text, and the answer. It never holds the condition. `judge-key.jsonl` maps packet ids back to answers. Keep it away from judges. Pass the judgements back with `--judged`, one line per packet: `{"packet": "9e64247cc329", "correct": 1, "violation": false}`.
+Qualification answers are written to `judge-packets.jsonl` in a seeded random order. A packet holds the task, the rubric, the annotated items as plain Markdown text, and the answer. It never holds the condition. `judge-key.jsonl` maps packet ids back to answers. Keep it away from judges. Pass the judgements back with `--judged`, one line per packet: `{"packet": "9e64247cc329", "correct": 1, "violation": false}`. `correct` must be 0 to 1. `--judged` takes several files separated by commas. For a packet in more than one, the last file wins, so list the judge's file first and people's rescoring after it.
+
+### Model judge
+
+The protocol scores open answers with a model judge that never sees the condition, has a person score a random 15% blind, and has people rescore any task where the two disagree on more than a fifth of its answers. Three commands do this, after `score` has written `judge-packets.jsonl`.
+
+```sh
+npm run eval -- judge out/score/judge-packets.jsonl --config run.json --model judge-a --out out/judge --dry-run
+npm run eval -- judge out/score/judge-packets.jsonl --config run.json --model judge-a --out out/judge
+npm run eval -- sample out/score/judge-packets.jsonl --out out/human --share 0.15
+npm run eval -- judge-agreement out/score/judge-packets.jsonl --judged out/judge/judged.jsonl --human out/human/human.jsonl --out out/agree
+npm run eval -- score ../research/corpus out/run/answers.jsonl --out out/final --judged out/judge/judged.jsonl,out/human/human.jsonl,out/agree/rescored.jsonl
+```
+
+- `judge` sends each packet to one model from a run config (the same format as `run`; pick it with `--model` when the config lists several). The judge gets a fixed system prompt, the question, the rubric, the annotated passages and the answer, and no tool. It must give `true` or `false` for every rubric criterion and for `violation`. `correct` is the share of criteria met, worked out by the harness, not taken from the judge. Verdicts go to `judged.jsonl`, which `score --judged` reads. A reply that is not valid, or a failed request, goes to `judge-errors.jsonl` and is tried again on the next call, and packets already in `judged.jsonl` are skipped. Every request is kept in `judge-transcripts/`. `--dry-run` sends nothing, reads no key, and writes the first request and a cost estimate to `judge-dry-run/`.
+- `sample` draws the packets people score blind, with a seed. `--share 0.15` (the default) draws within each task: at least one answer of every task, then 15% of its answers rounded up, so every task can be checked against the rescoring rule. `--count 50` draws 50 packets at random, for the check on 50 hand-scored answers before the main run. It writes `human-packets.jsonl` and `human-sheet.md`, a sheet a person can score from. People write their scores as JSON lines in the same shape as `judged.jsonl`.
+- `judge-agreement` compares judge and people on the packets both scored. An answer passes when `correct` is at least 0.5. A disagreement is a different pass or fail, or a different violation verdict. The report gives pass/fail and violation agreement with Cohen's kappa, the mean difference in `correct`, and how the judge-minus-human difference moves with answer length, since judges can favour long answers. Tasks with disagreements on more than 20% of their sampled answers are listed for rescoring, and with `--out` every packet of those tasks goes to `rescore-packets.jsonl` and `rescore-sheet.md`.
+
+`judge-key.jsonl` is never an input to these commands. Keep it away from the judge and from the people scoring.
