@@ -6,7 +6,7 @@ status: draft
 owners: ["@roshanmadhushanka"]
 tags: [requirements, spec, semantic-tags]
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-07
 toc: true
 related:
   - SPEC.md
@@ -349,11 +349,11 @@ The id attributes from phases 1 and 2 (`verifies`, `applies-to`, `supports`, `co
 
 ## Decisions
 
-:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Five core tags, not nine
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Five core tags, not nine
 Add `requirement`, `constraint`, `acceptance`, `assumption` and `evidence`, plus id attributes for links. Defer `claim`, `conflict`, `limitation` and a `dependency` block. Fewer tags keep the skills cheap and leave less for authors to learn, and links between existing tags cover most of what the other four would add.
 :::
 
-:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Document-scoped constraints are always in the view
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Document-scoped constraints are always in the view
 A `scope=document` constraint is shown in every agent view, as `:::agent` blocks are, not only with `--constraints`. The author marked it as applying everywhere, and C04 showed that leaving such rules out of a section read is the failure that matters.
 :::
 

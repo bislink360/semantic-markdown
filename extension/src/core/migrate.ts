@@ -8,7 +8,7 @@ import { FRONTMATTER_SCHEMA } from './frontmatterSchema';
 import { EN } from './i18n';
 import { codeLines, inlineMathLines, literalLines, mathOnLine, type InlineMathLines } from './parse';
 import { createMarkdownIt, HEADING_ATTRS, type Env } from './render';
-import { CONTAINERS, INLINE_DIRECTIVES } from './spec';
+import { CONTAINERS, INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { readSpec, specVersion } from './specVersion';
 import { gfmLinkify } from './typography';
 import { AGENT_PRIORITY_REMOVED } from './v2Hints';
@@ -384,8 +384,11 @@ function textOnly(line: string, math: ReadonlyArray<[number, number]>, all: bool
   return blank(masked, spans);
 }
 
-/** Whether the vocabulary defines an inline directive name as written (an own property, as isKnownContainer). */
-const isKnownDirective = (name: string): boolean => Object.hasOwn(INLINE_DIRECTIVES, name);
+/**
+ * Whether spec v1, the version a migrated document was written for, reads `name` as a directive. It is the frozen v1
+ * list (D5), not the whole vocabulary, so v1 text such as `:since[1.6]` is still escaped after `since` is added.
+ */
+const isV1Directive = (name: string): boolean => isKnownDirective(name, 1);
 
 /** `:name[` that is text today: the name is not a known directive as written, and a `]` closes it later on the line. */
 const DIRECTIVE_START = /(?<=^|[\s([{>*_~"'-]):([A-Za-z][A-Za-z0-9-]*)\[/g;
@@ -404,8 +407,8 @@ function v2ListAt(raw: string, open: number): boolean {
  */
 function unknownDirectiveColumns(text: string, raw: string, continued: () => boolean): number[] {
   const closes = (from: number) => text.includes(']', from) || continued();
-  const brackets = [...text.matchAll(DIRECTIVE_START)].filter((m) => !isKnownDirective(m[1]) && closes(m.index + m[0].length));
-  const braces = [...text.matchAll(DIRECTIVE_BRACES)].filter((m) => !isKnownDirective(m[1]) && v2ListAt(raw, m.index + m[0].length));
+  const brackets = [...text.matchAll(DIRECTIVE_START)].filter((m) => !isV1Directive(m[1]) && closes(m.index + m[0].length));
+  const braces = [...text.matchAll(DIRECTIVE_BRACES)].filter((m) => !isV1Directive(m[1]) && v2ListAt(raw, m.index + m[0].length));
   return [...brackets, ...braces].map((m) => m.index).sort((a, b) => a - b);
 }
 
@@ -485,7 +488,7 @@ function listStarts(raw: string, masked: string): number[] {
   for (let p = masked.indexOf('{'); p !== -1; p = masked.indexOf('{', p + 1)) {
     const before = masked.slice(0, p);
     const directive = KNOWN_DIRECTIVE_BEFORE.exec(before);
-    if (before.endsWith(']') || (directive && isKnownDirective(directive[1]))) starts.add(p);
+    if (before.endsWith(']') || (directive && isV1Directive(directive[1]))) starts.add(p);
   }
   return [...starts].sort((a, b) => a - b);
 }
@@ -561,7 +564,7 @@ const DIRECTIVE = /(^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(\[[^\]\n]*\])?(\{[^{}\n]
 function directiveCaseFixes(i: number, text: string): Fix[] {
   const fixes: Fix[] = [];
   for (const m of text.matchAll(DIRECTIVE)) {
-    const spec = isKnownDirective(m[2]) ? INLINE_DIRECTIVES[m[2]] : undefined;
+    const spec = isV1Directive(m[2]) ? INLINE_DIRECTIVES[m[2]] : undefined;
     if (!spec) continue;
     const col = m.index + m[1].length;
     const end = col + m[0].length - m[1].length;

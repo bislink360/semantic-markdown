@@ -13,7 +13,7 @@ const src = ':::warnign\nA [word]{color=blu}\n:::\n';
 
 test('every code the validator reports is registered, and the schema lists them all', () => {
   const sources = ['validate.ts', 'rules.ts', 'mermaid.ts', 'includeCheck.ts', 'v2Hints.ts', 'tableCheck.ts'].map((f) => fs.readFileSync(path.join(__dirname, '..', 'src', 'core', f), 'utf8')).join('\n');
-  const emitted = new Set([...sources.matchAll(/'((?:frontmatter|container|attrs|heading|directive|mermaid|math|fence|id|include|link|figure|footnote|glossary|variable|changelog|quote|deprecated|task|table|rules)\/[a-z-]+)'/g)].map((m) => m[1]));
+  const emitted = new Set([...sources.matchAll(/'((?:frontmatter|container|attrs|heading|directive|mermaid|math|fence|id|include|link|figure|ref|footnote|glossary|variable|changelog|quote|deprecated|task|table|rules)\/[a-z-]+)'/g)].map((m) => m[1]));
   // rules.ts names the codes 2.0 removed, to explain them.
   assert.deepEqual([...emitted].filter((c) => !removedRule(c)).sort(), Object.keys(RULE_CODES).sort());
 

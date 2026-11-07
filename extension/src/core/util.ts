@@ -1,3 +1,6 @@
+/** `s` with every regular expression metacharacter escaped, to match it as written. */
+export const escapeRegExp = (s: string): string => s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+
 /** Closest known word within a small edit distance, for "did you mean" hints. */
 export function suggest(word: string, candidates: readonly string[]): string | undefined {
   let best: string | undefined;

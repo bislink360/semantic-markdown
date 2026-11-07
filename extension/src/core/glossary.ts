@@ -5,6 +5,7 @@ import { findFootnotes } from './footnotes';
 import { parseFrontMatter } from './frontmatter';
 import { slugify } from './sections';
 import { specVersion, type SpecVersion } from './specVersion';
+import { escapeRegExp } from './util';
 
 /**
  * Glossaries: `:::glossary` blocks whose list items are `**Term**: definition`, and the uses of those terms
@@ -66,8 +67,6 @@ export interface TermMatch<T> {
 export interface TermMatcher<T> {
   find(text: string): Array<TermMatch<T>>;
 }
-
-const escapeRegExp = (s: string) => s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /**
  * Quotes and dashes the typographer changes (`'` → `’`, `"` → `“`, `--` → `–`, `---` → `—`), each with the pattern

@@ -1,0 +1,378 @@
+---
+smd: 2
+title: Semantic tags RFC
+summary: The syntax, rendering, agent view, budget treatment, plain-Markdown fallback, query selectors, validator rules, compatibility and token cost of the semantic tags, starting with shared block ids and the phase 1 tags requirement, constraint and acceptance. It turns the semantic tags requirements into a design the maintainer accepts section by section before each phase is built.
+status: review
+owners: ["@roshanmadhushanka"]
+tags: [rfc, spec, semantic-tags]
+created: 2026-11-07
+updated: 2026-11-07
+toc: true
+related:
+  - semantic-tags-requirement.smd
+  - RESEARCH-CONTRACT-RFC.smd
+  - research-interaction-requirements.smd
+  - static-and-graph-based-filtering-requirement.smd
+  - SPEC.md
+  - TOKENS.md
+---
+
+## How to read this
+
+This RFC answers the [semantic tags requirements](semantic-tags-requirement.smd) (R1 to R69, AC1 to AC20). Requirement ids in this document refer to that file. The [research contract](RESEARCH-CONTRACT-RFC.smd) is approved and binds this design where the two overlap. Where its decisions change a requirement, the contract wins and this RFC says so.
+
+Each phase has its own section, and the maintainer accepts each one separately. Nothing in a phase is built before its section is accepted. Phase 1 is written out in full. Phases 2 and 3 are outlined so the phase 1 choices don't block them, and each gets a full section before it starts.
+
+The maintainer accepted decisions D1 to D6 on 2026-11-07, and with them the block id groundwork and the v1 directive list. Q1 and Q2 stay open with their fallbacks, and Q1 must be answered before the phase 1 tags are accepted.
+
+Recorded behavior was checked at f48e706 (the 3.1.0 release train, unreleased) by reading the source and running the CLI.
+
+## Phase 1 at a glance
+
+| Part                     | What ships                                                                     | Requirements  |
+| ------------------------ | ------------------------------------------------------------------------------ | ------------- |
+| Block ids and references | `:ref[id]` for any block, `ref/unknown` and `ref/ambiguous` for id attributes  | R13 to R17    |
+| `:::requirement`         | A required behavior with an id, priority and status                            | R20 to R24    |
+| `:::constraint`          | A restriction with a scope, and the view rules that keep it in front of agents | R25 to R32    |
+| `:::acceptance`          | Observable conditions that say how to check a requirement                      | R33 to R37    |
+| Templates                | Spec, PRD and test-plan templates written with the new tags                    | R24, R32, R37 |
+
+Editor features beyond completion and hover (R18), references to other documents (R19), `smd trace` and everything in phase 2 wait for later sections.
+
+## Block ids and references
+
+### What exists
+
+The 3.1.0 train already has one id namespace per document (R13). The parse records every id a block gives with its line, from headings, tasks with a trailing `{#id}`, containers, figures and raw HTML. `resolveId` returns one block, an ambiguous set or nothing, and `id/duplicate` warns on the second block that gives an id (R17, #161). Links to an id two blocks give warn `link/ambiguous-anchor`.
+
+`:ref[id]` still only knows figures. A reference to anything else renders as `<span class="smd-ref smd-ref-missing">` with the id as text and warns `figure/unknown-ref`, even when a heading or container has that id.
+
+### `:ref` to any block
+
+`:ref[id]` resolves through `resolveId` when no figure has the id. Figures go first and keep their released first-match rule, so no document that renders a figure reference today changes.
+
+| Target                              | HTML                                                                                                                                                  | Agent view                | `smd export --to md`        |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------------------------- |
+| A figure                            | `<a class="smd-ref" href="#id">Figure 2</a>`, as today                                                                                                | `Figure 2 (id)`, as today | `[Figure 2](#id)`, as today |
+| Any other block with that id        | `<a class="smd-ref" href="#R1" title="Section reads keep applicable instructions" aria-label="R1, Section reads keep applicable instructions">R1</a>` | `R1`                      | `[R1](#R1)`                 |
+| Two blocks that aren't both figures | `<span class="smd-ref smd-ref-ambiguous">R1</span>` and `ref/ambiguous`                                                                               | `:ref[R1]`, as written    | `:ref[R1]`, as written      |
+| Nothing                             | The missing span, as today                                                                                                                            | `:ref[R1]`, as today      | `:ref[R1]`, as today        |
+
+An ambiguous or missing reference stays as written in the agent view and plain Markdown, as missing references always have, so an agent sees the reference wasn't resolved and output for documents with an open warning changes as little as possible. The agent view and plain Markdown resolve against the root document's blocks, as the validator does. Rendered HTML also resolves ids from included files, as it does for figures.
+
+The text is the id as written, never a generated label. The title is the target's title as plain text, which is the heading text for a heading and the container title for a container. A target without a title gets no `title` attribute, and its accessible name is the id alone.
+
+A heading slug counts as a target, as links to it do, but it is `stable: false` in `resolveId`. The validator doesn't warn about it, since links to heading slugs are normal Markdown, but any manifest that records the target marks it unstable (research contract, "Identity").
+
+### Id attributes
+
+These attributes take ids, as one id or a comma-separated list (R15). The lexer already reads `verifies=R1,R2` as one bare value and `verifies="R1, R2"` as one quoted value, so no grammar changes.
+
+| Attribute                | On                                                        | Phase |
+| ------------------------ | --------------------------------------------------------- | ----- |
+| `verifies`               | `acceptance`                                              | 1     |
+| `applies-to`             | `constraint`                                              | 1     |
+| `depends-on`             | `requirement` `constraint` `decision` `risk` `assumption` | 2     |
+| `supports` `contradicts` | `evidence`                                                | 2     |
+| `supersedes`             | `decision`                                                | 2     |
+| `between`                | `question`                                                | 2     |
+
+The list lives once in `spec.ts` as `ID_ATTRIBUTES`, so the validator, completion, hover and query read the same names. An id is split on commas, trimmed, and compared case-sensitively, as `{#id}` is.
+
+### Diagnostics
+
+| Code                 | Severity | When                                                                                                                                              | Fix                                                                 |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `ref/unknown`        | warning  | An id in an id attribute names nothing in the document (R16, AC1)                                                                                 | The closest id, when one is within the usual edit distance          |
+| `ref/ambiguous`      | warning  | An id attribute or a `:ref` to a non-figure names an id two or more blocks give (R17, AC3)                                                        | None. The message names every line, as `link/ambiguous-anchor` does |
+| `figure/unknown-ref` | warning  | `:ref[id]` names nothing. The code stays so suppressions keep working, and the message now says "No block with id" instead of "No figure with id" | The closest id of any block                                         |
+
+An id in another document (`other.smd#R1`) is reported as `ref/unknown` until R19 ships, as the research contract's applicability decision asks.
+
+### Compatibility
+
+A `:ref` to a heading or container id renders differently. It was a warning before, so only documents with an open `figure/unknown-ref` warning change. The release notes say so. Spec v1 documents change the same way, since `ref` has been a v1 directive since 1.6 and the rule for a resolved target is the same in both versions.
+
+## Shared shape of every new tag
+
+Every tag in this RFC meets R1 to R12 the same way.
+
+- **Definition.** One `CONTAINERS` entry in `spec.ts` with its attributes, values, defaults and required keys. A new `defaults` field holds the default values (R2), so query results and the agent view read them from one place.
+- **HTML.** `<div class="smd-block smd-<tag>" id="…">` with a header line that shows the kind label, the id and the key attributes as text, then the title, then the body (R3). Status and priority also get a pill with a text label, so color never carries meaning alone.
+- **Agent view.** `<tag id="…" key="…">` then the title, then the body, then `</tag>`, the shape `<decision>` and `<risk>` have (R4). An attribute appears only when it is written or when its default changes meaning. A `proposed` requirement shows `status="proposed"` because an agent must know it is not settled.
+- **Plain Markdown.** A GitHub alert whose first line is a facts line in bold, then the title, then the body, as decisions and risks export today (R5). The tag's name never appears as `:::` syntax in the output (AC20).
+- **Query.** The tag is a block type, and its attributes are selector keys (R6). Id attributes match when any listed id matches, so `acceptance[verifies=R1]` finds `verifies=R1,R2`.
+- **Index.** Each catalog entry gains a `tags` object with a count per new tag, and only when the document has one (R7). Existing fields keep their names and meaning.
+- **Formatting.** `smd fmt` writes `{#id}` first, then the attributes in the order of the tag's table below (R11).
+- **Labels.** The renderer's added words ("Requirement", "Constraint", "Acceptance", "must", "should") are new keys in all seven label languages (R10).
+
+## Requirement
+
+```text
+:::requirement{#R1 priority=P0 status=accepted owner=@api-team} Section reads keep applicable instructions
+Selecting a nested section returns every :::agent block and every constraint that applies to it.
+:::
+```
+
+| Attribute  | Values                                                                | Default    |
+| ---------- | --------------------------------------------------------------------- | ---------- |
+| `{#id}`    | Any id. Needed                                                        | none       |
+| `priority` | `P0` to `P4`, or `critical` `high` `medium` `low` (`PRIORITY_VALUES`) | none       |
+| `status`   | `proposed` `accepted` `implemented` `verified` `deprecated`           | `proposed` |
+| `owner`    | A person or team                                                      | none       |
+
+The title is the requirement in one sentence, and the body holds detail, rationale and examples (R20). `depends-on` joins the list in phase 2.
+
+| Surface        | Shows                                                                                                                |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| HTML           | "Requirement R1", a P0 pill, an "accepted" pill, the owner, then the title                                           |
+| Agent view     | `<requirement id="R1" priority="P0" status="accepted" owner="@api-team">` Section reads keep applicable instructions |
+| Plain Markdown | `> [!IMPORTANT]` with `> **Requirement R1** · P0 · accepted · @api-team`                                             |
+
+**Budget.** A section holding an `accepted`, `implemented` or `verified` requirement is key content, in the same tier as warnings and accepted decisions (R23). `proposed` requirements are ordinary content, and `deprecated` ones are condensed to their opening line under `--brief`.
+
+**Validation.**
+
+| Code                    | Severity | When                                                                                                | Fix                                                                                                                                                                                                                                 |
+| ----------------------- | -------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requirement/id`        | warning  | No `{#id}` (R21, AC4)                                                                               | Add the next free id in the document's own pattern. The pattern is the longest common letter prefix of the existing requirement ids followed by a number, so `R4` after `R3`, `REQ-12` after `REQ-11`, and `R1` when there are none |
+| `requirement/uncovered` | hint     | An `accepted`, `implemented` or `verified` requirement that no acceptance block verifies (R22, AC5) | None                                                                                                                                                                                                                                |
+
+`requirement/uncovered` is a hint, never more, because the research contract keeps coverage, test execution and human acceptance apart (AF26). A requirement with acceptance criteria is covered, not verified.
+
+## Constraint
+
+```text
+:::constraint{#C1 scope=document} Included files stay inside the workspace
+No reader follows a path or link outside the allowed roots.
+:::
+
+:::constraint{#C2 applies-to=R1 level=should} Keep views under 2,000 tokens
+:::
+```
+
+| Attribute    | Values                                        | Default   |
+| ------------ | --------------------------------------------- | --------- |
+| `{#id}`      | Any id                                        | none      |
+| `scope`      | `document` `section`                          | `section` |
+| `applies-to` | Ids of requirements, sections or other blocks | none      |
+| `level`      | `must` `should`                               | `must`    |
+| `owner`      | A person or team                              | none      |
+
+### Which views include a constraint
+
+This is the research contract's applicability rule, accepted on 2026-11-06, made concrete. A constraint applies to a view when any of these holds.
+
+1. It is `scope=document` (R25).
+2. It is `scope=section` and the view shows its section or any subsection of it (R26).
+3. Its `applies-to` names a block the view shows, or a heading whose section the view shows (R27).
+4. It is `scope=section` above the first heading. It then counts as document-scoped, and the validator says so with `constraint/scope`.
+
+A constraint inside an included file applies as if it were written at the include's position. Applicability never removes content a view would otherwise show.
+
+### Where it appears
+
+A view that shows the constraint's own section shows it in place, as any block. A constraint that applies but sits outside the selected sections goes in a new head block, after the document's `:::agent` instructions and before "Dangers elsewhere in the document".
+
+```text
+Constraints that apply here:
+<constraint id="C1" scope="document" level="must"> Included files stay inside the workspace [L40]
+No reader follows a path or link outside the allowed roots.
+</constraint>
+```
+
+The block keeps its full body, also under `--brief`, as dangers are kept. Constraints inside `{agent=skip}` sections and `:::human` blocks never appear, as for dangers. The dangers block keeps its heading and contents unchanged, so the behavior `researchContract.test.ts` locks stays as it is.
+
+### Budgets
+
+Budgeted views (`smd agent --max-tokens`) treat an applying constraint as mandatory content (R29, AC6). A section holding a `scope=document` constraint, or one whose `applies-to` names something the view keeps, is never omitted. When the mandatory content alone exceeds the budget, the overflow line applies, `[budget: ≈437 of 300 tokens, required content does not fit]`. A `scope=section` constraint with no `applies-to` goes with its section, and the section's pointer names it, `holds constraint`.
+
+### The constraints pass
+
+`--constraints` keeps its current output for dangers, warnings, accepted decisions, questions and includes. Applying constraints are already in the head block, so the pass adds pointers only for constraints that apply nowhere in the view, as it does for warnings. Its policy name changes from `constraints/1` to `constraints/2` (R28), and the manifest records the new name.
+
+### Surfaces and validation
+
+| Surface        | Shows                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| HTML           | "Constraint C1", a "must" or "should" pill, "applies to the whole document" or "applies to R1", then the title      |
+| Agent view     | `<constraint id="C1" scope="document" level="must">`, with `applies-to="R1"` when written                           |
+| Plain Markdown | `> [!CAUTION]` for `must` and `> [!WARNING]` for `should`, with `> **Constraint C1** · must · whole document` (R30) |
+
+| Code               | Severity | When                                                                                                                              |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `constraint/scope` | info     | A `scope=section` constraint above the first heading, which applies to the whole document                                         |
+| `constraint/size`  | hint     | Document-scoped constraints together cost more than 500 tokens, so every section read pays for them (the requirements' size risk) |
+
+`applies-to` uses `ref/unknown` and `ref/ambiguous` from the block id section.
+
+The reader skill and `skills/agent-rules.md` say that a constraint binds within the user's task only, grants no permissions and doesn't override higher-priority instructions, the wording `:::agent` blocks have (R31).
+
+## Acceptance
+
+```text
+:::acceptance{#AC1 verifies=R1 test="extension/test/agentView.test.ts"}
+Given a document with an :::agent block in section 2
+When an agent reads only section 3.1
+Then the view holds the :::agent block
+:::
+```
+
+| Attribute  | Values                         | Default                             |
+| ---------- | ------------------------------ | ----------------------------------- |
+| `{#id}`    | Any id. Needed                 | none                                |
+| `verifies` | Requirement ids                | The parent requirement, when nested |
+| `test`     | A relative path to a test file | none                                |
+
+An acceptance block can stand alone with `verifies` or sit inside a requirement (R33). Nested, it verifies its parent and any ids it lists. The body is free Markdown. Templates write Given, When and Then lines, but tools don't read them (R35).
+
+| Surface        | Shows                                                                                                                        |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| HTML           | "Acceptance AC1", "verifies R1" with R1 linked, the test path as a link, then the body                                       |
+| Agent view     | `<acceptance id="AC1" verifies="R1" test="extension/test/agentView.test.ts">`. A nested block lists its parent in `verifies` |
+| Plain Markdown | `> [!NOTE]` with `> **Acceptance AC1** · verifies R1 · test extension/test/agentView.test.ts`                                |
+
+**Budget.** Acceptance blocks are ordinary content. The research contract leaves evidence priority to G3, and acceptance criteria say how to check work rather than restrict it.
+
+| Code                       | Severity | When                                                                              |
+| -------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `acceptance/id`            | warning  | No `{#id}`, with the same next-id fix as `requirement/id`                         |
+| `acceptance/verifies`      | warning  | No `verifies` and no parent requirement (R34)                                     |
+| `link/missing-file`        | warning  | The `test` path doesn't exist (R36). This is the existing code for relative links |
+| `acceptance/verifies-type` | warning  | `verifies` names a block that isn't a requirement                                 |
+
+Neither `verifies` nor an existing test file is evidence that a test passed (AF26). Tools never show a requirement as verified because it has acceptance criteria, and they never set `status=verified` themselves.
+
+## Templates
+
+The spec and PRD templates replace their requirements table with requirement blocks, and the spec template's `:::warning Constraint` with a constraint block (R24, R32). The spec and test-plan templates replace their acceptance table with acceptance blocks (R37). Each template starts with ids already written (`R1`, `C1`, `AC1`), because authors who copy an id keep writing them (the requirements' "Authors don't write ids" risk).
+
+A template is a starting point, so its tables of contents and section names stay as they are. Only the blocks inside change.
+
+## Inline directives in spec v1
+
+Phase 2 adds `:depends[id]` and phase 3 adds `:since[1.6]`. Two code paths read `INLINE_DIRECTIVES` directly today, and both would change existing documents if the new names were simply added to it.
+
+- `directiveNameAt` treats every name in `INLINE_DIRECTIVES` as a directive in spec v1. Adding `since` would turn the v1 text `:since[1.6]` into a directive, which R61 and AC17 forbid.
+- `smd migrate --to 2` escapes the v1 text `:name[…]` only when the name isn't in `INLINE_DIRECTIVES`. Adding `since` would stop the escape, so a migrated document would start rendering `:since[1.6]` as a directive although it was text before migration.
+
+The fix is a frozen `V1_DIRECTIVES` list in `spec.ts` with the nine names v1 knows today. Spec v1 parsing and the migrate escape read that list, and only spec v2 reads `INLINE_DIRECTIVES`. Both are built in phase 1, before any new directive exists, with tests that add a fake name and check v1 output is unchanged.
+
+In spec v2, `:since[1.6]` already renders as an unknown directive span with its content and warns `directive/unknown`. When `since` becomes known, the content becomes a version label and the warning goes away. A v2 document can only have that text with an open warning, so the release notes cover it and no hint is needed.
+
+## Plain Markdown and older tools
+
+`smd export --to md` writes the alerts shown in each tag's table. Documents without the new tags export byte for byte as before (R64, AC18), which the gallery check confirms before and after each phase.
+
+Tools before the release that adds a tag show it as an unknown container that keeps its title (since 1.10) and warn `container/unknown`. Attributes are hidden there, so an old tool shows a requirement's title without its id, priority or status. Templates write the id in the title only where a document must also read well in old tools (R62), which the shipped templates don't need, since they are installed with the version that reads them.
+
+A document that already has a container named `requirement`, `constraint` or `acceptance` renders it as the new tag (R60). The release notes say so, as 1.6 did for `figure` and `glossary`. A search of the gallery, the samples and the research corpus at f48e706 found no such container.
+
+## Token cost
+
+Measured with `npm run bench:tokens` at f48e706, characters divided by four, after `npm run build` so the MCP count includes the server instructions.
+
+| Overhead                             |         Now |                           Limit |     Room |
+| ------------------------------------ | ----------: | ------------------------------: | -------: |
+| `agent-rules.md` as installed        |         292 | 352 (R65, +60 for the core set) |       60 |
+| Reader `SKILL.md`                    |         508 |                  588 (R66, +80) |       80 |
+| MCP `tools/list` and instructions    |         496 |                 under 500 (R68) |        3 |
+| Writer `SKILL.md`                    |       1,670 |                    No limit set | none set |
+| Writer syntax index and median topic | 368 and 707 |        One new topic file (R67) | one file |
+
+The MCP surface has no room. The new block types must not be named in any MCP tool description or in the server instructions, and `query`'s description keeps its current examples. The query tool already accepts any block type that `spec.ts` defines, so nothing needs to be added there.
+
+The agent rules and reader skill get one sentence each for phase 1, about 35 tokens together, saying that `<constraint>` binds like `<agent-instructions>` within the user's task and that `<requirement status="proposed">` is not settled. Details go in the reader's `references/reading.md`. The writer gets `references/syntax/requirements.md` and one line in the syntax index. Every phase PR carries before and after counts for these rows (R69), and building stops if a limit is crossed.
+
+## Reconciliation with the research requirements
+
+The research requirements AF06 to AF28 constrain these tags. This table says where each one is met, so the RFC can be accepted without re-deciding them.
+
+| Research item    | What it asks                                     | How this RFC meets it                                                                                                                                                            | Phase |
+| ---------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| AF06             | Stable ids, and never attach to the wrong target | Author-written `{#id}`, `ref/ambiguous` for duplicates, heading slugs marked unstable                                                                                            | 1     |
+| AF07, AF09       | Lifecycle states and explicit transitions        | Requirement `status` is written by people only. Question `status` comes in phase 2 with `open` and `answered`, and `incorporated` and `withdrawn` wait for the collaboration RFC | 1, 2  |
+| AF08, AF10, AF12 | Responses, staleness, editor parity              | Not in this RFC. The collaboration RFC owns them and uses these ids as targets                                                                                                   | none  |
+| AF11             | Conflicts stay visible                           | Two applying constraints that disagree are both shown. `question{between}` and `evidence{contradicts}` come in phase 2                                                           | 1, 2  |
+| AF13             | One applicability rule                           | The four-case rule in "Which views include a constraint"                                                                                                                         | 1     |
+| AF14             | Author-declared task views                       | Not in this RFC. Filtering phase 2 owns it                                                                                                                                       | none  |
+| AF15             | Mandatory context closure                        | `applies-to` is mandatory in phase 1. `depends-on` closure, with cycles reported, comes in phase 2                                                                               | 1, 2  |
+| AF16             | Budget overflow is reported                      | Applying constraints are mandatory, and the overflow line covers them                                                                                                            | 1     |
+| AF17             | Trust and authorization are separate             | Constraints carry the `:::agent` trust wording (R31)                                                                                                                             | 1     |
+| AF18, AF19, AF20 | Selectors, edge types, neighbor pointers         | Ids before typed edges. Edge meanings are the contract's table. Traversal is filtering phase 3                                                                                   | 1, 2  |
+| AF21             | Lifecycle filters are explicit                   | Bare `question` keeps matching every question. `question[status=open]` filters (R50 as amended)                                                                                  | 2     |
+| AF22, AF23, AF24 | Checkpoints, manifests, derived edges            | Edges are derived from source on every read, with no cache. The manifest records `constraints/2` and every included constraint                                                   | 1     |
+| AF25             | Progress states its basis                        | `smd trace` counts state their denominator                                                                                                                                       | 2     |
+| AF26             | Coverage is not verification                     | `requirement/uncovered` is a hint, and no tool sets `verified`                                                                                                                   | 1     |
+| AF27             | Evidence priority depends on the view            | Evidence and acceptance are ordinary content until G3 decides (R45 not frozen)                                                                                                   | 2     |
+| AF28             | Changed requirements flag dependent claims       | Out of scope for phases 1 and 2. A later `smd trace` check can compare a requirement's revision with its evidence's commit                                                       | later |
+
+## Decisions
+
+The maintainer accepted all six on 2026-11-07. The first two come from the requirements and the rest are new in this RFC.
+
+:::decision{#D1 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Five core tags, not nine
+Add `requirement`, `constraint`, `acceptance`, `assumption` and `evidence`, plus id attributes for links. Defer `claim`, `conflict`, `limitation` and a `dependency` block. Fewer tags keep the skills cheap and leave less for authors to learn, and links between existing tags cover most of what the other four would add.
+:::
+
+:::decision{#D2 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Document-scoped constraints are always in the view
+A `scope=document` constraint is shown in every agent view, as `:::agent` blocks are, not only with `--constraints`. The author marked it as applying everywhere, and C04 showed that leaving such rules out of a section read is the failure that matters.
+:::
+
+:::decision{#D3 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Ids are written as `{#R1}`, not `id=R1`
+Every block takes its id the way headings, figures and tasks already do. One form keeps a single id lookup, works with the existing attribute grammar and `smd fmt`, and avoids a second spelling that tools would have to reconcile. `id=` stays an ordinary unknown attribute.
+:::
+
+:::decision{#D4 status=accepted date=2026-11-07 owner=@roshanmadhushanka} `:ref` to a block shows its id, and figures keep their label
+A reference to a non-figure block shows the id as written, with the block's title as its tooltip and accessible name. Generated labels such as "Requirement 1" would number blocks that authors already number, and the id is what people search for.
+:::
+
+:::decision{#D5 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Spec v1 keeps its directive list forever
+Spec v1 parsing and the migrate escape read a frozen list of the nine v1 directives. New directives exist only in spec v2, so no v1 document and no migrated document changes when one is added.
+:::
+
+:::decision{#D6 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Constraints from other sections get their own head block
+Applying constraints from outside the selected sections appear under "Constraints that apply here", after the agent instructions and before the dangers. The dangers block stays as the research contract locked it, and an agent sees the author's explicit rules before the inferred ones.
+:::
+
+## Open questions
+
+:::question{#Q1 title="Must acceptance blocks sit inside a requirement?"}
+Requiring nesting would make `verifies` unnecessary, but one criterion could then cover only one requirement. The maintainer decides before this RFC is accepted. Until then, both forms are allowed (R33).
+:::
+
+:::question{#Q2 title="Should requirements have a kind?"}
+A `kind` attribute (`functional`, `quality`, `story`) would let user stories and quality requirements share one tag. The maintainer decides before phase 1 ships. Until then, there is no `kind` attribute.
+:::
+
+:::question{#Q3 title="Is phase 3 worth building?"}
+`non-goals`, `example` and `deprecated` have weaker evidence than the core set. Decide after phase 2 ships, using adoption numbers. Until then, phase 3 stays on the roadmap as P2 and P3, and only the v1 directive list from D5 is built early.
+:::
+
+## Phase 2 outline
+
+Phase 2 gets its own section before it starts. These are the choices phase 1 must leave room for.
+
+- `:::assumption{#A1 status=unvalidated owner=… review-by=YYYY-MM-DD}` with `assumption/overdue` (info) and `assumption/invalid`. Unvalidated assumptions are key content, as open questions are.
+- `:::evidence{#E1 supports=… contradicts=… method=… source=… commit=… date=…}`. `source` goes through the `:::quote{cite}` URL check. Evidence priority waits for G3.
+- `depends-on=` on requirements, constraints, decisions, risks and assumptions, and inline `:depends[id]` on tasks, a spec v2 directive only. `smd tasks` shows blocked tasks. One cycle check serves `depends-on` and `supersedes` (filtering G7).
+- `:::question{status=open|answered owner=… due=… between=…}`, fixing GAP-8. Bare `smd query question` keeps matching every question.
+- `:::decision{supersedes=…}` with `decision/supersedes` and a fix that sets the older decision's status.
+- `smd trace` with `--uncovered` and `--json`. The MCP server gets no new tool (R56).
+- References to other documents, `other.smd#R1` (R19), and rename across the workspace (R18).
+
+## Phase 3 outline
+
+`:::non-goals`, `:::example{kind=do|dont}`, `:::deprecated{since=… use=…}` and inline `:since[…]`, if Q3 is answered yes. Each follows the shared shape, and `:since` relies on D5.
+
+## Rules for implementers
+
+:::agent{title="Rules for building the semantic tags"}
+- Build a phase only after its section here is accepted. Decisions D1 to D6 are accepted (2026-11-07). The block id groundwork and the v1 directive list may be built now. The requirement, constraint and acceptance tags wait for Q1.
+- Phase 1 order is the v1 directive list (D5), then `:ref` and id attributes, then requirement, constraint and acceptance, then the templates.
+- Don't change how documents without the new tags render, export or validate (R63, R64). Run `smd export --to md` over `docs/gallery` before and after, and keep `extension/test/researchContract.test.ts` passing unchanged.
+- Never add a block type, attribute or example to MCP tool descriptions or server instructions. The MCP surface is at 496 of 500 tokens.
+- Measure agent rules, reader skill, writer skill and MCP tokens before and after each phase with `npm run bench:tokens`, and stop if a limit in R65 to R68 is crossed.
+- Refer to requirement ids (R25) and acceptance ids (AC6) in commits, PR descriptions and test names.
+- An open question isn't decided. Use the fallback it states, or ask.
+:::

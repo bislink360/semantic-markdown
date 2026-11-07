@@ -140,6 +140,16 @@
           ],
           "description": "Every figure/… rule. Exact codes win."
         },
+        "ref/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every ref/… rule. Exact codes win."
+        },
         "footnote/*": {
           "enum": [
             "off",
@@ -748,7 +758,27 @@
             "info",
             "hint"
           ],
-          "description": ":ref[id] names no :::figure in this document"
+          "description": ":ref[id] names no :::figure or other block in this document"
+        },
+        "ref/unknown": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An id attribute (verifies, applies-to) names an id no block of this document gives"
+        },
+        "ref/ambiguous": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An id attribute or :ref[id] names an id two or more blocks give, so it names none of them"
         },
         "footnote/undefined": {
           "enum": [
