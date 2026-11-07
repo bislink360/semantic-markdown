@@ -1,6 +1,6 @@
 {
   "name": "semantic-markdown",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "Semantic Markdown (.smd): Markdown for developers, PMs and AI agents. Render, validate, convert and create token-efficient agent views — library + `smd` CLI, zero dependencies.",
   "mcpName": "io.github.bislink360/semantic-markdown",
   "author": "Roshan Alwis",

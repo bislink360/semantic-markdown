@@ -1,7 +1,7 @@
 {
   "name": "semantic-markdown",
   "displayName": "Semantic Markdown",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "Read and write Semantic Markdown (.smd) specs, PRDs, ADRs, runbooks and plans with fewer tokens: the reader and writer skills plus the smd MCP server (read, tasks, query, validate).",
   "author": {
     "name": "Roshan Alwis",

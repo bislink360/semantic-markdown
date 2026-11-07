@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1.0 — 2026-11-05
+## 4.0.0 — 2026-11-07
 
 ### ⚠️ Breaking changes
 - **`smd savings` reports tokens and percentages only; `--price` and the dollar figures are removed.** Token prices change over time and differ by model, so a default price of $3 per million tokens went stale. The text report and `--json` now give the tokens saved as a number and a percentage, for the whole agent view and for `--brief`. The `--json` fields `price`, `dollars` and `dollarsBrief` are gone. *Migration:* multiply `total.saved` (or `total.savedBrief`) by your own price per token. A leftover `--price <n>` is accepted and ignored with a note on stderr, so scripts that pass it keep running.
@@ -33,8 +33,6 @@
 - **The `examples/` folder is gone.** Its seven documents are now test fixtures in `extension/test/samples/`, which the tests, the fuzzer and the token benchmark use as before. The rendered `.html` copies are removed, and the gallery's embedded `pricing.ts` moved to `docs/gallery/src/`.
 - **The documentation is reorganised** into `docs/guides/`, `docs/reference/`, `docs/reports/`, `docs/rfcs/`, `docs/requirements/` and `docs/maintainers/`, with lowercase names and an index with the naming rules in [docs/README.md](../docs/README.md). Sections that were in two or three places now have one: agent setup (from `INSTALL.md`, `SKILLS.md` and `AGENTS.md`) is in [guides/agent-setup.md](../docs/guides/agent-setup.md), CI and pre-commit hooks are in [guides/github-and-ci.md](../docs/guides/github-and-ci.md), JetBrains is in [guides/editors.md](../docs/guides/editors.md), and the Styled Markdown and 2.0 upgrade notes are in [guides/upgrading.md](../docs/guides/upgrading.md). GitHub doesn't redirect renamed files, so links to the old paths, such as `docs/SPEC.md` (now `docs/reference/spec.md`) and `docs/INSTALL.md` (now `docs/guides/install.md`), find nothing.
 - **Agent views are faster with `--max-tokens` and with `:::include`.** Fitting a 50k-token document into a budget took about 540 ms and now takes about 70 ms, because the view no longer rebuilds and recounts its whole text for every section it leaves out. Each included file is now read and parsed once per view instead of twice, which makes views with includes about twice as fast. The views are byte-identical, and nothing is cached between calls. See `docs/reports/performance.md`.
-
-### Deprecated
 
 ### Fixed
 - **`:::agent` blocks inside `:::details` are kept in brief and budgeted views.** `--brief`, `--max-tokens` and the MCP `brief` option condensed the `:::details` block and dropped the agent instructions inside it, though agent instructions are always meant to be in the view. The details block is still condensed; the instructions inside it now follow its one-line pointer. A `:::details` block inside `:::agent` is part of the instructions and is no longer condensed.

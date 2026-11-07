@@ -1,7 +1,7 @@
 {
   "id": "styled-markdown",
   "name": "Semantic Markdown",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "minAppVersion": "1.4.0",
   "description": "Render Semantic Markdown (.smd) syntax in your notes: callouts, cards, tabs, decisions, risks, badges, status and due dates. Opens .smd files too.",
   "author": "Roshan Alwis",
