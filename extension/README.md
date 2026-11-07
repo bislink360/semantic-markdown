@@ -1,6 +1,6 @@
 # Semantic Markdown (.smd) for VS Code
 
-> **Formerly Styled Markdown** (`bislink360.styled-markdown`). Same format, settings and commands under a new name. If the old extension is still installed, uninstall it: the two can't run side by side. [What changed](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md#moving-from-styled-markdown)
+> **Formerly Styled Markdown** (`bislink360.styled-markdown`). Same format, settings and commands under a new name. If the old extension is still installed, uninstall it: the two can't run side by side. [What changed](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/upgrading.md#moving-from-styled-markdown)
 
 **One document format for developers, product managers and AI agents.** Semantic Markdown is Markdown plus callouts, colors, diagrams, decisions, risks, API blocks, KPIs and audience-aware content, with a live preview, validation, and token-efficient views for AI agents.
 
@@ -8,7 +8,7 @@ Every `.md` file is already valid `.smd`, so you can rename a file and start add
 
 ![Semantic Markdown preview](https://raw.githubusercontent.com/bislink360/semantic-markdown/main/docs/images/01-overview.png)
 
-**New in 2.0:** spec v2 (`smd: 2`, which new documents get) shows text as written and reads a few things more strictly; existing documents keep the v1 rules until you run **Migrate to Spec v2** (or **Preview Migration to Spec v2** first). VS Code's built-in `.md` preview applies `.smd` syntax only to `.md` files that opt in with an `smd:` front matter key (`smd.markdownPreview.enabled`). Needs VS Code 1.97 or newer. [What changed](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md#upgrading-to-20).
+**New in 2.0:** spec v2 (`smd: 2`, which new documents get) shows text as written and reads a few things more strictly; existing documents keep the v1 rules until you run **Migrate to Spec v2** (or **Preview Migration to Spec v2** first). VS Code's built-in `.md` preview applies `.smd` syntax only to `.md` files that opt in with an `smd:` front matter key (`smd.markdownPreview.enabled`). Needs VS Code 1.97 or newer. [What changed](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/upgrading.md#upgrading-to-20).
 
 ## Highlights
 
@@ -23,7 +23,7 @@ Every `.md` file is already valid `.smd`, so you can rename a file and start add
 - **Validation with quick fixes** as you type (`:::warnign` → `:::warning`, `flowchat` → `flowchart`, `blu` → `blue`), including Mermaid syntax errors on the exact line before the diagram renders. Turn rules off or change their severity in `smd.config.json` / `.smdrc`, which get completion from a schema, or silence one line with `<!-- smd-disable-next-line rule/code -->`.
 - **Formatter:** Format Document (`Shift+Alt+F`) and `"editor.formatOnSave"` tidy container fences, attribute lists, table columns and blank lines, with the same rules as `smd fmt` in CI.
 - **IntelliSense:** completion for blocks, directives, attributes and allowed values, and for paths and `#anchors` in links, `related:` entries, `file="…"` embeds and `:::include` files, and front matter names after `{{`; hover docs and `{{variable}}` values; color picker; go to definition for anchors, linked files and reference links; find references and rename for headings, which updates every link to them across the workspace; `Ctrl+T` search across every heading, decision, risk and API endpoint in the workspace; hover previews of linked sections, documents and embedded code, and definitions of glossary terms; outline; folding; 41 snippets.
-- **Agent view:** 🤖 shows exactly what an AI agent reads, with styling, layout and human-only sections stripped and meaning kept (5–37% fewer tokens for a whole example document, about 80% when an agent reads only the section it needs from a long one; see [token costs](https://github.com/bislink360/semantic-markdown/blob/main/docs/TOKENS.md)). Copy the whole view or selected sections to any chat tool. A status-bar token counter shows the size.
+- **Agent view:** 🤖 shows exactly what an AI agent reads, with styling, layout and human-only sections stripped and meaning kept (5–37% fewer tokens for a whole example document, about 80% when an agent reads only the section it needs from a long one; see [token costs](https://github.com/bislink360/semantic-markdown/blob/main/docs/reports/tokens.md)). Copy the whole view or selected sections to any chat tool. A status-bar token counter shows the size.
 - **Export** to standalone HTML, PDF, GitHub Markdown, Confluence (storage format), Notion (JSON) or Word (.docx, for Word, LibreOffice or Google Docs), and convert `.md` → `.smd`.
 - **Spec v2 migration:** **Preview Migration to Spec v2** shows what moving a document to `smd: 2` changes so it keeps its meaning; **Migrate to Spec v2** applies it as one edit that Undo reverts.
 
@@ -103,9 +103,9 @@ Constraints for AI agents working on this document.
 
 ## Learn more
 
-- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md)
-- [Installation guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md)
-- [Agent skills for Claude and other agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/SKILLS.md)
-- [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md)
+- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/features.md)
+- [Installation guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/install.md)
+- [Agent skills for Claude and other agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/agent-setup.md)
+- [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/spec.md)
 
 Author: **Roshan Alwis** · License: MIT

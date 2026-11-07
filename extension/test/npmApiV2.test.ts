@@ -1,4 +1,4 @@
-// The npm API changes of 2.0 (docs/SPEC-V2-PROPOSALS.smd, "Tool and API changes for 2.0"): inlineText's options
+// The npm API changes of 2.0 (docs/rfcs/spec-v2.smd, "Tool and API changes for 2.0"): inlineText's options
 // object, one readFile signature, the read-only vocabulary, the markdown-it plugin's `preset: 'smd'`, and which .md
 // files VS Code's built-in Markdown preview gives .smd syntax.
 import { test } from 'node:test';

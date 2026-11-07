@@ -2,7 +2,7 @@ import { parseFrontMatter } from './frontmatter';
 import { own } from './util';
 
 /**
- * The spec version of a document: which rules read it (docs/SPEC.md §10). This module is the one place that
+ * The spec version of a document: which rules read it (docs/reference/spec.md §10). This module is the one place that
  * decides it; nothing else reads the `smd` key's value.
  *
  * The front matter key `smd` selects it:

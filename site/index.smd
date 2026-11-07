@@ -21,7 +21,7 @@ Edit a document and see the preview, the agent view with its token count, the pr
 ::::
 ::::column
 :::card{accent=teal} Read the docs
-[Install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md) · [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md) · [Agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/AGENTS.md) · [GitHub](https://github.com/bislink360/semantic-markdown)
+[Install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/install.md) · [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/features.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/spec.md) · [Agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/agents.md) · [GitHub](https://github.com/bislink360/semantic-markdown)
 :::
 ::::
 :::::
@@ -63,7 +63,7 @@ The same package is a zero-dependency library (`renderSmd`, `validateSmd`, `agen
 :::
 ::::
 
-Until the registry listings are live, every [GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) has the `.vsix`, the npm package and the skills: see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md).
+Until the registry listings are live, every [GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) has the `.vsix`, the npm package and the skills: see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/install.md).
 
 ## What it looks like
 
@@ -104,4 +104,4 @@ Won usability testing on completion rate.
 
 ---
 
-[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/COMPATIBILITY.md) · MIT licence
+[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/compatibility.md) · MIT licence

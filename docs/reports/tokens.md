@@ -8,6 +8,39 @@ Short answer, measured in 3.0.0 (the [2.5.0 results](#earlier-results-250-as-sty
 - Answering a question about one section pays off from ≈1,600 tokens with the reader skill, ≈1,000 with agent rules, ≈700 with no fixed cost. On 6k–8k-token documents a section read costs about 80% less than the raw file.
 - Reading a whole document through the agent view saves 5–37% on the sample documents in `extension/test/samples/` (`--brief` 14–43%), so it needs larger documents or several reads per session before it beats the fixed cost.
 
+## How the savings arise
+
+Three layers, each optional and each adding to the others:
+
+```mermaid
+flowchart LR
+    A["1 · Authors mark intent<br/>{agent=skip} · :::human · :::agent"] --> B["2 · Agent view<br/>strip presentation<br/>select sections"]
+    B --> C["3 · Reader skill<br/>smd read → sections →<br/>raw lines only to edit"]
+```
+
+1. **Author intent.** `## Background {agent=skip}` and `:::human` mark content for people only. `:::agent` holds constraints for implementers and is **always** included, even when an agent reads a single section.
+2. **The agent view** (`smd agent`) keeps meaning and drops presentation:
+
+   | In the file | What the agent reads |
+   |---|---|
+   | `:::warning Breaking change` … `:::` | `<warning title="Breaking change">` … `</warning>` |
+   | `:::decision{status=accepted date=… owner=@maya} Title` | `<decision status="accepted" date="…" owner="@maya"> Title` |
+   | `:badge[Beta]{color=amber}` · `[text]{color=red}` | `[Beta]` · `text` |
+   | `- [ ] Task :priority[P1] @api :due[2026-09-25]` | `- [ ] Task [P1] @api (due 2026-09-25, OVERDUE)` |
+   | `## Requirements` | `## Requirements  [L53]`, with a line ref for precise edits |
+   | Tabs, columns, cards, boxes | Labels only (`Tab "npm":`) |
+   | Images, HTML comments, table padding | `[image: alt]`, removed, trimmed |
+   | ```` ```ts file="src/x.ts" lines="7-13" ```` | `[code: src/x.ts lines 7-13 — read that file]` |
+   | `:::human`, `{agent=skip}` sections | *(omitted)* |
+   | With `--brief`: diagrams, long code, details, done tasks | One-line pointers with line ranges |
+   | With `--max-tokens N`: the least important sections, when the view is still too big | `[section omitted: ## Architecture, L90-L128, ≈231 tokens — smd agent … --section "Architecture"]` |
+
+   Token counts are estimates (characters / 4). `--tokenizer o200k_base` on `smd outline` and `smd agent` adds exact counts for that OpenAI encoding if `js-tiktoken` is installed; there is no public tokenizer for current Claude models, so for Claude they are approximate too. See [Token budgets and exact counts](../reference/features.md#token-budgets-and-exact-counts).
+
+3. **The reader skill** turns this into a habit. Files under ≈1,500 tokens (≈6 KB) are read directly, since the tools save little there. Larger files go through `smd read`: one call that prints the whole agent view when it fits 2,000 tokens, else the outline (≈100–300 tokens, every section with its cost), and the agent then pulls only the sections it needs. For documents with `related:` links, `smd outline --related` adds each related document's summary and cost, so the agent opens one only when the question needs it.
+
+The tables below measure what each layer saves and what the tools cost.
+
 ## Method
 
 The benchmark is `extension/test/bench/netTokens.ts` (`npm run bench:tokens`). For every document it simulates two agent tasks and counts the tokens each way of reading puts into the agent's context:
@@ -72,8 +105,8 @@ Median over each document's sections. Coverage: share of the section's key lines
 | samples/runbook-payments-latency.smd | 660 | 4 | 680 | 443 | 572 | 16% | -97% | 92% / 100% / 100% |
 | samples/showcase.smd | 1,550 | 10 | 1,570 | 554 | 1,303 | 17% | -32% | 98% / 99% / 99% |
 | samples/status-report-2026-09.smd | 370 | 5 | 390 | 329 | 371 | 5% | -192% | 100% / 100% / 100% |
-| docs/COLLABORATION-RFC.smd | 8,313 | 15 | 8,333 | 1,483 | 1,514 | 82% | 73% | 100% / 99% / 99% |
-| docs/SPEC-V2-PROPOSALS.smd | 5,976 | 20 | 5,996 | 1,226 | 1,257 | 79% | 66% | 100% / 100% / 100% |
+| docs/rfcs/collaboration.smd | 8,313 | 15 | 8,333 | 1,483 | 1,514 | 82% | 73% | 100% / 99% / 99% |
+| docs/rfcs/spec-v2.smd | 5,976 | 20 | 5,996 | 1,226 | 1,257 | 79% | 66% | 100% / 100% / 100% |
 
 ### (b) Understand the whole document
 
@@ -86,8 +119,8 @@ Median over each document's sections. Coverage: share of the section's key lines
 | samples/runbook-payments-latency.smd | 680 | 572 | 572 | 572 | 16% | 16% | 96% / 100% / 100% / 100% |
 | samples/showcase.smd | 1,570 | 1,303 | 1,160 | 1,303 | 17% | 26% | 97% / 98% / 78% / 98% |
 | samples/status-report-2026-09.smd | 390 | 371 | 335 | 371 | 5% | 14% | 100% / 100% / 77% / 100% |
-| docs/COLLABORATION-RFC.smd | 8,333 | 6,376 | 6,276 | 697 | 23% | 25% | 99% / 99% / 95% / 10% |
-| docs/SPEC-V2-PROPOSALS.smd | 5,996 | 5,487 | 5,487 | 708 | 8% | 8% | 100% / 100% / 100% / 19% |
+| docs/rfcs/collaboration.smd | 8,333 | 6,376 | 6,276 | 697 | 23% | 25% | 99% / 99% / 95% / 10% |
+| docs/rfcs/spec-v2.smd | 5,996 | 5,487 | 5,487 | 708 | 8% | 8% | 100% / 100% / 100% / 19% |
 
 ### By document size
 
@@ -103,8 +136,8 @@ Examples and documents built from them. Net = raw read minus (tools + fixed cost
 | samples/showcase.smd | 1,550 | 1,303 | 267 | -500 | 1,160 | 410 | -357 |
 | samples/checkout-redesign.smd | 2,471 | 1,560 | 931 | 164 | 1,426 | 1,065 | 298 |
 | composite ≈4k | 4,108 | 732 | 3,396 | 2,629 | 2,429 | 1,699 | 932 |
-| docs/SPEC-V2-PROPOSALS.smd | 5,976 | 1,257 | 4,739 | 3,972 | 5,487 | 509 | -258 |
-| docs/COLLABORATION-RFC.smd | 8,313 | 1,514 | 6,819 | 6,052 | 6,276 | 2,057 | 1,290 |
+| docs/rfcs/spec-v2.smd | 5,976 | 1,257 | 4,739 | 3,972 | 5,487 | 509 | -258 |
+| docs/rfcs/collaboration.smd | 8,313 | 1,514 | 6,819 | 6,052 | 6,276 | 2,057 | 1,290 |
 | composite ≈8k | 9,760 | 1,583 | 8,197 | 7,430 | 6,038 | 3,742 | 2,975 |
 | composite ≈16k | 16,573 | 2,589 | 14,004 | 13,237 | 10,368 | 6,225 | 5,458 |
 | composite ≈32k | 32,499 | 4,849 | 27,670 | 26,903 | 20,811 | 11,708 | 10,941 |
@@ -124,7 +157,7 @@ Fit: tool cost ≈ a + b × raw. Raw reads cost raw + 20.
 
 "+ skill fixed" adds the reader skill's fixed cost (descriptions + `SKILL.md`, 767 tokens) to one read. On the small samples `smd read` returns the whole agent view, so outline + section is cheaper for a single question. On the large documents it returns the outline and costs about the same. `--brief` trades coverage for tokens (75–95%), and on the two large documents `smd read` returns the outline (10–19% coverage): a map for choosing sections, not the whole document. With the small-document shortcut, an agent with the reader skill reads the five smallest samples raw, so it pays the raw read plus the skill's fixed cost there.
 
-The token counts of the samples match the 2.5.0 run within a token. `docs/COLLABORATION-RFC.smd` is larger (8,313 raw tokens, was 7,986) because it was edited in the 3.0 rename. The break-even points moved up by about 100 tokens, because the skill and agent rules grew by about 30 tokens.
+The token counts of the samples match the 2.5.0 run within a token. `docs/rfcs/collaboration.smd` is larger (8,313 raw tokens, was 7,986) because it was edited in the 3.0 rename. The break-even points moved up by about 100 tokens, because the skill and agent rules grew by about 30 tokens.
 
 ## Earlier results: 2.5.0, as Styled Markdown
 
@@ -141,8 +174,8 @@ Measured on 2026-10-30 with the Styled Markdown 2.5.0 skills and the benchmark's
 | examples/runbook-payments-latency.smd | 660 | 4 | 680 | 443 | 572 | 16% | -93% | 92% / 100% / 100% |
 | examples/showcase.smd | 1,549 | 10 | 1,569 | 553 | 1,302 | 17% | -30% | 98% / 99% / 99% |
 | examples/status-report-2026-09.smd | 370 | 5 | 390 | 329 | 371 | 5% | -184% | 100% / 100% / 100% |
-| docs/COLLABORATION-RFC.smd | 7,986 | 15 | 8,006 | 1,407 | 1,438 | 82% | 73% | 100% / 100% / 100% |
-| docs/SPEC-V2-PROPOSALS.smd | 5,975 | 20 | 5,995 | 1,224 | 1,255 | 79% | 67% | 100% / 100% / 100% |
+| docs/rfcs/collaboration.smd | 7,986 | 15 | 8,006 | 1,407 | 1,438 | 82% | 73% | 100% / 100% / 100% |
+| docs/rfcs/spec-v2.smd | 5,975 | 20 | 5,995 | 1,224 | 1,255 | 79% | 67% | 100% / 100% / 100% |
 
 "saving" compares `smd read` (+ section) with the raw read; "incl. skill" adds the reader skill's fixed cost (descriptions + `SKILL.md`, 738 tokens) to one read. On the small examples `smd read` returns the whole agent view, so outline + section is cheaper for a single question; on the large documents `smd read` returns the outline, and costs about the same (its outline adds one line on the budget).
 
@@ -157,8 +190,8 @@ Measured on 2026-10-30 with the Styled Markdown 2.5.0 skills and the benchmark's
 | examples/runbook-payments-latency.smd | 680 | 572 | 572 | 572 | 16% | 16% | 96% / 100% / 100% / 100% |
 | examples/showcase.smd | 1,569 | 1,302 | 1,160 | 1,302 | 17% | 26% | 97% / 98% / 78% / 98% |
 | examples/status-report-2026-09.smd | 390 | 371 | 335 | 371 | 5% | 14% | 100% / 100% / 77% / 100% |
-| docs/COLLABORATION-RFC.smd | 8,006 | 6,051 | 5,952 | 672 | 24% | 26% | 99% / 99% / 95% / 10% |
-| docs/SPEC-V2-PROPOSALS.smd | 5,995 | 5,486 | 5,486 | 707 | 8% | 8% | 100% / 100% / 100% / 19% |
+| docs/rfcs/collaboration.smd | 8,006 | 6,051 | 5,952 | 672 | 24% | 26% | 99% / 99% / 95% / 10% |
+| docs/rfcs/spec-v2.smd | 5,995 | 5,486 | 5,486 | 707 | 8% | 8% | 100% / 100% / 100% / 19% |
 
 `--brief` trades coverage for tokens: it replaces diagrams, long code and done tasks with pointers, which is why its coverage drops to 75–95%. On the two large documents `smd read` returns the outline (10–19% coverage): it is a map for choosing sections, not the whole document.
 
@@ -176,8 +209,8 @@ Net = tokens of the raw read minus tokens of the tools (and the reader skill's f
 | examples/showcase.smd | 1,549 | 1,302 | 267 | -471 | 1,160 | 409 | -329 |
 | examples/checkout-redesign.smd | 2,471 | 1,560 | 931 | 193 | 1,426 | 1,065 | 327 |
 | composite ≈4k | 4,108 | 732 | 3,396 | 2,658 | 2,429 | 1,699 | 961 |
-| docs/SPEC-V2-PROPOSALS.smd | 5,975 | 1,255 | 4,740 | 4,002 | 5,486 | 509 | -229 |
-| docs/COLLABORATION-RFC.smd | 7,986 | 1,438 | 6,568 | 5,830 | 5,952 | 2,054 | 1,316 |
+| docs/rfcs/spec-v2.smd | 5,975 | 1,255 | 4,740 | 4,002 | 5,486 | 509 | -229 |
+| docs/rfcs/collaboration.smd | 7,986 | 1,438 | 6,568 | 5,830 | 5,952 | 2,054 | 1,316 |
 | composite ≈8k | 9,760 | 1,583 | 8,197 | 7,459 | 6,038 | 3,742 | 3,004 |
 | composite ≈16k | 16,573 | 2,589 | 14,004 | 13,266 | 10,368 | 6,225 | 5,487 |
 | composite ≈32k | 32,499 | 4,849 | 27,670 | 26,932 | 20,811 | 11,708 | 10,970 |
@@ -213,7 +246,7 @@ cd extension
 npm ci
 npm run build                                  # the MCP cost is asked from dist/cli.js; without it, tools/list only
 npm run bench:tokens                           # extension/test/samples/
-npm run bench:tokens -- --docs --reader cli    # the samples and docs/*.smd through the built CLI (the 3.0.0 tables)
+npm run bench:tokens -- --docs --reader cli    # the samples and docs/rfcs, docs/requirements through the built CLI (the 3.0.0 tables)
 npm run bench:tokens -- --tokenizer o200k_base # exact OpenAI counts (needs js-tiktoken)
 npm run bench:tokens -- --json                 # raw numbers and a record of the run (commit, CLI hash, Node, OS)
 ```

@@ -9,7 +9,7 @@ Security fixes go into the latest minor release. Semantic Markdown releases ever
 | Latest minor (2.5.x today) | Yes |
 | Older minors and majors | No: update to the latest release |
 
-A fix ships as a patch release of the latest minor (for example 2.5.1). Upgrading within a major keeps your documents, commands and settings working; see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md).
+A fix ships as a patch release of the latest minor (for example 2.5.1). Upgrading within a major keeps your documents, commands and settings working; see [docs/reference/compatibility.md](docs/reference/compatibility.md).
 
 ## Reporting a vulnerability
 

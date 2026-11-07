@@ -11,7 +11,7 @@ toc: true
 
 ## How to read this
 
-The roadmap's last open item is "Real-time collaborative editing" (P3, exploratory). This RFC explores it; 2.1 shipped no code for it. Each section ends with a recommendation written as a `:::decision`, reviewed by the maintainer as was done for the spec v2 RFC ([SPEC-V2-PROPOSALS.smd](SPEC-V2-PROPOSALS.smd)).
+The roadmap's last open item is "Real-time collaborative editing" (P3, exploratory). This RFC explores it; 2.1 shipped no code for it. Each section ends with a recommendation written as a `:::decision`, reviewed by the maintainer as was done for the spec v2 RFC ([rfcs/spec-v2.smd](spec-v2.smd)).
 
 On 2026-10-31 the maintainer accepted the overall plan, "Async first, live later" (see the recommendation), and answered three of the open questions. Phase 1, the `smd merge` driver, is built in 2.6. Phases 2 and 3 are accepted but not built yet, and phase 4 (live sync) stays deferred.
 
@@ -217,7 +217,7 @@ D1, the merge driver, first: it has no spec impact and helps agents working in p
 
 :::steps
 1. **Phase 0, 2.1 (this RFC):** discuss and decide; no code.
-2. **Phase 1, `smd merge`** :badge[M]{color=amber}, in 2.6 (built). The driver as in :ref[fig-merge], `smd merge --install`, and a "Collaborating on .smd" section in FEATURES.md covering Git, Live Share and agents.
+2. **Phase 1, `smd merge`** :badge[M]{color=amber}, in 2.6 (built). The driver as in :ref[fig-merge], `smd merge --install`, and a "Collaborating on .smd" section in `docs/reference/features.md` covering Git, Live Share and agents.
 3. **Phase 2, Live Share fixes** :badge[S]{color=green}: includes, code embeds and images for non-`file:` documents in the preview and the Block Editor.
 4. **Phase 3, review and suggestion containers** :badge[M]{color=amber}, a later 2.x minor. `:::comment` and `:::suggestion` in the spec, every tool, the Block Editor's Accept and Reject, and the opt-in MCP `suggest` tool.
 5. **Phase 4, deferred:** a block-level live sync prototype (option C) as a separate opt-in extension with a self-hosted relay, only if phases 1–3 leave a clear need.
@@ -272,7 +272,7 @@ The question was whether `smd merge`, which reads like a general merge tool, sho
 
 ## Background {agent=skip}
 
-The current behaviour was read from the code: the Block Editor provider and session (`extension/src/blockEditor.ts`, `extension/src/blockEditorSession.ts`), its segmenter (`extension/src/core/blocks.ts`), the preview (`extension/src/preview.ts`), the file reader (`extension/src/files.ts`), the MCP tools (`extension/src/mcp.ts`), `smd diff` (`extension/src/core/diff.ts`) and the formatter (`extension/src/core/format.ts`), and from `docs/FEATURES.md` and `docs/SPEC.md`.
+The current behaviour was read from the code: the Block Editor provider and session (`extension/src/blockEditor.ts`, `extension/src/blockEditorSession.ts`), its segmenter (`extension/src/core/blocks.ts`), the preview (`extension/src/preview.ts`), the file reader (`extension/src/files.ts`), the MCP tools (`extension/src/mcp.ts`), `smd diff` (`extension/src/core/diff.ts`) and the formatter (`extension/src/core/format.ts`), and from `docs/reference/features.md` and `docs/reference/spec.md`.
 
 External facts were checked against Git's documentation of merge drivers (gitattributes) and Microsoft's Live Share documentation on co-editing and extensions. Neither says how Live Share treats custom editors and webviews, so those rows are marked to verify. Statements about Yjs and Automerge are from general knowledge of the projects and are marked to verify where details matter.
 

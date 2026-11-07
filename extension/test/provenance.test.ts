@@ -172,7 +172,7 @@ test('C05: manifests are stable, and a changed file has a new revision', () => {
 });
 
 test('C05: readDocument returns the manifest of what it showed, the outline included', () => {
-  const big = readFileSync(join(__dirname, '..', '..', 'docs', 'SPEC-V2-PROPOSALS.smd'), 'utf8');
+  const big = readFileSync(join(__dirname, '..', '..', 'docs', 'rfcs', 'spec-v2.smd'), 'utf8');
   const outline = readDocument(big, { provenance: true, file: 'spec.smd' });
   assert.equal(outline.shown, 'outline');
   assert.equal(outline.provenance!.projection, 'outline');

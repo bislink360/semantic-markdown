@@ -11,7 +11,7 @@
 #
 # language: node installs the root package.json, whose only file is the bundled CLI
 # (skills/semantic-markdown-reader/scripts/smd.cjs): no dependencies, nothing from the npm registry.
-# See docs/INSTALL.md, "Pre-commit hooks".
+# See docs/guides/install.md, "Pre-commit hooks".
 
 - id: smd-validate
   name: smd validate

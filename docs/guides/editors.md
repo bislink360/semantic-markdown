@@ -62,7 +62,7 @@ Check it starts (it waits for a client on stdin; press Ctrl+C to stop):
 
 ```bash
 smd-language-server --stdio
-# [smd lsp] smd-language-server 2.4.0 over stdio
+# [smd lsp] smd-language-server 3.0.0 over stdio
 ```
 
 ## Neovim
@@ -269,7 +269,7 @@ With the extension installed, `"file_types"` above is not needed, and the server
 
 ## Syntax highlighting with Tree-sitter
 
-[`integrations/tree-sitter-smd`](../integrations/tree-sitter-smd) is a Tree-sitter grammar for `.smd` files, with highlight, injection and fold queries, for Neovim, Helix, Zed and other editors that use Tree-sitter. It highlights front matter, `:::` containers (their fences, names, attributes and titles), inline directives, styled spans, `==highlight==`, math, `{{variables}}`, footnotes, task boxes and attribute lists. Known container and directive names are highlighted differently from unknown ones, and unknown names still parse.
+[`integrations/tree-sitter-smd`](../../integrations/tree-sitter-smd) is a Tree-sitter grammar for `.smd` files, with highlight, injection and fold queries, for Neovim, Helix, Zed and other editors that use Tree-sitter. It highlights front matter, `:::` containers (their fences, names, attributes and titles), inline directives, styled spans, `==highlight==`, math, `{{variables}}`, footnotes, task boxes and attribute lists. Known container and directive names are highlighted differently from unknown ones, and unknown names still parse.
 
 The grammar parses only what `.smd` adds, and leaves the rest to the editor's Markdown grammars by injection, so they must be installed too:
 
@@ -277,11 +277,21 @@ The grammar parses only what `.smd` adds, and leaves the rest to the editor's Ma
 - `yaml` for front matter and `latex` for math, if you want those highlighted
 - the language of each code fence, `mermaid` included, the same way
 
-Editors build the grammar from this repository's URL, the `integrations/tree-sitter-smd` subdirectory and a release tag (1.7.0 or later). There is nothing to download from the release page. Setup snippets for Neovim (nvim-treesitter's `main` and `master` branches, with `ftdetect`), Helix (`languages.toml`) and Zed are in the [grammar's README](../integrations/tree-sitter-smd/README.md#editor-setup), which also explains the design and its limits. As with the language server setups above, they have not been tested in those editors here.
+Editors build the grammar from this repository's URL, the `integrations/tree-sitter-smd` subdirectory and a release tag (1.7.0 or later). There is nothing to download from the release page. Setup snippets for Neovim (nvim-treesitter's `main` and `master` branches, with `ftdetect`), Helix (`languages.toml`) and Zed are in the [grammar's README](../../integrations/tree-sitter-smd/README.md#editor-setup), which also explains the design and its limits. As with the language server setups above, they have not been tested in those editors here.
 
 ## JetBrains IDEs
 
-IntelliJ IDEA, PyCharm, WebStorm and the other JetBrains IDEs don't need any of the setup above: the [Semantic Markdown plugin](../integrations/jetbrains/README.md) (since 2.1.0) runs this language server itself, with the `smd` CLI shipped inside the plugin, and highlights `.smd` files with the VS Code extension's TextMate grammar. It needs an IDE with the LSP API (IntelliJ IDEA 2025.3 or newer, the others 2025.1 or newer) and Node.js 22 or newer. Install it from the GitHub release: [docs/INSTALL.md](INSTALL.md#jetbrains-ides).
+IntelliJ IDEA, PyCharm, WebStorm and the other JetBrains IDEs don't need any of the setup above: the [Semantic Markdown plugin](../../integrations/jetbrains/README.md) (since 2.1.0) runs this language server itself, with the `smd` CLI shipped inside the plugin, and highlights `.smd` files with the VS Code extension's TextMate grammar. It needs an IDE with the LSP API (IntelliJ IDEA 2025.3 or newer, the others 2025.1 or newer) and Node.js 22 or newer.
+
+You get problems as you type with quick fixes, completion, hover, go to definition, the outline, workspace symbols and formatting. Since 2.2.0 `.smd` files open with a live preview beside the editor; **Open Semantic Markdown Preview in Browser** (editor right-click menu, or **Tools**) shows the page in your browser.
+
+Until it is on the JetBrains Marketplace, install it from the GitHub release:
+
+1. Download `semantic-markdown-jetbrains-X.Y.Z.zip` from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest). Don't unzip it.
+2. In the IDE, **Settings → Plugins → ⚙ → Install Plugin from Disk…**, choose the zip, and restart the IDE when asked.
+3. Open a `.smd` file. The language server needs **Node.js 22 or newer**: `node` on the `PATH`, or its path in **Settings → Languages & Frameworks → Semantic Markdown**. Without Node.js, highlighting still works, and the IDE says what is missing.
+
+To update, install the new zip the same way. Settings, what the plugin does and doesn't do, and building it: [plugin README](../../integrations/jetbrains/README.md).
 
 ## Other editors
 

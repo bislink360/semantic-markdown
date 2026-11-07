@@ -1,6 +1,6 @@
 # Semantic Markdown — Guide for AI Agents
 
-> Paste this file (or link to it) in your agent's system prompt, `CLAUDE.md`, `AGENTS.md`, Cursor rules or Copilot instructions so agents read and write `.smd` correctly. For Cursor, GitHub Copilot and `AGENTS.md`, `smd skills install --target cursor,copilot,agents` writes a short version of this guide and the CLI (`.smd/smd.cjs`) into your project ([details](SKILLS.md#github-copilot-cursor-codex-windsurf-and-other-agents)). Agents that support skills can use the [semantic-markdown skills](SKILLS.md) instead.
+> Paste this file (or link to it) in your agent's system prompt, `CLAUDE.md`, `AGENTS.md`, Cursor rules or Copilot instructions so agents read and write `.smd` correctly. For Cursor, GitHub Copilot and `AGENTS.md`, `smd skills install --target cursor,copilot,agents` writes a short version of this guide and the CLI (`.smd/smd.cjs`) into your project ([details](../guides/agent-setup.md#github-copilot-cursor-codex-windsurf-and-other-agents)). Agents that support skills can use the [semantic-markdown skills](../guides/agent-setup.md) instead.
 
 ## Reading `.smd` files (save tokens)
 
@@ -56,44 +56,9 @@ Paths are relative to the root folder: `--root <dir>`, or the folder the client 
 | `set_status` | `file`, `status` | Sets the front matter `status` (`draft`, `review`, `approved`, `deprecated`, `archived`), and `updated` to today when the document has one. |
 | `add_decision` | `file`, `section`, `title`, `body`, `status?`, `owner?` | Appends a `:::decision{status=… date=… owner=…} Title` block at the end of a section (default status `proposed`). |
 
-### Set it up with one command
+### Set it up
 
-`smd init --agent claude|cursor|copilot|agents` (comma-separated for several; `--dir <project>`, default the current folder) installs everything an agent needs in a project: the skills (`claude`) or the reading and writing rules (`cursor`, `copilot`, and `agents` for `AGENTS.md`), the CLI, and the MCP server in the agent's own config file: `.mcp.json` (Claude Code), `.cursor/mcp.json` (Cursor) or `.vscode/mcp.json` (Copilot in VS Code). Existing config files are merged (other servers are kept); a file that isn't plain JSON, such as one with comments, is left alone and the entry to add is printed. Run it again to update. `--no-mcp` skips the MCP config.
-
-```bash
-npx semantic-markdown init --agent claude            # once the package is on npm
-node path/to/smd.cjs init --agent cursor,agents    # with the CLI from a release or a skill folder
-```
-
-Or register it by hand with the npm package (`npx` downloads it on first use), or with the CLI bundled in the reader skill:
-
-```bash
-# Claude Code (add --scope project to share it through .mcp.json)
-claude mcp add smd -- npx -y -p semantic-markdown smd mcp
-claude mcp add smd -- node skills/semantic-markdown-reader/scripts/smd.cjs mcp
-```
-
-Cursor (`.cursor/mcp.json`) and Claude Desktop (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "smd": { "command": "npx", "args": ["-y", "-p", "semantic-markdown", "smd", "mcp", "--root", "/path/to/project"] }
-  }
-}
-```
-
-VS Code (`.vscode/mcp.json`):
-
-```json
-{
-  "servers": {
-    "smd": { "type": "stdio", "command": "npx", "args": ["-y", "-p", "semantic-markdown", "smd", "mcp", "--root", "${workspaceFolder}"] }
-  }
-}
-```
-
-Pass `--root` whenever the client may start the server outside your project, such as Claude Desktop. On Windows, clients that cannot run `npx` directly need `cmd /c npx …` (for Claude Code: `claude mcp add smd -- cmd /c npx -y -p semantic-markdown smd mcp`). Logs go to stderr; stdout carries only protocol messages.
+Registering the server in Claude Code, Cursor, VS Code and Claude Desktop, and `smd init --agent`, which does it for you: [Set up an AI agent](../guides/agent-setup.md#mcp-server).
 
 ## Writing `.smd` files
 

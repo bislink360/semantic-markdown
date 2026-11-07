@@ -9,11 +9,11 @@ created: 2026-11-06
 updated: 2026-11-06
 toc: true
 related:
-  - SPEC.md
-  - static-and-graph-based-filtering-requirement.smd
-  - ../implementation-changes.smd
-  - COLLABORATION-RFC.smd
-  - ../skills/semantic-markdown-writer/assets/templates/spec.smd
+  - ../reference/spec.md
+  - tree-and-graph-filtering.smd
+  - ../../implementation-changes.smd
+  - ../rfcs/collaboration.smd
+  - ../../skills/semantic-markdown-writer/assets/templates/spec.smd
 ---
 
 ## Problem
@@ -69,7 +69,7 @@ These apply to every new tag. A tag is done only when all of them hold.
 
 | ID | Requirement | Priority |
 |---|---|---|
-| R1 | The tag has a section in `docs/SPEC.md` with syntax, attributes, allowed values, rendering, agent view, plain-Markdown fallback, validation rules and what older tools show. | :priority[P1] |
+| R1 | The tag has a section in `docs/reference/spec.md` with syntax, attributes, allowed values, rendering, agent view, plain-Markdown fallback, validation rules and what older tools show. | :priority[P1] |
 | R2 | The tag is defined once in `extension/src/core/spec.ts`. The renderer, validator, completion, hover, Block Editor forms and query read it from there. | :priority[P1] |
 | R3 | Rendered HTML uses `smd-<tag>` classes, keeps `{#id}` as the element id, and shows the tag's key attributes as visible text, never as color alone. Light and dark themes meet the existing WCAG 2.2 AA contrast checks. | :priority[P1] |
 | R4 | The agent view shows the tag as `<tag attr="…">` with its title, then the body, then `</tag>`, the same shape as `<decision>` and `<risk>`. Only attributes that change meaning are listed. | :priority[P1] |
@@ -247,7 +247,7 @@ Reading only "Requirements" kept the external :::agent block but left out the da
 |---|---|---|
 | R46 | `depends-on` is accepted on `requirement`, `constraint`, `decision`, `risk` and `assumption` blocks. | :priority[P2] |
 | R47 | A task may carry `:depends[id]`, like `:priority` and `:due`. `smd tasks` shows the dependency and lists a task whose dependency isn't done or `implemented` as blocked. | :priority[P2] |
-| R48 | A dependency cycle is a warning, `depends/cycle`, naming every id in it. This is the same rule as G7 in [Tree and graph filtering](static-and-graph-based-filtering-requirement.smd), which also covers `supersedes` cycles. Build it once. | :priority[P2] |
+| R48 | A dependency cycle is a warning, `depends/cycle`, naming every id in it. This is the same rule as G7 in [Tree and graph filtering](tree-and-graph-filtering.smd), which also covers `supersedes` cycles. Build it once. | :priority[P2] |
 | R49 | The Gantt export orders tasks after what they depend on when both have dates. | :priority[P3] |
 
 ## Changes to existing tags
@@ -345,7 +345,7 @@ Each phase is one minor release with its own RFC section accepted first.
 2. **Phase 2.** `assumption`, `evidence`, `depends-on` and `:depends`, the question and decision attributes, `smd trace` and references to other documents.
 3. **Phase 3.** `non-goals`, `example`, `deprecated` and `:since`, if phase 1 and 2 adoption shows people use the tags.
 
-The id attributes from phases 1 and 2 (`verifies`, `applies-to`, `supports`, `contradicts`, `depends-on`, `supersedes`) are the typed edges that phase 3 of [Tree and graph filtering](static-and-graph-based-filtering-requirement.smd) waits for (G2).
+The id attributes from phases 1 and 2 (`verifies`, `applies-to`, `supports`, `contradicts`, `depends-on`, `supersedes`) are the typed edges that phase 3 of [Tree and graph filtering](tree-and-graph-filtering.smd) waits for (G2).
 
 ## Decisions
 
@@ -407,7 +407,7 @@ In tools before the release, priority, status and scope don't show. Mitigation i
 
 ## Background {agent=skip}
 
-On 2026-11-06 we compared the current vocabulary with the templates, `implementation-changes.smd` and `docs/SPEC.md`. The spec, PRD and test-plan templates fake requirements, acceptance criteria, constraints and non-goals with tables, bold text and warning callouts. SPEC.md writes version notes such as "since 1.6" and "Tools before 1.10" dozens of times as prose.
+On 2026-11-06 we compared the current vocabulary with the templates, `implementation-changes.smd` and `docs/reference/spec.md`. The spec, PRD and test-plan templates fake requirements, acceptance criteria, constraints and non-goals with tables, bold text and warning callouts. SPEC.md writes version notes such as "since 1.6" and "Tools before 1.10" dozens of times as prose.
 
 We also reviewed a list of nine proposed tags built around three ideas, what must hold, what is believed and what supports it. Five of them became the core set. `claim` folded into `evidence` links, `dependency` became an attribute, and `conflict` and `limitation` were deferred.
 

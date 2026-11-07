@@ -81,7 +81,7 @@ Additional source findings:
 
 **Proposed implementation:** retain the canonical input path for on-disk documents. For generated documents, create a fixture tree preserving relative dependencies, or supply an explicit base directory through a documented API. Pass the same date, tokenizer policy, and options to every strategy. Fail on subprocess errors. Obtain the shown mode from structured metadata rather than a length heuristic.
 
-Record commit, CLI hash, Node/OS versions, corpus and dependency hashes, arguments, clock/date policy, exact or estimated tokenizer, tool-overhead assumptions, build mode, and per-run stdout/stderr. Save machine-readable results and publish a command that regenerates the tables. Update the historical `docs/TOKENS.md` results only after a fresh run; preserve older results with their original version labels. [Published benchmark method and limits](https://github.com/bislink360/semantic-markdown/blob/750ef2ea51ee9b50c38b4a184595d697b96c423a/docs/TOKENS.md).
+Record commit, CLI hash, Node/OS versions, corpus and dependency hashes, arguments, clock/date policy, exact or estimated tokenizer, tool-overhead assumptions, build mode, and per-run stdout/stderr. Save machine-readable results and publish a command that regenerates the tables. Update the historical `docs/reports/tokens.md` results only after a fresh run; preserve older results with their original version labels. [Published benchmark method and limits](https://github.com/bislink360/semantic-markdown/blob/750ef2ea51ee9b50c38b4a184595d697b96c423a/docs/reports/tokens.md).
 
 **Acceptance criteria:** dependency resolution and visible content agree between CLI and in-process runs; fixed-date runs reproduce output hashes; failed subprocesses fail the benchmark; full/outline mode is explicit; machine-readable reports identify all assumptions. Include at least one real relative include and one date-sensitive task fixture.
 
@@ -224,7 +224,7 @@ Address confirmed instruction loss and benchmark execution inconsistencies befor
 :::
 
 :::warning Compatibility and rollout
-Keep spec v1 and v2 parsing behavior under the published compatibility policy. Preserve current text tags, CLI exit codes, command names, and partial matching defaults. New projection policies, structured results, and matching modes should be additive or explicitly versioned. Run the existing compatibility corpus before selecting a release version; an additive API does not automatically make every semantic change nonbreaking. [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/750ef2ea51ee9b50c38b4a184595d697b96c423a/docs/COMPATIBILITY.md).
+Keep spec v1 and v2 parsing behavior under the published compatibility policy. Preserve current text tags, CLI exit codes, command names, and partial matching defaults. New projection policies, structured results, and matching modes should be additive or explicitly versioned. Run the existing compatibility corpus before selecting a release version; an additive API does not automatically make every semantic change nonbreaking. [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/750ef2ea51ee9b50c38b4a184595d697b96c423a/docs/reference/compatibility.md).
 :::
 
 ## Verification evidence {agent=skip}

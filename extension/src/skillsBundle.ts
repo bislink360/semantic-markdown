@@ -45,7 +45,7 @@ export const TEMPLATES: Record<string, { description: string; text: string }> = 
   onboarding: { description: 'Onboarding guide for new team members', text: T_ONBOARDING },
   'test-plan': { description: 'Test scope, strategy, cases and exit criteria', text: T_TEST_PLAN },
   'pr-description': { description: 'Pull request summary, testing and rollback', text: T_PR },
-  // Spec-driven workflow (docs/SPEC-DRIVEN.md): spec.smd, plan.smd and tasks.smd side by side in one folder.
+  // Spec-driven workflow (docs/guides/spec-driven.md): spec.smd, plan.smd and tasks.smd side by side in one folder.
   spec: { description: 'Spec-driven work: requirements, acceptance criteria, open questions', text: T_SPEC },
   plan: { description: 'Spec-driven work: approach, decisions, risks and phases for a spec', text: T_PLAN },
   tasks: { description: "Spec-driven work: tasks by phase, the agent's work queue", text: T_TASKS },

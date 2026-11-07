@@ -40,7 +40,7 @@ function statusOf(fm: FrontMatter): DocumentStatus {
   return STATUS_VALUES.includes(status) ? { kind: 'known', status } : { kind: 'unknown', value: String(value) };
 }
 
-/** What each status tells readers, people and agents alike (see docs/AGENTS.md). */
+/** What each status tells readers, people and agents alike (see docs/reference/agents.md). */
 export const STATUS_MEANINGS: Record<string, string> = {
   draft: 'Work in progress: tentative, expect changes.',
   review: 'Ready for review: still tentative until approved.',

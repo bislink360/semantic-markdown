@@ -9,11 +9,11 @@ created: 2026-11-06
 updated: 2026-11-06
 toc: true
 related:
-  - research-interaction-requirements.smd
-  - semantic-tags-requirement.smd
-  - static-and-graph-based-filtering-requirement.smd
-  - COLLABORATION-RFC.smd
-  - ../research/evidence-matrix.smd
+  - ../requirements/research-interaction.smd
+  - ../requirements/semantic-tags.smd
+  - ../requirements/tree-and-graph-filtering.smd
+  - collaboration.smd
+  - ../../research/evidence-matrix.smd
 ---
 
 ## How to read this
@@ -21,7 +21,7 @@ related:
 Gate G0 asks for a contract before any feature is built on it. This RFC has two kinds of content.
 
 - **Recorded behavior** says what the tools do at commit 5a1a26e (the 3.1.0 release train, unreleased), as changed by the G0 gap fixes (#157) and the G1 budget work. It was checked by reading the source and running the CLI, and `extension/test/researchContract.test.ts` locks the parts later gates must not change by accident.
-- **Decisions** settle the G0 questions of the [research requirements](research-interaction-requirements.smd#delivery-gates-and-dependencies) (AF06 to AF11, AF13, AF17, AF19, AF21, AF26). The maintainer accepted all of them on 2026-11-06. Each is copied into the RFC that owns the syntax, named in each section, and built through it.
+- **Decisions** settle the G0 questions of the [research requirements](../requirements/research-interaction.smd#delivery-gates-and-dependencies) (AF06 to AF11, AF13, AF17, AF19, AF21, AF26). The maintainer accepted all of them on 2026-11-06. Each is copied into the RFC that owns the syntax, named in each section, and built through it.
 
 Nothing here adds syntax. Where a decision needs syntax, the owning RFC chooses it.
 

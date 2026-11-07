@@ -310,7 +310,7 @@ test('C01: MCP read keeps a :::agent block nested in :::details once, brief and 
 const repo = join(__dirname, '..', '..');
 
 test('C04: the reader skill, the agent rules and AGENTS.md say agent instructions grant no permissions', () => {
-  for (const rel of ['skills/semantic-markdown-reader/SKILL.md', 'skills/agent-rules.md', 'docs/AGENTS.md']) {
+  for (const rel of ['skills/semantic-markdown-reader/SKILL.md', 'skills/agent-rules.md', 'docs/reference/agents.md']) {
     const text = readFileSync(join(repo, rel), 'utf8');
     const line = text.split('\n').find((l) => /:::agent/.test(l) && /permission/i.test(l));
     assert.ok(line, `${rel}: a line on :::agent and permissions`);

@@ -87,8 +87,8 @@ Code embeds (`agentView embed`) read the embedded file once per fence, with no r
 
 | Document | Tokens (file → view) | `readDocument full` cold | warm | `readDocument outline` cold | warm | `editor status` cold | warm |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `docs/COLLABORATION-RFC.smd` | 8.3k → 6.4k | 5.3 / 8.3 | 1.5 / 3.0 | 8.3 / 13.9 | 3.9 / 5.2 | 8.0 / 11.2 | 2.3 / 4.2 |
-| `docs/SPEC-V2-PROPOSALS.smd` | 6.0k → 5.5k | 4.6 / 7.5 | 1.1 / 3.0 | 7.3 / 10.8 | 3.0 / 4.6 | 5.0 / 7.8 | 1.8 / 2.3 |
+| `docs/rfcs/collaboration.smd` | 8.3k → 6.4k | 5.3 / 8.3 | 1.5 / 3.0 | 8.3 / 13.9 | 3.9 / 5.2 | 8.0 / 11.2 | 2.3 / 4.2 |
+| `docs/rfcs/spec-v2.smd` | 6.0k → 5.5k | 4.6 / 7.5 | 1.1 / 3.0 | 7.3 / 10.8 | 3.0 / 4.6 | 5.0 / 7.8 | 1.8 / 2.3 |
 | `implementation-changes.smd` | 9.8k → 8.0k | 3.9 / 7.3 | 1.0 / 1.5 | 6.2 / 9.2 | 2.8 / 4.3 | 4.9 / 7.5 | 1.8 / 2.6 |
 | composite ≈8k | 9.8k → 6.7k | 8.0 / 13.4 | 2.1 / 2.6 | 13.0 / 15.8 | 7.0 / 8.2 | 11.3 / 16.2 | 4.4 / 5.0 |
 | composite ≈20k | 20.0k → 14.3k | 14.8 / 19.4 | 4.5 / 5.5 | 26.2 / 39.5 | 14.4 / 17.3 | 21.4 / 30.1 | 9.0 / 10.3 |

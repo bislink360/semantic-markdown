@@ -16,14 +16,14 @@ import { loadTokenizer } from '../../src/tokenizer';
  * tools' own fixed overhead (skill descriptions, the reader SKILL.md, agent rules, MCP tool definitions).
  *
  *   npm run bench:tokens                         test/samples/ (markdown report on stdout)
- *   npm run bench:tokens -- --docs               also docs/*.smd
+ *   npm run bench:tokens -- --docs               also docs/rfcs/*.smd and docs/requirements/*.smd
  *   npm run bench:tokens -- --tokenizer o200k_base   exact OpenAI counts (needs js-tiktoken), else ≈ chars / 4
  *   npm run bench:tokens -- --json               raw numbers, with a record of the run (commit, hashes, Node, OS, settings)
  *   npm run bench:tokens -- --reader cli         require the built CLI for `smd read` (or `in-process`); default: the
  *                                                CLI when built. Research runs should name one.
  *
  * Every overhead is read at run time from the files and the MCP server, so the report follows their changes.
- * docs/TOKENS.md explains the method and holds the published results.
+ * docs/reports/tokens.md explains the method and holds the published results.
  */
 
 const repo = path.join(__dirname, '..', '..', '..');
@@ -278,7 +278,7 @@ export function measure(doc: Doc, reader: Reader, count: (t: string) => number):
 }
 
 // ---------------------------------------------------------------------------
-// Documents: the test samples, optionally docs/*.smd, and larger documents built from the samples
+// Documents: the test samples, optionally the RFCs and requirements in docs/, and larger documents built from the samples
 // ---------------------------------------------------------------------------
 
 function smdFiles(dir: string): Doc[] {
@@ -459,7 +459,7 @@ async function main(args: string[]): Promise<void> {
   const readerArg = args.includes('--reader') ? args[args.indexOf('--reader') + 1] : undefined;
   if (readerArg !== undefined && readerArg !== 'cli' && readerArg !== 'in-process') throw new Error('--reader takes cli or in-process.');
   const docs = smdFiles(samplesDir);
-  if (args.includes('--docs')) docs.push(...smdFiles(path.join(repo, 'docs')));
+  if (args.includes('--docs')) for (const dir of ['rfcs', 'requirements']) docs.push(...smdFiles(path.join(repo, 'docs', dir)));
   const reader = new Reader(readerArg, tokenizer);
   const results = docs.map((d) => measure(d, reader, count));
   const composites = [4000, 8000, 16000, 32000].map((t) => composite(t, count));
