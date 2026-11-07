@@ -1,0 +1,408 @@
+# PEP 691: JSON-based Simple API for Python Package Indexes
+
+Status: Final. Type: Standards Track. Topic: Packaging. Authors: Donald Stufft, Pradyun Gedam, Cooper Lees, Dustin Ingram. PEP-Delegate: Brett Cannon.
+
+This PEP is a historical document. The up-to-date, canonical spec, [Simple repository API](https://packaging.python.org/en/latest/specifications/simple-repository-api/), is maintained on the PyPA specs page.
+
+## Abstract
+
+The "Simple Repository API" that was defined in PEP 503 (and was in use much longer than that) has served us reasonably well for a very long time. However, the reliance on using HTML as the data exchange mechanism has several shortcomings.
+
+There are two major issues with an HTML-based API:
+
+- While HTML5 is a standard, it's an incredibly complex standard and ensuring completely correct parsing of it involves complex logic that does not currently exist within the Python standard library (nor the standard library of many other languages).
+
+  This means that to actually accept everything that is technically valid, tools have to pull in large dependencies or they have to rely on the standard library's `html.parser` library, which is lighter weight but potentially doesn't fully support HTML5.
+
+- HTML5 is primarily designed as a markup language to present documents for human consumption. Our use of it is driven largely for historical and accidental reasons, and it's unlikely anyone would design an API that relied on it if they were starting from scratch.
+
+  The primary issue with using a markup format designed for human consumption is that there's not a great way to actually encode data within HTML. We've gotten around this by limiting the data we put in this API and being creative with how we can cram data into the API (for instance, hashes are embedded as URL fragments, adding the `data-yanked` attribute in PEP 592).
+
+PEP 503 was largely an attempt to standardize what was already in use, so it did not propose any large changes to the API.
+
+In the intervening years, we've regularly talked about an "API V2" that would re-envision the entire API of PyPI. However, due to limited time constraints, that effort has not gained much, if any, traction beyond people thinking that it would be nice to do.
+
+This PEP attempts to take a different route. It doesn't fundamentally change the overall API structure, but instead specifies a new serialization of the existing data contained in existing PEP 503 responses in a format that is easier for software to parse rather than using a human centric document format.
+
+## Goals
+
+- **Enable zero configuration discovery.** Clients of the simple API **MUST** be able to gracefully determine whether a target repository supports this PEP without relying on any form of out of band communication (configuration, prior knowledge, etc). Individual clients **MAY** choose to require configuration to enable the use of this API, however.
+- **Enable clients to drop support for "legacy" HTML parsing.** While it is expected that most clients will keep supporting HTML-only repositories for a while, if not forever, it should be possible for a client to choose to support only the new API formats and no longer invoke an HTML parser.
+- **Enable repositories to drop support for "legacy" HTML formats.** Similar to clients, it is expected that most repositories will continue to support HTML responses for a long time, or forever. It should be possible for a repository to choose to only support the new formats.
+- **Maintain full support for existing HTML-only clients.** We **MUST** not break existing clients that are accessing the API as a strictly PEP 503 API. The only exception to this, is if the repository itself has chosen to no longer support the HTML format.
+- **Minimal additional HTTP requests.** Using this API **MUST** not drastically increase the amount of HTTP requests an installer must do in order to function. Ideally it will require 0 additional requests, but if needed it may require one or two additional requests (total, not per dependency).
+- **Minimal additional unique responses.** Due to the nature of how large repositories like PyPI cache responses, this PEP should not introduce a significantly or combinatorially large number of additional unique responses that the repository may produce.
+- **Supports TUF.** This PEP **MUST** be able to function within the bounds of what TUF can support (PEP 458), and must be able to be secured using it.
+- **Require only the standard library, or small external dependencies for clients.** Parsing an API response should ideally require nothing but the standard library, however it would be acceptable to require a small, pure Python dependency.
+
+## Specification
+
+To enable response parsing with only the standard library, this PEP specifies that all responses (besides the files themselves, and the HTML responses from PEP 503) should be serialized using [JSON](https://www.json.org/).
+
+To enable zero configuration discovery and to minimize the amount of additional HTTP requests, this PEP extends PEP 503 such that all of the API endpoints (other than the files themselves) will utilize HTTP content negotiation to allow client and server to select the correct serialization format to serve, i.e. either HTML or JSON.
+
+### Versioning
+
+Versioning will adhere to PEP 629 format (`Major.Minor`), which has defined the existing HTML responses to be `1.0`. Since this PEP does not introduce new features into the API, rather it describes a different serialization format for the existing features, this PEP does not change the existing `1.0` version, and instead just describes how to serialize that into JSON.
+
+Similar to PEP 629, the major version number **MUST** be incremented if any changes to the new format would result in no longer being able to expect existing clients to meaningfully understand the format.
+
+Likewise, the minor version **MUST** be incremented if features are added or removed from the format, but existing clients would be expected to continue to meaningfully understand the format.
+
+Changes that would not result in existing clients being unable to meaningfully understand the format and which do not represent features being added or removed may occur without changing the version number.
+
+This is intentionally vague, as this PEP believes it is best left up to future PEPs that make any changes to the API to investigate and decide whether or not that change should increment the major or minor version.
+
+Future versions of the API may add things that can only be represented in a subset of the available serializations of that version. All serializations version numbers, within a major version, **SHOULD** be kept in sync, but the specifics of how a feature serializes into each format may differ, including whether or not that feature is present at all.
+
+It is the intent of this PEP that the API should be thought of as URL endpoints that return data, whose interpretation is defined by the version of that data, and then serialized into the target serialization format.
+
+### JSON Serialization
+
+The URL structure from PEP 503 still applies, as this PEP only adds an additional serialization format for the already existing API.
+
+The following constraints apply to all JSON serialized responses described in this PEP:
+
+- All JSON responses will *always* be a JSON object rather than an array or other type.
+- While JSON doesn't natively support an URL type, any value that represents an URL in this API may be either absolute or relative as long as they point to the correct location. If relative, they are relative to the current URL as if it were HTML.
+- Additional keys may be added to any dictionary objects in the API responses and clients **MUST** ignore keys that they don't understand.
+- All JSON responses will have a `meta` key, which contains information related to the response itself, rather than the content of the response.
+- All JSON responses will have a `meta.api-version` key, which will be a string that contains the PEP 629 `Major.Minor` version number, with the same fail/warn semantics as defined in PEP 629.
+- All requirements of PEP 503 that are not HTML specific still apply.
+
+#### Project List
+
+The root URL `/` for this PEP (which represents the base URL) will be a JSON encoded dictionary which has a two keys:
+
+- `projects`: An array where each entry is a dictionary with a single key, `name`, which represents string of the project name.
+- `meta`: The general response metadata as [described earlier](#json-serialization).
+
+As an example:
+
+```json
+{
+  "meta": {
+    "api-version": "1.0"
+  },
+  "projects": [
+    {"name": "Frob"},
+    {"name": "spamspamspam"}
+  ]
+}
+```
+
+> **Note:** The `name` field is the same as the one from PEP 503, which does not specify whether it is the non-normalized display name or the normalized name. In practice different implementations of these PEPs are choosing differently here, so relying on it being either non-normalized or normalized is relying on an implementation detail of the repository in question.
+
+> **Note:** While the `projects` key is an array, and thus is required to be in some kind of an order, neither PEP 503 nor this PEP requires any specific ordering nor that the ordering is consistent from one request to the next. Mentally this is best thought of as a set, but both JSON and HTML lack the functionality to have sets.
+
+#### Project Detail
+
+The format of this URL is `/<project>/` where the `<project>` is replaced by the PEP 503 normalized name for that project, so a project named "Silly_Walk" would have a URL like `/silly-walk/`.
+
+This URL must respond with a JSON encoded dictionary that has three keys:
+
+- `name`: The normalized name of the project.
+- `files`: A list of dictionaries, each one representing an individual file.
+- `meta`: The general response metadata as [described earlier](#json-serialization).
+
+Each individual file dictionary has the following keys:
+
+- `filename`: The filename that is being represented.
+- `url`: The URL that the file can be fetched from.
+- `hashes`: A dictionary mapping a hash name to a hex encoded digest of the file. Multiple hashes can be included, and it is up to the client to decide what to do with multiple hashes (it may validate all of them or a subset of them, or nothing at all). These hash names **SHOULD** always be normalized to be lowercase.
+
+  The `hashes` dictionary **MUST** be present, even if no hashes are available for the file, however it is **HIGHLY** recommended that at least one secure, guaranteed-to-be-available hash is always included.
+
+  By default, any hash algorithm available via [hashlib](https://docs.python.org/3/library/hashlib.html) (specifically any that can be passed to `hashlib.new()` and do not require additional parameters) can be used as a key for the hashes dictionary. At least one secure algorithm from `hashlib.algorithms_guaranteed` **SHOULD** always be included. At the time of this PEP, `sha256` specifically is recommended.
+- `requires-python`: An **optional** key that exposes the *Requires-Python* metadata field, specified in PEP 345. Where this is present, installer tools **SHOULD** ignore the download when installing to a Python version that doesn't satisfy the requirement.
+
+  Unlike `data-requires-python` in PEP 503, the `requires-python` key does not require any special escaping other than anything JSON does naturally.
+- `dist-info-metadata`: An **optional** key that indicates that metadata for this file is available, via the same location as specified in PEP 658 (`{file_url}.metadata`). Where this is present, it **MUST** be either a boolean to indicate if the file has an associated metadata file, or a dictionary mapping hash names to a hex encoded digest of the metadata's hash.
+
+  When this is a dictionary of hashes instead of a boolean, then all the same requirements and recommendations as the `hashes` key hold true for this key as well.
+
+  If this key is missing then the metadata file may or may not exist. If the key value is truthy, then the metadata file is present, and if it is falsey then it is not.
+
+  It is recommended that servers make the hashes of the metadata file available if possible.
+- `gpg-sig`: An **optional** key that acts a boolean to indicate if the file has an associated GPG signature or not. The URL for the signature file follows what is specified in PEP 503 (`{file_url}.asc`). If this key does not exist, then the signature may or may not exist.
+- `yanked`: An **optional** key which may be either a boolean to indicate if the file has been yanked, or a non empty, but otherwise arbitrary, string to indicate that a file has been yanked with a specific reason. If the `yanked` key is present and is a truthy value, then it **SHOULD** be interpreted as indicating that the file pointed to by the `url` field has been "Yanked" as per PEP 592.
+
+As an example:
+
+```json
+{
+  "meta": {
+    "api-version": "1.0"
+  },
+  "name": "holygrail",
+  "files": [
+    {
+      "filename": "holygrail-1.0.tar.gz",
+      "url": "https://example.com/files/holygrail-1.0.tar.gz",
+      "hashes": {"sha256": "...", "blake2b": "..."},
+      "requires-python": ">=3.7",
+      "yanked": "Had a vulnerability"
+    },
+    {
+      "filename": "holygrail-1.0-py3-none-any.whl",
+      "url": "https://example.com/files/holygrail-1.0-py3-none-any.whl",
+      "hashes": {"sha256": "...", "blake2b": "..."},
+      "requires-python": ">=3.7",
+      "dist-info-metadata": true
+    }
+  ]
+}
+```
+
+> **Note:** While the `files` key is an array, and thus is required to be in some kind of an order, neither PEP 503 nor this PEP requires any specific ordering nor that the ordering is consistent from one request to the next. Mentally this is best thought of as a set, but both JSON and HTML lack the functionality to have sets.
+
+### Content-Types
+
+This PEP proposes that all responses from the Simple API will have a standard content type that describes what the response is (a Simple API response), what version of the API it represents, and what serialization format has been used.
+
+The structure of this content type will be:
+
+```text
+application/vnd.pypi.simple.$version+format
+```
+
+Since only major versions should be disruptive to clients attempting to understand one of these API responses, only the major version will be included in the content type, and will be prefixed with a `v` to clarify that it is a version number.
+
+Which means that for the existing 1.0 API, the content types would be:
+
+| Format | Content type |
+|-|-|
+| JSON | `application/vnd.pypi.simple.v1+json` |
+| HTML | `application/vnd.pypi.simple.v1+html` |
+
+In addition to the above, a special "meta" version is supported named `latest`, whose purpose is to allow clients to request the absolute latest version, without having to know ahead of time what that version is. It is recommended however, that clients be explicit about what versions they support.
+
+To support existing clients which expect the existing PEP 503 API responses to use the `text/html` content type, this PEP further defines `text/html` as an alias for the `application/vnd.pypi.simple.v1+html` content type.
+
+### Version + Format Selection
+
+Now that there is multiple possible serializations, we need a mechanism to allow clients to indicate what serialization formats they're able to understand. In addition, it would be beneficial if any possible new major version to the API can be added without disrupting existing clients expecting the previous API version.
+
+To enable this, this PEP standardizes on the use of HTTP's [Server-Driven Content Negotiation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation).
+
+While this PEP won't fully describe the entirety of server-driven content negotiation, the flow is roughly:
+
+1. The client makes an HTTP request containing an `Accept` header listing all of the version+format content types that they are able to understand.
+2. The server inspects that header, selects one of the listed content types, then returns a response using that content type (treating the absence of an `Accept` header as `Accept: */*`).
+3. If the server does not support any of the content types in the `Accept` header then they are able to choose between 3 different options for how to respond:
+   1. Select a default content type other than what the client has requested and return a response with that.
+   2. Return a HTTP `406 Not Acceptable` response to indicate that none of the requested content types were available, and the server was unable or unwilling to select a default content type to respond with.
+   3. Return a HTTP `300 Multiple Choices` response that contains a list of all of the possible responses that could have been chosen.
+4. The client interprets the response, handling the different types of responses that the server may have responded with.
+
+The same flow as a diagram:
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Server
+  Client->>Server: GET /simple/ with Accept listing version+format content types
+  alt server supports a listed content type
+    Server-->>Client: 200 with Content-Type set to the selected type
+  else server supports none of them
+    Server-->>Client: a default content type, 406 Not Acceptable, or 300 Multiple Choices
+  end
+  Client->>Client: check Content-Type and pick a parser
+```
+
+This PEP does not specify which choices the server makes in regards to handling a content type that it isn't able to return, and clients **SHOULD** be prepared to handle all of the possible responses in whatever way makes the most sense for that client.
+
+However, as there is no standard format for how a `300 Multiple Choices` response can be interpreted, this PEP highly discourages servers from utilizing that option, as clients will have no way to understand and select a different content-type to request. In addition, it's unlikely that the client *could* understand a different content type anyways, so at best this response would likely just be treated the same as a `406 Not Acceptable` error.
+
+> **Important:** This PEP **does** require that if the meta version `latest` is being used, the server **MUST** respond with the content type for the actual version that is contained in the response (i.e. A `Accept: application/vnd.pypi.simple.latest+json` request that returns a `v1.x` response should have a `Content-Type` of `application/vnd.pypi.simple.v1+json`).
+
+The `Accept` header is a comma separated list of content types that the client understands and is able to process. It supports three different formats for each content type that is being requested:
+
+- `$type/$subtype`
+- `$type/*`
+- `*/*`
+
+For the use of selecting a version+format, the most useful of these is `$type/$subtype`, as that is the only way to actually specify the version and format you want.
+
+The order of the content types listed in the `Accept` header does not have any specific meaning, and the server **SHOULD** consider all of them to be equally valid to respond with. If a client wishes to specify that they prefer a specific content type over another, they may use the `Accept` header's [quality value](https://developer.mozilla.org/en-US/docs/Glossary/Quality_values) syntax.
+
+This allows a client to specify a priority for a specific entry in their `Accept` header, by appending a `;q=` followed by a value between `0` and `1` inclusive, with up to 3 decimal digits. When interpreting this value, an entry with a higher quality has priority over an entry with a lower quality, and any entry without a quality present will default to a quality of `1`.
+
+However, clients should keep in mind that a server is free to select **any** of the content types they've asked for, regardless of their requested priority, and it may even return a content type that they did **not** ask for.
+
+To aid clients in determining the content type of the response that they have received from an API request, this PEP requires that servers always include a `Content-Type` header indicating the content type of the response. This is technically a backwards incompatible change, however in practice [pip has been enforcing this requirement](https://github.com/pypa/pip/blob/cf3696a81b341925f82f20cb527e656176987565/src/pip/_internal/index/collector.py#L123-L150) so the risks for actual breakages is low.
+
+An example of how a client can operate would look like:
+
+```python
+import email.message
+import requests
+
+def parse_content_type(header: str) -> str:
+    m = email.message.Message()
+    m["content-type"] = header
+    return m.get_content_type()
+
+# Construct our list of acceptable content types, we want to prefer
+# that we get a v1 response serialized using JSON, however we also
+# can support a v1 response serialized using HTML. For compatibility
+# we also request text/html, but we prefer it least of all since we
+# don't know if it's actually a Simple API response, or just some
+# random HTML page that we've gotten due to a misconfiguration.
+CONTENT_TYPES = [
+    "application/vnd.pypi.simple.v1+json",
+    "application/vnd.pypi.simple.v1+html;q=0.2",
+    "text/html;q=0.01",  # For legacy compatibility
+]
+ACCEPT = ", ".join(CONTENT_TYPES)
+
+
+# Actually make our request to the API, requesting all of the content
+# types that we find acceptable, and letting the server select one of
+# them out of the list.
+resp = requests.get("https://pypi.org/simple/", headers={"Accept": ACCEPT})
+
+# If the server does not support any of the content types you requested,
+# AND it has chosen to return a HTTP 406 error instead of a default
+# response then this will raise an exception for the 406 error.
+resp.raise_for_status()
+
+
+# Determine what kind of response we've gotten to ensure that it is one
+# that we can support, and if it is, dispatch to a function that will
+# understand how to interpret that particular version+serialization. If
+# we don't understand the content type we've gotten, then we'll raise
+# an exception.
+content_type = parse_content_type(resp.headers.get("content-type", ""))
+match content_type:
+    case "application/vnd.pypi.simple.v1+json":
+        handle_v1_json(resp)
+    case "application/vnd.pypi.simple.v1+html" | "text/html":
+        handle_v1_html(resp)
+    case _:
+        raise Exception(f"Unknown content type: {content_type}")
+```
+
+If a client wishes to only support HTML or only support JSON, then they would just remove the content types that they do not want from the `Accept` header, and turn receiving them into an error.
+
+#### Alternative Negotiation Mechanisms
+
+While using HTTP's Content negotiation is considered the standard way for a client and server to coordinate to ensure that the client is getting an HTTP response that it is able to understand, there are situations where that mechanism may not be sufficient. For those cases this PEP has alternative negotiation mechanisms that may *optionally* be used instead.
+
+##### URL Parameter
+
+Servers that implement the Simple API may choose to support an URL parameter named `format` to allow the clients to request a specific version of the URL.
+
+The value of the `format` parameter should be **one** of the valid content types. Passing multiple content types, wild cards, quality values, etc... is **not** supported.
+
+Supporting this parameter is optional, and clients **SHOULD NOT** rely on it for interacting with the API. This negotiation mechanism is intended to allow for easier human based exploration of the API within a browser, or to allow documentation or notes to link to a specific version+format.
+
+Servers that do not support this parameter may choose to return an error when it is present, or they may simple ignore its presence.
+
+When a server does implement this parameter, it **SHOULD** take precedence over any values in the client's `Accept` header, and if the server does not support the requested format, it may choose to fall back to the `Accept` header, or choose any of the error conditions that standard server-driven content negotiation typically has (e.g. `406 Not Available`, `303 Multiple Choices`, or selecting a default type to return).
+
+##### Endpoint Configuration
+
+This option technically is not a special option at all, it is just a natural consequence of using content negotiation and allowing servers to select which of the available content types is their default.
+
+If a server is unwilling or unable to implement the server-driven content negotiation, and would instead rather require users to explicitly configure their client to select the version they want, then that is a supported configuration.
+
+To enable this, a server should make multiple endpoints (for instance, `/simple/v1+html/` and/or `/simple/v1+json/`) for each version+format that they wish to support. Under that endpoint, they can host a copy of their repository that only supports one (or a subset) of the content-types. When a client makes a request using the `Accept` header, the server can ignore it and return the content type that corresponds to that endpoint.
+
+For clients that wish to require specific configuration, they can keep track of which version+format a specific repository URL was configured for, and when making a request to that server, emit an `Accept` header that *only* includes the correct content type.
+
+### TUF Support - PEP 458
+
+PEP 458 requires that all API responses are hashable and that they can be uniquely identified by a path relative to the repository root. For a Simple API repository, the target path is the Root of our API (e.g. `/simple/` on PyPI). This creates challenges when accessing the API using a TUF client instead of directly using a standard HTTP client, as the TUF client cannot handle the fact that a target could have multiple different representations that all hash differently.
+
+PEP 458 does not specify what the target path should be for the Simple API, but TUF requires that the target paths be "file-like", in other words, a path like `simple/PROJECT/` is not acceptable, because it technically points to a directory.
+
+The saving grace is that the target path does not *have* to actually match the URL being fetched from the Simple API, and it can just be a sigil that the fetching code knows how to transform into the actual URL that needs to be fetched. This same thing can hold true for other aspects of the actual HTTP request, such as the `Accept` header.
+
+Ultimately figuring out how to map a directory to a filename is out of scope for this PEP (but it would be in scope for PEP 458), and this PEP defers making a decision about how exactly to represent this inside of PEP 458 metadata. Until that decision is made, TUF target paths should name an explicit version and format, as in the examples below.
+
+However, it appears that the current WIP branch against pip that attempts to implement PEP 458 is using a target path like `simple/PROJECT/index.html`. This could be modified to include the API version and serialization format using something like `simple/PROJECT/vnd.pypi.simple.vN.FORMAT`. So the v1 HTML format would be `simple/PROJECT/vnd.pypi.simple.v1.html` and the v1 JSON format would be `simple/PROJECT/vnd.pypi.simple.v1.json`.
+
+In this case, since `text/html` is an alias to `application/vnd.pypi.simple.v1+html` when interacting through TUF, it likely will make the most sense to normalize to the more explicit name.
+
+Likewise the `latest` metaversion should not be included in the targets, only explicitly declared versions should be supported.
+
+## Recommendations
+
+This section is non-normative, and represents what the PEP authors believe to be the best default implementation decisions for something implementing this PEP, but it does **not** represent any sort of requirement to match these decisions.
+
+These decisions have been chosen to maximize the number of requests that can be moved onto the newest version of an API, while maintaining the greatest amount of compatibility. In addition, they've also tried to make using the API provide guardrails that attempt to push clients into making the best choices it can.
+
+It is recommended that servers:
+
+- Support all 3 content types described in this PEP, using server-driven content negotiation, for as long as they reasonably can, or at least as long as they're receiving non trivial traffic that uses the HTML responses.
+- When encountering an `Accept` header that does not contain any content types that it knows how to work with, the server should not ever return a `300 Multiple Choice` response, and instead return a `406 Not Acceptable` response.
+  - However, if choosing to use the endpoint configuration, you should prefer to return a `200 OK` response in the expected content type for that endpoint.
+- When selecting an acceptable version, the server should choose the highest version that the client supports, with the most expressive/featureful serialization format, taking into account the specificity of the client requests as well as any quality priority values they have expressed, and it should only use the `text/html` content type as a last resort.
+
+It is recommended that clients:
+
+- Support all 3 content types described in this PEP, using server-driven content negotiation, for as long as they reasonably can.
+- When constructing an `Accept` header, include all of the content types that you support.
+
+  You should generally *not* include a quality priority value for your content types, unless you have implementation specific reasons that you want the server to take into account (for example, if you're using the standard library HTML parser and you're worried that there may be some kinds of HTML responses that you're unable to parse in some edge cases).
+
+  The one exception to this recommendation is that it is recommended that you *should* include a `;q=0.01` value on the legacy `text/html` content type, unless it is the only content type that you are requesting.
+- Explicitly select what versions they are looking for, rather than using the `latest` meta version during normal operation.
+- Check the `Content-Type` of the response and ensure it matches something that you were expecting.
+
+## FAQ
+
+### Does this mean PyPI is planning to drop support for HTML/PEP 503?
+
+No, PyPI has no plans at this time to drop support for PEP 503 or HTML responses.
+
+While this PEP does give repositories the flexibility to do that, that largely exists to ensure that things like using the Endpoint Configuration mechanism is able to work, and to ensure that clients do not make any assumptions that would prevent, at some point in the future, gracefully dropping support for HTML.
+
+The existing HTML responses incur almost no maintenance burden on PyPI and there is no pressing need to remove them. The only real benefit to dropping them would be to reduce the number of items cached in our CDN.
+
+If in the future PyPI *does* wish to drop support for them, doing so would almost certainly be the topic of a PEP, or at a minimum a public, open, discussion and would be informed by metrics showing any impact to end users.
+
+### Why JSON instead of X format?
+
+JSON parsers are widely available in most, if not every, language. A JSON parser is also available in the Python standard library. It's not the perfect format, but it's good enough.
+
+### Why not add X feature?
+
+The general goal of this PEP is to change or add very little. We will instead focus largely on translating the existing information contained within our HTML responses into a sensible JSON representation. This will include PEP 658 metadata required for packaging tooling.
+
+The only real new capability that is added in this PEP is the ability to have multiple hashes for a single file. That was done because the current mechanism being limited to a single hash has made it painful in the past to migrate hashes (md5 to sha256) and the cost of making the hashes a dictionary and allowing multiple is pretty low.
+
+The API was generally designed to allow further extension through adding new keys, so if there's some new piece of data that an installer might need, future PEPs can easily make that available.
+
+## Later change: PEP 714, Rename dist-info-metadata in the Simple API
+
+Status: Accepted. Type: Standards Track. Topic: Packaging. Author: Donald Stufft. PEP-Delegate: Paul Moore. Created: 06-Jun-2023. Resolution: 27-Jun-2023.
+
+This PEP renames the metadata provided by PEP 658 in both HTML and JSON formats of the Simple API and provides guidelines for both clients and servers in how to handle the renaming.
+
+### Servers
+
+The PEP 658 metadata, when used in the HTML representation of the Simple API, **MUST** be emitted using the attribute name `data-core-metadata`, with the supported values remaining the same.
+
+The PEP 658 metadata, when used in the PEP 691 JSON representation of the Simple API, **MUST** be emitted using the key `core-metadata`, with the supported values remaining the same.
+
+To support clients that used the previous key names, the HTML representation **MAY** also be emitted using the `data-dist-info-metadata`, and if it does so it **MUST** match the value of `data-core-metadata`.
+
+### Clients
+
+Clients consuming any of the HTML representations of the Simple API **MUST** read the PEP 658 metadata from the key `data-core-metadata` if it is present. They **MAY** optionally use the legacy `data-dist-info-metadata` if it is present but `data-core-metadata` is not.
+
+Clients consuming the JSON representation of the Simple API **MUST** read the PEP 658 metadata from the key `core-metadata` if it is present. They **MAY** optionally use the legacy `dist-info-metadata` key if it is present but `core-metadata` is not.
+
+## History
+
+- 04-May-2022: PEP 691 created.
+- 05-May-2022: posted for discussion ([thread](https://discuss.python.org/t/pep-691-json-based-simple-api-for-python-package-indexes/15553)).
+- PEP 691 accepted ([resolution](https://discuss.python.org/t/pep-691-json-based-simple-api-for-python-package-indexes/15553/70)).
+- 06-Jun-2023: PEP 714 created and posted for discussion ([thread](https://discuss.python.org/t/27471)).
+- 27-Jun-2023: PEP 714 accepted ([resolution](https://discuss.python.org/t/27471/19)).
+
+## Copyright
+
+This document is placed in the public domain or under the CC0-1.0-Universal license, whichever is more permissive.

@@ -2,10 +2,10 @@
 smd: 2
 title: Study 1 marking and annotation guide
 summary: How a document becomes a pair of plain Markdown and Semantic Markdown files with identical text, and how an independent annotator lists the items a reader needs from it. The guide is part of the G0 baseline and is frozen, with its version, before any corpus document is marked.
-status: draft
+status: approved
 owners: ["@roshanmadhushanka"]
 tags: [research, study-1, annotation, corpus]
-version: 0.1
+version: 0.2
 created: 2026-11-06
 updated: 2026-11-06
 related:
@@ -28,7 +28,7 @@ The guide covers three jobs in order.
 The file formats are the ones the harness reads, described in `extension/test/eval/README.md` and `extension/test/eval/types.ts`. The harness fixture in `extension/test/eval/fixture/` was written by the tool's developers and is never an example of this guide.
 
 :::agent Annotation constraints
-- This guide is a draft. Do not mark, annotate or write tasks for the study corpus until its status is `approved` and its version is recorded in `corpus.json`.
+- Do not mark, annotate or write tasks for the study corpus unless this guide is `approved` and its version is recorded in `corpus.json`.
 - Never write or revise an annotation or a task while looking at an agent view, an outline, `smd query` output or a provenance manifest of the same document.
 - Send only documents written for the study, or licensed for it, to any model provider.
 :::
@@ -44,6 +44,12 @@ The file formats are the ones the harness reads, described in `extension/test/ev
 |Adjudicator|Both annotations and `doc.md`|Conditions and model output|
 
 The author may mark half the corpus as the study protocol says, but must not also annotate or write tasks for a document they marked. The research plan's open question about the second marker and annotator stays open until the author names them.
+
+### Roles drafted by AI agents
+
+For corpus draft 0.2 the author had every role drafted by AI agents, approved on 2026-11-06. Each agent ran in its own session, saw only what the table above allows for its role, and filled one role for a document. No agent annotated or wrote tasks for a document it marked, and no agent annotated a document twice. Files name the agent role, for example `ai-annotator-b`, in `annotator` and `author`.
+
+People verify every mark, item and task before the corpus is frozen. A change a person makes is recorded in `notes` with their initials. The paper reports that the roles were drafted by AI agents and verified by people, and reports agreement on the drafts.
 
 ## Part 1 Marking
 
@@ -100,7 +106,7 @@ One item holds one claim. A sentence with a limit and an exception gives two ite
 
 ### Spans and evidence
 
-Each item records its line span in `doc.md` and in `doc.smd` (1-based, inclusive), its evidence phrases, and the annotator's initials. Evidence is the shortest exact phrase, or a regular expression, that a view must contain for a reader to see the item. All evidence entries must sit inside both spans. The validator rejects evidence outside the span and warns when a phrase also appears elsewhere. Rewrite a repeated phrase until it is unique, or record the repetition in `notes`.
+Each item records its line span in `doc.md` and in `doc.smd` (1-based, inclusive), its evidence phrases, and the annotator's initials. An annotator sees only `doc.md`, so they record the `doc.md` span and `npm run eval -- map-spans` fills the `doc.smd` span by aligning the lines of the two files. Evidence is the shortest exact phrase, or a regular expression, that a view must contain for a reader to see the item. All evidence entries must sit inside both spans. The validator rejects evidence outside the span and warns when a phrase also appears elsewhere. Rewrite a repeated phrase until it is unique, or record the repetition in `notes`.
 
 Item ids are short, lower case and hyphenated, unique in the document, and never reused after deletion (`retry-limit`, `no-close-unpaid`). An id names the claim, not its position, so it survives later edits to the guide's examples.
 
@@ -147,7 +153,7 @@ Before the pilot, `research/corpus/corpus.json` records the items below, and not
 ## Open questions
 
 :::question Who marks and annotates the second half?
-The author names a second marker and a second annotator who did not write tasks. Until then the corpus cannot report marker effects or agreement, and nothing in this guide is used on study documents.
+The author names a second marker and a second annotator who did not write tasks. Undecided. Until then, separate AI agents draft those roles as described in Roles drafted by AI agents, and people verify the drafts before the freeze.
 :::
 
 :::question Should constraints stated only in prose stay unmarked?

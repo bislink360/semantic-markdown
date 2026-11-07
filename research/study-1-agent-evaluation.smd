@@ -129,12 +129,12 @@ Documents written for the study may be cleaner or messier than real ones, which 
 
 ## Tasks
 
-- [ ] Write the marking guide and the annotation guide :priority[P0] @roshanmadhushanka
-- [ ] Build the 24-document corpus in both formats :priority[P0] @roshanmadhushanka
-- [ ] Find a second marker and a second annotator :priority[P1] @roshanmadhushanka
-- [ ] Annotate items and measure agreement :priority[P0] @roshanmadhushanka
-- [ ] Write about 240 tasks from the annotations :priority[P0] @roshanmadhushanka
-- [ ] Build the harness for conditions M1 to O and the ablations :priority[P0] @roshanmadhushanka
+- [x] Write the marking guide and the annotation guide :priority[P0] @roshanmadhushanka (guide 0.2 approved 2026-11-06)
+- [x] Build the 24-document corpus in both formats :priority[P0] @roshanmadhushanka (draft 0.2, people verify before the freeze; the 4 translated documents are not made)
+- [ ] Find a second marker and a second annotator :priority[P1] @roshanmadhushanka (AI agents drafted both roles; people still verify)
+- [x] Annotate items and measure agreement :priority[P0] @roshanmadhushanka (AI-drafted, 897 items; F1 0.79, kappa 0.905 on the seeded quarter)
+- [x] Write about 240 tasks from the annotations :priority[P0] @roshanmadhushanka (AI-drafted, 618 tasks, because the guide asks for one constraint check per constraint item)
+- [x] Build the harness for conditions M1 to O and the ablations :priority[P0] @roshanmadhushanka (with the model runner)
 - [ ] Build the scorer and the model judge, then check it on 50 hand-scored answers :priority[P1] @roshanmadhushanka
 - [ ] Run the pilot and size the main run :priority[P1] @roshanmadhushanka
 - [ ] Preregister hypotheses, analysis and exclusions :priority[P1] @roshanmadhushanka
