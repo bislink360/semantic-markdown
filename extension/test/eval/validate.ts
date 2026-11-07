@@ -1,8 +1,8 @@
 import { validateSmd } from '../../src/core';
 import {
-  evidenceLabel, evidencePattern, isSpan, linesOf, loadCorpus, normalise, spanText, type Corpus, type CorpusDoc,
+  corpusReader, evidenceLabel, evidencePattern, isSpan, linesOf, loadCorpus, normalise, type Corpus, type CorpusDoc,
 } from './corpus';
-import { markupSimilarity } from './markup';
+import { expandIncludes, hasIncludeBlocks, markupSimilarity } from './markup';
 import { ITEM_KINDS, TASK_TYPES, type AnnotationItem, type Span, type Task } from './types';
 
 /**
@@ -38,7 +38,33 @@ function checkSpan(span: unknown, text: string, where: string, errors: string[])
   return true;
 }
 
-function checkItem(doc: CorpusDoc, item: AnnotationItem, errors: string[], warnings: string[]): void {
+/** Reads includes for a document; without one, included text is not looked at. */
+export type ReadInclude = (rel: string) => string | undefined;
+
+/**
+ * The normalised text inside a span and outside it, in one format. In `doc.smd` an `:::include` block inside the span
+ * stands for the included text (written out, as `doc.md` writes it), so an item in an included passage has the
+ * `:::include` line as its `.smd` span and its evidence is looked for in the included text.
+ */
+export function spanTexts(doc: Pick<CorpusDoc, 'md' | 'smd'>, format: 'md' | 'smd', [start, end]: Span, readFile?: ReadInclude): { inside: string; outside: string } {
+  const text = doc[format];
+  if (format === 'smd' && readFile && hasIncludeBlocks(text)) {
+    const lines = expandIncludes(text, readFile);
+    const within = (l: { origin: number }) => l.origin >= start - 1 && l.origin <= end - 1;
+    const first = lines.findIndex(within);
+    return {
+      inside: normalise(lines.filter(within).map((l) => l.text).join('\n')),
+      outside: normalise(lines.flatMap((l, i) => (within(l) ? (i === first ? [''] : []) : [l.text])).join('\n')),
+    };
+  }
+  const lines = linesOf(text);
+  return {
+    inside: normalise(lines.slice(start - 1, end).join('\n')),
+    outside: normalise([...lines.slice(0, start - 1), '', ...lines.slice(end)].join('\n')),
+  };
+}
+
+function checkItem(doc: CorpusDoc, item: AnnotationItem, errors: string[], warnings: string[], readFile?: ReadInclude): void {
   const at = `item ${item.id ?? '(no id)'}`;
   if (typeof item.id !== 'string' || !item.id) errors.push(`${at}: needs an id`);
   if (!ITEM_KINDS.includes(item.kind)) errors.push(`${at}: kind must be one of ${ITEM_KINDS.join(', ')}`);
@@ -50,9 +76,7 @@ function checkItem(doc: CorpusDoc, item: AnnotationItem, errors: string[], warni
   for (const format of ['md', 'smd'] as const) {
     const text = doc[format];
     if (!checkSpan(item[format], text, `${at} (${format})`, errors)) continue;
-    const inside = normalise(spanText(text, item[format]));
-    const lines = linesOf(text);
-    const outside = normalise([...lines.slice(0, item[format][0] - 1), '', ...lines.slice(item[format][1])].join('\n'));
+    const { inside, outside } = spanTexts(doc, format, item[format], readFile);
     item.evidence.forEach((e, k) => {
       const re = patterns[k];
       if (!re) return;
@@ -122,14 +146,15 @@ function checkTask(doc: CorpusDoc, task: Task, items: Map<string, AnnotationItem
   checkExpected(doc, task, items, errors);
 }
 
-export function validateDoc(doc: CorpusDoc): DocReport {
+/** `readFile` reads the document's includes (see spanTexts); validateCorpus passes the corpus reader. */
+export function validateDoc(doc: CorpusDoc, readFile?: ReadInclude): DocReport {
   const errors: string[] = [];
   const warnings: string[] = [];
   const items = new Map<string, AnnotationItem>();
   for (const item of doc.annotations.items) {
     if (items.has(item.id)) errors.push(`item ${item.id}: id used twice`);
     items.set(item.id, item);
-    checkItem(doc, item, errors, warnings);
+    checkItem(doc, item, errors, warnings, readFile);
   }
   const taskIds = new Set<string>();
   for (const task of doc.tasks) {
@@ -148,7 +173,7 @@ export function validateDoc(doc: CorpusDoc): DocReport {
 export function validateCorpus(corpus: Corpus): ValidationReport {
   const errors = corpus.problems.map((p) => `${p.doc}: ${p.message}`);
   if (!corpus.docs.length && !errors.length) errors.push('no document folders');
-  const docs = corpus.docs.map(validateDoc);
+  const docs = corpus.docs.map((d) => validateDoc(d, corpusReader(corpus.dir, d.dir)));
   const seen = new Map<string, string>();
   for (const doc of corpus.docs) {
     for (const t of doc.tasks) {

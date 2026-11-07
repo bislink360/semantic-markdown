@@ -1,5 +1,7 @@
 import { parseFrontMatter, parseSmd, specVersion, CALLOUT_TYPES } from '../../src/core';
 import { CONTAINER_CLOSE, CONTAINER_OPEN, closedBy, closerColons, parseContainerInfo } from '../../src/core/containers';
+import { containerEnd, findIncludes, includeRequest, innerScope, loadInclude, rootScope, type IncludeScope } from '../../src/core/include';
+import { includeSource } from '../../src/core/includeText';
 import { literalLines } from '../../src/core/parse';
 import { HEADING_ATTRS, sectionsOf, withoutHeadingAttrs, type Section } from '../../src/core/sections';
 import { linesOf, normalise } from './corpus';
@@ -122,6 +124,40 @@ export function withoutMarkup(smd: string): string {
     return plainInline(h ? h[1] + withoutHeadingAttrs(h[2], spec) : line);
   }).join('\n');
 }
+
+/** One line of a document with its includes written out, and the zero-based line of the document it stands for. */
+export interface ExpandedLine { text: string; origin: number }
+
+/**
+ * A `.smd` document with every `:::include` block (opening line to closing line) replaced by the included lines, as
+ * `doc.md` writes them out. Each included line has the `:::include` opening line as its origin, so a span that covers
+ * that line covers the whole included passage. Nested includes are written out too. An include that cannot be read
+ * stays as it is. `plain`: every line without markup (see withoutMarkup), for comparing with `doc.md`.
+ */
+export function expandIncludes(text: string, readFile: ((rel: string) => string | undefined) | undefined, plain = false): ExpandedLine[] {
+  const source = includeSource(readFile);
+  const out: ExpandedLine[] = [];
+  const walk = (lines: string[], view: string[], from: number, to: number, scope: IncludeScope, origin?: number) => {
+    const spec = scope.spec ?? 1;
+    const blocks = new Map(findIncludes(lines, from, to, spec).map((b) => [b.line, b]));
+    for (let i = from; i <= to && i < lines.length; i++) {
+      const block = blocks.get(i);
+      const request = block && includeRequest(block.info.attrs.values);
+      const result = request && loadInclude(request, scope, source);
+      if (!block || !result || !result.ok) { out.push({ text: view[i], origin: origin ?? i }); continue; }
+      const inc = result.include;
+      const incView = plain ? linesOf(withoutMarkup(inc.lines.join('\n'))) : inc.lines;
+      walk(inc.lines, incView, inc.start, inc.end, innerScope(scope, inc), origin ?? i);
+      i = Math.min(to, containerEnd(lines, i, spec, from));
+    }
+  };
+  const lines = linesOf(text);
+  walk(lines, plain ? linesOf(withoutMarkup(text)) : lines, 0, lines.length - 1, rootScope(text));
+  return out;
+}
+
+/** Whether a document has an `:::include` block. */
+export const hasIncludeBlocks = (text: string) => findIncludes(linesOf(text), 0, undefined, specVersion(text)).length > 0;
 
 /** Normalised lines that are not blank, front matter left out. */
 function comparableLines(text: string): string[] {

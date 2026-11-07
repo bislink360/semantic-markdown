@@ -139,6 +139,13 @@ export interface AnswerRecord {
   lines?: Span[];
   /** Token counts the provider reported, as given (input/output under any common name). */
   usage?: Record<string, number>;
+  /** Tool calls the model made (the `run` command records it; the scorer ignores it). */
+  toolCalls?: number;
+  /**
+   * Set by the `run` command when the answer is not a clean JSON object: `parse` (no JSON object found; `answer` is
+   * the raw text), `tool-limit` (the model kept calling tools past the limit) or `empty` (no text). Scored as given.
+   */
+  error?: string;
 }
 
 export interface AnswerObject {
