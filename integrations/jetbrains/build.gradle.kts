@@ -1,4 +1,5 @@
 import groovy.json.JsonSlurper
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -45,6 +46,17 @@ intellijPlatform {
     // No forms to instrument, and no settings search index to build (it starts a headless IDE).
     instrumentCode = false
     buildSearchableOptions = false
+    // ./gradlew verifyPlugin runs JetBrains' Plugin Verifier, the check the Marketplace runs on every upload,
+    // against the oldest IDE the plugin supports and a current one (-PverifyIdes=IU-2025.1.7.2,IU-2026.3 to change them).
+    pluginVerification {
+        ides {
+            val list = providers.gradleProperty("verifyIdes").orElse("IU-2025.1.7.2,IU-2026.3").get()
+            for (entry in list.split(',').map { it.trim() }.filter { it.isNotEmpty() }) {
+                val (code, ideVersion) = entry.split('-', limit = 2)
+                create(IntelliJPlatformType.fromCode(code), ideVersion)
+            }
+        }
+    }
     pluginConfiguration {
         version = smdVersion
         ideaVersion {
