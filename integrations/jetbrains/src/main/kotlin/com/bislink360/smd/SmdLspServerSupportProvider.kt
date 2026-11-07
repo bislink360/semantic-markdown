@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * formatting; the IDE's LSP support shows them.
  *
  * This uses the LSP API's provider and descriptor classes as named before 2026.1.4 (LspServerSupportProvider,
- * ProjectWideLspServerDescriptor), which every IDE from 2025.1 on has; later IDEs keep them as deprecated aliases.
+ * ProjectWideLspServerDescriptor), which every IDE from 2025.3 on has; later IDEs keep them as deprecated aliases.
  */
 class SmdLspServerSupportProvider : LspServerSupportProvider {
     override fun fileOpened(project: Project, file: VirtualFile, serverStarter: LspServerSupportProvider.LspServerStarter) {
