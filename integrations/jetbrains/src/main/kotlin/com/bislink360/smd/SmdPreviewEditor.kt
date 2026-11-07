@@ -6,7 +6,6 @@ package com.bislink360.smd
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.event.DocumentEvent
 import com.intellij.openapi.editor.event.DocumentListener
@@ -14,6 +13,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditor
 import com.intellij.openapi.fileEditor.FileEditorState
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.util.text.StringUtil
@@ -75,7 +75,7 @@ class SmdPreviewEditor(private val project: Project, private val file: VirtualFi
     }
 
     private fun render() {
-        val text = ReadAction.compute<String?, RuntimeException> { document?.text } ?: return
+        val text = ApplicationManager.getApplication().runReadAction(Computable { document?.text }) ?: return
         val server = SmdLspServerSupportProvider.runningServer(project)
         if (server == null) {
             when {

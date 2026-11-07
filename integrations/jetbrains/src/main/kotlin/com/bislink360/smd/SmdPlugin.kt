@@ -1,10 +1,11 @@
 package com.bislink360.smd
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.configurations.PathEnvironmentVariableUtil
-import com.intellij.ide.plugins.PluginManagerCore
-import com.intellij.openapi.extensions.PluginId
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.util.EnvironmentUtil
+import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
 
@@ -13,10 +14,13 @@ object SmdPlugin {
     const val ID = "com.bislink360.styled-markdown"
     const val NOTIFICATIONS = "Semantic Markdown"
 
-    /** The plugin's folder: its jar in lib/, the server in server/, the TextMate bundle in bundle/. */
+    /**
+     * The plugin's folder: its jar in lib/, the server in server/, the TextMate bundle in bundle/. Found from the jar
+     * this class is in, since the plugin manager's lookup by ID is internal API (and its PluginId changed in 2025.3).
+     */
     val directory: Path
-        get() = PluginManagerCore.getPlugin(PluginId.getId(ID))?.pluginPath
-            ?: error("The Semantic Markdown plugin is not loaded")
+        get() = PathManager.getJarPathForClass(SmdPlugin::class.java)?.let { Path.of(it).parent?.parent }
+            ?: error("The Semantic Markdown plugin's folder was not found")
 
     /** The TextMate bundle made from the VS Code extension's grammar (see build.gradle.kts). */
     val bundle: Path get() = directory.resolve("bundle")
@@ -31,7 +35,30 @@ object SmdPlugin {
     fun node(): String? {
         val configured = SmdSettings.getInstance().nodePath.trim()
         if (configured.isNotEmpty()) return configured
-        return PathEnvironmentVariableUtil.findExecutableInPathOnAnyOS("node")?.path
+        return findOnPath("node")?.toString()
+    }
+
+    private val isWindows = System.getProperty("os.name").orEmpty().startsWith("Windows")
+
+    /**
+     * [name] on the PATH the IDE gives to processes it starts (on macOS, the login shell's), with Windows' executable
+     * extensions. The platform's own lookups (PathEnvironmentVariableUtil) are deprecated since 2026.x.
+     */
+    fun findOnPath(name: String): Path? {
+        val path = EnvironmentUtil.getValue("PATH") ?: System.getenv("PATH") ?: return null
+        val names = if (isWindows) {
+            val extensions = (System.getenv("PATHEXT") ?: ".COM;.EXE;.BAT;.CMD").split(';').filter { it.isNotBlank() }
+            extensions.map { name + it.lowercase() }
+        } else {
+            listOf(name)
+        }
+        for (folder in path.split(File.pathSeparatorChar).filter { it.isNotBlank() }) {
+            for (candidate in names) {
+                val file = runCatching { Path.of(folder.trim('"'), candidate) }.getOrNull() ?: continue
+                if (Files.isRegularFile(file) && (isWindows || Files.isExecutable(file))) return file
+            }
+        }
+        return null
     }
 
     /** `node <cli> <args>`, run in [workDirectory]; null when Node.js or the CLI can't be found. */
