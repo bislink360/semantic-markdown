@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { agentView } from '../src/core';
 import { agreement, cohensKappa, matchItems } from './eval/agreement';
+import { compareMarks, marksOf } from './eval/marks';
 import { main } from './eval/cli';
 import { docConditions, renderContext, renderDoc, taskConditions } from './eval/conditions';
 import { corpusReader, evidenceFound, loadCorpus, normalise, type Corpus, type CorpusDoc } from './eval/corpus';
@@ -565,6 +566,40 @@ test('the agreement command reports F1, kappa and unmatched items per document a
     assert.match(log, /^# Inter-annotator agreement/);
     assert.match(readFileSync(join(out, 'agreement.md'), 'utf8'), /Unmatched in A \(5\):/);
     assert.throws(() => main(['agreement', dir, '--a', 'x.json'], () => {}), /needs --a <file> --b <file>/);
+  } finally {
+    done();
+  }
+});
+
+test('compare-marks places both markings on doc.md lines and reports exact matches, status differences and marks on one side', () => {
+  const { dir, done } = fixtureCopy();
+  try {
+    const d = loadCorpus(dir).docs.find((x) => x.name === 'webhooks')!;
+    const own = marksOf(d.md, d.smd);
+    assert.deepEqual(own.marks.map((m) => m.kind), ['agent', 'decision', 'decision', 'danger', 'question', 'human', 'skip']);
+    assert.ok(own.marks.every((m) => m.md), 'every mark lands on doc.md lines');
+    // A re-marking: the superseded decision marked rejected, the danger marked as a warning, no :::human, one risk added.
+    const other = d.smd
+      .replace(':::decision{status=superseded date=2026-03-02}', ':::decision{status=rejected}')
+      .replace(':::danger', ':::warning')
+      .replace(':::human Support contacts', ':::risk{impact=low} Support contacts');
+    const otherDir = join(dir, 'remark');
+    mkdirSync(join(otherDir, 'webhooks'), { recursive: true });
+    writeFileSync(join(otherDir, 'webhooks', 'doc.smd'), other);
+    const r = compareMarks(dir, otherDir);
+    assert.equal(r.docs.length, 1);
+    const w = r.docs[0];
+    assert.deepEqual([w.marksA, w.marksB, w.matched, w.exact], [7, 7, 5, 4]);
+    assert.equal(w.share, 8 / 14);
+    assert.deepEqual(w.statusDiffers.map((p) => [p.a.status, p.b.status]), [['superseded', 'rejected']]);
+    assert.deepEqual(w.onlyA.map((m) => m.kind).sort(), ['danger', 'human']);
+    assert.deepEqual(w.onlyB.map((m) => m.kind).sort(), ['risk', 'warning']);
+    let log = '';
+    const out = join(dir, 'out');
+    assert.equal(main(['compare-marks', dir, '--other', otherDir, '--out', out], (s) => { log += s; }), 0);
+    assert.match(log, /| webhooks | 7 | 7 | 5 | 4 | 0.571 |/);
+    assert.match(readFileSync(join(out, 'marker-comparison.md'), 'utf8'), /status differs: A decision{status=superseded}/);
+    assert.throws(() => main(['compare-marks', dir], () => {}), /needs --other/);
   } finally {
     done();
   }

@@ -14,6 +14,7 @@ Run from `extension/`. The corpus defaults to `research/corpus/` in the reposito
 npm run eval -- validate [corpus] [--json]
 npm run eval -- map-spans [corpus] [--write] [--json]
 npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
+npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
 npm run eval -- render [corpus] --out <dir> [--tokenizer o200k_base]
 npm run eval -- check [corpus] [--json] [--out <dir>]
 npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
@@ -23,6 +24,7 @@ npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resampl
 - `validate` exits with 1 when there are errors. Warnings and the similarity number do not fail it.
 - `map-spans` fills the `smd` spans from the `md` spans (see [Mapping spans](#mapping-spans)). It only reports unless you pass `--write`, and exits with 1 when an item could not be mapped or its evidence is not inside the mapped span.
 - `agreement` compares two annotators' files (see [Agreement](#agreement)). With `--out` it also writes `agreement.json` and `agreement.md`.
+- `compare-marks` compares the corpus marking with an independent re-marking (see [Marker comparison](#marker-comparison)). With `--out` it also writes `marker-comparison.json` and `marker-comparison.md`.
 - `render` writes `<doc>/<condition>.txt`, `<doc>/<task>/<condition>.txt` and `manifest.json` (tokens and metadata, no text).
 - `check` prints the survival tables. With `--out` it also writes `survival.json` and `survival.md`.
 - `run` asks the models (see [Model runs](#model-runs)). It exits with 1 when an answer failed.
@@ -142,6 +144,20 @@ Only `md` spans are read, so the files need no `smd` spans. Folders with only on
 - **Unmatched items** of each side, with id, kind, span and evidence, and the matched pairs whose kinds differ, for the adjudication. The pooled report adds a confusion table of kinds.
 
 Agreement is reported on the files before adjudication, as the guide says.
+
+## Marker comparison
+
+The guide's marker comparison has a second marker mark a document again from its `doc.md`, without seeing the first marking. Put each re-marked file at `<dir>/<doc>/doc.smd` and run
+
+```sh
+npm run eval -- compare-marks research/corpus --other <dir> --out <dir>
+```
+
+Both markings are placed on `doc.md` lines through the same line alignment `map-spans` uses, so the two `.smd` files may differ in layout. A mark is a container (its name, and `status` for a decision) or a heading marked `{agent=skip}`. `:::include` blocks are left out, because a re-marker cannot know which passages are shared, and so is inline task syntax.
+
+- Two marks **match** when they have the same kind and their `doc.md` spans are within one line at both ends, closest first, one to one. They match **exactly** when their status is the same too.
+- **Share** is 2 × exact / (marks A + marks B), per document and pooled.
+- The report lists matched marks whose status differs and the marks found by one marker only, and shows the front matter `status` of both.
 
 ## Model runs
 

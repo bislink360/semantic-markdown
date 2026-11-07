@@ -4,6 +4,7 @@ import type { Tokenizer } from '../../src/core';
 import { loadTokenizer } from '../../src/tokenizer';
 import { renderDoc, type Rendered } from './conditions';
 import { agreement, agreementText, type PairsFile } from './agreement';
+import { compareMarks, marksText } from './marks';
 import { DEFAULT_CORPUS, loadCorpus } from './corpus';
 import { defaultDeps, runEval, type RunConfig, type RunDeps } from './runner';
 import { outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord } from './score';
@@ -20,7 +21,9 @@ import { validateCorpus, validationText } from './validate';
  *   npm run eval -- check [corpus] [--json] [--out <dir>]
  *   npm run eval -- map-spans [corpus] [--write] [--json]
  *   npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
- *   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
+ *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
+ *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
+  npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
  *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged judged.jsonl] [--model <label>]
  *
  * The corpus defaults to research/corpus/. Relative paths are read from the folder npm was run in.
@@ -38,7 +41,7 @@ const USAGE = `Usage:
 
 const VALUE_FLAGS = new Set([
   '--out', '--tokenizer', '--seed', '--resamples', '--baseline', '--judged', '--model',
-  '--a', '--b', '--pairs', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency',
+  '--a', '--b', '--pairs', '--other', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency',
 ]);
 
 interface Parsed { command?: string; positional: string[]; flags: Map<string, string | true> }
@@ -127,6 +130,18 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       if (out) {
         write(path.join(out, 'agreement.json'), JSON.stringify(report, null, 2) + '\n');
         write(path.join(out, 'agreement.md'), text);
+      }
+      log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : text);
+      return 0;
+    }
+    case 'compare-marks': {
+      const other = stringFlag(flags, '--other');
+      if (!other) throw new Error('compare-marks needs --other <dir> (a folder of <doc>/doc.smd re-marked from doc.md)');
+      const report = compareMarks(corpusDir, resolvePath(other));
+      const text = marksText(report);
+      if (out) {
+        write(path.join(out, 'marker-comparison.json'), JSON.stringify(report, null, 2) + '\n');
+        write(path.join(out, 'marker-comparison.md'), text);
       }
       log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : text);
       return 0;
