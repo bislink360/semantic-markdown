@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.0.1 — 2026-11-07
+
+### ⚠️ Breaking changes
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Fixed
+
 ## 4.0.0 — 2026-11-07
 
 ### ⚠️ Breaking changes
