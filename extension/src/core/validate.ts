@@ -16,7 +16,8 @@ import { figureTargets, findRefs, type Figure, type FigureRef } from './figures'
 import { compareVersions, findChangelogs, isIsoDate, parseVersion, versionKey, versionLabel, type ChangelogEntry, type Version } from './changelog';
 import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
-import { codeLines, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type InlineMathLines } from './parse';
+import { duplicateIds } from './ids';
+import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
 import { checkTablePipes } from './tableCheck';
 import { hasAccTitle, mermaidTitle } from './mermaid';
@@ -218,6 +219,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkLinks(text, pushText, options);
   checkIncludes(text, (line, column, endColumn, code, message, severity = 'warning', fix) => push(line, column, endColumn, severity, code, message, fix), options);
   checkFigures(text, lines, fm.bodyStartLine, pushText, () => includedFigureIds(text, options.readFile));
+  checkDuplicateIds(text, lines, pushText);
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));
@@ -760,7 +762,7 @@ function checkLinks(text: string, push: Push, options: ValidateOptions): void {
       ownIds ??= documentIds(text, options.readFile);
       if (!ownIds.has(parts.anchor)) {
         unresolvedAnchor({ anchor: parts.anchor, ids: ownIds, text, where: 'in this document', target: link.target, line, column, end }, push);
-      }
+      } else ambiguousAnchor(parts.anchor, idOwners(text).get(parts.anchor), 'in this document', { line, column, end }, push);
       continue;
     }
     if (!options.fileExists) continue;
@@ -773,7 +775,7 @@ function checkLinks(text: string, push: Push, options: ValidateOptions): void {
       const ids = idsIn(parts.path);
       if (ids && !ids.has(parts.anchor)) {
         unresolvedAnchor({ anchor: parts.anchor, ids, text: otherTexts.get(parts.path) ?? '', where: `in "${parts.path}"`, target: link.target, line, column, end }, push);
-      }
+      } else if (ids) ambiguousAnchor(parts.anchor, idOwners(otherTexts.get(parts.path) ?? '').get(parts.anchor), `in "${parts.path}"`, { line, column, end }, push);
     }
   }
 
@@ -852,6 +854,47 @@ function unresolvedAnchor(link: UnresolvedAnchor, push: Push): void {
   push(line, column, end, 'info', 'link/github-anchor',
     `"#${anchor}" is the id GitHub gives the heading "${heading.text}" ${link.where}; its Semantic Markdown id is "#${heading.slug}". The link works on GitHub, but not in the preview or rendered HTML.`,
     { line, column, endColumn: end, replacement: fixed, title: `Change to "${fixed}"` });
+}
+
+/**
+ * A link to an id that two or more blocks give resolves to none of them (research contract, semantic tags R17), though
+ * a browser would go to the first: `link/ambiguous-anchor`.
+ */
+function ambiguousAnchor(
+  anchor: string, owners: readonly IdBlock[] | undefined, where: string, at: { line: number; column: number; end: number }, push: Push,
+): void {
+  if (!owners || owners.length < 2) return;
+  push(at.line, at.column, at.end, 'warning', 'link/ambiguous-anchor',
+    `"#${anchor}" is the id of ${owners.length} blocks ${where} (lines ${listLines(owners)}), so the link resolves to none of them. Give each block its own id.`);
+}
+
+/** "6 and 8", "6, 8 and 12": one-based lines. */
+function listLines(owners: readonly IdBlock[]): string {
+  const lines = owners.map((o) => String(o.line + 1));
+  return lines.length > 1 ? `${lines.slice(0, -1).join(', ')} and ${lines[lines.length - 1]}` : lines.join('');
+}
+
+/**
+ * Ids share one namespace per document (semantic tags R13): headings, tasks, containers, figures and raw HTML. Each
+ * block after the first that gives an id gets `id/duplicate`, since links and feedback naming it resolve to none of
+ * them (R17). Two figures already get `figure/duplicate-id`, as released, so a figure whose earlier owners are all
+ * figures is left to that check.
+ */
+function checkDuplicateIds(text: string, lines: string[], push: Push): void {
+  const duplicates = duplicateIds(text);
+  if (!duplicates.size) return;
+  const figureLines = new Set(parseSmd(text).figures.map((f) => f.line));
+  for (const [id, owners] of duplicates) {
+    owners.forEach((owner, i) => {
+      if (i === 0 || (figureLines.has(owner.line) && owners.slice(0, i).every((o) => figureLines.has(o.line)))) return;
+      const raw = lines[owner.line] ?? '';
+      const at = raw.indexOf(`#${id}`);
+      const [column, end] = at < 0 ? [raw.length - raw.trimStart().length, raw.length] : [at, at + id.length + 1];
+      const subject = owner.heading && !owner.stable ? `This heading's id "${id}", from its text,` : `The id "${id}"`;
+      push(owner.line, column, end, 'warning', 'id/duplicate',
+        `${subject} is also given on line ${owners[0].line + 1}, so links and feedback naming #${id} resolve to neither. Give each its own id.`);
+    });
+  }
 }
 
 function missingAnchor(

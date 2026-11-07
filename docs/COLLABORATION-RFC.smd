@@ -5,7 +5,7 @@ summary: An exploratory look at how people and AI agents could edit the same .sm
 status: approved
 owners: ["@roshanmadhushanka"]
 tags: [rfc, collaboration, exploratory]
-updated: 2026-10-31
+updated: 2026-11-06
 toc: true
 ---
 
@@ -172,7 +172,7 @@ The cache keeps results for 5 minutes, and pricing pages bypass it.
 :::
 ```
 
-- A `:::suggestion` proposes a replacement for the block just before it. **Accept** in the Block Editor replaces that block with the body and removes the suggestion, as one undoable edit; **Reject** removes it. A suggestion records its target's block key in a `for=` attribute; if the target changed since the suggestion was written, it is shown as stale rather than applied.
+- A `:::suggestion` proposes a replacement for the block just before it. **Accept** in the Block Editor replaces that block with the body and removes the suggestion, as one undoable edit; **Reject** removes it. A suggestion names its target's author-written id in a `for=` attribute and records the target's revision hash. If the target's text changed since, it is shown as stale with the current text and is not applied until a person rebases or re-accepts it (research contract, accepted 2026-11-06).
 - Exports, `smd build` and `smd to-md` leave comments and suggestions out by default (`--comments` keeps them). The agent view shows them in a compact form, so an agent applying review remarks can find them.
 - `smd validate` reports open comments as a hint, and as an error in a document with `status: approved`, so a reviewed draft can't be published with remarks in it.
 - Spec impact: two new containers, which is additive under spec v2. Tools before them render each as a box with its title (SPEC §3), so the title should carry the gist.
@@ -253,8 +253,8 @@ The question was where comments live: containers (i) are visible and agent-reada
 The question was whether the driver should realign a table whose rows it merged, so `smd fmt --check` keeps passing in CI, although that changes lines neither side edited. Answer: leave alignment to the author. The driver never touches lines neither side edited, so a merged table may fail `smd fmt --check` until someone runs `smd fmt`.
 :::
 
-:::question Agents and open comments
-Should the agent view show open comments and suggestions by default, or only with a flag such as `smd agent --comments`? Maintainer, before phase 3.
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Agents see open comments by default
+The question was whether the agent view shows open comments and suggestions by default or only with a flag such as `smd agent --comments`. Answer: by default, compactly, since an agent applying review must find them (research contract, accepted 2026-11-06). Answered feedback stays reachable through queries.
 :::
 
 :::decision{status=accepted date=2026-10-31 owner=@roshanmadhushanka} Command name: `smd merge`

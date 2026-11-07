@@ -64,7 +64,7 @@ export interface QueryMatch {
   title: string;
   /**
    * Attributes as written plus the spec's defaults (a decision is `proposed`, a risk's impact `medium`).
-   * Tasks have `done`, `overdue`, and `owner` (a list), `priority` and `due` when given; headings `level` and `id`.
+   * Tasks have `done`, `overdue`, and `owner` (a list), `priority`, `due` and `id` when given; headings `level` and `id`.
    */
   attrs: Record<string, string | string[]>;
   /** The nearest heading above the block; for a heading, its parent heading. */
@@ -77,7 +77,7 @@ const CONTAINER_TYPES = Object.keys(CONTAINERS);
 const BLOCK_TYPES = ['*', 'task', 'heading', 'callout', ...CONTAINER_TYPES];
 const COMMON_KEYS = ['title', 'section', 'type'];
 const OWN_KEYS: Record<string, string[]> = {
-  task: ['done', 'owner', 'priority', 'due', 'overdue'],
+  task: ['done', 'owner', 'priority', 'due', 'overdue', 'id'],
   heading: ['level', 'id', 'agent'],
 };
 const DEFAULTS: Record<string, Record<string, string>> = {
@@ -269,6 +269,7 @@ function taskBlocks(text: string, today: string, sectionAt: (line: number) => st
       ...(t.assignees.length ? { owner: t.assignees } : {}),
       ...(t.priority ? { priority: t.priority } : {}),
       ...(t.due ? { due: t.due } : {}),
+      ...(t.id ? { id: t.id } : {}),
     },
     section: sectionAt(t.line),
   }));

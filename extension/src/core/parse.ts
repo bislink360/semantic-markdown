@@ -73,6 +73,8 @@ interface Block {
   bases: Array<string | null>;
   /** Ids other than heading ids, outside footnote definitions. */
   ids: string[];
+  /** The body-relative line each of `ids` is given on: the line its block-level token starts on. */
+  idLines: number[];
   figures: FigureSource[];
   /** Code blocks in the block (nested ones too), [first, end) with body-relative lines. */
   code: Array<[number, number]>;
@@ -278,6 +280,30 @@ export function alertLines(text: string): readonly AlertLines[] {
   return alertsOf.get(parseSmd(text)) ?? [];
 }
 
+/**
+ * A block that gives an id: a heading (by its `{#id}`, or by its slug, which changes with its text and so is not
+ * `stable`) or an element with an id attribute (a task's or container's `{#id}`, a figure, raw HTML).
+ */
+export interface IdBlock { line: number; heading: boolean; stable: boolean }
+
+/** The blocks that give each id, of each result (see idOwners). */
+const ownersOf = new WeakMap<ParseResult, ReadonlyMap<string, readonly IdBlock[]>>();
+
+function addOwner(owners: Map<string, IdBlock[]>, id: string, owner: IdBlock): void {
+  const list = owners.get(id);
+  if (list) list.push(owner);
+  else owners.set(id, [owner]);
+}
+
+/**
+ * Every id the document's blocks give, with each block that gives it, in document order, zero-based lines in the
+ * whole document. Two owners make an id ambiguous (see ids.ts). Ids rendering makes up for footnotes, and those in
+ * footnote definitions and the front matter title, are not listed.
+ */
+export function idOwners(text: string): ReadonlyMap<string, readonly IdBlock[]> {
+  return ownersOf.get(parseSmd(text)) ?? new Map();
+}
+
 /** The task lines of each result (see renderedTaskLines), in the whole document. */
 const tasksOf = new WeakMap<ParseResult, ReadonlySet<number>>();
 /** The multi-line inline items of each result (see inlineItemLines), in the whole document. */
@@ -364,6 +390,7 @@ export function parseSmd(text: string): ParseResult {
   const headings: Heading[] = [];
   const ids = new Set<string>();
   const slugs = new Map<string, number>();
+  const owners = new Map<string, IdBlock[]>();
   for (const block of state.blocks) {
     block.headings.forEach((h, i) => {
       // The same de-duplication as a full parse: explicit ids don't count, repeats get -1, -2…
@@ -376,8 +403,12 @@ export function parseSmd(text: string): ParseResult {
       }
       headings.push({ ...h, slug, line: h.line + fm.bodyStartLine });
       ids.add(slug);
+      addOwner(owners, slug, { line: h.line + fm.bodyStartLine, heading: true, stable: base === null });
     });
-    for (const id of block.ids) ids.add(id);
+    block.ids.forEach((id, i) => {
+      ids.add(id);
+      addOwner(owners, id, { line: block.idLines[i] + fm.bodyStartLine, heading: false, stable: true });
+    });
   }
   for (const id of footnoteIds(state.blocks)) ids.add(id);
   // The document header renders the title and summary as inline Markdown.
@@ -395,6 +426,7 @@ export function parseSmd(text: string): ParseResult {
   };
   fenceStarts.set(result, state.blocks.flatMap((b) => b.fences).map((line) => line + fm.bodyStartLine));
   alertsOf.set(result, state.blocks.flatMap((b) => b.alerts).map((a) => shiftAlert(a, fm.bodyStartLine)));
+  ownersOf.set(result, owners);
   tasksOf.set(result, new Set(state.blocks.flatMap((b) => b.tasks).map((line) => line + fm.bodyStartLine)));
   rowsOf.set(result, new Set(state.blocks.flatMap((b) => b.rows).map((line) => line + fm.bodyStartLine)));
   itemsOf.set(result, state.blocks.flatMap((b) => b.items).map((item) => shiftItem(item, fm.bodyStartLine)));
@@ -641,6 +673,7 @@ function shift(block: Block, delta: number): Block {
     fences: block.fences.map((line) => line + delta),
     definitions: block.definitions.map((d) => ({ ...d, line: d.line + delta })),
     alerts: block.alerts.map((a) => shiftAlert(a, delta)),
+    idLines: block.idLines.map((line) => line + delta),
     tasks: block.tasks.map((line) => line + delta),
     rows: block.rows.map((line) => line + delta),
     items: block.items.map((item) => shiftItem(item, delta)),
@@ -690,7 +723,7 @@ function parseRange(
   let d = 0;
   for (const g of groups) {
     const block: Block = {
-      start: g.start, end: g.end, headings: [], bases: [], ids: [], figures: figuresIn(g.tokens, from), code: linesOf(g.tokens, from, CODE_TOKENS),
+      start: g.start, end: g.end, headings: [], bases: [], ids: [], idLines: [], figures: figuresIn(g.tokens, from), code: linesOf(g.tokens, from, CODE_TOKENS),
       math: linesOf(g.tokens, from, MATH_TOKENS), inlineMath: multiLineMath(g.tokens, lines, from),
       fences: linesOf(g.tokens, from, ['fence']).map(([first]) => first), definitions: [], notes: [], noteRefs: [], alerts: alertsIn(g.tokens, from),
       tasks: taskLinesIn(g.tokens, from), rows: linesOf(g.tokens, from, ['tr_open']).map(([first]) => first), items: multiLineItems(g.tokens, lines, from, items),
@@ -700,16 +733,18 @@ function parseRange(
       h++;
     }
     while (d < definitions.length && definitions[d].line < g.end) block.definitions.push(definitions[d++]);
-    collectBlockIds(g.tokens, block, scope.spec);
+    collectBlockIds(g.tokens, block, scope.spec, from);
     blocks.push(block);
   }
   return { blocks, trailing: complete ? definitions.slice(d) : [], mathHorizon };
 }
 
-/** A block's ids, footnote definitions and references; ids inside a definition go with it. */
-function collectBlockIds(tokens: Token[], block: Block, spec: SpecVersion): void {
+/** A block's ids, footnote definitions and references; ids inside a definition go with it. `from` is the first line parsed. */
+function collectBlockIds(tokens: Token[], block: Block, spec: SpecVersion, from: number): void {
   const open: number[] = [];
+  let line = block.start;
   for (const t of tokens) {
+    if (t.map) line = from + t.map[0];
     if (t.type === 'smd_footnote_definition_open') {
       open.push(block.notes.push({ label: (t.meta as { label: string }).label, ids: [] }) - 1);
       continue;
@@ -720,6 +755,7 @@ function collectBlockIds(tokens: Token[], block: Block, spec: SpecVersion): void
     }
     const inside = open[open.length - 1] ?? -1;
     collectIds([t], inside < 0 ? block.ids : block.notes[inside].ids, true, spec);
+    while (block.idLines.length < block.ids.length) block.idLines.push(line);
     block.noteRefs.push(...noteRefsIn(t, inside));
   }
 }

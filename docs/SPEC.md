@@ -333,7 +333,12 @@ A task item may carry an owner (`@name` or `:mention[…]`), `:priority[…]` an
 
 ```text
 - [ ] Idempotent order creation :priority[P0] @api-team :due[2026-10-03]
+- [ ] Ship the migration @ops {#ship-migration}
 ```
+
+**Task ids (3.1).** A task takes an id as a trailing `{#id}` on its first line, after a space, the form headings use (§4.2.2), so the line is still a GitHub task in plain Markdown. Only a list with exactly one `#id` counts, the id written with letters, digits, `_` and `-`. `{#a .b}`, braces right after text (`:badge[x]{#y}`), an escaped `\{#id}` and an id on a later line of the task stay text. Rendering puts the id on the task's list item (`<li id="ship-migration" class="smd-task">`) and leaves it out of the text. The agent view and `smd query` show it as written, `smd tasks` prints it last (`{#ship-migration}`) and gives it as `id` in `--json`, `smd query` selects it with `task[id=ship-migration]`, and `smd to-md` writes it as an anchor, `<a id="ship-migration"></a>`. Spec v1 documents read task ids the same way.
+
+**One id namespace per document.** Heading ids (slugs and `{#id}`), task ids, container and figure `{#id}`s and raw HTML ids share one namespace. When two blocks give the same id, a link, reference or feedback target naming it resolves to none of them and is reported as ambiguous, never matched to the first (research contract, "Identity"): the validator reports `id/duplicate` on each block after the first, and `link/ambiguous-anchor` on links to the id. Two figures keep their released rule instead: `figure/duplicate-id`, and `:ref` goes to the first. A heading's slug changes with its text, so tools that record a target treat it as unstable; an author-written `{#id}` is stable.
 
 ### 4.2.2 Heading attributes
 
@@ -583,6 +588,8 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `link/undefined-reference` | warning | `[text][label]` or `[label][]` with no `[label]: …` definition |
 | `figure/unknown-ref` | warning | `:ref[id]` names no `figure` in the document (fix: closest figure id) |
 | `figure/duplicate-id` | warning | Two `figure` blocks share an `{#id}`; references go to the first |
+| `id/duplicate` | warning | Since 3.1: a block gives an id that an earlier block already gives (a heading's id or slug, a task's, container's or figure's `{#id}`, a raw HTML id), so links and feedback naming it resolve to neither (§4.2.1). Two figures get `figure/duplicate-id` instead |
+| `link/ambiguous-anchor` | warning | Since 3.1: `[x](#id)` or `[x](other.smd#id)` names an id that two or more blocks of that document give, so it resolves to none of them |
 | `glossary/entry` | warning | A list item in a `glossary` is not `**Term**: definition` (its list then renders as a plain list and defines no terms), or an entry has no definition |
 | `glossary/duplicate` | warning | A term is defined again (in any glossary of the document); uses link to the first definition |
 | `glossary/duplicate-id` | warning | A term's id `term-{slug}` is also the id of a heading (such as `## Term limits`) or of another element in the document; links to it and the term's uses may lead there. Give the other element its own `{#id}` or rename one of them |

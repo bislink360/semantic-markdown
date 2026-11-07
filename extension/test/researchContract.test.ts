@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agentView, estimateTokens, querySmd } from '../src/core';
+import { agentView, duplicateIds, estimateTokens, extractTasks, outline, querySmd, renderSmd, resolveId, smdToMarkdown, validateSmd } from '../src/core';
 import { readDocument } from '../src/readView';
 
 /**
@@ -100,11 +100,12 @@ test('GAP-3 (AF01, AF15): --brief does not hide a danger inside :::details witho
   assert.match(view, /NESTED_DANGER|danger: Deep danger/);
 });
 
-test('GAP-4 (AF16): a budget pointer says when the omitted section holds a danger', () => {
+test('GAP-4 (AF16), then the accepted "mandatory content" decision: a section holding a danger is never omitted', () => {
+  // Until the decision, Plan was omitted here with a pointer saying `holds danger`.
   const view = agentView(doc, { readFile, maxTokens: 60, today: '2026-11-06' }).text;
-  const pointer = view.split('\n').find((l) => l.startsWith('[section omitted: ## Plan'));
-  assert.ok(pointer, 'the Plan section is omitted at this budget');
-  assert.match(pointer, /danger/);
+  assert.equal(view.split('\n').find((l) => l.startsWith('[section omitted: ## Plan')), undefined);
+  assert.match(view, /DANGER_TEXT/);
+  assert.match(view, /NESTED_DANGER/, 'a danger kept whole in a condensed :::details keeps its section too');
 });
 
 test('GAP-5 (AF15): --max-tokens never omits a section whose :::agent block comes from an include', () => {
@@ -256,4 +257,156 @@ test('C04: provenance leaves the text unchanged and maps the head dangers to the
   assert.equal(traced.text, plain);
   const json = JSON.stringify(traced.provenance);
   assert.match(json, /risky\.smd/);
+});
+
+// ---------------------------------------------------------------------------
+// G1 identity: author-written task ids, and a duplicate id resolves to nothing (contract section "Identity")
+// ---------------------------------------------------------------------------
+
+const ids = (body: string[]) => ['---', 'smd: 2', 'title: Ids', '---', '', ...body, ''].join('\n');
+const plan = ids([
+  '## Plan {#plan}', '',
+  '- [ ] Ship it :priority[P1] @ann {#ship}',
+  '- [x] Write the spec {#spec}',
+  '- [ ] Untargeted task', '',
+  'See [the ship task](#ship).',
+]);
+const codes = (text: string) => validateSmd(text).map((d) => d.code);
+
+test('Identity: a task takes an id as a trailing {#id}, and every task reader agrees on it', () => {
+  const tasks = extractTasks(plan);
+  assert.deepEqual(tasks.map((t) => [t.text, t.id]), [['Ship it', 'ship'], ['Write the spec', 'spec'], ['Untargeted task', undefined]]);
+  assert.equal(tasks[0].priority, 'P1', 'fields before the id are still read');
+  assert.deepEqual(tasks[0].assignees, ['@ann']);
+  const q = querySmd(plan, 'task[id=ship]', { today: '2026-11-06' });
+  assert.deepEqual(q.map((m) => [m.title, m.attrs.id]), [['Ship it', 'ship']]);
+  assert.match(outline(plan), /2 open tasks/, 'outline counts are unchanged');
+});
+
+test('Identity: the rendered task carries its id on the item, not in its text, and #id links resolve to it', () => {
+  const html = renderSmd(plan).html;
+  assert.match(html, /<li id="ship" class="smd-task"[^>]*><input[^>]*aria-label="Ship it P1 @ann">Ship it <span class="smd-priority"/);
+  assert.doesNotMatch(html, /\{#ship\}|\{#spec\}/);
+  assert.deepEqual(codes(plan), [], 'the link to #ship resolves');
+  assert.deepEqual(resolveId(plan, 'ship'), { status: 'resolved', line: 7, stable: true });
+});
+
+test('Identity: the agent view shows the id as written, so an agent can name the task', () => {
+  const view = agentView(plan).text;
+  assert.match(view, /- \[ \] Ship it \[P1\] @ann \{#ship\}/);
+  assert.match(view, /- \[ \] Untargeted task\n/);
+});
+
+test('Identity: the line stays a GitHub task, and plain Markdown keeps the id as an anchor', () => {
+  const md = smdToMarkdown(plan);
+  assert.match(md, /^- \[ \] Ship it \*\*P1\*\* @ann <a id="ship"><\/a>$/m);
+  assert.match(md, /^- \[x\] Write the spec <a id="spec"><\/a>$/m);
+});
+
+test('Identity: a heading slug resolves but is reported as unstable, an author-written id as stable', () => {
+  const text = ids(['## Rollout', '', '## Plan {#plan}']);
+  assert.deepEqual(resolveId(text, 'rollout'), { status: 'resolved', line: 5, stable: false });
+  assert.deepEqual(resolveId(text, 'plan'), { status: 'resolved', line: 7, stable: true });
+  assert.deepEqual(resolveId(text, 'nope'), { status: 'missing' });
+});
+
+test('R17: a duplicate id resolves to nothing and is reported as ambiguous, never matched to the first', () => {
+  const text = ids(['- [ ] Ship it {#ship}', '- [ ] Ship again {#ship}', '', 'See [ship](#ship).']);
+  assert.deepEqual(resolveId(text, 'ship'), { status: 'ambiguous', lines: [5, 6] });
+  assert.deepEqual([...duplicateIds(text).keys()], ['ship']);
+  const found = validateSmd(text);
+  const dup = found.filter((d) => d.code === 'id/duplicate');
+  assert.deepEqual(dup.map((d) => [d.line, d.severity]), [[6, 'warning']], 'on the second block only (AC3)');
+  const link = found.find((d) => d.code === 'link/ambiguous-anchor');
+  assert.equal(link?.line, 8);
+  assert.match(link!.message, /lines 6 and 7.*resolves to none of them/);
+});
+
+test('R17: one namespace per document: a task id shared with a heading, a container or a heading slug is ambiguous', () => {
+  assert.equal(resolveId(ids(['## Plan {#ship}', '', '- [ ] Ship it {#ship}']), 'ship').status, 'ambiguous');
+  assert.equal(resolveId(ids([':::note{#ship} Note', ':::', '', '- [ ] Ship it {#ship}']), 'ship').status, 'ambiguous');
+  const slug = ids(['## Ship', '', '- [ ] Ship it {#ship}']);
+  assert.equal(resolveId(slug, 'ship').status, 'ambiguous');
+  assert.ok(codes(slug).includes('id/duplicate'));
+});
+
+test("R17: links to another document's duplicate id are ambiguous too", () => {
+  const other = ids(['- [ ] A {#x}', '- [ ] B {#x}']);
+  const text = ids(['See [x](other.smd#x).']);
+  const found = validateSmd(text, { fileExists: (p) => p === 'other.smd', readFile: (p) => (p === 'other.smd' ? other : undefined) });
+  assert.deepEqual(found.map((d) => d.code), ['link/ambiguous-anchor']);
+  assert.match(found[0].message, /in "other.smd"/);
+});
+
+test('R17: two figures keep the released figure/duplicate-id and :ref first-match behavior, with no id/duplicate', () => {
+  const text = ids([':::figure{#fig} First', '![a](a.png)', ':::', '', ':::figure{#fig} Second', '![b](b.png)', ':::', '', 'See :ref[fig].']);
+  assert.deepEqual(codes(text), ['figure/duplicate-id']);
+  assert.match(renderSmd(text).html, /<a class="smd-ref" href="#fig">Figure 1<\/a>/, ':ref still goes to the first figure');
+});
+
+// ---------------------------------------------------------------------------
+// G1 budget decisions, accepted 2026-11-06: overflow is reported in the view, and mandatory content is never a budget
+// candidate. GAP-6: a metric keeps its trend and tone.
+// ---------------------------------------------------------------------------
+
+const overflowLine = /\n\n\[budget: ≈(\d+) of (\d+) tokens, required content does not fit\]\n$/;
+
+test('G1 (AF16): a view over its budget ends with one overflow line, counted in its own tokens', () => {
+  const tiny = agentView(doc, { readFile, maxTokens: 5, today: '2026-11-06' });
+  const m = overflowLine.exec(tiny.text);
+  assert.ok(m, tiny.text);
+  assert.equal(Number(m[2]), 5);
+  assert.equal(Number(m[1]), tiny.budget?.tokens, 'the line states the count of the view that holds it');
+  assert.equal(tiny.budget?.tokens, estimateTokens(tiny.text));
+  assert.equal(tiny.text.split('[budget:').length - 1, 1, 'one line');
+});
+
+test('G1 (AF16): a view that fits, and a view with no budget, have no overflow line', () => {
+  const all = agentView(doc, { readFile, today: '2026-11-06' });
+  assert.doesNotMatch(all.text, /\[budget:/);
+  const fits = agentView(doc, { readFile, maxTokens: all.tokens + 50, today: '2026-11-06' });
+  assert.equal(fits.budget?.fits, true);
+  assert.equal(fits.text, all.text);
+});
+
+test('G1 (AF16): with a tokenizer the overflow line counts in its tokens, without the estimate sign', () => {
+  const words = { name: 'words', count: (t: string) => t.split(/\s+/).filter(Boolean).length };
+  const view = agentView(doc, { readFile, maxTokens: 5, tokenizer: words, today: '2026-11-06' });
+  const m = /\n\n\[budget: (\d+) of 5 words tokens, required content does not fit\]\n$/.exec(view.text);
+  assert.ok(m, view.text);
+  assert.equal(Number(m[1]), words.count(view.text));
+});
+
+test('G1 (AF15): a section holding a danger from an included file, or a CAUTION alert, is never omitted', () => {
+  const files: Record<string, string> = {
+    'risky.smd': ['---', 'smd: 2', 'title: Risky', '---', '', ':::danger Included danger', 'INCLUDED_DANGER', ':::', ''].join('\n'),
+  };
+  const text = edges(['## A', '', 'A '.repeat(100), '', ':::include{file=risky.smd}', ':::', '',
+    '## B', '', '> [!CAUTION]', '> ALERT_DANGER ' + 'x '.repeat(100), '', '## C', '', 'C '.repeat(100)]);
+  const view = agentView(text, { readFile: (p) => files[p], maxTokens: 30 });
+  assert.match(view.text, /INCLUDED_DANGER/);
+  assert.match(view.text, /ALERT_DANGER/);
+  assert.match(view.text, /\[section omitted: ## C/);
+  assert.equal(view.budget?.fits, false);
+  assert.match(view.text, overflowLine);
+});
+
+test('G1 (AF15): a parent section is kept when a subsection holds a danger, and its other subsections can go', () => {
+  const text = edges(['## Parent', '', '### Risky', '', ':::danger D', 'SUB_DANGER', ':::', '', '### Filler', '', 'F '.repeat(200)]);
+  const view = agentView(text, { maxTokens: 40 }).text;
+  assert.match(view, /SUB_DANGER/);
+  assert.match(view, /\[section omitted: ### Filler/);
+  assert.doesNotMatch(view, /\[section omitted: ## Parent/);
+});
+
+test('GAP-6 (AF01): a metric keeps its written trend, and good or bad when the author said which way is good', () => {
+  const metric = (attrs: string) => agentView(edges([`:metric[42%]{label="Activation" ${attrs}}`])).text;
+  assert.match(metric('delta="+3%" trend=up good=up'), /Activation: 42% \(\+3%, up, good\)/);
+  assert.match(metric('delta="+3%" trend=up good=down'), /Activation: 42% \(\+3%, up, bad\)/);
+  assert.match(metric('delta="-2%" good=up'), /Activation: 42% \(-2%, bad\)/, 'the trend comes from the delta, as rendering does');
+  assert.match(metric('trend=Down good=down'), /Activation: 42% \(down, good\)/, 'enumerated values match in any case');
+  assert.match(metric('delta="0%" trend=flat good=up'), /Activation: 42% \(0%, flat\)/, 'a flat metric is neither good nor bad');
+  assert.match(metric('delta="+3%"'), /Activation: 42% \(\+3%\)\n/, 'no written good: no tone is filled in (contract rule 3)');
+  assert.match(metric('trend=up'), /Activation: 42% \(up\)/);
+  assert.match(agentView(edges(['- [ ] :metric[7]{label="Bugs" trend=down good=down}'])).text, /Bugs: 7 \(down, good\)/);
 });
