@@ -81,7 +81,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd lsp --stdio` | Language server for Neovim, Helix, Zed and other LSP editors: diagnostics, quick fixes, outline, hover, completion, go to definition, formatting (also `smd-language-server`; [setup](../guides/editors.md)) |
 | `smd init --agent claude|cursor|copilot|agents` | Set up an agent in a project in one command: skills or rules, the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet |
 | `smd skills install [--global] [--target …]` | Install the agent skills, or rules for Cursor, Copilot and `AGENTS.md` |
-| `smd savings <dirs> [--json] [--price N]` | Repo-wide token report: raw files vs agent view vs `--brief`, and the saving in tokens and dollars per full read of every document |
+| `smd savings <dirs> [--json]` | Repo-wide token report: raw files vs agent view vs `--brief`, and the saving in tokens and as a percentage per full read of every document |
 
 **Publish a docs site:** `smd build docs --out site` turns a folder of `.smd` files (and `.md` with `--md`) into a static site in the same folder structure, with links between documents rewritten to pages, a sidebar, previous/next links, backlinks, a search box that works offline, and a dashboard of open tasks, decisions and risks. Open `site/index.html` from disk or upload the folder to any static host (`--base /docs/` for absolute links). It only writes to a new, empty or previously built folder, and `--clean` removes only files of the previous build. See the [feature guide](#publish-a-docs-site-smd-build).
 
@@ -1228,8 +1228,8 @@ smd init <file> [--template <name>] [--title "…"]
 smd init --agent claude|cursor|copilot|agents [--dir <project>]   set up an agent in a project: skills or rules,
                  .smd/smd.cjs, the MCP server config and the AGENTS.md snippet (re-run to update; MCP configs are merged)
 smd templates
-smd savings <files|dirs> [--json] [--price <USD per million input tokens>]   tokens (and dollars, default price 3)
-                 saved per full read of every document: raw file vs agent view vs --brief
+smd savings <files|dirs> [--json]   tokens saved, as a number and a percentage, per full read of every
+                 document: raw file vs agent view vs --brief
 smd skills install [--dir <path>] [--global] [--only reader|writer]
 smd mcp [--root <dir>] [--allow-write] [--legacy-tools]   MCP server over stdio (tools below)
 smd lsp [--stdio]                                    language server over stdio for other editors (below); also smd-language-server
