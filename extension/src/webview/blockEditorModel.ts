@@ -40,6 +40,26 @@ export function linesLabel(range: LineRange): string {
   return first === last ? `line ${first}` : `lines ${first}–${last}`;
 }
 
+/**
+ * How a child block (a rendered element inside a container, focused with the arrow keys) gets its accessible name:
+ * - `own-role`: its role allows an author's name (list, list item, table, row, figure, quote), so it keeps the role
+ *   and gets a label;
+ * - `contents`: a heading, already named by its text;
+ * - `group`: its role forbids an author's name (paragraph, generic `div`, code), so it becomes a named group, as a
+ *   top-level block is.
+ */
+export type ChildNaming = 'own-role' | 'contents' | 'group';
+
+const OWN_ROLE_TAGS: ReadonlySet<string> = new Set([
+  'UL', 'OL', 'LI', 'DL', 'DT', 'DD', 'TABLE', 'TR', 'FIGURE', 'BLOCKQUOTE', 'DETAILS', 'ASIDE', 'NAV', 'SECTION', 'HR', 'IMG',
+]);
+
+export function childNaming(tagName: string): ChildNaming {
+  const tag = tagName.toUpperCase();
+  if (/^H[1-6]$/.test(tag)) return 'contents';
+  return OWN_ROLE_TAGS.has(tag) ? 'own-role' : 'group';
+}
+
 /** "Paragraph, lines 3–5". */
 export function blockLabel(view: Pick<BlockView, 'type' | 'container' | 'start' | 'end'>): string {
   return `${blockName(view)}, ${linesLabel(view)}`;

@@ -108,26 +108,26 @@ const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd index writes a JSON catalog with paths relative to the working directory', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const root = join(__dirname, '..', '..');
   const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'index', ...args], { cwd: root, encoding: 'utf8', stdio: 'pipe' });
-  const catalog = JSON.parse(run('examples', '--today', '2026-09-29'));
+  const catalog = JSON.parse(run('extension/test/samples', '--today', '2026-09-29'));
   assert.equal(catalog.format, 'smd-index');
   assert.match(catalog.generator, /^smd \d+\.\d+\.\d+/);
   const paths = catalog.documents.map((d: { path: string }) => d.path);
-  assert.ok(paths.includes('examples/checkout-redesign.smd'));
+  assert.ok(paths.includes('extension/test/samples/checkout-redesign.smd'));
   assert.deepEqual(paths, [...paths].sort());
-  const checkout = catalog.documents.find((d: { path: string }) => d.path === 'examples/checkout-redesign.smd');
+  const checkout = catalog.documents.find((d: { path: string }) => d.path === 'extension/test/samples/checkout-redesign.smd');
   assert.equal(checkout.status, 'approved');
   assert.ok(checkout.tokens.agent < checkout.tokens.file && checkout.sections.length > 3);
   assert.ok(checkout.counts.apis >= 1 && checkout.counts.agentInstructions >= 1);
 
-  const compact = run('examples', '--today', '2026-09-29', '--compact');
+  const compact = run('extension/test/samples', '--today', '2026-09-29', '--compact');
   assert.equal(compact.trimEnd().split('\n').length, 1);
   assert.deepEqual(JSON.parse(compact), catalog);
 
   const dir = mkdtempSync(join(tmpdir(), 'smd-index-'));
   try {
     const out = join(dir, 'catalog.json');
-    run('examples/api-orders.smd', '-o', out);
-    assert.deepEqual(JSON.parse(readFileSync(out, 'utf8')).documents.map((d: { path: string }) => d.path), ['examples/api-orders.smd']);
+    run('extension/test/samples/api-orders.smd', '-o', out);
+    assert.deepEqual(JSON.parse(readFileSync(out, 'utf8')).documents.map((d: { path: string }) => d.path), ['extension/test/samples/api-orders.smd']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -1,0 +1,793 @@
+{
+  "tasks": [
+    {
+      "id": "s06-01",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "During phase 3 of the Querent migration, a team wants to merge a new table that has a tenant_id column but no row-level security policy yet, planning to add the policy in a later pull request. Can it be merged?",
+      "items": [
+        "policy-every-tenant-table"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "policy-every-tenant-table"
+      },
+      "violations": [
+        {
+          "item": "policy-every-tenant-table",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-02",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "May the tenant tables in Querent's databases be owned by the migration role, provided that role is used only to run migrations and never by services at runtime?",
+      "items": [
+        "no-bypassrls"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "no-bypassrls"
+      },
+      "notes": "Table owners are migration roles that services never use at runtime; the restriction is on service roles."
+    },
+    {
+      "id": "s06-03",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A data migration has to update rows for every tenant. Is it acceptable to do this by opening a separate transaction per tenant and setting that tenant at the start of each transaction?",
+      "items": [
+        "tenant-fixed-per-tx"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "tenant-fixed-per-tx"
+      },
+      "violations": [
+        {
+          "item": "tenant-fixed-per-tx",
+          "answers": [
+            "one transaction that switches tenant for each batch"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-04",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A team wants a table without a tenant_id column that maps each public survey link to its tenant id and survey id, and holds nothing else. May it exist as a global table without a row-level security policy?",
+      "items": [
+        "global-table-no-response-data"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "global-table-no-response-data"
+      },
+      "notes": "It holds no response data and nothing that identifies a respondent."
+    },
+    {
+      "id": "s06-05",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A developer caches a tenant's survey summary under the key `summary:<survey_id>:t:<tenant_id>`. Does this key meet Querent's rules for cache keys that hold tenant data?",
+      "items": [
+        "cache-key-tenant-prefix"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "cache-key-tenant-prefix"
+      },
+      "violations": [
+        {
+          "item": "cache-key-tenant-prefix",
+          "answers": [
+            "yes"
+          ]
+        }
+      ],
+      "notes": "The tenant id must be at the start of the key."
+    },
+    {
+      "id": "s06-06",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "To simplify a batch job, may the exports service's runtime role be given the right to call `set_config('app.tenant_id', …)` directly, instead of going through `with_tenant`?",
+      "items": [
+        "set-tenant-only-via-function"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "set-tenant-only-via-function"
+      },
+      "violations": [
+        {
+          "item": "set-tenant-only-via-function",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-07",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "Are EU database backups allowed to be stored in a second storage location that is also inside the EU region?",
+      "items": [
+        "home-region-only"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "home-region-only"
+      },
+      "violations": [
+        {
+          "item": "home-region-only",
+          "answers": [
+            "no"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-08",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "On a normal Tuesday with no incident declared, the isolation test fails for the builder service after a merge to main. The team lead believes the test is flaky and wants to deploy anyway. Is the deploy allowed?",
+      "items": [
+        "deploy-block-no-override"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "deploy-block-no-override"
+      },
+      "violations": [
+        {
+          "item": "deploy-block-no-override",
+          "answers": [
+            "yes",
+            "yes, with the team lead's approval"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-09",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "During a declared incident, the isolation test for the collect service is failing, and the incident commander wants to deploy the change that fixes the incident. May that deploy go out?",
+      "items": [
+        "deploy-block-no-override",
+        "deploy-block-incident-exception"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "deploy-block-no-override"
+      }
+    },
+    {
+      "id": "s06-10",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A Querent API endpoint has the form `/tenants/{tenantId}/surveys`. May the service use the tenant id from that URL path to set the tenant for its database transaction?",
+      "items": [
+        "tenant-not-from-request"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "tenant-not-from-request"
+      },
+      "violations": [
+        {
+          "item": "tenant-not-from-request",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-11",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "Inside a `db.InTenant` callback, may the reports service make an HTTP call to the notify service before it commits?",
+      "items": [
+        "no-service-calls-in-tx"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "no-service-calls-in-tx"
+      },
+      "violations": [
+        {
+          "item": "no-service-calls-in-tx",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-12",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A support engineer needs break-glass read access to a tenant on the Team plan to investigate a bug. There is a ticket naming the tenant and reason, and the security on-call has approved it. May the session start without written consent from the customer?",
+      "items": [
+        "breakglass-consent",
+        "team-plan-breakglass-consent"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "breakglass-consent"
+      },
+      "notes": "cross-section: consent is required only for Enterprise and Dedicated (Admin tools); Team plan handling is the interim rule under Open questions."
+    },
+    {
+      "id": "s06-13",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "During a break-glass session, an engineer finds the three survey responses a customer is asking about. May the engineer paste those responses into the support ticket so the customer can see them?",
+      "items": [
+        "breakglass-no-copy"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "breakglass-no-copy"
+      },
+      "violations": [
+        {
+          "item": "breakglass-no-copy",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-14",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "The nightly warehouse copy job is enqueued with no tenant_id in its payload. Will a worker run it, rather than move it to the dead-letter queue?",
+      "items": [
+        "job-needs-tenant"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "job-needs-tenant"
+      },
+      "notes": "It is one of the registered global jobs."
+    },
+    {
+      "id": "s06-15",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A team ships a migration that renames a column on a shared-database table and wants to remove the code that handles the old column name one week later. Is that allowed?",
+      "items": [
+        "prev-schema-35-days"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "prev-schema-35-days"
+      },
+      "violations": [
+        {
+          "item": "prev-schema-35-days",
+          "answers": [
+            "yes"
+          ]
+        }
+      ],
+      "notes": "The 35-day rule applies to every schema change, not only Dedicated databases."
+    },
+    {
+      "id": "s06-16",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A table has finished its shadow period. May the platform engineer enforce its row-level security policy on a Wednesday at 10:00 EU time, in a week with no public holidays in either region, with the owning team told the day before?",
+      "items": [
+        "forcing-window"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "forcing-window"
+      }
+    },
+    {
+      "id": "s06-17",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "Phase 3 has started, and the policies on the `answers` table are forced in the EU but not yet in the US. A collect engineer wants to add a column to `answers`, approved by the collect team lead. May the change go ahead?",
+      "items": [
+        "schema-freeze"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "schema-freeze"
+      },
+      "violations": [
+        {
+          "item": "schema-freeze",
+          "answers": [
+            "yes"
+          ]
+        }
+      ],
+      "notes": "Changes during the freeze need the platform lead, not the service team lead."
+    },
+    {
+      "id": "s06-18",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "A pull request adds a new endpoint to the reports service. The author wants to add its isolation test in a follow-up pull request next week. Can the first pull request be merged as it is?",
+      "items": [
+        "new-endpoint-isolation-test"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "new-endpoint-isolation-test"
+      },
+      "violations": [
+        {
+          "item": "new-endpoint-isolation-test",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-19",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "In December 2026, a prospect's security questionnaire asks how Querent separates customer data. May the sales engineer answer that tenant data is isolated by Postgres row-level security?",
+      "items": [
+        "sales-no-rls-claim"
+      ],
+      "expected": {
+        "verdict": [
+          "no"
+        ],
+        "constraint": "sales-no-rls-claim"
+      },
+      "violations": [
+        {
+          "item": "sales-no-rls-claim",
+          "answers": [
+            "yes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-20",
+      "type": "constraint-check",
+      "author": "ai-task-writer-b",
+      "prompt": "At 02:00 the platform on-call turned off the row-level security policy on one table to end an outage, and told the security on-call straight away. The proper fix will take two days. May the policy stay off for longer than 24 hours?",
+      "items": [
+        "policy-off-24h"
+      ],
+      "expected": {
+        "verdict": [
+          "yes"
+        ],
+        "constraint": "policy-off-24h"
+      },
+      "notes": "The rule is: back on within 24 hours or the security on-call must be told."
+    },
+    {
+      "id": "s06-21",
+      "type": "decision-status",
+      "author": "ai-task-writer-b",
+      "prompt": "A team is writing a new Querent service that reads tenant tables. Which mechanism is the tenant isolation control it must rely on?",
+      "items": [
+        "rls-supersedes-adr0007",
+        "option-a-rejected"
+      ],
+      "expected": {
+        "option": [
+          "Postgres row-level security",
+          "row-level security",
+          "RLS",
+          "row-level security on every tenant table",
+          "Option B",
+          "shared tables with row-level security",
+          "row-level security through db.InTenant"
+        ],
+        "superseded": [
+          "TenantScope",
+          "application-level filtering",
+          "application layer filtering",
+          "ADR-0007",
+          "TenantScope application filtering",
+          "application filtering with more checks",
+          "Option A"
+        ]
+      },
+      "notes": "cross-section: Decision and Options considered. ADR-0007's text in Current state still reads as authoritative and forbids row-level security."
+    },
+    {
+      "id": "s06-22",
+      "type": "decision-status",
+      "author": "ai-task-writer-b",
+      "prompt": "Some tickets link to an RFC draft that gives each tenant its own Postgres schema. For Querent's Enterprise tenants on shared databases, which isolation model is being built?",
+      "items": [
+        "option-c-rejected"
+      ],
+      "expected": {
+        "option": [
+          "row-level security",
+          "Postgres row-level security",
+          "RLS",
+          "shared tables with row-level security",
+          "Option B"
+        ],
+        "superseded": [
+          "one schema per tenant",
+          "schema per tenant",
+          "per-tenant schemas",
+          "schemas for Enterprise tenants",
+          "Option C"
+        ]
+      }
+    },
+    {
+      "id": "s06-23",
+      "type": "decision-status",
+      "author": "ai-task-writer-b",
+      "prompt": "Querent's largest tenant, with 38 million responses, is on the Enterprise plan and asks for its own database instance. Without changing plan, what database setup does it get?",
+      "items": [
+        "option-d-dedicated-only",
+        "no-other-dedicated"
+      ],
+      "expected": {
+        "option": [
+          "the shared database with row-level security",
+          "shared database",
+          "the shared regional database",
+          "shared tables with row-level security",
+          "shared database with row-level security"
+        ],
+        "superseded": [
+          "its own database instance",
+          "a dedicated database",
+          "one database per tenant",
+          "a separate database"
+        ]
+      },
+      "notes": "cross-section: Options considered (Option D) and Decision (no other customer gets a dedicated database)."
+    },
+    {
+      "id": "s06-24",
+      "type": "decision-status",
+      "author": "ai-task-writer-b",
+      "prompt": "Querent's largest tenants cause noisy-neighbour problems. For tenant isolation, which model applies to them: a pool of medium-sized clusters grouped by customer size, or something else?",
+      "items": [
+        "option-e-rejected"
+      ],
+      "expected": {
+        "option": [
+          "row-level security",
+          "the same row-level security as every other tenant",
+          "RLS",
+          "shared tables with row-level security",
+          "Option B"
+        ],
+        "superseded": [
+          "separate clusters per customer size",
+          "clusters by size",
+          "size-based clusters",
+          "a pool of medium-sized clusters",
+          "Option E"
+        ]
+      }
+    },
+    {
+      "id": "s06-25",
+      "type": "decision-status",
+      "author": "ai-task-writer-b",
+      "prompt": "Which of a tenant's data does Querent encrypt with a key that belongs to that tenant?",
+      "items": [
+        "response-data-only-keys"
+      ],
+      "expected": {
+        "option": [
+          "response data",
+          "response data only",
+          "only response data",
+          "answer values, free text and respondent uploads",
+          "survey responses only"
+        ],
+        "superseded": [
+          "all tenant data",
+          "every column",
+          "all data",
+          "survey definitions"
+        ]
+      }
+    },
+    {
+      "id": "s06-26",
+      "type": "open-question",
+      "author": "ai-task-writer-b",
+      "prompt": "Should the analytics warehouse get its own row-level security, or should Enterprise reporting move to a separate per-tenant store? What applies in the meantime?",
+      "items": [
+        "warehouse-rls"
+      ],
+      "expected": {
+        "fallback": [
+          "per-tenant views",
+          "Enterprise reporting stays on per-tenant views",
+          "stays on per-tenant views through the reporting API",
+          "per-tenant views, reached only through the reporting API"
+        ]
+      }
+    },
+    {
+      "id": "s06-27",
+      "type": "open-question",
+      "author": "ai-task-writer-b",
+      "prompt": "A respondent who answers surveys for several Querent tenants with the same email address unsubscribes from one tenant's emails. Should that stop invitations from the other tenants too?",
+      "items": [
+        "cross-tenant-unsubscribe"
+      ],
+      "expected": {
+        "fallback": [
+          "one tenant only",
+          "unsubscribes apply to one tenant only",
+          "no, only that tenant",
+          "only the tenant they unsubscribed from",
+          "it applies to that tenant only"
+        ]
+      }
+    },
+    {
+      "id": "s06-28",
+      "type": "open-question",
+      "author": "ai-task-writer-b",
+      "prompt": "Should Querent ask a Business plan tenant for consent before a break-glass session on its data?",
+      "items": [
+        "team-plan-breakglass-consent"
+      ],
+      "expected": {
+        "fallback": [
+          "follow the terms of service with a notice to the tenant's admin after the session closes",
+          "no consent, notice to the tenant's admin after the session closes",
+          "notice to the tenant's admin after the session closes",
+          "follow the terms of service",
+          "no, notify the admin afterwards"
+        ]
+      }
+    },
+    {
+      "id": "s06-29",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-b",
+      "prompt": "What is the most responses a single Querent export can hold before it is split into parts?",
+      "items": [
+        "export-size-limit"
+      ],
+      "expected": {
+        "accepted": [
+          "500,000",
+          "500000",
+          "500,000 responses",
+          "500k",
+          "500k responses",
+          "half a million"
+        ]
+      },
+      "violations": [
+        {
+          "item": "export-size-limit",
+          "answers": [
+            "1 million",
+            "1,000,000",
+            "1000000",
+            "1 million responses"
+          ]
+        }
+      ],
+      "notes": "The revision history mentions the old 1 million value."
+    },
+    {
+      "id": "s06-30",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-b",
+      "prompt": "How many public API requests per second can a tenant on a shared database make across all of its API keys together?",
+      "items": [
+        "tenant-rate-limit"
+      ],
+      "expected": {
+        "accepted": [
+          "300",
+          "300 requests a second",
+          "300 requests per second",
+          "300 per second",
+          "300/s",
+          "300 rps"
+        ]
+      },
+      "violations": [
+        {
+          "item": "tenant-rate-limit",
+          "answers": [
+            "50",
+            "50 requests a second"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "s06-31",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-b",
+      "prompt": "If Querent's key management calls approach the quota, what is the longest that unwrapped tenant keys may be cached in service memory?",
+      "items": [
+        "kms-cache-max-15"
+      ],
+      "expected": {
+        "accepted": [
+          "15 minutes",
+          "15 min",
+          "15",
+          "fifteen minutes",
+          "15 mins"
+        ]
+      },
+      "violations": [
+        {
+          "item": "kms-cache-max-15",
+          "answers": [
+            "5 minutes",
+            "5"
+          ]
+        }
+      ],
+      "notes": "The 5-minute default is stated under Encryption keys; the 15-minute ceiling is under Capacity."
+    },
+    {
+      "id": "s06-32",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-b",
+      "prompt": "What status does Querent's ADR index show for ADR-0007 today?",
+      "items": [
+        "adr-index-shows-accepted"
+      ],
+      "expected": {
+        "accepted": [
+          "accepted",
+          "still accepted",
+          "shown as accepted"
+        ]
+      },
+      "notes": "It is marked superseded only when phase 3 finishes. Violation rule removed when the corpus was assembled: the scorer counts violations only for constraint, negation or limit items, and this item is a fact."
+    },
+    {
+      "id": "s06-33",
+      "type": "qualification",
+      "author": "ai-task-writer-b",
+      "prompt": "Summarise the rules for break-glass access to a Querent tenant's data.",
+      "items": [
+        "breakglass-4-hours",
+        "breakglass-consent",
+        "team-plan-breakglass-consent",
+        "breakglass-no-write",
+        "breakglass-no-copy"
+      ],
+      "expected": {
+        "rubric": [
+          {
+            "id": "r1",
+            "text": "One named engineer gets read access to one tenant for at most 4 hours.",
+            "items": [
+              "breakglass-4-hours"
+            ]
+          },
+          {
+            "id": "r2",
+            "text": "It needs a ticket naming the tenant and reason, security on-call approval, and for Enterprise and Dedicated tenants written consent from the customer's named contact, with no emergency path around consent.",
+            "items": [
+              "breakglass-consent"
+            ]
+          },
+          {
+            "id": "r3",
+            "text": "For Team and Business plan tenants (undecided whether to ask), access follows the terms of service, with a notice to the tenant's admin after the session closes.",
+            "items": [
+              "team-plan-breakglass-consent"
+            ]
+          },
+          {
+            "id": "r4",
+            "text": "Write access is not allowed; data fixes go through a reviewed migration script under with_tenant.",
+            "items": [
+              "breakglass-no-write"
+            ]
+          },
+          {
+            "id": "r5",
+            "text": "Response data must never be copied out of the session into tickets, chat or local files.",
+            "items": [
+              "breakglass-no-copy"
+            ]
+          }
+        ]
+      },
+      "notes": "cross-section: Admin tools and support access, Open questions."
+    },
+    {
+      "id": "s06-34",
+      "type": "edit-plan",
+      "author": "ai-task-writer-b",
+      "prompt": "Which lines must change to let cache entries for response data live up to 15 minutes instead of 10?",
+      "items": [
+        "cache-ttl",
+        "cache-key-tenant-prefix"
+      ],
+      "expected": {
+        "md": [
+          [
+            111,
+            111
+          ],
+          [
+            312,
+            312
+          ]
+        ],
+        "smd": [
+          [
+            118,
+            118
+          ],
+          [
+            335,
+            335
+          ]
+        ]
+      },
+      "notes": "cross-section: stated in Requirements and in Caching."
+    }
+  ]
+}

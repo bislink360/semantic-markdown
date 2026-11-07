@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  FROZEN, blockLabel, blockName, cellLabel, cellSource, clampCell, desiredOrder, editLabel, findView, followEdit, formRequest, gridActionEnabled,
+  FROZEN, blockLabel, blockName, cellLabel, childNaming, cellSource, clampCell, desiredOrder, editLabel, findView, followEdit, formRequest, gridActionEnabled,
   gridAnnouncement, gridKeyTarget, gridLabel, gridRequest, inlineAnnouncement, inlineItemLabel, inlineRequest, isUndoRedo, itemAnnouncement, itemForLine,
   linesLabel, listKeyTarget, mergeProblems, fixLabel, fixesAnnouncement, frontMatterValue, boundaryY, dropAnnouncement, dropIndex, dropMoves, dropTo, imageProblem, toBase64, orderMoves, problemsLabel, refreshedValue, shiftLine, textareaRows, toolbarKeyTarget, topRange, typeAhead, withoutLines,
   type GridAction,
@@ -266,8 +266,14 @@ test('problems: merged for a container that shows a lost child\'s, and announced
   assert.equal(itemAnnouncement(view('a', 2, 4), err), 'Paragraph, lines 3–4, 2 problems. Ctrl+. shows them.');
 });
 
+test('child blocks: roles that can be named keep them, headings keep their text, the rest become named groups', () => {
+  for (const tag of ['UL', 'ol', 'LI', 'TABLE', 'TR', 'FIGURE', 'BLOCKQUOTE', 'DETAILS', 'DD']) assert.equal(childNaming(tag), 'own-role', tag);
+  for (const tag of ['H1', 'h3', 'H6']) assert.equal(childNaming(tag), 'contents', tag);
+  for (const tag of ['P', 'DIV', 'PRE', 'SPAN', 'H7']) assert.equal(childNaming(tag), 'group', tag);
+});
+
 test('page: problem badges on top-level blocks and children, in closed shadow roots, open the problems list', () => {
-  assert.match(pageSource, /updateChrome\(el, mergeProblems\(child\.problems, annotateChildren\(el, child\.children\)\), true\)/, 'children get badges');
+  assert.match(pageSource, /const shown = mergeProblems\(child\.problems, annotateChildren\(el, child\.children\)\);\n\s+nameChild\(el, child, shown\);\n\s+updateChrome\(el, shown, true\)/, 'children get names and badges');
   assert.match(pageSource, /lost = mergeProblems\(lost, child\.problems/, 'a child not in the HTML: its container shows its problems');
   assert.match(pageSource, /h\('button', \{ className: 'badge', attrs: \{ type: 'button', \[TABINDEX\]: '-1', 'aria-hidden': TRUE \} \}\)/, 'one tab stop: the badge is for the mouse');
   assert.match(pageSource, /event\.key === '\.' && \(event\.ctrlKey \|\| event\.metaKey\)/, 'Ctrl+. on a block');

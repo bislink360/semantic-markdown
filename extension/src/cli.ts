@@ -7,7 +7,7 @@ import {
   ganttDocument, getDocumentInfo, markdownToSmd, outline, parseSelector, relatedDocs, renderRiskPage,
   RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, SelectorError, LATEST_SPEC, smdIndex,
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
-  type BudgetResult, type Diagnostic, type DiffResult, type ReportDocument, type Selector, type Tokenizer,
+  type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Selector, type Tokenizer,
 } from './core';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
@@ -23,6 +23,7 @@ import { runSavings } from './savings';
 import { runLanguageServer } from './lsp';
 import { runIssues, type GhResult, type IssuesOptions } from './issueSync';
 import { runBuild } from './siteBuild';
+import { isHttpUrl } from './core/siteMeta';
 import { AGENT_RULES, fillTemplate, SKILLS, TEMPLATES } from './skillsBundle';
 import {
   isGenerated, parseTargets, rulesBody, SHARED_CLI_COMMAND, SHARED_CLI_PATH, TARGET_FILES, type AgentTarget, type RulesTarget, type TargetFile,
@@ -42,19 +43,23 @@ const pkg = { version: typeof __SMD_PKG_VERSION__ === 'string' ? __SMD_PKG_VERSI
 const HELP = `smd — Semantic Markdown tool (spec v${LATEST_SPEC})
 
 Reading (token-efficient, for agents):
-  smd read <file.smd> [--max-tokens <n>] [--section "<heading>"]... [--brief] [--outline | --full] [--no-lines]
+  smd read <file.smd> [--max-tokens <n>] [--section "<heading>"]... [--exact] [--brief] [--outline | --full]
+           [--no-lines] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
       Start here. The whole agent view when it fits n tokens (default ${READ_BUDGET}), else the outline,
-      so one call replaces outline + agent. --section reads only those sections.
-  smd savings <files|dirs...> [--json] [--price <USD per million input tokens>]
+      so one call replaces outline + agent. --section reads only those sections. --tokenizer counts
+      the view with that encoding to decide. --constraints and --provenance as on agent.
+  smd savings <files|dirs...> [--json]
       Tokens an agent saves by reading the agent view instead of the raw files, per document and in
-      total, in tokens and dollars (default price 3).
+      total, as a number and a percentage.
   smd outline <file.smd> [--related] [--tokenizer <name>]
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost
-  smd agent <file.smd> [--section "<heading>"]... [--brief] [--include-human] [--embed] [--no-includes]
-                       [--no-lines] [--max-tokens <n>] [--tokenizer <name>]
+  smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
+                       [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
       --section    only these sections (repeatable; agent instructions elsewhere are still included)
+      --exact      --section matches a heading's id or whole text only (by default a part of the text,
+                   so "API" also selects "API details")
       --brief      also condense diagrams, long code, :::details and completed tasks
       --embed      inline file="…" code embeds instead of referencing the file
       --no-includes a one-line pointer for each :::include instead of the included text (by default
@@ -64,6 +69,10 @@ Reading (token-efficient, for agents):
       --tokenizer  exact counts next to the ≈ estimate (also on outline, and used by --max-tokens) for an
                    OpenAI encoding: ${TOKENIZERS.join(', ')}. Approximate for Claude models.
                    Needs the js-tiktoken package in your project or installed globally; smd doesn't bundle it.
+      --constraints with --section, also list the constraints elsewhere in the document (experimental):
+                   :::danger blocks in full; warnings, accepted decisions and open questions as pointers
+      --provenance write a JSON manifest of the view to a file: source hashes, settings, resolved
+                   sections, a source map and every omission with its reason. The text doesn't change.
   smd tasks <files|dirs...> [--all] [--mine @name] [--json | --csv | --gantt [--smd] [--title "…"]] [-o <file>]
       Open tasks across documents with owner, priority and due date (overdue first).
       --csv     CSV for spreadsheets (1-based lines, owners joined with ";", formula-like cells prefixed with ')
@@ -142,15 +151,20 @@ Checking and converting:
       Format .smd files in place: container fences, attribute lists, tables and blank lines.
       --check   change nothing; list unformatted files and exit 1 if there are any
       --stdout  print the formatted file instead of writing it (one file)
-      validate and fmt take any number of files: use them as a pre-commit hook (see docs/INSTALL.md).
+      validate and fmt take any number of files: use them as a pre-commit hook (see docs/guides/install.md).
       After --, every argument is a file, even one that starts with "-".
 ${MIGRATE_HELP}${EXPORT_HELP}
-  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
+  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
       Static docs site: a page per .smd file in the same folders (links between documents rewritten,
       linked images copied), a sidebar, breadcrumbs, previous/next, backlinks, client-side search and
       a dashboard of open tasks, decisions and open risks. Opens from disk or any static web server.
       --out    the site folder (default: site): must be outside <dir>, and new, empty or a previous build
       --base   deployment path for absolute links, e.g. /docs/ (default: relative links)
+      --url    the site's public address, e.g. https://example.com/docs/: canonical links, og:url and
+               sitemap.xml (and robots.txt at the root of a host). Default: --base when it is a URL
+      --image  the image link previews show (og:image): a URL, or a path under --url
+               Every page gets a meta description (front matter "summary:") and Open Graph tags,
+               and the site an llms.txt listing its documents for AI tools.
       --md     also publish .md files; the home page is <dir>/index.smd or README, else a generated index
       --clean  first delete the files of the previous build (only those listed in its .smd-site.json)
       --lang   language of the navigation, search and dashboard, and of documents without "lang:"
@@ -177,7 +191,7 @@ Editor integration:
   smd lsp [--stdio]
       Language server (LSP) over stdio for Neovim, Helix, Zed and other editors: diagnostics with quick
       fixes, outline, workspace symbols, hover, completion, go to definition and formatting. Also
-      installed as smd-language-server by the npm package. Setup guides: docs/EDITORS.md
+      installed as smd-language-server by the npm package. Setup guides: docs/guides/editors.md
 
 Agent skills:
   smd skills install [--dir <skills-dir>] [--global] [--only reader|writer]
@@ -199,8 +213,8 @@ interface Args { command?: string; positional: string[]; flags: Set<string>; val
 
 const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
-  '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base',
-  '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command',
+  '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
+  '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -595,27 +609,52 @@ function readCommand(file: string, args: Args, today?: string): number {
   if (flags.has('--outline')) mode = 'outline';
   else if (flags.has('--full')) mode = 'full';
   const sections = args.values.get('--section');
-  const result = readDocument(read(file), {
-    mode, maxTokens, sections, brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), readFile: readerFor(file), today, file,
+  const manifest = provenanceTarget(args);
+  if (manifest === null) return fail(PROVENANCE_USAGE);
+  return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => {
+    const result = readDocument(read(file), {
+      mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
+      readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined,
+    });
+    if (result.missingSections.length) {
+      console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd read ${file} --outline" to list sections.`);
+      if (result.missingSections.length === sections?.length) return 1;
+    }
+    if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
+    process.stdout.write(result.text);
+    const exact = result.counted ? ` (${result.counted.tokens} ${result.counted.tokenizer})` : '';
+    console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens${exact} · file ≈${result.fileTokens} tokens`);
+    return 0;
   });
-  if (result.missingSections.length) {
-    console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd read ${file} --outline" to list sections.`);
-    if (result.missingSections.length === sections?.length) return 1;
-  }
-  process.stdout.write(result.text);
-  console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens · file ≈${result.fileTokens} tokens`);
-  return 0;
+}
+
+/** `--provenance <file>`: undefined when not given, null when it has no file name. */
+function provenanceTarget(args: Args): string | undefined | null {
+  const raw = args.values.get('--provenance')?.[0];
+  if (raw === undefined) return undefined;
+  return raw.trim() && !raw.startsWith('-') ? raw : null;
+}
+
+const PROVENANCE_USAGE = '--provenance needs a file to write the manifest to, e.g. --provenance view.json.';
+
+function writeProvenance(target: string, manifest: Provenance): void {
+  fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
 }
 
 function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 'maxTokens' | 'tokenizer' | 'today'>): number {
   const sections = args.values.get('--section');
+  const manifest = provenanceTarget(args);
+  if (manifest === null) return fail(PROVENANCE_USAGE);
   const result = agentView(read(file), {
     sections,
+    exactSections: args.flags.has('--exact'),
     brief: args.flags.has('--brief'),
     includeHuman: args.flags.has('--include-human'),
     embed: args.flags.has('--embed'),
     includes: !args.flags.has('--no-includes'),
     lineRefs: !args.flags.has('--no-lines'),
+    constraints: args.flags.has('--constraints'),
+    provenance: manifest !== undefined,
     readFile: readerFor(file),
     file,
     ...extra,
@@ -624,9 +663,10 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
     console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd outline ${file}" to list sections.`);
     if (result.missingSections.length === (sections?.length ?? 0)) return 1;
   }
+  if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
   process.stdout.write(result.text);
   console.error(sizeLine(result));
-  if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer)) console.error(line);
+  if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer, !!result.resolvedSections)) console.error(line);
   return 0;
 }
 
@@ -640,8 +680,11 @@ function sizeLine(result: AgentViewResult): string {
   return `[smd] ≈${result.tokens} est · ${tokens} ${exact} tokens (file ≈${result.originalTokens} est · ${original} ${exact}, ${saved}% smaller)`;
 }
 
-/** What `--max-tokens` did, and a warning when even the smallest view is over the budget. */
-function budgetLines(budget: BudgetResult, tokenizer?: string): string[] {
+/**
+ * What `--max-tokens` did, and a warning when even the smallest view is over the budget. The warning suggests fewer
+ * sections only when sections were requested (contract GAP-10).
+ */
+function budgetLines(budget: BudgetResult, tokenizer?: string, sectionsRequested = false): string[] {
   const unit = tokenizer ? `${tokenizer} tokens` : 'tokens';
   const size = tokenizer ? `${budget.tokens} ${unit}` : `≈${budget.tokens} ${unit}`;
   const steps = [
@@ -650,8 +693,11 @@ function budgetLines(budget: BudgetResult, tokenizer?: string): string[] {
   ].filter(Boolean);
   const lines = [`[smd] budget ${budget.maxTokens} ${unit}: ${steps.join('; ') || 'fits as is'}; now ${size}.`];
   if (!budget.fits) {
-    lines.push(`[smd] warning: still over the budget of ${budget.maxTokens} ${unit}. The header, agent instructions and `
-      + 'requested sections are never omitted; ask for fewer sections or a larger budget.');
+    const ask = sectionsRequested
+      ? 'ask for fewer sections or a larger budget.'
+      : 'ask for a larger budget, or read one section at a time with --section.';
+    lines.push(`[smd] warning: still over the budget of ${budget.maxTokens} ${unit}. The header, agent instructions, `
+      + `dangers and requested sections are never omitted; ${ask}`);
   }
   return lines;
 }
@@ -690,11 +736,15 @@ function build(positional: string[], args: Args): number {
   const value = (name: string) => args.values.get(name)?.[0];
   const lang = langOption(value('--lang'));
   if (lang === null) return fail(LANG_USAGE);
+  const url = value('--url');
+  if (url !== undefined && !isHttpUrl(url)) return fail('--url must be an http(s) address, e.g. https://example.com/docs/');
   return runBuild({
     dir: positional[0],
     out: value('--out') ?? 'site',
     title: value('--title'),
     base: value('--base'),
+    url,
+    image: value('--image'),
     today: value('--today'),
     lang,
     md: args.flags.has('--md'),

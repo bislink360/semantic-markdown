@@ -55,3 +55,5 @@ See [Pricing](shared/terms.smd#pricing) in the shared terms.
 ## Diagrams
 
 The first non-comment line must be a Mermaid type: `flowchart` (or `graph`), `sequenceDiagram`, `classDiagram`, `stateDiagram-v2`, `erDiagram`, `journey`, `gantt`, `pie`, `quadrantChart`, `requirementDiagram`, `gitGraph`, `mindmap`, `timeline`, `sankey-beta`, `xychart-beta`, `block-beta`, `packet-beta`, `kanban`, `architecture-beta`, `C4Context`…
+
+Name every diagram for screen readers with an `accTitle:` line that says what it shows, and add `accDescr:` for a one-sentence summary. A diagram inside a `:::figure` is named by its caption, and one with its own `title` by that title. Without any of these the page calls it "Diagram" and reads out its source, and the validator gives the hint `mermaid/acc-title`.

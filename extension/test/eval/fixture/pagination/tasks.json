@@ -1,0 +1,15 @@
+{
+  "tasks": [
+    { "id": "pg-01", "type": "decision-status", "prompt": "Which pagination scheme should a new list endpoint use?", "items": ["cursor-current", "offset-rejected"],
+      "expected": { "option": ["cursor pagination", "cursor", "cursor-based pagination"], "superseded": ["offset pagination", "offset", "offset and limit"] } },
+    { "id": "pg-02", "type": "fact-lookup", "prompt": "What is the default page size?", "items": ["page-size-default"],
+      "expected": { "accepted": ["25", "25 items"] } },
+    { "id": "pg-03", "type": "constraint-check", "prompt": "May a client ask for 250 items per page?", "items": ["page-size-max"],
+      "expected": { "verdict": ["no"], "constraint": "page-size-max" } },
+    { "id": "pg-04", "type": "open-question", "prompt": "Do cursors expire?", "items": ["cursor-expiry"],
+      "expected": { "fallback": ["valid for 24 hours", "24 hours", "they stay valid for 24 hours"] } },
+    { "id": "pg-05", "type": "constraint-check", "prompt": "May the API log the cursor of a failed request for debugging?", "items": ["no-cursor-logs"],
+      "expected": { "verdict": ["no"], "constraint": "no-cursor-logs" },
+      "violations": [{ "item": "no-cursor-logs", "answers": ["yes", "yes, log it"] }] }
+  ]
+}

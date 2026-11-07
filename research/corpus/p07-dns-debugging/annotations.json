@@ -1,0 +1,27 @@
+{
+  "guide": "research/annotation-guide.smd 0.2",
+  "items": [
+    { "id": "coredns-addon-required", "kind": "constraint", "md": [10, 10], "smd": [15, 15], "evidence": ["Your cluster must be configured to use the CoreDNS addon"], "annotator": "ai-annotator-h" },
+    { "id": "min-server-version", "kind": "limit", "md": [12, 12], "smd": [17, 17], "evidence": ["at or later than version v1.6"], "annotator": "ai-annotator-h" },
+    { "id": "agent-readonly-checks-safe", "kind": "constraint", "md": [16, 16], "smd": [22, 22], "evidence": ["that only read state", "are safe to run without asking"], "annotator": "ai-annotator-h", "notes": "Permission rule for agents, stated once in prose. Constraint rather than fact because it sets what may be done without asking." },
+    { "id": "agent-no-edit-dns-config", "kind": "constraint", "md": [16, 16], "smd": [22, 22], "evidence": ["Do not edit the coredns ConfigMap or the system:coredns ClusterRole on your own", "let a cluster administrator apply it"], "annotator": "ai-annotator-h" },
+    { "id": "agent-log-line-exception", "kind": "negation", "md": [16, 16], "smd": [22, 22], "evidence": ["except to remove a log line that you added while debugging"], "annotator": "ai-annotator-h" },
+    { "id": "checks-in-order", "kind": "constraint", "md": [20, 20], "smd": [27, 27], "evidence": ["stop at the first one that fails"], "annotator": "ai-annotator-h" },
+    { "id": "perms-list-watch", "kind": "fact", "md": [28, 28], "smd": [35, 35], "evidence": ["list and watch on services and endpointslices"], "annotator": "ai-annotator-h", "notes": "Only place that says watch is needed as well as list (prose at line 204 says list only)." },
+    { "id": "dns-service-name", "kind": "fact", "md": [142, 142], "smd": [149, 149], "evidence": ["The Service for CoreDNS is named kube-dns"], "annotator": "ai-annotator-h" },
+    { "id": "corefile-in-configmap", "kind": "fact", "md": [164, 164], "smd": [171, 171], "evidence": ["The CoreDNS Corefile is held in a ConfigMap named coredns"], "annotator": "ai-annotator-h" },
+    { "id": "log-propagation-time", "kind": "limit", "md": [198, 198], "smd": [205, 205], "evidence": ["up to minute or two"], "annotator": "ai-annotator-h" },
+    { "id": "log-plugin-disable", "kind": "constraint", "md": [200, 200], "smd": [208, 208], "evidence": ["Do not leave the log plugin enabled after you finish debugging"], "annotator": "ai-annotator-h" },
+    { "id": "coredns-needs-list", "kind": "constraint", "md": [204, 204], "smd": [213, 213], "evidence": ["must be able to list service and endpointslice related resources"], "annotator": "ai-annotator-h" },
+    { "id": "cross-namespace-query", "kind": "constraint", "md": [220, 224], "smd": [229, 233], "evidence": ["limited to the pod's namespace", "the DNS query must include the namespace of the service"], "annotator": "ai-annotator-h" },
+    { "id": "systemd-resolved-fix", "kind": "fact", "md": [234, 236], "smd": [243, 245], "evidence": ["fatal forwarding loop", "/run/systemd/resolve/resolv.conf"], "annotator": "ai-annotator-h" },
+    { "id": "kubeadm-detects-resolved", "kind": "fact", "md": [237, 237], "smd": [246, 246], "evidence": ["kubeadm automatically detects systemd-resolved"], "annotator": "ai-annotator-h" },
+    { "id": "no-node-cluster-dns-default", "kind": "negation", "md": [239, 240], "smd": [249, 250], "evidence": ["do not configure the nodes' resolv.conf files to use the cluster DNS by default"], "annotator": "ai-annotator-h" },
+    { "id": "node-resolv-conf-undecided", "kind": "open-question", "md": [241, 242], "smd": [251, 252], "evidence": ["Whether and how is undecided", "configure the node's resolver yourself"], "annotator": "ai-annotator-h" },
+    { "id": "glibc-nameserver-limit", "kind": "limit", "md": [244, 245], "smd": [255, 256], "evidence": ["limit for the DNS nameserver records to 3", "Kubernetes needs to consume 1 nameserver record"], "annotator": "ai-annotator-h" },
+    { "id": "alpine-upgrade", "kind": "constraint", "md": [252, 255], "smd": [265, 268], "evidence": ["Alpine version 3.17 or earlier", "upgrade your images to Alpine version 3.18 or above"], "annotator": "ai-annotator-h" },
+    { "id": "alpine-512-bytes", "kind": "limit", "md": [254, 254], "smd": [267, 267], "evidence": ["above 512 bytes would fail"], "annotator": "ai-annotator-h" },
+    { "id": "dnsmasq-replaced", "kind": "decision-status", "md": [259, 259], "smd": [273, 273], "evidence": ["dnsmasq workaround", "replaced and no longer recommended", "Use kubelet's --resolv-conf flag to point to a file"], "annotator": "ai-annotator-h", "notes": "Superseded option reads as authoritative advice at lines 249-250 (node can run dnsmasq) in Known issues, with no pointer to this change." },
+    { "id": "resolv-conf-max-2", "kind": "limit", "md": [259, 259], "smd": [273, 273], "evidence": ["at most 2 nameserver entries"], "annotator": "ai-annotator-h" }
+  ]
+}

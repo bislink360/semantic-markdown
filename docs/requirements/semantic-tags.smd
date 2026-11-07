@@ -1,0 +1,414 @@
+---
+smd: 2
+title: Semantic tags requirements
+summary: "Requirements for new Semantic Markdown tags that say what must hold (requirement, constraint, acceptance), what is believed (assumption) and what supports it (evidence), plus shared block ids and references. It is the input to the semantic tags RFC and the Semantic tags milestone in the roadmap."
+status: draft
+owners: ["@roshanmadhushanka"]
+tags: [requirements, spec, semantic-tags]
+created: 2026-11-06
+updated: 2026-11-07
+toc: true
+related:
+  - ../reference/spec.md
+  - tree-and-graph-filtering.smd
+  - ../../implementation-changes.smd
+  - ../rfcs/collaboration.smd
+  - ../../skills/semantic-markdown-writer/assets/templates/spec.smd
+---
+
+## Problem
+
+Semantic Markdown has tags for decisions, risks, questions, APIs and tasks, but none for the core of a spec. Requirements, constraints, acceptance criteria, assumptions and evidence are written today as table rows, bold paragraphs or general callouts.
+
+- The spec and PRD templates keep requirements and acceptance criteria in tables. Tools can't query them, count them or check that each requirement is tested.
+- The spec template writes a constraint as `:::warning Constraint`. A hard rule and a caveat look the same to tools and to agents.
+- Non-goals are a bold paragraph, so a budgeted agent view can drop them. Agents then build things nobody asked for.
+- The implementation review (C04) found that reading one section leaves out dangers and accepted decisions from other sections. No syntax says which constraints apply to the whole document.
+- The review findings in `implementation-changes.smd` start each one with a bold "Evidence" paragraph. Nothing links that evidence to the claim it supports.
+- Blocks other than figures can't be referred to by id, so there is no way to trace a task or test back to the requirement it serves.
+
+## Goals and non-goals
+
+**Goals**
+
+1. A spec written with the new tags can be queried, counted and checked for coverage with `smd query`, `smd index` and `smd validate`.
+2. An agent reading one section still receives every constraint that applies to it, and nothing that doesn't.
+3. Requirements, acceptance criteria, evidence and tasks link to each other by id, and tools report broken links and gaps.
+4. Every new tag degrades to readable text in GitHub, in plain Markdown and in tools older than the release that adds it.
+5. The writer skill and agent rules grow by no more than the limits in [Token budget](#token-budget).
+
+**Non-goals**
+
+- No requirements-management tool. There are no workflows, approvals, baselines or change requests beyond `status` values.
+- No test runner integration. An acceptance criterion can name a test file, but tools don't run it or read its result.
+- No new syntax. Every tag uses the existing container, attribute and inline directive grammar.
+- No change to how any existing `smd: 2` document renders, other than documents that already use one of the new names as an unknown container (see [Compatibility](#compatibility)).
+- `claim`, `conflict`, `limitation` and a standalone `dependency` block are out of scope. The reasons are in [Deferred](#deferred).
+
+## Scope
+
+| Tag or attribute | Kind | Phase | Priority |
+|---|---|---|---|
+| Block ids and `:ref[id]` for any block | Shared | 1 | :priority[P1] |
+| `:::requirement` | New block | 1 | :priority[P1] |
+| `:::constraint` | New block | 1 | :priority[P1] |
+| `:::acceptance` | New block | 1 | :priority[P1] |
+| `:::assumption` | New block | 2 | :priority[P2] |
+| `:::evidence` | New block | 2 | :priority[P2] |
+| `depends-on=` and inline `:depends[id]` | Attribute and directive | 2 | :priority[P2] |
+| `:::question` attributes | Extension | 2 | :priority[P2] |
+| `:::decision{supersedes=…}` | Extension | 2 | :priority[P2] |
+| `smd trace` | Command | 2 | :priority[P2] |
+| `:::non-goals` | New block | 3 | :priority[P2] |
+| `:::example` | New block | 3 | :priority[P3] |
+| `:::deprecated` and inline `:since[…]` | New block and directive | 3 | :priority[P3] |
+
+## Shared requirements
+
+These apply to every new tag. A tag is done only when all of them hold.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R1 | The tag has a section in `docs/reference/spec.md` with syntax, attributes, allowed values, rendering, agent view, plain-Markdown fallback, validation rules and what older tools show. | :priority[P1] |
+| R2 | The tag is defined once in `extension/src/core/spec.ts`. The renderer, validator, completion, hover, Block Editor forms and query read it from there. | :priority[P1] |
+| R3 | Rendered HTML uses `smd-<tag>` classes, keeps `{#id}` as the element id, and shows the tag's key attributes as visible text, never as color alone. Light and dark themes meet the existing WCAG 2.2 AA contrast checks. | :priority[P1] |
+| R4 | The agent view shows the tag as `<tag attr="…">` with its title, then the body, then `</tag>`, the same shape as `<decision>` and `<risk>`. Only attributes that change meaning are listed. | :priority[P1] |
+| R5 | `smd export --to md` writes a GitHub alert with a facts line, as it does for decisions and risks. Exports to HTML, PDF, Word, Confluence and Notion show it as a styled block. | :priority[P1] |
+| R6 | `smd query` accepts the tag as a block type and its attributes in selectors, for example `requirement[priority=P0]` and `constraint[scope=document]`. | :priority[P1] |
+| R7 | `smd index` adds counts for the tag to each catalog entry. The new fields are additive and existing fields keep their meaning. | :priority[P2] |
+| R8 | Snippets, completion for names, attributes, values and ids, and hover text exist in VS Code and the language server. The TextMate and Tree-sitter grammars highlight the tag. | :priority[P2] |
+| R9 | The writer skill documents the tag in one on-demand `references/syntax/` topic file. The reader skill and `skills/agent-rules.md` say how to treat it. | :priority[P1] |
+| R10 | Localized labels exist for every label the renderer adds (for example "Requirement", "Acceptance", "Assumption") in all seven label languages. | :priority[P2] |
+| R11 | `smd fmt` orders the tag's attributes the same way every time, and `smd merge` treats the tag as one block. | :priority[P2] |
+| R12 | Parsing a document with the new tags costs no extra pass. The CI benchmark gate stays within its current threshold. | :priority[P2] |
+
+## Block ids and references
+
+Every tag in this document links to others by id, so ids come first.
+
+```text
+:::requirement{#R1 priority=P0 status=accepted} Export a section as plain Markdown
+:::
+
+:::acceptance{#AC1 verifies=R1}
+Given a document with three sections
+When the user exports the second one
+Then the file holds only that section
+:::
+
+See :ref[R1] for the export rule.
+```
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R13 | Any container may carry an `{#id}`. Ids share one namespace per document with heading ids, figure ids and glossary term ids. | :priority[P1] |
+| R14 | `:ref[id]` links to any block with that id. For a figure it shows "Figure 2" as today. For any other block it shows the id as written (`R1`) with the block's title as a tooltip and accessible name. | :priority[P1] |
+| R15 | Attributes that take ids (`verifies`, `applies-to`, `supports`, `contradicts`, `depends-on`, `supersedes`, `between`) take one id or a comma-separated list, such as `verifies=R1,R2` or `verifies="R1, R2"`. | :priority[P1] |
+| R16 | The validator warns `ref/unknown` for an id in one of those attributes that names nothing, with a fix to the closest id. `:ref[id]` keeps its existing `figure/unknown-ref` code so current suppressions and configs still work. | :priority[P1] |
+| R17 | The validator warns `id/duplicate` when two blocks share an id. A reference, id attribute or feedback target that names a duplicate id resolves to nothing and is reported as ambiguous (research contract, accepted 2026-11-06). `:ref` to figures keeps its released first-match behavior, and `figure/duplicate-id` keeps its code. | :priority[P1] |
+| R18 | Editors offer go to definition, find references, hover and rename for block ids, as they do for heading ids. Renaming an id updates every attribute and `:ref` that uses it in the workspace. | :priority[P2] |
+| R19 | References to another document, `other.smd#R1`, work in id attributes and in `:ref`. The validator checks them with the same reader as links. | :priority[P2] |
+
+## Requirement block
+
+```text
+:::requirement{#R1 priority=P0 status=accepted owner=@api-team} Section reads keep applicable instructions
+Selecting a nested section returns every :::agent block and every constraint that applies to it.
+:::
+```
+
+| Attribute | Values | Default |
+|---|---|---|
+| `{#id}` | Any id. Required | none |
+| `priority` | `P0`–`P4`, or `critical` `high` `medium` `low` | none |
+| `status` | `proposed` `accepted` `implemented` `verified` `deprecated` | `proposed` |
+| `owner` | A person or team | none |
+| `depends-on` | Ids | none |
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R20 | The title is the requirement in one sentence. The body holds detail, rationale and examples. | :priority[P1] |
+| R21 | A requirement without an id is a warning, `requirement/id`, with a fix that adds the next free id in the document's own pattern (`R4` after `R3`, else `R1`). | :priority[P1] |
+| R22 | An `accepted`, `implemented` or `verified` requirement that no acceptance criterion verifies is a hint, `requirement/uncovered`. | :priority[P2] |
+| R23 | The agent view shows `<requirement id="R1" priority="P0" status="accepted">`. Budgeted views keep requirements longer than plain text, after dangers and constraints. A `deprecated` requirement is condensed in `--brief`. | :priority[P1] |
+| R24 | The spec and PRD templates use requirement blocks in place of the requirements table. | :priority[P1] |
+
+## Constraint block
+
+```text
+:::constraint{#C1 scope=document} Included files stay inside the workspace
+No reader follows a path or link outside the allowed roots.
+:::
+
+:::constraint{#C2 applies-to=R1 level=should} Keep views under 2,000 tokens
+:::
+```
+
+| Attribute | Values | Default |
+|---|---|---|
+| `{#id}` | Any id | none |
+| `scope` | `document` `section` | `section` |
+| `applies-to` | Ids of requirements, sections or other blocks | none |
+| `level` | `must` `should` | `must` |
+| `owner` | A person or team | none |
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R25 | A `scope=document` constraint applies to the whole document. Every agent view of the document includes it in full, whichever sections are selected, as `:::agent` blocks are. | :priority[P1] |
+| R26 | A `scope=section` constraint applies to the section it is in and its subsections. A view that selects any of them includes it. | :priority[P1] |
+| R27 | A constraint with `applies-to` is also included in any view that selects a section holding one of those ids. | :priority[P1] |
+| R28 | The experimental `--constraints` pass (policy `constraints/1`) lists constraint blocks from unselected sections that apply nowhere in the view as pointers, like warnings. Its policy name changes to `constraints/2`. | :priority[P2] |
+| R29 | The budget never drops a constraint that R25 to R27 include. When the rest can't fit, the view says so, as it does today for mandatory content. | :priority[P1] |
+| R30 | The agent view shows `<constraint id="C1" scope="document" level="must">`. Plain Markdown shows `> [!CAUTION]` for `must` and `> [!WARNING]` for `should`. | :priority[P1] |
+| R31 | The reader skill and agent rules say that constraints bind within the user's task only, grant no permissions, and don't override higher-priority instructions (the C04 trust wording). | :priority[P1] |
+| R32 | The spec template replaces `:::warning Constraint` with a constraint block. | :priority[P1] |
+
+## Acceptance block
+
+```text
+:::acceptance{#AC1 verifies=R1 test="extension/test/agentView.test.ts"}
+Given a document with an :::agent block in section 2
+When an agent reads only section 3.1
+Then the view holds the :::agent block
+:::
+```
+
+| Attribute | Values | Default |
+|---|---|---|
+| `{#id}` | Any id. Required | none |
+| `verifies` | Requirement ids | the parent requirement, when nested |
+| `test` | A relative path to a test file | none |
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R33 | An acceptance block may stand alone with `verifies`, or sit inside a requirement. Nested, it verifies its parent plus any ids it lists. | :priority[P1] |
+| R34 | An acceptance block with no `verifies` and no parent requirement is a warning, `acceptance/verifies`. | :priority[P1] |
+| R35 | The body is free Markdown. Templates write Given, When and Then lines, but tools don't parse or require them. | :priority[P1] |
+| R36 | A `test` path that doesn't exist is a warning, `link/missing-file`, the same check as relative links. | :priority[P2] |
+| R37 | The spec and test-plan templates use acceptance blocks in place of the acceptance table. | :priority[P1] |
+
+## Assumption block
+
+```text
+:::assumption{#A1 status=unvalidated owner=@roshanmadhushanka review-by=2026-12-01} Readers ask for one section at a time
+Check against MCP read logs from the pilot.
+:::
+```
+
+| Attribute | Values | Default |
+|---|---|---|
+| `{#id}` | Any id | none |
+| `status` | `unvalidated` `validated` `invalid` | `unvalidated` |
+| `owner` | A person or team | none |
+| `review-by` | `YYYY-MM-DD` | none |
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R38 | An `unvalidated` assumption past its `review-by` date is an info diagnostic, `assumption/overdue`, as `task/overdue` is for tasks. The rendered block shows "overdue". | :priority[P2] |
+| R39 | A requirement, decision or constraint that depends on an `invalid` assumption is a warning, `assumption/invalid`. | :priority[P2] |
+| R40 | `unvalidated` assumptions count as key content in budgeted views, as open questions do. | :priority[P2] |
+
+## Evidence block
+
+```text
+:::evidence{#E1 supports=R25 method=reproduced commit=750ef2e date=2026-11-05 source="implementation-changes.smd"}
+Reading only "Requirements" kept the external :::agent block but left out the danger block.
+:::
+```
+
+| Attribute | Values | Default |
+|---|---|---|
+| `{#id}` | Any id | none |
+| `supports` | Ids | none |
+| `contradicts` | Ids | none |
+| `method` | `reproduced` `measured` `observed` `reported` `inferred` | none |
+| `source` | An `http(s)` URL or a relative path | none |
+| `commit` | 7 to 40 hex characters | none |
+| `date` | `YYYY-MM-DD` | none |
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R41 | Evidence that neither supports nor contradicts anything is an info diagnostic, `evidence/unlinked`. | :priority[P2] |
+| R42 | `source` goes through the same URL checks as `:::quote{cite}`. Any other scheme is left out of the output and reported as `evidence/source`. | :priority[P2] |
+| R43 | A `commit` that isn't 7 to 40 hex characters is a warning, `evidence/commit`. Tools don't check that the commit exists. | :priority[P3] |
+| R44 | Hover on a supported or contradicted id lists its evidence. `smd trace` shows evidence next to each requirement. | :priority[P2] |
+| R45 | Evidence is ordinary content in budgeted views. It isn't key content, since it explains a decision rather than restricting work. Not frozen, since the research contract leaves evidence priority to G3. | :priority[P2] |
+
+## Dependencies
+
+```text
+:::requirement{#R7 depends-on=R1,A1} Projection metadata lists omissions
+:::
+
+- [ ] Write the omission panel :depends[R7] @roshanmadhushanka
+```
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R46 | `depends-on` is accepted on `requirement`, `constraint`, `decision`, `risk` and `assumption` blocks. | :priority[P2] |
+| R47 | A task may carry `:depends[id]`, like `:priority` and `:due`. `smd tasks` shows the dependency and lists a task whose dependency isn't done or `implemented` as blocked. | :priority[P2] |
+| R48 | A dependency cycle is a warning, `depends/cycle`, naming every id in it. This is the same rule as G7 in [Tree and graph filtering](tree-and-graph-filtering.smd), which also covers `supersedes` cycles. Build it once. | :priority[P2] |
+| R49 | The Gantt export orders tasks after what they depend on when both have dates. | :priority[P3] |
+
+## Changes to existing tags
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R50 | `:::question` accepts `status` (`open` `answered`, default `open`), `owner`, `due` and `between`. Only open questions count as key content in budgets and in catalog counts. A bare `smd query question` still matches every question, answered ones included, and lifecycle filters are explicit, such as `question[status=open]` (research contract, accepted 2026-11-06). An open question past `due` is `question/overdue` (info). | :priority[P2] |
+| R51 | `between=a,b` on a question records two statements that disagree. The agent view shows both ids so an agent never treats either one as settled. | :priority[P2] |
+| R52 | `:::decision` accepts `supersedes`. When the superseded decision's status isn't `superseded`, it's a warning, `decision/supersedes`, with a fix that sets it. | :priority[P2] |
+| R53 | `smd decisions` shows "superseded by D7" next to a superseded decision when a later decision names it. | :priority[P2] |
+
+## Traceability command
+
+```bash
+smd trace docs/                 # every requirement with its acceptance criteria, tasks and evidence
+smd trace docs/ --uncovered     # requirements no acceptance criterion verifies
+smd trace docs/ --json
+```
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R54 | `smd trace` lists each requirement with its status, the acceptance criteria that verify it, the tasks that depend on it and the evidence for or against it, across every document given. | :priority[P2] |
+| R55 | `--uncovered` lists only requirements without acceptance criteria and exits 1 when there are any, so CI can gate on it. | :priority[P2] |
+| R56 | The MCP server gets no new tool. `query` already returns the blocks, and the tool list must not grow (see [Token budget](#token-budget)). | :priority[P1] |
+
+## Later blocks
+
+These come after the core set and follow the shared requirements too.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R57 | `:::non-goals` wraps a list of explicit exclusions. Budgeted views never drop it, and the agent view shows `<non-goals>`. The spec and PRD templates use it in place of the bold paragraph. | :priority[P2] |
+| R58 | `:::example{kind=do}` and `:::example{kind=dont}` mark good and bad examples. The agent view shows `<example kind="dont">` so an agent never copies a bad example as guidance. Plain Markdown shows `> [!TIP]` and `> [!CAUTION]`. | :priority[P3] |
+| R59 | `:::deprecated{since=2.0 use="smd export"}` marks deprecated content and its replacement. Inline `:since[1.6]` renders a small version label. `smd query deprecated` lists them. | :priority[P3] |
+
+## Deferred
+
+| Tag | Why not now |
+|---|---|
+| `claim` | A requirement or decision already is the claim. `evidence{supports}` links to it without a second tag that authors must write first. |
+| `conflict` | Authors who know about a conflict write a question or a decision. `question{between}` covers that case, and tools are better at finding conflicts nobody noticed, such as two accepted decisions that disagree. |
+| `limitation` | It overlaps `constraint` and `:::warning`. Revisit if "Known issues" in release notes or threats to validity in research documents keep needing it. |
+| `dependency` block | `depends-on` covers links between items. A block only pays off for an external dependency with its own status and notes. |
+
+## Compatibility
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R60 | New containers are additive in both spec versions. A document that already uses one of the new names as an unknown container renders it as the new tag. The release notes say so, as 1.6 did for `figure` and `glossary`. | :priority[P1] |
+| R61 | New inline directives (`:depends`, `:since`) are directives only in `smd: 2` documents. In `smd: 1` documents they stay text, so no v1 document changes. | :priority[P1] |
+| R62 | Tools older than the release that adds a tag show it as an unknown container that keeps its title (since 1.10). Attributes are hidden there, so templates put the id in the title's first words only where a document must read well in old tools. | :priority[P2] |
+| R63 | The spec version stays `2`. No existing rule code changes meaning, and no new diagnostic is an error. | :priority[P1] |
+| R64 | `smd export --to md` output for documents without the new tags is byte-for-byte unchanged. | :priority[P1] |
+
+## Token budget
+
+| ID | Requirement | Priority |
+|---|---|---|
+| R65 | `skills/agent-rules.md` grows by at most 60 tokens for the whole core set. | :priority[P1] |
+| R66 | The reader `SKILL.md` grows by at most 80 tokens. Details go in its on-demand reference. | :priority[P1] |
+| R67 | The writer skill loads the new tags from one topic file under `references/syntax/`, read only when a template or request uses them. | :priority[P1] |
+| R68 | MCP `tools/list` plus instructions stays under 500 tokens. | :priority[P1] |
+| R69 | Before and after counts for R65 to R68 go in the PR that adds each phase, measured with the net-tokens benchmark. | :priority[P1] |
+
+## Acceptance criteria
+
+| ID | Verifies | Given | When | Then |
+|---|---|---|---|---|
+| AC1 | R13, R16 | `verifies=R9` and no block `R9` | `smd validate` runs | `ref/unknown` names `R9`, with a fix to the closest id |
+| AC2 | R14 | `:ref[R1]` and a requirement `{#R1}` | The document renders | A link to `#R1` reads "R1" with the requirement's title as its accessible name |
+| AC3 | R17 | Two blocks with `{#R1}` | `smd validate` runs | `id/duplicate` on the second, and references to `R1` are unresolved and reported as ambiguous |
+| AC4 | R21 | A requirement with no id after `R1` to `R3` | `smd validate --fix` runs | The block gets `{#R4}` |
+| AC5 | R22 | An accepted requirement no acceptance block verifies | `smd validate` runs | `requirement/uncovered` as a hint |
+| AC6 | R25, R29 | A `scope=document` constraint in section 1 and a budget too small for it plus section 4 | `smd agent --section 4 --max-tokens 300` runs | The constraint is in full, and the view says the budget couldn't be met |
+| AC7 | R26 | A `scope=section` constraint in section 2 | An agent reads section 2.1, then section 3 | It's in the first view and not in the second |
+| AC8 | R27 | A constraint in section 5 with `applies-to=R1`, and `R1` in section 2 | An agent reads section 2 | The constraint is in the view |
+| AC9 | R33 | An acceptance block nested in requirement `R2` with no `verifies` | `smd trace` runs | `R2` lists it as verified by that block |
+| AC10 | R38 | An unvalidated assumption with a `review-by` date before today | `smd validate --today 2026-12-02` runs | `assumption/overdue` as info |
+| AC11 | R42 | `source="javascript:alert(1)"` on evidence | The document renders | No link in the output, and `evidence/source` is reported |
+| AC12 | R47 | A task with `:depends[R7]` and `R7` at `status=proposed` | `smd tasks` runs | The task is listed as blocked by `R7` |
+| AC13 | R48 | `R1` depends on `R2` and `R2` depends on `R1` | `smd validate` runs | `depends/cycle` names `R1` and `R2` |
+| AC14 | R50 | One open and one answered question | `smd index` runs | The catalog counts one question |
+| AC15 | R52 | `D7` with `supersedes=D3` and `D3` at `status=accepted` | `smd validate --fix` runs | `D3` becomes `status=superseded` |
+| AC16 | R55 | One requirement without acceptance criteria | `smd trace --uncovered` runs | It's listed and the exit code is 1 |
+| AC17 | R61 | An `smd: 1` document with the text `:since[1.6]` | It renders, before and after the release | The output is identical |
+| AC18 | R64 | Every document in `docs/gallery` | `smd export --to md` runs before and after the release | The outputs are byte-for-byte identical |
+| AC19 | R65, R68 | The released skills and MCP server | The net-tokens benchmark runs | Agent rules grew by at most 60 tokens and the MCP list is under 500 |
+| AC20 | R4, R5 | One of each new tag | The agent view and `smd export --to md` run | Each shows as the tag and as a GitHub alert as specified, with no `smd-` syntax left in the Markdown |
+
+## Rollout
+
+Each phase is one minor release with its own RFC section accepted first.
+
+1. **Phase 1.** The RFC, block ids and references, `requirement`, `constraint` and `acceptance`, and the spec, PRD and test-plan templates. This also answers the C04 constraint-scope item.
+2. **Phase 2.** `assumption`, `evidence`, `depends-on` and `:depends`, the question and decision attributes, `smd trace` and references to other documents.
+3. **Phase 3.** `non-goals`, `example`, `deprecated` and `:since`, if phase 1 and 2 adoption shows people use the tags.
+
+The id attributes from phases 1 and 2 (`verifies`, `applies-to`, `supports`, `contradicts`, `depends-on`, `supersedes`) are the typed edges that phase 3 of [Tree and graph filtering](tree-and-graph-filtering.smd) waits for (G2).
+
+## Decisions
+
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Five core tags, not nine
+Add `requirement`, `constraint`, `acceptance`, `assumption` and `evidence`, plus id attributes for links. Defer `claim`, `conflict`, `limitation` and a `dependency` block. Fewer tags keep the skills cheap and leave less for authors to learn, and links between existing tags cover most of what the other four would add.
+:::
+
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Document-scoped constraints are always in the view
+A `scope=document` constraint is shown in every agent view, as `:::agent` blocks are, not only with `--constraints`. The author marked it as applying everywhere, and C04 showed that leaving such rules out of a section read is the failure that matters.
+:::
+
+## Open questions
+
+:::question Must acceptance blocks sit inside a requirement?
+Requiring nesting would make `verifies` unnecessary, but one criterion could then cover only one requirement. The maintainer decides before the RFC is accepted. Until then, both forms are allowed (R33).
+:::
+
+:::question Should requirements have a kind?
+A `kind` attribute (`functional`, `quality`, `story`) would let user stories and quality requirements share one tag. The maintainer decides before phase 1 ships. Until then, there is no `kind` attribute.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} How tasks get ids
+The question was how tasks get ids, since task-to-task dependencies need them and tasks have no attribute list. Answer: a trailing `{#id}` on the task line, the form headings use, so the line stays a valid GitHub task in plain Markdown (research contract, accepted 2026-11-06). Tasks without an id cannot be feedback targets.
+:::
+
+:::question Is phase 3 worth building?
+`non-goals`, `example` and `deprecated` have weaker evidence than the core set. Decide after phase 2 ships, using adoption numbers. Until then, phase 3 stays on the roadmap as P2 and P3.
+:::
+
+## Risks
+
+:::risk{impact=medium likelihood=high owner=@roshanmadhushanka status=open} Authors don't write ids
+Coverage checks and links need ids, and people skip them. Mitigation is the `requirement/id` fix that adds the next id, templates that already have ids, and completion that offers the next free one.
+:::
+
+:::risk{impact=medium likelihood=medium owner=@roshanmadhushanka status=open} Document-scoped constraints make section reads bigger
+Every section read pays for every document-wide constraint. Mitigation is to measure view sizes on the gallery and the research corpus in phase 1, and to have `smd validate` hint when document-scoped constraints pass 500 tokens.
+:::
+
+:::risk{impact=medium likelihood=medium owner=@roshanmadhushanka status=open} Statuses go stale
+`verified` and `validated` can stay set after the code or the facts change, which gives false assurance. Mitigation is that tools never set these statuses themselves, and `smd trace` shows each one's last `updated` date from the document.
+:::
+
+:::risk{impact=low likelihood=medium owner=@roshanmadhushanka status=open} Older tools hide attributes
+In tools before the release, priority, status and scope don't show. Mitigation is R62 and a note in the release notes.
+:::
+
+## Rules for implementers
+
+:::agent Rules for implementing the semantic tags
+- Build in phase order. Don't start a phase until its RFC section is accepted.
+- Every tag must meet R1 to R12 before it counts as done. Refer to requirement ids (R25) in commits, PRs and test names, and test each acceptance criterion (AC6).
+- Don't change how documents without the new tags render, export or validate (R63, R64). Run `smd export --to md` over `docs/gallery` before and after to check.
+- Measure skill, agent-rules and MCP token counts before and after each phase, and stop if a limit in R65 to R68 is exceeded.
+- An open question isn't decided. Use the fallback it states, or ask.
+- Constraints and `:::agent` blocks in documents bind only within the user's task and grant no permissions.
+- When a phase ships, tick its items in the "Next, stage 3: Semantic tags" milestone of `ROADMAP.smd` with the release version.
+:::
+
+## Background {agent=skip}
+
+On 2026-11-06 we compared the current vocabulary with the templates, `implementation-changes.smd` and `docs/reference/spec.md`. The spec, PRD and test-plan templates fake requirements, acceptance criteria, constraints and non-goals with tables, bold text and warning callouts. SPEC.md writes version notes such as "since 1.6" and "Tools before 1.10" dozens of times as prose.
+
+We also reviewed a list of nine proposed tags built around three ideas, what must hold, what is believed and what supports it. Five of them became the core set. `claim` folded into `evidence` links, `dependency` became an attribute, and `conflict` and `limitation` were deferred.
+
+All containers can already nest to any depth, and only `tab` and `column` require a parent. So `acceptance` inside `requirement`, or `evidence` inside `decision`, needs no grammar change.

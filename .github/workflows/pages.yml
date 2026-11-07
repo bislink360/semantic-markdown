@@ -42,7 +42,7 @@ jobs:
           node dist/cli.js validate ../site --strict
           node dist/cli.js fmt --check ../site
       - name: Build the homepage
-        run: node dist/cli.js build ../site --out ../_site --title "Semantic Markdown"
+        run: node dist/cli.js build ../site --out ../_site --title "Semantic Markdown" --url https://bislink360.github.io/semantic-markdown/
       - name: Build the playground into /playground/
         run: node scripts/build-playground.mjs --out ../_site/playground
       - name: List the site

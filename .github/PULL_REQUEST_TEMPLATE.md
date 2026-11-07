@@ -11,7 +11,7 @@ Leave a checkbox empty if it doesn't apply, or if you're not sure: that's fine, 
 
 ## Compatibility
 
-<!-- Semantic Markdown keeps existing documents, CLI flags, MCP tools and settings working (docs/COMPATIBILITY.md). -->
+<!-- Semantic Markdown keeps existing documents, CLI flags, MCP tools and settings working (docs/reference/compatibility.md). -->
 
 - [ ] Existing documents keep their meaning, and no command, flag, setting, template or MCP tool was removed or renamed
 - [ ] Breaking changes: <!-- none, or a list with migration notes -->
@@ -21,8 +21,8 @@ Leave a checkbox empty if it doesn't apply, or if you're not sure: that's fine, 
 
 - [ ] Tests added or updated, and `npm run typecheck` and `npm test` pass in `extension/`
 - [ ] For editor changes: `npm run test:vscode` passes
-- [ ] Examples still validate and are formatted: `node extension/dist/cli.js validate examples docs/gallery` and `node extension/dist/cli.js fmt --check examples docs/gallery`
-- [ ] New syntax: documented in `docs/SPEC.md`, `docs/FEATURES.md` and the writer skill's `references/syntax.md`, with a corpus document in `extension/test/compat/corpus/`
+- [ ] Test samples and the gallery still validate and are formatted: `node extension/dist/cli.js validate extension/test/samples docs/gallery` and `node extension/dist/cli.js fmt --check extension/test/samples docs/gallery`
+- [ ] New syntax: documented in `docs/reference/spec.md`, `docs/reference/features.md` and the writer skill's `references/syntax.md`, with a corpus document in `extension/test/compat/corpus/`
 - [ ] New syntax: the plain-Markdown export (`toMarkdown.ts`) and the agent view (`agentView.ts`) handle it
 - [ ] Changed `extension/src`: the bundles `npm run build` refreshes (`skills/*/scripts/smd.cjs`, the MkDocs plugin's `bridge.cjs`) are committed too; CI checks that they are up to date
 - [ ] (Maintainers) SonarQube gate passes locally (`node .claude/skills/sonarqube-scan/scripts/sonar-scan.mjs`); suppressions or baseline changes: <!-- none, or a list with reasons -->

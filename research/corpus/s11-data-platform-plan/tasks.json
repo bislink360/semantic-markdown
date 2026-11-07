@@ -1,0 +1,163 @@
+{
+  "tasks": [
+    {
+      "id": "s11-01",
+      "type": "constraint-check",
+      "prompt": "To help reach the Q1 2027 warehouse spend goal, the Stridewell data platform team wants to remove a dashboard that nobody has viewed in the last five months. Does the plan allow that?",
+      "items": ["keep-viewed-dashboards", "warehouse-spend-target"],
+      "expected": { "verdict": ["yes"], "constraint": "keep-viewed-dashboards" },
+      "author": "ai-task-writer-c",
+      "notes": "Yes: only dashboards with a viewer in the last 60 days are protected."
+    },
+    {
+      "id": "s11-02",
+      "type": "constraint-check",
+      "prompt": "Android counts on the batch and streaming pipelines have differed by less than 0.1% for 7 days in a row after 3 weeks of running both. The stream processor runbook has been written and reviewed only by Joon-ho and Tomas. Can Android be cut over to streaming now?",
+      "items": ["runbook-before-cutover", "cutover-threshold"],
+      "expected": { "verdict": ["no"], "constraint": "runbook-before-cutover" },
+      "violations": [{ "item": "runbook-before-cutover", "answers": ["yes"] }],
+      "author": "ai-task-writer-c",
+      "notes": "cross-section: Cutover (reconciliation threshold is met) and Operating the pipeline (runbook review by someone outside the team is missing)."
+    },
+    {
+      "id": "s11-03",
+      "type": "constraint-check",
+      "prompt": "A team wants to put a new scheduled warehouse query live that scans about 300 GB per run. May it go live without a review from the platform team?",
+      "items": ["large-query-review"],
+      "expected": { "verdict": ["yes"], "constraint": "large-query-review" },
+      "author": "ai-task-writer-c",
+      "notes": "Yes: the review applies only above 1 TB a run."
+    },
+    {
+      "id": "s11-04",
+      "type": "constraint-check",
+      "prompt": "May the data platform team write and publish the data contract for one of the event types that the platform itself produces?",
+      "items": ["contracts-owner-only"],
+      "expected": { "verdict": ["yes"], "constraint": "contracts-owner-only" },
+      "author": "ai-task-writer-c",
+      "notes": "Yes: the owning-team rule has an exception for the three platform-produced event types."
+    },
+    {
+      "id": "s11-05",
+      "type": "constraint-check",
+      "prompt": "To check that a deleted member is really gone, an engineer wants to copy that member's heart rate samples from the restricted zone into a scratch table in the curated zone for a one-off comparison. Is that allowed?",
+      "items": ["raw-health-never-copied"],
+      "expected": { "verdict": ["no"], "constraint": "raw-health-never-copied" },
+      "violations": [{ "item": "raw-health-never-copied", "answers": ["yes"] }],
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-06",
+      "type": "constraint-check",
+      "prompt": "Tomas is on call next week. May he plan to spend that week finishing the iOS cutover work?",
+      "items": ["on-call-no-planned-work"],
+      "expected": { "verdict": ["no"], "constraint": "on-call-no-planned-work" },
+      "violations": [{ "item": "on-call-no-planned-work", "answers": ["yes"] }],
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-07",
+      "type": "constraint-check",
+      "prompt": "Halfway through Q1 2027, may the team start excluding the finance role's month-end usage from the warehouse spend number it reports in the fortnightly progress notes?",
+      "items": ["metrics-not-redefined"],
+      "expected": { "verdict": ["no"], "constraint": "metrics-not-redefined" },
+      "violations": [{ "item": "metrics-not-redefined", "answers": ["yes"] }],
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-08",
+      "type": "decision-status",
+      "prompt": "What is the plan for Stridewell's data warehouse in Q1 2027?",
+      "items": ["warehouse-retirement-dropped"],
+      "expected": { "option": ["keep the warehouse", "keep the warehouse and cut spend inside it", "cut spend inside the warehouse", "renew the warehouse contract", "renew the warehouse contract for 12 months", "warehouse contract renewed for 12 months with the option to leave after 6", "warehouse retirement dropped from Q1"], "superseded": ["retire the warehouse", "retire the warehouse by the end of Q1 2027", "warehouse is retired", "move all curated tables to the lakehouse", "move to the lakehouse", "do not renew the warehouse contract"] },
+      "author": "ai-task-writer-c",
+      "notes": "The superseded Q3 planning decision opens the cost workstream and reads as authoritative on its own."
+    },
+    {
+      "id": "s11-09",
+      "type": "open-question",
+      "prompt": "How should workout events that are too large for the stream processor be handled?",
+      "items": ["oversize-events-undecided", "event-size-limit"],
+      "expected": { "fallback": ["loaded from the raw archive by the batch job", "the batch job loads them from the raw archive", "load them from the raw archive with the batch job", "batch job loads them from the raw archive"] },
+      "author": "ai-task-writer-c",
+      "notes": "The document flags this only implicitly ('until we decide what to do with them'), with no 'undecided' label."
+    },
+    {
+      "id": "s11-10",
+      "type": "open-question",
+      "prompt": "Does a member deletion request have to remove the member from the coaching models' training snapshots?",
+      "items": ["snapshots-open-question"],
+      "expected": { "fallback": ["snapshots are kept as they are", "keep the snapshots as they are", "existing snapshots are kept as they are", "keep snapshots as they are and record in the deletion log which snapshots a deleted member appears in", "snapshots are kept as they are and no new snapshot may include a member whose deletion request is more than 14 days old"] },
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-11",
+      "type": "open-question",
+      "prompt": "Will the deletion job start each request's 14-day clock from the request time published by the account service?",
+      "items": ["request-time-fallback", "deletion-within-14-days"],
+      "expected": { "fallback": ["the time the deletion job reads the request", "the time it reads the request", "use the time it reads the request", "the deletion job uses the time it reads the request"] },
+      "author": "ai-task-writer-c",
+      "notes": "Undecided because the account service team's planning finishes 2026-11-27; the fallback is stated as a conditional."
+    },
+    {
+      "id": "s11-12",
+      "type": "fact-lookup",
+      "prompt": "What is the largest event the Stridewell stream processor accepts?",
+      "items": ["event-size-limit"],
+      "expected": { "accepted": ["256 KB", "256KB", "256 kilobytes", "256 kb", "up to 256 KB", "256"] },
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-13",
+      "type": "fact-lookup",
+      "prompt": "What is the collector's rate limit for a single device?",
+      "items": ["device-rate-limit"],
+      "expected": { "accepted": ["50 events per second", "50 events per second per device", "50 per second", "50 events/s", "50/s", "50", "50 events a second"] },
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-14",
+      "type": "fact-lookup",
+      "prompt": "For how long at a time is a person granted access to the restricted zone of the lake?",
+      "items": ["restricted-access-30-days"],
+      "expected": { "accepted": ["30 days", "30", "thirty days", "30 days at a time"] },
+      "author": "ai-task-writer-c"
+    },
+    {
+      "id": "s11-15",
+      "type": "qualification",
+      "prompt": "Summarise how the Stridewell warehouse cost workstream will bring spend down in Q1 2027, including what it must not cut.",
+      "items": ["warehouse-spend-target", "keep-viewed-dashboards", "warehouse-retirement-dropped", "compliance-tables-stay", "on-call-never-queued", "finance-month-end-exception", "large-query-review"],
+      "expected": { "rubric": [{ "id": "r1", "text": "March 2027 spend is to be at least 20% below October 2026, without removing any dashboard viewed in the last 60 days.", "items": ["warehouse-spend-target", "keep-viewed-dashboards"] }, { "id": "r2", "text": "The warehouse is not retired in Q1; its contract is renewed and spend is cut inside the warehouse, with the lakehouse move replanned for later.", "items": ["warehouse-retirement-dropped"] }, { "id": "r3", "text": "Tables unqueried for 90 days move to cold storage, except tables that a finance or compliance job reads.", "items": ["compliance-tables-stay"] }, { "id": "r4", "text": "Per-team daily credit limits queue queries over the limit, except that the on-call role is never queued and limits are lifted for the finance role during month-end close.", "items": ["on-call-never-queued", "finance-month-end-exception"] }, { "id": "r5", "text": "Any new scheduled query scanning more than 1 TB a run needs a platform team review before going live.", "items": ["large-query-review"] }] },
+      "author": "ai-task-writer-c",
+      "notes": "cross-section: Goals (20% target, dashboards) and Workstream 2 (decision, cuts, credit limits); the superseded warehouse retirement is a trap."
+    },
+    {
+      "id": "s11-16",
+      "type": "qualification",
+      "prompt": "Explain how member deletion will work on the Stridewell data platform in Q1 2027 and what it will not cover.",
+      "items": ["deletion-within-14-days", "aggregates-not-deleted", "deletions-never-undone", "snapshots-open-question", "request-time-fallback"],
+      "expected": { "rubric": [{ "id": "r1", "text": "A deletion request must be complete in every store the platform owns within 14 days of the request.", "items": ["deletion-within-14-days"] }, { "id": "r2", "text": "Tables holding only aggregates over 50 or more members are not touched.", "items": ["aggregates-not-deleted"] }, { "id": "r3", "text": "Deletions are never undone; support cannot restore a deleted member's workouts.", "items": ["deletions-never-undone"] }, { "id": "r4", "text": "Whether deletion must reach model training snapshots is undecided; until then snapshots are kept, no new snapshot may include a member whose request is more than 14 days old, and the log records which snapshots a member appears in.", "items": ["snapshots-open-question"] }, { "id": "r5", "text": "If the account service does not publish the request time, the job uses the time it reads the request.", "items": ["request-time-fallback"] }] },
+      "author": "ai-task-writer-c",
+      "notes": "cross-section: Goals, Workstream 4 and Dependencies on other teams."
+    },
+    {
+      "id": "s11-17",
+      "type": "qualification",
+      "prompt": "Explain what happens to workout events that arrive late or need to be loaded again on the Stridewell streaming pipeline.",
+      "items": ["late-events-window", "support-replay-exception", "replay-7-day-cap", "old-apps-unsupported"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Late events are accepted for 7 days after the workout ends; after that they go to the raw archive only and do not reach the curated tables.", "items": ["late-events-window"] }, { "id": "r2", "text": "Exception: for members who asked support to recover a missing workout, support can replay by hand for up to 90 days.", "items": ["support-replay-exception"] }, { "id": "r3", "text": "Replays from the raw archive are run by the person on call and limited to 7 days of data per replay; larger replays are split.", "items": ["replay-7-day-cap"] }, { "id": "r4", "text": "Events from app versions older than 12 months are not handled by the stream processor; they go to the raw archive and are loaded by a small batch job.", "items": ["old-apps-unsupported"] }] },
+      "author": "ai-task-writer-c",
+      "notes": "cross-section: Limits, Operating the pipeline and Workstream 3."
+    },
+    {
+      "id": "s11-18",
+      "type": "edit-plan",
+      "prompt": "Which lines must change to extend the member deletion deadline from 14 days to 30 days?",
+      "items": ["deletion-within-14-days", "request-time-fallback"],
+      "expected": { "md": [[7, 7], [44, 44], [178, 178], [244, 244]], "smd": [[12, 12], [49, 49], [189, 189], [243, 243]] },
+      "author": "ai-task-writer-c",
+      "notes": "cross-section: Summary, Goals, Proving a deletion and Dependencies. Line 205 (snapshot 14-day rule) is a separate rule and line 248 (14-day spend window) is unrelated, so neither is expected."
+    }
+  ]
+}

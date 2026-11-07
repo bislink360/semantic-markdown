@@ -106,6 +106,31 @@
 
   const diagramKey = (theme, src) => theme + '\u0000' + src;
 
+  /**
+   * The title a Mermaid diagram gives itself, or '': `title:` in its front matter, `pie title …`, or a `title …`
+   * line (gantt, journey, quadrant and XY charts). Mermaid draws it but does not name the SVG with it.
+   */
+  function diagramTitle(src) {
+    const unquote = (s) => s.trim().replace(/^(["'])(.*)\1$/, '$2').trim();
+    let inConfig = false;
+    for (const line of String(src || '').split(/\r?\n/)) {
+      const t = line.trim();
+      if (t === '---') { inConfig = !inConfig; continue; }
+      const m = inConfig ? /^title:\s*(.+)$/.exec(t) : /^(?:pie\s+(?:showData\s+)?)?title\s+(.+)$/.exec(t);
+      if (m && unquote(m[1])) return unquote(m[1]);
+    }
+    return '';
+  }
+
+  /**
+   * The accessible name for a diagram's SVG (WCAG 1.1.1), in order: none when Mermaid named it from `accTitle:`
+   * (`hasName`), the caption of the `:::figure` around it, the diagram's own title, else `fallback` ("Diagram").
+   */
+  function diagramName(hasName, caption, src, fallback) {
+    if (hasName) return '';
+    return String(caption || '').replace(/\s+/g, ' ').trim() || diagramTitle(src) || fallback;
+  }
+
   // ---- Tabs (WAI-ARIA tabs pattern) ------------------------------------------
   // Built through the `doc` passed in, so tests can drive them with a small stand-in for the DOM.
 
@@ -194,7 +219,7 @@
 
   if (typeof document === 'undefined') {
     if (typeof module === 'object' && module.exports) {
-      module.exports = { mapLine, mapAnchor, newerPlace, pickAnchor, findLine, stableKeys, carryState, lruCache, diagramKey, tabKeyTarget, buildTabs, uiLabel };
+      module.exports = { mapLine, mapAnchor, newerPlace, pickAnchor, findLine, stableKeys, carryState, lruCache, diagramKey, diagramTitle, diagramName, tabKeyTarget, buildTabs, uiLabel };
     }
     return;
   }
@@ -468,6 +493,34 @@
     return vars;
   }
 
+  /** Whether an element is named by aria-label, by aria-labelledby with text, or by an SVG <title> of its own. */
+  function hasAccessibleName(el) {
+    if ((el.getAttribute('aria-label') || '').trim()) return true;
+    const ids = (el.getAttribute('aria-labelledby') || '').trim().split(/\s+/).filter(Boolean);
+    if (ids.some((id) => { const t = document.getElementById(id); return !!(t && t.textContent.trim()); })) return true;
+    const title = el.querySelector(':scope > title');
+    return !!(title && title.textContent.trim());
+  }
+
+  /**
+   * Give a rendered diagram a text alternative (WCAG 1.1.1): a name (see diagramName) and, unless Mermaid has one
+   * from `accDescr:`, the diagram's source as its description, since the SVG replaced the source on the page.
+   */
+  function describeDiagram(host, src) {
+    const svg = host.querySelector(':scope > svg');
+    if (!svg) return;
+    if (!svg.getAttribute('role')) svg.setAttribute('role', 'img');
+    const figure = host.closest('figure');
+    const caption = figure && figure.querySelector(':scope > figcaption');
+    const name = diagramName(hasAccessibleName(svg), caption && caption.textContent, src, uiLabel(host, 'diagram', 'Diagram'));
+    if (name) svg.setAttribute('aria-label', name);
+    if (!svg.hasAttribute('aria-describedby') && !svg.querySelector(':scope > desc')) {
+      const desc = document.createElementNS('http://www.w3.org/2000/svg', 'desc');
+      desc.textContent = uiLabel(host, 'diagramSource', 'Diagram source') + ': ' + src;
+      svg.insertBefore(desc, svg.firstChild);
+    }
+  }
+
   /** `heights`: previous height of the diagram at each position, held while a changed one renders. */
   async function renderDiagrams(scope, heights) {
     const hosts = Array.from(scope.querySelectorAll('.smd-diagram'));
@@ -495,6 +548,7 @@
       const svg = svgCache.get(key);
       if (svg !== undefined) {
         host.innerHTML = svg;
+        describeDiagram(host, src);
         reusedDiagrams++;
         return;
       }
@@ -511,6 +565,7 @@
         const { svg } = await mermaid.render(id, src);
         svgCache.set(key, svg);
         host.innerHTML = svg;
+        describeDiagram(host, src);
       } catch (err) {
         const stray = document.getElementById('d' + id);
         if (stray) stray.remove();

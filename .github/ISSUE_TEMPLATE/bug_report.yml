@@ -21,7 +21,7 @@ body:
         - Web playground
         - GitHub Action (validate/) or pre-commit hooks
         - Language server, JetBrains, Obsidian, MkDocs or Tree-sitter
-        - The specification (docs/SPEC.md)
+        - The specification (docs/reference/spec.md)
         - Something else
     validations:
       required: true

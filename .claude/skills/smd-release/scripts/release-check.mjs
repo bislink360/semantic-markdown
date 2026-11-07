@@ -210,7 +210,7 @@ function collect(dir, out = []) {
   return out;
 }
 const corpus = [
-  ...collect(join(ROOT, 'examples')),
+  ...collect(join(EXT, 'test', 'samples')),
   ...collect(join(ROOT, 'docs', 'gallery')),
   ...collect(join(EXT, 'test', 'compat', 'corpus')),
 ];

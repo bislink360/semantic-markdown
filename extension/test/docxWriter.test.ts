@@ -11,7 +11,7 @@ import { crc32, unzipEntry, zip } from '../src/core/zip';
 // Helpers
 // ---------------------------------------------------------------------------
 
-const showcase = join(dirname(__dirname), '..', 'examples', 'showcase.smd');
+const showcase = join(__dirname, 'samples', 'showcase.smd');
 
 /** The parts of a .docx written from `source`, as text (images as Latin-1). */
 function parts(source: string, options: DocxWriterOptions = {}): Map<string, string> {

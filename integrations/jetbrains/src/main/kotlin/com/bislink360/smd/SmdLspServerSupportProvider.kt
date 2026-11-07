@@ -21,7 +21,7 @@ import org.eclipse.lsp4j.services.LanguageServer
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Starts the Semantic Markdown language server (`smd lsp`, docs/EDITORS.md) when a `.smd` file opens. The server
+ * Starts the Semantic Markdown language server (`smd lsp`, docs/guides/editors.md) when a `.smd` file opens. The server
  * gives diagnostics with quick fixes, completion, hover, go to definition, the outline, workspace symbols and
  * formatting; the IDE's LSP support shows them.
  *

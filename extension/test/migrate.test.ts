@@ -474,9 +474,9 @@ test('migrate: every .smd file in the repository gets a plan that settles and ke
 /** Rendered HTML as `v1` compares it, without the task boxes' source lines either (the version step may add a line). */
 const shown = (text: string, options: MigrationOptions = {}) => v1(text, options).replaceAll(/ data-task-line="\d+"/g, '');
 
-test('migrate: a migrated document renders under spec v2 as the original renders under v1 (corpus and examples)', () => {
+test('migrate: a migrated document renders under spec v2 as the original renders under v1 (corpus and samples)', () => {
   const corpusDir = path.join(__dirname, 'compat', 'corpus');
-  const dirs = [corpusDir, path.join(__dirname, '..', '..', 'examples')];
+  const dirs = [corpusDir, path.join(__dirname, 'samples')];
   const files = dirs.flatMap((dir) => fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).map((f) => path.join(dir, f)));
   // The spec v2 corpus documents, read as v1 documents: their twins, which v1 reads differently, migrate too.
   const twins = ['v2-math.smd', 'v2-fences.smd'].map((f) => ({ file: `${f} (smd: 1)`, text: fs.readFileSync(path.join(corpusDir, f), 'utf8').replace('\nsmd: 2\n', '\nsmd: 1\n') }));

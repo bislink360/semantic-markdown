@@ -1,0 +1,236 @@
+---
+smd: 2
+title: Research contract (G0)
+summary: What the agent view means today for each human-facing cue, how query and budget semantics stay compatible, and the accepted decisions on identity, lifecycle, scope, edges and trust that the semantic-tags, filtering and collaboration RFCs build on. Gate G0 of the attention, feedback and retrieval requirements.
+status: approved
+owners: ["@roshanmadhushanka"]
+tags: [rfc, research, agent-view, contract]
+created: 2026-11-06
+updated: 2026-11-06
+toc: true
+related:
+  - ../requirements/research-interaction.smd
+  - ../requirements/semantic-tags.smd
+  - ../requirements/tree-and-graph-filtering.smd
+  - collaboration.smd
+  - ../../research/evidence-matrix.smd
+---
+
+## How to read this
+
+Gate G0 asks for a contract before any feature is built on it. This RFC has two kinds of content.
+
+- **Recorded behavior** says what the tools do at commit 5a1a26e (the 3.1.0 release train, unreleased), as changed by the G0 gap fixes (#157) and the G1 budget work. It was checked by reading the source and running the CLI, and `extension/test/researchContract.test.ts` locks the parts later gates must not change by accident.
+- **Decisions** settle the G0 questions of the [research requirements](../requirements/research-interaction.smd#delivery-gates-and-dependencies) (AF06 to AF11, AF13, AF17, AF19, AF21, AF26). The maintainer accepted all of them on 2026-11-06. Each is copied into the RFC that owns the syntax, named in each section, and built through it.
+
+Nothing here adds syntax. Where a decision needs syntax, the owning RFC chooses it.
+
+:::agent G0 contract rules
+- Every decision here is accepted (2026-11-06). Implement each through the RFC that owns the syntax, and keep current behavior until that syntax exists.
+- Do not change behavior locked by `extension/test/researchContract.test.ts` without an accepted decision that says so. Gap tests marked `todo` become ordinary tests when their fix lands.
+- Never equate viewed, answered, incorporated, implemented, verified and accepted.
+:::
+
+## Cue-to-agent meaning contract
+
+AF01 asks that each cue keep its meaning in the agent view. The table records what each cue becomes today, then the meaning the contract assigns it. Columns are the full view, `--brief`, a `--section` view and `--max-tokens`.
+
+|Cue|Full view today|Brief, section and budget today|Meaning the contract assigns|
+|-|-|-|-|
+|`:::question`|`<question title="…">` with the body. Every attribute except the title is dropped|Kept as in full. Under a budget, its section is in the "kept longer" tier but can be omitted|Requests information or a decision. It is unresolved until an answer exists. Today every question is shown and counted as open, because no answered state exists|
+|`:::danger`|`<danger title="…">`, also from `> [!CAUTION]`|Kept whole inside a condensed `:::details` (GAP-3, fixed). Under a budget its section is never omitted, whether the danger is its own or from an include (G1)|A consequential restriction. Must reach the agent or be pointed to explicitly|
+|`:::warning` and other callouts|`<warning>`, `<note>`, `<info>`, `<tip>`, `<success>`|As danger|A caveat. May be pointed to when not in the selected sections|
+|`:::timeline`|No tag. Items render as written, `- [x] **date** — text`|Checked items fold into `(N completed tasks omitted)` in brief. They count as tasks in outlines and queries|Events with dates. The contract does not yet separate planned from actual, which is the author's text|
+|`:progress{value=…}`|`42%`, or its label|Same|A number the author typed. It states no basis or denominator (AF25, G3)|
+|`:metric[…]`|`label: value (delta, trend, good or bad)`: the written trend, and `good` or `bad` when `good` is written (GAP-6, fixed in G1)|Same|A measured value and whether its change is good or bad. With no written `good` the view states no tone (rule 3)|
+|`:status[…]`, colored text|`[status: On track (ok)]` for green, teal, red, pink, orange, amber, yellow. Other colors and styled spans keep only their text|Same|Styling never carries meaning an agent needs. A color-only signal is a writing error, which the writer skill already says|
+|Task checkbox|Passed through as written, with `[P1]`, `@owner`, `(due …, OVERDUE)`|Brief and budgets fold checked tasks into a count|An implementation claim, never verification or acceptance (AF26)|
+|`:::decision`|`<decision status=… date=… owner=…>` as written. With no status, no status is shown, though `smd query` treats it as `proposed`|Superseded and rejected decisions appear in every view|Accepted binds within the task. Proposed is undecided. Rejected and superseded mean don't|
+|`:::agent`|`<agent-instructions>`, in every view, including inside `:::details`|Kept in every view, from the document and from its included files (C01, GAP-1 and GAP-5 fixed)|Binds only within the user's task and grants no permissions (C04)|
+|`:::human`, `{agent=skip}`|Left out, in included files too (GAP-2, fixed)|Left out|Presentation for people, not access control|
+
+The view keeps the reader skill's rules for what each tag means. The contract adds three rules that hold for every later gate.
+
+1. A cue's role survives every projection, or the projection says where it went. A pointer that hides a danger, an agent rule or an open question names it.
+2. No projection turns a claim into a stronger claim. A checked box is not verified, a shown answer is not incorporated, and a hidden question is not resolved.
+3. Missing values stay missing. The view never fills in a status, owner, urgency or date the author did not write (AF02). The one exception today is `smd query`'s documented default of `proposed` for a decision without a status, which is kept for compatibility.
+
+## Legacy query compatibility
+
+AF21 asks that existing selectors keep their matches and that new filters never hide answers by default.
+
+**Recorded behavior.** `smd query` takes CSS-like selectors with `= != *= ^= $= < <= > >=`, bare `[key]`, `|` alternatives and `,` between selectors. Results are in file order, then document order. A bare `question` matches every question. `question[status=answered]` is an error today, because `status` is not a known question attribute, while `*[status=answered]` matches a question that has one written. `decision[status=open]` matches nothing, since `open` is an alias only in `smd decisions --status open`. `query` has no budget, ignores `{agent=skip}` and `:::human` when matching, and does not look inside included files.
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Bare selectors keep matching everything
+A bare `question`, `decision` or `task` selector keeps matching every block of that type, answered, superseded or done included, for every `smd` spec version. Lifecycle filtering is always explicit, as an attribute (`question[status=open]`) or a separate option, never a new default. This amends semantic tags R50, which proposes that only open questions count in `smd query question`. Budget tiers and catalog counts may still count only open questions, since they are not retrieval.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Answered questions stay reachable
+Whatever representation the semantic-tags RFC picks for answers, `smd query`, MCP `query` and `read` with sections return an answered question with its answer and state, so an agent can find what a person decided (AF21, AF22).
+:::
+
+The `{agent=skip}` and `:::human` behavior of `query` is recorded, not endorsed. Whether `query` should honour them is a filtering-RFC question, listed under gaps.
+
+## Budgets: routing and truncation
+
+AF16 asks for distinct, documented semantics. Today there are three.
+
+|Command|Budget means|Never left out|When the budget cannot hold the required content|
+|-|-|-|-|
+|`smd read`, MCP `read`|A routing threshold (default 2,000). The whole view when it fits, otherwise the outline with a sentence saying why. With sections or `--full`, the budget is ignored and nothing is cut|Nothing is cut, so nothing is dropped|Not applicable. The outline is returned instead|
+|`smd agent --max-tokens`|A fitting target. Condense as `--brief`, then replace sections with `[section omitted: …]` pointers until it fits. A section is a candidate only if it costs more than its pointer|The header, text before the first section, level-1 sections, requested sections, sections holding `:::agent` text or a danger (a `:::danger` block or CAUTION alert) from the document or an included file. Sections with a warning (callout or alert), questions, accepted decisions or open tasks go last, and their pointers name the warning or question|The view is printed anyway and ends with `[budget: ≈437 of 300 tokens, required content does not fit]`, `budget.fits` is false, and the CLI warns on stderr, suggesting fewer sections only when some were requested (GAP-10)|
+|`smd query`|No budget|Not applicable|Not applicable|
+
+Token counts are characters divided by four unless `--tokenizer` names an encoding, and `read` routes on the tokenizer's count when one is given (C06). The provenance manifest (`smd-projection/1`) records the requested budget, the counted tokens, the tokenizer, whether it fit and every omission with its reason.
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Overflow is reported in the view
+When a budgeted view does not fit, its text ends with one line saying so, `[budget: ≈437 of 300 tokens, required content does not fit]`, in addition to stderr and the manifest, so an agent that never sees stderr still knows (AF16). This changes output only for views that already fail their budget. Built in G1. The count includes the line itself, and with `--tokenizer` it has no `≈`.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Mandatory content is never a budget candidate
+Under a budget, a section holding mandatory content (an `:::agent` block from any file, a danger, and later any content an accepted scope rule makes mandatory) is never omitted. When it alone exceeds the budget, the overflow rule above applies. Built in G1 for agent blocks and dangers. Before, a section with a danger could be omitted with a pointer that said `holds danger`, so this changed output for budgeted views of documents with dangers.
+:::
+
+## Identity
+
+AF06 asks for stable, document-qualified identities before anything links to a task, question or feedback target. Today a heading has a slug id that changes when the heading text changes, a figure or glossary term has an id the author writes, and the Block Editor tracks a block by a key built from its content and position within one editing session. None of these is a target a stored answer can rely on.
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Targets are author-written ids, qualified by document
+A feedback target is `path#id`, where `id` is an `{#id}` the author wrote on a container, heading or task, and `path` is the document's path relative to the repository root. Ids follow semantic tags R13 (one namespace per document). A heading slug is a valid target only while the heading text is unchanged and is reported as `unstable` in any manifest that records it. Line numbers and Block Editor keys are never stored as targets.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} A duplicate id resolves to nothing
+When two blocks in one document share an id, a link, reference or feedback target naming that id is unresolved and reported as ambiguous. It is never attached to the first match. This replaces the first-match rule proposed in semantic tags R17 for every new id attribute and for feedback targets. The existing `figure/duplicate-id` behavior for `:ref` to figures stays as released, because changing it would change rendering.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Moves, renames and deletions
+A block keeps its id when it moves within the document. Renaming an id is an edit that updates every reference in the workspace (R18) or leaves the old references unresolved, and the validator reports each one. A target in a deleted block, or one moved to another document without its references being updated, is unresolved, never silently matched to similar text. A move across documents is a delete plus an add unless the author updates the references.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} How tasks get ids
+A task takes an id as a trailing `{#id}` on its line, the same form headings use, so the line stays a valid GitHub task in plain Markdown. This answers the semantic tags open question "How do tasks get ids?" and is needed before any answer or verification record can point at a task. Tasks without an id cannot be feedback targets.
+:::
+
+## Lifecycle
+
+AF07 to AF11 describe states, not syntax. These proposals fix the states and which explicit action moves between them, so the semantic tags and collaboration RFCs can choose a representation without re-deciding meaning.
+
+### Questions
+
+|State|Means|Entered by|
+|-|-|-|
+|`open`|Needs an answer or a decision|Writing the question, or reopening it|
+|`answered`|An answer exists, attributed and tied to the target's revision|A person or agent writing an answer|
+|`incorporated`|The answer has been applied to the requirement, decision or text it affects|An explicit edit that names the question|
+|`withdrawn`|No longer needs an answer, with a reason|An explicit withdrawal|
+
+Whether the outcome was then verified is recorded on the affected task or requirement, not on the question (AF07). A question becomes `answered` only when an answer exists. Hiding its container, collapsing it, or changing its status attribute without an answer leaves it `open` and the validator says so (AF11).
+
+### Tasks
+
+|Claim|Means|Recorded by|
+|-|-|-|
+|Implementation claim|Someone says the work is done|The checked box, as today|
+|Verification result|A named method passed or failed on a named revision|An evidence record (semantic tags `evidence`, G3)|
+|Human acceptance|A person accepted the result, when the document requires it|An explicit acceptance with attribution|
+
+A checked box stays an implementation claim. No tool shows a checked task as verified or accepted from the box alone (AF26).
+
+### Responses and transitions
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Every transition is an explicit, attributed action
+Answering, correcting, accepting or rejecting a suggestion, reopening and withdrawing each record who did it, when, and the target's revision at that moment. Opening, reading, dismissing or collapsing a cue records nothing and changes no state. An agent may propose an answer or a relationship, but it becomes accepted only through a person's explicit action (AF09).
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Stale targets need a renewed decision
+A response records the target revision it was written against, computed the way C08 computes `revision` but over the target block's text. When the target's text has changed since, tools show the response as stale with the current text and refuse to apply it until a person rebases or re-accepts it (AF10). This is the collaboration RFC's `for=` rule made revision-based rather than key-based.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Conflicts stay visible
+Two applicable accepted decisions or constraints that disagree are both shown, marked as conflicting where a `between=` or `contradicts=` link says so. No tool picks a winner from order, styling, status recency or a model's judgment (AF11).
+:::
+
+## Scope and applicability
+
+AF13 needs one rule for how document scope, section scope, `applies-to` and includes combine. Semantic tags R25 to R27 define each on its own. This proposal combines them.
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Dangers apply to the whole document
+A `:::danger` block or CAUTION alert is a hard constraint wherever an agent reads. Every section view (`smd agent --section`, `smd read --section`, MCP `read` with sections) shows the dangers of the other sections and of included files in full, under "Dangers elsewhere in the document", as it shows `:::agent` blocks. Sections marked `{agent=skip}` and `:::human` blocks stay out. Warnings, accepted decisions and open questions are not document-wide by default and are listed as pointers only with `--constraints` (policy `constraints/1`). This answers the C04 scope question for today's syntax. Scope for future `:::constraint` blocks follows the proposals below and the semantic-tags RFC.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Applicability is a union, and ambiguity is a diagnostic
+A block applies to a view when any of these holds. It is document-scoped. It is section-scoped and the view selects its section or any subsection of it. Its `applies-to` names a block or section the view includes. A `scope=section` block outside any section (above the first heading) is document-scoped and the validator says so. An `applies-to` that names nothing, or names a block in another document, is a diagnostic until cross-document targets are decided. Applicability never removes content a view would otherwise show.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Includes carry scope from where they are included
+A block inside an included file applies as if it were written at the include's position. A `scope=document` block in an included file applies to the including document. An include the view did not open, because it is outside the selected sections or the sandbox denied it, makes the view incomplete, as `constraints/1` reports today.
+:::
+
+## Edge semantics
+
+AF19 separates navigation from mandatory context. Each edge type below has a direction and one meaning. Derived edges come from text that exists today. Typed edges wait for shared block ids (semantic tags R13).
+
+|Edge|From → to|Kind|Meaning|
+|-|-|-|-|
+|`link`|Text → anchor or `.smd` file|navigation|Related content|
+|`ref`|`:ref[id]` → block|navigation|Mentions that block|
+|`related`|Document → document in `related:`|navigation|A document worth knowing about|
+|`include`|`:::include` → file|mandatory|Its text is part of this document|
+|`applies-to`|Constraint → block or section|mandatory|The constraint binds work on the target|
+|`depends-on`|Block → prerequisite|mandatory|The block cannot be understood or done without the target|
+|`verifies`|Acceptance → requirement|evidence|Says how to check the requirement, not that it passed|
+|`supports` / `contradicts`|Evidence → block|evidence|The basis for or against a claim|
+|`supersedes`|Decision → older decision|lifecycle|The older one is no longer current|
+|`between`|Question → two blocks|lifecycle|The two disagree and the question is open|
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Only mandatory edges expand automatically
+Navigation and evidence edges come back as pointers. Mandatory edges (`include`, `applies-to`, `depends-on`) are followed to their closure when a view needs the source block, with cycles and depth reported, and a missing or denied target counts as an unsatisfied dependency (AF15, AF20). Lifecycle edges never expand, but a view that shows a superseded decision also shows the pointer to what supersedes it.
+:::
+
+## Host trust and authorization
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Document status is not authority
+Front matter `status`, decision status, `:::agent` blocks and constraints describe the document's intent. They bind an agent only within the task the user gave it and grant no permission the host or user did not grant (C04 wording). A hash or revision identifies content, not its author. Who may write is decided by the host's tool authorization (`--allow-write`, editor permissions), and what may be read by the host's filesystem policy, applied to includes through the one containment check from C07. Hiding content from people (`:::agent`) or from agents (`:::human`, `{agent=skip}`) is presentation, not access control.
+:::
+
+## Gaps the contract found
+
+Found while recording behavior on 2026-11-06 and reproduced with the CLI. GAP-1 to GAP-5 and GAP-7 were fixed in G0 (#157, on the 3.1.0 train), and GAP-6 and GAP-10 in G1, each with tests in `extension/test/researchContract.test.ts` that fail without the fix. None was a released regression, since the include paths behaved the same in 3.0.0. Until the fixes, C01 held for `:::agent` blocks in the root file only. GAP-8 and GAP-9 stay open.
+
+|ID|Gap|Requirement|Status|
+|-|-|-|-|
+|GAP-1|An `:::agent` block from an included file was lost in a section view of another section|AF15|fixed in G0|
+|GAP-2|`{agent=skip}` sections inside an included file were shown to agents|AF15, AF17|fixed in G0|
+|GAP-3|`--brief` (and budget condensing) hid a `:::danger` inside `:::details` with no pointer to it|AF01, AF15|fixed in G0|
+|GAP-4|A budget pointer did not say that the omitted section holds a danger, an agent rule or an open question. A `> [!CAUTION]` alert did not count as key content when ranking sections|AF16|fixed in G0|
+|GAP-5|`--max-tokens` could omit a section whose `:::agent` block comes from an included file|AF15|fixed in G0|
+|GAP-6|`:metric` drops `trend` and `good`, so whether a change is good or bad is lost|AF01|fixed in G1|
+|GAP-7|`--constraints` opened includes although policy `constraints/1` says it does not, counted a danger from an include without showing it, and attributed included line numbers to root sections|AF13, AF23|fixed in G0 (includes outside the sections are listed, not opened)|
+|GAP-8|A question's written `status` is dropped from the view and every question counts as open. This is expected until the lifecycle syntax exists, and is listed so it is not forgotten|AF07, AF11|open, G1|
+|GAP-9|`smd query` matches blocks in `{agent=skip}` sections and `:::human` blocks and renders them in full|AF17, filtering S2|open, G2|
+|GAP-10|The CLI's over-budget hint says to ask for fewer sections even when none were requested|AF16|fixed in G1|
+
+## Reconciliation with the draft requirements
+
+The accepted decisions settle these conflicts between the drafts, and each proposal below is copied into the owning draft. R45 stays open for G3.
+
+|Draft|Says|Conflicts with|Proposal|
+|-|-|-|-|
+|Semantic tags R17|References to a duplicate id go to the first block, as for figures|AF06, never attach feedback by silently choosing the first duplicate|A duplicate resolves to nothing for new id attributes and feedback targets. Figures keep their released behavior|
+|Semantic tags R50|Only open questions count in `smd query question`|AF21, preserve bare-query semantics and don't hide answers|Bare selectors keep matching everything. Lifecycle filters are explicit|
+|Semantic tags open question on task ids|Undecided|AF06, AF07 need task targets before G1|Trailing `{#id}` on a task line|
+|Collaboration RFC D2|A suggestion records its target's block key in `for=` and is stale if the target changed|AF06, AF10, stable ids and revision-aware staleness|`for=` names an author-written id, and staleness compares the target's revision hash|
+|Collaboration RFC open question on agents and open comments|Undecided|AF21, answered feedback stays reachable|Open comments and suggestions appear in the agent view by default, compactly, since an agent applying review must find them|
+|Filtering S1|`query` gets `:::agent` blocks only through a `constraints` option, off by default|AF15, mandatory context|Keep the option off by default for compatibility, and report in the result that constraints were not included|
+|Filtering G4, G5|Neighbors are pointers, missing targets are pointers marked missing|AF15, AF20, mandatory edges|Optional edges as pointers, mandatory edges expanded, and a missing or denied mandatory target counts as unsatisfied|
+|Semantic tags R45 and AF27|Evidence priority is fixed|AF27, priority depends on the task view|Left to G3, noted here so R45 is not frozen first|
+
+## Resolved questions
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Every decision is accepted for G1
+The question was which decisions the maintainer accepts for G1. Answer: all of them, in four groups. Budgets and query, identity and task ids, lifecycle, and scope, edges and trust. They are copied into the semantic tags, collaboration and filtering drafts.
+:::
+
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} The gap fixes ride the 3.1.0 train
+The question was whether the fixes for GAP-1 to GAP-5 and GAP-7 ship in 3.1.0. They were merged into the 3.1.0 release branch as #157, so they ship with it.
+:::

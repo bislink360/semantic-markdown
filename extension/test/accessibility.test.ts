@@ -277,6 +277,13 @@ test('a11y block editor: blocks are named groups in one tab stop; the arrow keys
   assert.match(blockEditorPage, /listKeyTarget\(event\.key, list\.indexOf\(item\), list\.length\)/);
 });
 
+test('a11y block editor: child blocks are named like top-level blocks, without losing a list, row or table role', () => {
+  assert.match(blockEditorPage, /const naming = childNaming\(el\.tagName\);\n\s+if \(naming === 'contents'\) return;\n\s+if \(naming === 'group'\) \{\n\s+el\.setAttribute\('role', 'group'\);\n\s+el\.setAttribute\('aria-roledescription', 'block'\);/);
+  assert.match(blockEditorPage, /el\.setAttribute\(ARIA_LABEL, problems \? `\$\{blockLabel\(view\)\}, \$\{problems\}` : blockLabel\(view\)\)/);
+  assert.match(blockEditorPage, /if \(shown\) el\.setAttribute\('aria-description', shown\.messages\.join\('; '\)\)/);
+  assert.match(blockEditorPage, /childNaming\(list\[to\]\.tagName\) === 'contents'/, 'only headings, named by their text, are also announced');
+});
+
 test('a11y block editor: a labelled toolbar, a menu of menu items, and buttons that say what they open', () => {
   assert.match(blockEditorPage, /role: 'toolbar', \[ARIA_LABEL\]: 'Block editor'/);
   assert.match(blockEditorPage, /'aria-haspopup': 'menu', \[ARIA_EXPANDED\]: FALSE, 'aria-controls': 'menu'/);

@@ -19,6 +19,7 @@ The design, from the outside in.
 
 ```mermaid
 sequenceDiagram
+    accTitle: What the diagram shows, in a few words
     participant C as Client
     participant S as Service
     C->>S: request

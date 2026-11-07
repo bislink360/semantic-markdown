@@ -1,0 +1,23 @@
+---
+smd: 2
+title: Data retention periods
+summary: How long Querent keeps each class of customer and operational data, with the one exception and the one limit tenants can change.
+status: approved
+---
+
+Querent keeps customer data only as long as the table below says. The periods apply to every tenant and every region, and each one starts from the event in the "Clock starts" column.
+
+| Data class | Kept for | Clock starts |
+|-|-|-|
+| Survey responses and uploaded files | 30 days | Tenant contract ends |
+| Respondent contact lists | 12 months | Last survey sent to the contact |
+| Application logs | 30 days | Log line written |
+| Audit logs | 400 days | Event recorded |
+| Database backups | 35 days | Backup taken |
+| Support ticket attachments | 90 days | Ticket closed |
+
+A tenant admin can set a shorter retention period for survey responses in the workspace settings, down to a minimum of 7 days after each survey closes. Shorter periods cannot be set for audit logs or backups, because security investigations and recovery depend on them.
+
+The one exception is a legal hold. Data under a legal hold is kept until the legal team lifts the hold, whatever the table says, and the purge job skips it. Only the legal team can place or lift a hold.
+
+When a period ends, the nightly purge job deletes the data, and copies in backups go as those backups expire. Data cannot be restored once the purge job has deleted it and the backups holding it have expired.

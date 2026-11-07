@@ -8,7 +8,6 @@
 
 # Generated files: collapsed in diffs and excluded from language stats
 skills/*/scripts/smd.cjs linguist-generated
-examples/*.html linguist-generated
 extension/package-lock.json linguist-generated
 integrations/tree-sitter-smd/src/parser.c linguist-generated
 integrations/tree-sitter-smd/src/grammar.json linguist-generated

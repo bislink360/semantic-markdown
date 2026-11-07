@@ -1,6 +1,6 @@
 ---
 smd: 2
-title: Semantic Markdown
+title: Markdown for AI agents and people
 summary: Markdown that people and AI agents both read well. Callouts, decisions, risks, tasks and diagrams, validated, with an agent view that skips the decoration.
 accent: indigo
 ---
@@ -21,7 +21,7 @@ Edit a document and see the preview, the agent view with its token count, the pr
 ::::
 ::::column
 :::card{accent=teal} Read the docs
-[Install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md) · [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md) · [Agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/AGENTS.md) · [GitHub](https://github.com/bislink360/semantic-markdown)
+[Install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/install.md) · [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/features.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/spec.md) · [Agents](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/agents.md) · [GitHub](https://github.com/bislink360/semantic-markdown)
 :::
 ::::
 :::::
@@ -63,7 +63,7 @@ The same package is a zero-dependency library (`renderSmd`, `validateSmd`, `agen
 :::
 ::::
 
-Until the registry listings are live, every [GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) has the `.vsix`, the npm package and the skills: see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md).
+Until the registry listings are live, every [GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) has the `.vsix`, the npm package and the skills: see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/install.md).
 
 ## What it looks like
 
@@ -91,7 +91,7 @@ Won usability testing on completion rate.
 
 ## For AI agents
 
-- **One read, fewer tokens.** `smd read spec.smd` returns the whole agent view when it is small, else an outline to pick sections from. Measured: the full agent view is 5–37% smaller than the file on the examples, `--brief` 14–43%, and the outline plus one section about 80% smaller on 6k–8k-token documents. Small documents are cheaper to read directly.
+- **One read, fewer tokens.** `smd read spec.smd` returns the whole agent view when it is small, else an outline to pick sections from. Measured: the full agent view is 5–37% smaller than the file on our sample documents, `--brief` 14–43%, and the outline plus one section about 80% smaller on 6k–8k-token documents. Small documents are cheaper to read directly.
 - **Meaning is explicit.** An agent can tell an accepted decision from a proposal, a hard constraint from a side note, and its own instructions (`:::agent`) from content for people.
 - **A work queue.** `smd tasks docs/` lists open tasks across documents, overdue first; the MCP server can check them off when you allow it.
 - **A gate.** `smd validate` catches broken syntax, links and diagrams in CI, with fixes an agent can apply.
@@ -104,4 +104,4 @@ Won usability testing on completion rate.
 
 ---
 
-[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/COMPATIBILITY.md) · MIT licence
+[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/compatibility.md) · MIT licence

@@ -1,0 +1,155 @@
+{
+  "tasks": [
+    {
+      "id": "p07-01",
+      "type": "constraint-check",
+      "prompt": "A team wants to follow this DNS debugging procedure on a cluster whose DNS add-on is not CoreDNS (it runs a different cluster DNS provider). Does the page's stated setup allow following it on that cluster?",
+      "items": ["coredns-addon-required"],
+      "expected": { "verdict": ["no"], "constraint": "coredns-addon-required" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-02",
+      "type": "constraint-check",
+      "prompt": "An automated agent investigating a DNS failure wants to run `kubectl logs --namespace=kube-system -l k8s-app=kube-dns` and `nslookup` inside the dnsutils test Pod without first asking a person. Is it allowed to do so?",
+      "items": ["agent-readonly-checks-safe"],
+      "expected": { "verdict": ["yes"], "constraint": "agent-readonly-checks-safe" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-03",
+      "type": "constraint-check",
+      "prompt": "While debugging DNS, an automated agent finds that the `system:coredns` ClusterRole lacks a permission CoreDNS needs. May the agent run `kubectl edit clusterrole system:coredns` and add the permission itself?",
+      "items": ["agent-no-edit-dns-config", "coredns-needs-list", "perms-list-watch"],
+      "expected": { "verdict": ["no"], "constraint": "agent-no-edit-dns-config" },
+      "notes": "cross-section: the permissions check tells the reader to edit the ClusterRole, but the agent note forbids an agent doing it on its own.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-04",
+      "type": "constraint-check",
+      "prompt": "An automated agent added a `log` line to the CoreDNS Corefile while debugging and has now finished. May the agent remove that `log` line from the `coredns` ConfigMap itself, without waiting for a cluster administrator?",
+      "items": ["agent-no-edit-dns-config", "agent-log-line-exception", "log-plugin-disable"],
+      "expected": { "verdict": ["yes"], "constraint": "agent-no-edit-dns-config" },
+      "notes": "cross-section: exception in the agent note plus the warning in the query-logging section.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-05",
+      "type": "constraint-check",
+      "prompt": "The test Pod's /etc/resolv.conf does not list the cluster DNS Service IP as its nameserver. Should you go on to check the CoreDNS Pods, Service, endpoints and permissions before fixing that?",
+      "items": ["checks-in-order"],
+      "expected": { "verdict": ["no"], "constraint": "checks-in-order" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-06",
+      "type": "constraint-check",
+      "prompt": "After DNS debugging is finished, an operator wants to keep the `log` plugin in the Corefile so the next incident is easier to diagnose. Is that acceptable?",
+      "items": ["log-plugin-disable"],
+      "expected": { "verdict": ["no"], "constraint": "log-plugin-disable" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-07",
+      "type": "constraint-check",
+      "prompt": "A cluster's `system:coredns` ClusterRole grants `list` on services and on the older Endpoints resource, but nothing on endpointslices. Does CoreDNS have the permissions this page requires to resolve service names?",
+      "items": ["coredns-needs-list"],
+      "expected": { "verdict": ["no"], "constraint": "coredns-needs-list" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-08",
+      "type": "constraint-check",
+      "prompt": "The dnsutils test Pod runs in the `default` namespace and the Service `billing` lives in the `payments` namespace. Must the DNS query from the Pod include the `payments` namespace to resolve that Service?",
+      "items": ["cross-namespace-query"],
+      "expected": { "verdict": ["yes"], "constraint": "cross-namespace-query" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-09",
+      "type": "constraint-check",
+      "prompt": "An application image is built on Alpine 3.18. As far as the Alpine DNS known issue on this page goes, is that base image version acceptable?",
+      "items": ["alpine-upgrade"],
+      "expected": { "verdict": ["yes"], "constraint": "alpine-upgrade" },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-10",
+      "type": "decision-status",
+      "prompt": "A node's local installation already uses 3 `nameserver` entries, so the cluster DNS entry would push past the libc limit and some entries would be lost. Which workaround should be used?",
+      "items": ["dnsmasq-replaced", "glibc-nameserver-limit", "resolv-conf-max-2"],
+      "expected": { "option": ["kubelet's --resolv-conf flag", "use kubelet's --resolv-conf flag", "--resolv-conf", "kubelet --resolv-conf flag", "kubelet --resolv-conf", "--resolv-conf flag", "point kubelet's --resolv-conf flag to a file with at most 2 nameserver entries", "use kubelet's --resolv-conf flag to point to a file with at most 2 nameserver entries"], "superseded": ["dnsmasq", "run dnsmasq", "run dnsmasq on the node", "the node can run dnsmasq", "dnsmasq workaround"] },
+      "notes": "cross-section: Known issues still presents dnsmasq as the workaround; the Changes section replaces it.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-11",
+      "type": "open-question",
+      "prompt": "Processes that run directly on a cluster node (not in Pods) need to resolve cluster Service names. Will a Kubernetes install set up the node's resolv.conf to use the cluster DNS, and what should an operator do?",
+      "items": ["node-resolv-conf-undecided", "no-node-cluster-dns-default"],
+      "expected": { "fallback": ["configure the node's resolver yourself", "configure the node's resolver manually", "configure the node resolver yourself", "configure the node's resolver", "configure the node's resolv.conf yourself"] },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-12",
+      "type": "fact-lookup",
+      "prompt": "When kubelet's `--resolv-conf` flag is used to work around the libc nameserver limit, at most how many `nameserver` entries may the file it points to contain?",
+      "items": ["resolv-conf-max-2"],
+      "expected": { "accepted": ["2", "two", "at most 2", "at most two", "2 entries", "two entries", "2 nameserver entries", "two nameserver entries", "2 nameservers", "two nameservers"] },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-13",
+      "type": "fact-lookup",
+      "prompt": "On Alpine 3.17 or earlier base images, DNS calls above what size fail?",
+      "items": ["alpine-512-bytes"],
+      "expected": { "accepted": ["512 bytes", "512", "512 b", "512-byte", "above 512 bytes"] },
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-14",
+      "type": "fact-lookup",
+      "prompt": "For the CoreDNS permissions check to count as healthy, which verbs must CoreDNS hold on services and endpointslices?",
+      "items": ["perms-list-watch", "coredns-needs-list"],
+      "expected": { "accepted": ["list and watch", "list, watch", "watch and list", "list and watch on services and endpointslices", "list/watch", "list + watch"] },
+      "notes": "cross-section: the check-order table says list and watch; the permissions section prose says only list.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-15",
+      "type": "qualification",
+      "prompt": "In a few sentences, explain what an operator should know about node resolver configuration and `nameserver` entries when running cluster DNS on Linux nodes.",
+      "items": ["glibc-nameserver-limit", "dnsmasq-replaced", "resolv-conf-max-2", "no-node-cluster-dns-default", "node-resolv-conf-undecided", "systemd-resolved-fix", "kubeadm-detects-resolved"],
+      "expected": { "rubric": [{ "id": "r1", "text": "glibc limits nameserver records to 3 by default and Kubernetes consumes 1, so a node already using 3 loses entries", "items": ["glibc-nameserver-limit"] }, { "id": "r2", "text": "The dnsmasq workaround is no longer recommended; use kubelet's --resolv-conf flag pointing to a file with at most 2 nameserver entries", "items": ["dnsmasq-replaced", "resolv-conf-max-2"] }, { "id": "r3", "text": "Kubernetes does not configure the nodes' own resolv.conf to use cluster DNS; whether it will is undecided, so configure the node's resolver yourself if node processes need cluster names", "items": ["no-node-cluster-dns-default", "node-resolv-conf-undecided"] }, { "id": "r4", "text": "systemd-resolved can cause a forwarding loop; point --resolv-conf at /run/systemd/resolve/resolv.conf, which kubeadm detects and does automatically", "items": ["systemd-resolved-fix", "kubeadm-detects-resolved"] }] },
+      "notes": "cross-section: Known issues plus Changes to this page.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-16",
+      "type": "qualification",
+      "prompt": "Summarise what an automated agent may do on its own, and what it must leave to a person, while debugging DNS with this page.",
+      "items": ["agent-readonly-checks-safe", "agent-no-edit-dns-config", "agent-log-line-exception", "log-plugin-disable"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Read-only checks (kubectl get, describe, logs and nslookup in the test Pod) may be run without asking", "items": ["agent-readonly-checks-safe"] }, { "id": "r2", "text": "The agent must not edit the coredns ConfigMap or the system:coredns ClusterRole itself; it proposes the change and a cluster administrator applies it", "items": ["agent-no-edit-dns-config"] }, { "id": "r3", "text": "Exception: it may remove a log line it added while debugging", "items": ["agent-log-line-exception"] }, { "id": "r4", "text": "The log plugin must not be left enabled after debugging", "items": ["log-plugin-disable"] }] },
+      "notes": "cross-section: agent note plus the query-logging warning.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-17",
+      "type": "edit-plan",
+      "prompt": "Which lines of the page must change so that CoreDNS is documented as needing `get`, `list` and `watch` on services and endpointslices?",
+      "items": ["perms-list-watch", "coredns-needs-list"],
+      "expected": { "md": [[28, 28], [204, 204]], "smd": [[35, 35], [213, 213]] },
+      "notes": "cross-section: check-order table row and the permissions section prose.",
+      "author": "ai-task-writer-i"
+    },
+    {
+      "id": "p07-18",
+      "type": "edit-plan",
+      "prompt": "Which lines must change if the Alpine DNS known issue is found to affect Alpine 3.18 too, so that images must be on Alpine 3.19 or above?",
+      "items": ["alpine-upgrade"],
+      "expected": { "md": [[252, 252], [255, 255]], "smd": [[265, 265], [268, 268]] },
+      "author": "ai-task-writer-i"
+    }
+  ]
+}
