@@ -283,9 +283,10 @@ export function backoff(attempt: number, retryAfter: string | null): number {
   return Math.min(32_000, 1000 * 2 ** attempt);
 }
 
-interface Posted { json: Record<string, any>; status: number; attempts: number; latencyMs: number; failures: FailedAttempt[] }
+export interface Posted { json: Record<string, any>; status: number; attempts: number; latencyMs: number; failures: FailedAttempt[] }
 
-async function post(url: string, key: string, body: unknown, opts: { timeoutMs: number; retries: number }, deps: RunDeps): Promise<Posted> {
+/** One POST with retries on 429, 5xx, timeouts and network errors; the key never reaches an error text. */
+export async function post(url: string, key: string, body: unknown, opts: { timeoutMs: number; retries: number }, deps: RunDeps): Promise<Posted> {
   const started = deps.now().getTime();
   const failures: FailedAttempt[] = [];
   for (let attempt = 0; ; attempt++) {
@@ -361,7 +362,7 @@ export function addUsage(total: Record<string, number>, usage: unknown, prefix =
   }
 }
 
-const contentText = (content: unknown): string =>
+export const contentText = (content: unknown): string =>
   typeof content === 'string' ? content
     : Array.isArray(content) ? content.map((p) => (typeof p === 'string' ? p : typeof p?.text === 'string' ? p.text : '')).join('') : '';
 

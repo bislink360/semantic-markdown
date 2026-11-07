@@ -137,7 +137,7 @@ Documents written for the study may be cleaner or messier than real ones, which 
 - [x] Write about 240 tasks from the annotations :priority[P0] @roshanmadhushanka (AI-drafted, 618 tasks, because the guide asks for one constraint check per constraint item)
 - [x] Build the harness for conditions M1 to O and the ablations :priority[P0] @roshanmadhushanka (with the model runner)
 - [x] Count tokens as the token accounting method says :priority[P0] @roshanmadhushanka (`npm run eval -- tokens` and the setup probe; method 0.2, frozen with the preregistration)
-- [ ] Build the scorer and the model judge, then check it on 50 hand-scored answers :priority[P1] @roshanmadhushanka
+- [ ] Build the scorer and the model judge, then check it on 50 hand-scored answers :priority[P1] @roshanmadhushanka (scorer, `judge`, `sample` and `judge-agreement` built; left: people hand-score the 50 answers and the judge model is chosen)
 - [ ] Run the pilot and size the main run :priority[P1] @roshanmadhushanka
 - [ ] Preregister hypotheses, analysis and exclusions :priority[P1] @roshanmadhushanka
 - [ ] Run the confirmatory study and release corpus, tasks, scorer and results :priority[P1] @roshanmadhushanka

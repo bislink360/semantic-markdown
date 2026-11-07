@@ -19,6 +19,22 @@ function allDocuments(dir = repo, out: string[] = []): string[] {
   return out;
 }
 
+/**
+ * Folders of syntax samples (test fixtures, skill templates, the gallery, the playground and site starters). The
+ * random-edit test edits these rather than every document: long prose such as research data and RFCs adds size but
+ * little syntax, and each step renders the whole text twice.
+ */
+const SAMPLE_FOLDERS = ['extension/test', 'skills', 'docs/gallery', 'playground', 'site'];
+/**
+ * The random-edit test's time grows with the samples (about 90 s at 108 KB in November 2026; with every document,
+ * 1.8 MB, it ran for most of an hour). Keep bulk documents out of SAMPLE_FOLDERS rather than raising this.
+ */
+const SAMPLE_LIMIT = 150_000;
+
+function sampleDocuments(): string[] {
+  return allDocuments().filter((f) => SAMPLE_FOLDERS.some((d) => path.relative(repo, f).split(path.sep).join('/').startsWith(`${d}/`)));
+}
+
 /** The previous implementation: ids read from the rendered HTML. */
 function anchorIdsFromHtml(text: string): Set<string> {
   const result = renderSmd(text);
@@ -69,7 +85,10 @@ test('incremental parsing matches a full parse through random edits', () => {
     'A [span]{#s1} and <a name="n1"></a>', '| a | b |', '| - | - |', 'plain text', ':::card{#card} Card',
     'See[^n] and[^M].', '[^n]: Note [in]{#in-note} and[^m]', '    continued [more]{#in-more}', '[^m]: Other.', '## Heading[^n]',
   ];
-  const base = allDocuments().map((f) => fs.readFileSync(f, 'utf8')).join('\n\n');
+  const samples = sampleDocuments();
+  assert.ok(samples.length >= 10, `found ${samples.length} sample documents`);
+  const base = samples.map((f) => fs.readFileSync(f, 'utf8')).join('\n\n');
+  assert.ok(base.length < SAMPLE_LIMIT, `the sample documents are ${base.length} characters; move bulk documents out of ${SAMPLE_FOLDERS.join(', ')}`);
   // Seeded, so a failure is reproducible. 102 once caught a `$$` inserted far below the math it closed.
   for (const start of [20260928, 102]) {
     let seed = start;
