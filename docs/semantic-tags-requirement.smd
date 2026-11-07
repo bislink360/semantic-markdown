@@ -105,7 +105,7 @@ See :ref[R1] for the export rule.
 | R14 | `:ref[id]` links to any block with that id. For a figure it shows "Figure 2" as today. For any other block it shows the id as written (`R1`) with the block's title as a tooltip and accessible name. | :priority[P1] |
 | R15 | Attributes that take ids (`verifies`, `applies-to`, `supports`, `contradicts`, `depends-on`, `supersedes`, `between`) take one id or a comma-separated list, such as `verifies=R1,R2` or `verifies="R1, R2"`. | :priority[P1] |
 | R16 | The validator warns `ref/unknown` for an id in one of those attributes that names nothing, with a fix to the closest id. `:ref[id]` keeps its existing `figure/unknown-ref` code so current suppressions and configs still work. | :priority[P1] |
-| R17 | The validator warns `id/duplicate` when two blocks share an id. References go to the first, as they do for figures. `figure/duplicate-id` keeps its code for figures. | :priority[P1] |
+| R17 | The validator warns `id/duplicate` when two blocks share an id. A reference, id attribute or feedback target that names a duplicate id resolves to nothing and is reported as ambiguous (research contract, accepted 2026-11-06). `:ref` to figures keeps its released first-match behavior, and `figure/duplicate-id` keeps its code. | :priority[P1] |
 | R18 | Editors offer go to definition, find references, hover and rename for block ids, as they do for heading ids. Renaming an id updates every attribute and `:ref` that uses it in the workspace. | :priority[P2] |
 | R19 | References to another document, `other.smd#R1`, work in id attributes and in `:ref`. The validator checks them with the same reader as links. | :priority[P2] |
 
@@ -232,7 +232,7 @@ Reading only "Requirements" kept the external :::agent block but left out the da
 | R42 | `source` goes through the same URL checks as `:::quote{cite}`. Any other scheme is left out of the output and reported as `evidence/source`. | :priority[P2] |
 | R43 | A `commit` that isn't 7 to 40 hex characters is a warning, `evidence/commit`. Tools don't check that the commit exists. | :priority[P3] |
 | R44 | Hover on a supported or contradicted id lists its evidence. `smd trace` shows evidence next to each requirement. | :priority[P2] |
-| R45 | Evidence is ordinary content in budgeted views. It isn't key content, since it explains a decision rather than restricting work. | :priority[P2] |
+| R45 | Evidence is ordinary content in budgeted views. It isn't key content, since it explains a decision rather than restricting work. Not frozen, since the research contract leaves evidence priority to G3. | :priority[P2] |
 
 ## Dependencies
 
@@ -254,7 +254,7 @@ Reading only "Requirements" kept the external :::agent block but left out the da
 
 | ID | Requirement | Priority |
 |---|---|---|
-| R50 | `:::question` accepts `status` (`open` `answered`, default `open`), `owner`, `due` and `between`. Only open questions count as key content in budgets, in catalog counts and in `smd query question`. An open question past `due` is `question/overdue` (info). | :priority[P2] |
+| R50 | `:::question` accepts `status` (`open` `answered`, default `open`), `owner`, `due` and `between`. Only open questions count as key content in budgets and in catalog counts. A bare `smd query question` still matches every question, answered ones included, and lifecycle filters are explicit, such as `question[status=open]` (research contract, accepted 2026-11-06). An open question past `due` is `question/overdue` (info). | :priority[P2] |
 | R51 | `between=a,b` on a question records two statements that disagree. The agent view shows both ids so an agent never treats either one as settled. | :priority[P2] |
 | R52 | `:::decision` accepts `supersedes`. When the superseded decision's status isn't `superseded`, it's a warning, `decision/supersedes`, with a fix that sets it. | :priority[P2] |
 | R53 | `smd decisions` shows "superseded by D7" next to a superseded decision when a later decision names it. | :priority[P2] |
@@ -318,7 +318,7 @@ These come after the core set and follow the shared requirements too.
 |---|---|---|---|---|
 | AC1 | R13, R16 | `verifies=R9` and no block `R9` | `smd validate` runs | `ref/unknown` names `R9`, with a fix to the closest id |
 | AC2 | R14 | `:ref[R1]` and a requirement `{#R1}` | The document renders | A link to `#R1` reads "R1" with the requirement's title as its accessible name |
-| AC3 | R17 | Two blocks with `{#R1}` | `smd validate` runs | `id/duplicate` on the second, and references go to the first |
+| AC3 | R17 | Two blocks with `{#R1}` | `smd validate` runs | `id/duplicate` on the second, and references to `R1` are unresolved and reported as ambiguous |
 | AC4 | R21 | A requirement with no id after `R1` to `R3` | `smd validate --fix` runs | The block gets `{#R4}` |
 | AC5 | R22 | An accepted requirement no acceptance block verifies | `smd validate` runs | `requirement/uncovered` as a hint |
 | AC6 | R25, R29 | A `scope=document` constraint in section 1 and a budget too small for it plus section 4 | `smd agent --section 4 --max-tokens 300` runs | The constraint is in full, and the view says the budget couldn't be met |
@@ -367,8 +367,8 @@ Requiring nesting would make `verifies` unnecessary, but one criterion could the
 A `kind` attribute (`functional`, `quality`, `story`) would let user stories and quality requirements share one tag. The maintainer decides before phase 1 ships. Until then, there is no `kind` attribute.
 :::
 
-:::question How do tasks get ids?
-Task-to-task dependencies need task ids, and tasks have no attribute list today. The maintainer decides before phase 2. Until then, tasks can depend only on block ids (R47).
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} How tasks get ids
+The question was how tasks get ids, since task-to-task dependencies need them and tasks have no attribute list. Answer: a trailing `{#id}` on the task line, the form headings use, so the line stays a valid GitHub task in plain Markdown (research contract, accepted 2026-11-06). Tasks without an id cannot be feedback targets.
 :::
 
 :::question Is phase 3 worth building?

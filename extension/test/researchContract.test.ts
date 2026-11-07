@@ -100,11 +100,12 @@ test('GAP-3 (AF01, AF15): --brief does not hide a danger inside :::details witho
   assert.match(view, /NESTED_DANGER|danger: Deep danger/);
 });
 
-test('GAP-4 (AF16): a budget pointer says when the omitted section holds a danger', () => {
+test('GAP-4 (AF16), then the accepted "mandatory content" decision: a section holding a danger is never omitted', () => {
+  // Until the decision, Plan was omitted here with a pointer saying `holds danger`.
   const view = agentView(doc, { readFile, maxTokens: 60, today: '2026-11-06' }).text;
-  const pointer = view.split('\n').find((l) => l.startsWith('[section omitted: ## Plan'));
-  assert.ok(pointer, 'the Plan section is omitted at this budget');
-  assert.match(pointer, /danger/);
+  assert.equal(view.split('\n').find((l) => l.startsWith('[section omitted: ## Plan')), undefined);
+  assert.match(view, /DANGER_TEXT/);
+  assert.match(view, /NESTED_DANGER/, 'a danger kept whole in a condensed :::details keeps its section too');
 });
 
 test('GAP-5 (AF15): --max-tokens never omits a section whose :::agent block comes from an include', () => {
@@ -341,4 +342,71 @@ test('R17: two figures keep the released figure/duplicate-id and :ref first-matc
   const text = ids([':::figure{#fig} First', '![a](a.png)', ':::', '', ':::figure{#fig} Second', '![b](b.png)', ':::', '', 'See :ref[fig].']);
   assert.deepEqual(codes(text), ['figure/duplicate-id']);
   assert.match(renderSmd(text).html, /<a class="smd-ref" href="#fig">Figure 1<\/a>/, ':ref still goes to the first figure');
+});
+
+// ---------------------------------------------------------------------------
+// G1 budget decisions, accepted 2026-11-06: overflow is reported in the view, and mandatory content is never a budget
+// candidate. GAP-6: a metric keeps its trend and tone.
+// ---------------------------------------------------------------------------
+
+const overflowLine = /\n\n\[budget: ≈(\d+) of (\d+) tokens, required content does not fit\]\n$/;
+
+test('G1 (AF16): a view over its budget ends with one overflow line, counted in its own tokens', () => {
+  const tiny = agentView(doc, { readFile, maxTokens: 5, today: '2026-11-06' });
+  const m = overflowLine.exec(tiny.text);
+  assert.ok(m, tiny.text);
+  assert.equal(Number(m[2]), 5);
+  assert.equal(Number(m[1]), tiny.budget?.tokens, 'the line states the count of the view that holds it');
+  assert.equal(tiny.budget?.tokens, estimateTokens(tiny.text));
+  assert.equal(tiny.text.split('[budget:').length - 1, 1, 'one line');
+});
+
+test('G1 (AF16): a view that fits, and a view with no budget, have no overflow line', () => {
+  const all = agentView(doc, { readFile, today: '2026-11-06' });
+  assert.doesNotMatch(all.text, /\[budget:/);
+  const fits = agentView(doc, { readFile, maxTokens: all.tokens + 50, today: '2026-11-06' });
+  assert.equal(fits.budget?.fits, true);
+  assert.equal(fits.text, all.text);
+});
+
+test('G1 (AF16): with a tokenizer the overflow line counts in its tokens, without the estimate sign', () => {
+  const words = { name: 'words', count: (t: string) => t.split(/\s+/).filter(Boolean).length };
+  const view = agentView(doc, { readFile, maxTokens: 5, tokenizer: words, today: '2026-11-06' });
+  const m = /\n\n\[budget: (\d+) of 5 words tokens, required content does not fit\]\n$/.exec(view.text);
+  assert.ok(m, view.text);
+  assert.equal(Number(m[1]), words.count(view.text));
+});
+
+test('G1 (AF15): a section holding a danger from an included file, or a CAUTION alert, is never omitted', () => {
+  const files: Record<string, string> = {
+    'risky.smd': ['---', 'smd: 2', 'title: Risky', '---', '', ':::danger Included danger', 'INCLUDED_DANGER', ':::', ''].join('\n'),
+  };
+  const text = edges(['## A', '', 'A '.repeat(100), '', ':::include{file=risky.smd}', ':::', '',
+    '## B', '', '> [!CAUTION]', '> ALERT_DANGER ' + 'x '.repeat(100), '', '## C', '', 'C '.repeat(100)]);
+  const view = agentView(text, { readFile: (p) => files[p], maxTokens: 30 });
+  assert.match(view.text, /INCLUDED_DANGER/);
+  assert.match(view.text, /ALERT_DANGER/);
+  assert.match(view.text, /\[section omitted: ## C/);
+  assert.equal(view.budget?.fits, false);
+  assert.match(view.text, overflowLine);
+});
+
+test('G1 (AF15): a parent section is kept when a subsection holds a danger, and its other subsections can go', () => {
+  const text = edges(['## Parent', '', '### Risky', '', ':::danger D', 'SUB_DANGER', ':::', '', '### Filler', '', 'F '.repeat(200)]);
+  const view = agentView(text, { maxTokens: 40 }).text;
+  assert.match(view, /SUB_DANGER/);
+  assert.match(view, /\[section omitted: ### Filler/);
+  assert.doesNotMatch(view, /\[section omitted: ## Parent/);
+});
+
+test('GAP-6 (AF01): a metric keeps its written trend, and good or bad when the author said which way is good', () => {
+  const metric = (attrs: string) => agentView(edges([`:metric[42%]{label="Activation" ${attrs}}`])).text;
+  assert.match(metric('delta="+3%" trend=up good=up'), /Activation: 42% \(\+3%, up, good\)/);
+  assert.match(metric('delta="+3%" trend=up good=down'), /Activation: 42% \(\+3%, up, bad\)/);
+  assert.match(metric('delta="-2%" good=up'), /Activation: 42% \(-2%, bad\)/, 'the trend comes from the delta, as rendering does');
+  assert.match(metric('trend=Down good=down'), /Activation: 42% \(down, good\)/, 'enumerated values match in any case');
+  assert.match(metric('delta="0%" trend=flat good=up'), /Activation: 42% \(0%, flat\)/, 'a flat metric is neither good nor bad');
+  assert.match(metric('delta="+3%"'), /Activation: 42% \(\+3%\)\n/, 'no written good: no tone is filled in (contract rule 3)');
+  assert.match(metric('trend=up'), /Activation: 42% \(up\)/);
+  assert.match(agentView(edges(['- [ ] :metric[7]{label="Bugs" trend=down good=down}'])).text, /Bugs: 7 \(down, good\)/);
 });

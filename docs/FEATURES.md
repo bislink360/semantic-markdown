@@ -287,7 +287,7 @@ Named colors are theme tokens tuned for light and dark mode. Only whitelisted va
 | `:status[x]{color}` | dot + label | `[status: x (ok/warn/bad)]` | `🟢 x` |
 | `:priority[P0–P4]` | auto-colored pill (P0 red → P4 gray) | `[P0]` | `**P0**` |
 | `:due[YYYY-MM-DD]` | date pill: amber ≤ 7 days, red overdue | `(due …, OVERDUE)` | `📅 …` |
-| `:metric[v]{label delta trend good}` | KPI tile; the delta is green when it moves the `good` way | `label: v (delta)` | `**v** label (delta)` |
+| `:metric[v]{label delta trend good}` | KPI tile; the delta is green when it moves the `good` way | `label: v (delta, trend, good or bad)`: the trend as written, and good or bad only when `good` is written | `**v** label (delta)` |
 | `:progress{value color label}` | progress bar | `65%` | `▰▰▰▰▰▰▱▱▱▱ 65%` |
 | `:kbd[Ctrl+S]` | key caps | `Ctrl+S` | `<kbd>Ctrl</kbd>+<kbd>S</kbd>` |
 | `:mention[@x]` | highlighted mention | `@x` | `@x` |
@@ -1447,18 +1447,18 @@ Token counts are estimates (characters / 4) unless you pass `--tokenizer`.
 
 ```text
 [section omitted: ## Architecture, L90-L128, ≈231 tokens — smd agent checkout-redesign.smd --section "Architecture"]
-[section omitted: ## Rollout, L130-L170, ≈310 tokens, holds danger, question — smd agent checkout-redesign.smd --section "Rollout"]
+[section omitted: ## Rollout, L130-L170, ≈310 tokens, holds warning, question — smd agent checkout-redesign.smd --section "Rollout"]
 ```
 
-When the section shows a danger, a warning or a question, the pointer names them after its tokens, so a budget never hides one silently.
+When the section shows a warning or a question, the pointer names them after its tokens, so a budget never hides one silently. A section with a danger is never left out.
 
 | Rule | Sections |
 |---|---|
-| Never left out | the header (title, front matter, summary), text before the first `##` section, sections with `:::agent` instructions (their own or from a file they include), sections requested with `--section` (and their subsections) |
-| Kept longer | sections with a `:::danger` or `:::warning` callout (or a CAUTION or WARNING alert), an accepted decision, a `:::question` or an open task |
+| Never left out | the header (title, front matter, summary), text before the first `##` section, sections with `:::agent` instructions or a danger (a `:::danger` block or CAUTION alert, their own or from a file they include), sections requested with `--section` (and their subsections) |
+| Kept longer | sections with a `:::warning` callout (or a WARNING alert), an accepted decision, a `:::question` or an open task |
 | Left out first | everything else; the deepest headings first, then the largest, then the latest. A section is left out after its subsections, and its pointer then replaces theirs |
 
-A section is only left out when its content costs more than its pointer. stderr reports the result, e.g. `[smd] budget 700 tokens: condensed as --brief; omitted 6 section(s): ## Snapshot (≈55), …; now ≈656 tokens.` When even the smallest view is over the budget, smd prints it anyway, warns on stderr and exits 0. Without `--max-tokens` the output is unchanged.
+A section is only left out when its content costs more than its pointer. stderr reports the result, e.g. `[smd] budget 700 tokens: condensed as --brief; omitted 6 section(s): ## Snapshot (≈55), …; now ≈656 tokens.` When even the smallest view is over the budget, smd prints it anyway, ends it with `[budget: ≈437 of 300 tokens, required content does not fit]` (so an agent that never sees stderr still knows), warns on stderr and exits 0. The warning suggests fewer sections only when you asked for some. Without `--max-tokens` the output is unchanged.
 
 **`--tokenizer <name>`** on `smd agent` and `smd outline` adds exact counts next to the estimate (`≈1531 est · 1402 o200k_base tokens`), and `--max-tokens` then counts with it. On `smd read` it decides the routing: the whole view or the outline is chosen by the tokenizer's count, not the estimate. Names: `o200k_base` (GPT-4o and later), `cl100k_base`, `p50k_base`, `r50k_base`. smd has no runtime dependencies, so it uses the [`js-tiktoken`](https://www.npmjs.com/package/js-tiktoken) package only if you have installed it, in your project (`npm install --save-dev js-tiktoken`, run smd from the project folder) or globally (`npm install -g js-tiktoken`). When it is missing, smd says how to install it and exits 2.
 

@@ -460,8 +460,11 @@ interface Draft {
   agentLines: Set<number>;
   /** Each section's tokens and pointer, worked out once. */
   costs: Map<BudgetSection, number>;
-  pointers: Map<BudgetSection, { text: string; kind: number }>;
+  pointers: Map<BudgetSection, Pointer>;
 }
+
+/** A section's pointer, and the cues its view text holds (see keyCues). */
+interface Pointer { text: string; kind: number; cues: string[] }
 
 function draftOf(scope: ViewScope, options: AgentViewOptions): Draft {
   const lines: Array<[number, string]> = [];
@@ -499,11 +502,12 @@ function sectionTokens(draft: Draft, s: BudgetSection): number {
   return tokens;
 }
 
-function pointerOf(draft: Draft, s: BudgetSection): { text: string; kind: number } {
+function pointerOf(draft: Draft, s: BudgetSection): Pointer {
   let pointer = draft.pointers.get(s);
   if (!pointer) {
-    const text = omissionPointer(s, sectionTokens(draft, s), draft.file, keyCues(draftSection(draft, s)));
-    draft.pointers.set(s, (pointer = { text, kind: pieceKind(text) }));
+    const cues = keyCues(draftSection(draft, s));
+    const text = omissionPointer(s, sectionTokens(draft, s), draft.file, cues);
+    draft.pointers.set(s, (pointer = { text, kind: pieceKind(text), cues }));
   }
   return pointer;
 }
@@ -619,12 +623,31 @@ function budgetedView(text: string, scope: ViewScope, options: AgentViewOptions)
   const condensed = !options.brief && draftCount(draft, []) > maxTokens;
   if (condensed) draft = draftOf(scope, { ...options, brief: true });
   const omitted = omitToFit(draft, scope, maxTokens);
-  const out = draftText(draft, omitted);
-  const tokens = draft.count(out);
+  const { text: out, tokens } = withOverflowLine(draftText(draft, omitted), maxTokens, draft.count, options.tokenizer?.name);
   const omittedSections = omitted.map((s) => ({
     heading: s.heading.text, level: s.heading.level, line: s.start, endLine: s.end, tokens: sectionTokens(draft, s),
   }));
   return viewResult(text, scope, out, options, { maxTokens, tokens, fits: tokens <= maxTokens, condensed, omitted: omittedSections }, draft.head.constraintView);
+}
+
+/**
+ * A view over its budget ends with one line that says so, `[budget: ≈437 of 300 tokens, required content does not
+ * fit]`, so an agent that never sees stderr or the manifest still knows (research contract, "Overflow is reported in
+ * the view"). The count includes the line itself. A view that fits is returned as it is.
+ */
+function withOverflowLine(view: string, maxTokens: number, count: (text: string) => number, tokenizer?: string): { text: string; tokens: number } {
+  let tokens = count(view);
+  if (tokens <= maxTokens) return { text: view, tokens };
+  const unit = tokenizer ? `${tokenizer} tokens` : 'tokens';
+  const withLine = (n: number) => `${view}\n[budget: ${tokenizer ? '' : '≈'}${n} of ${maxTokens} ${unit}, required content does not fit]\n`;
+  // The line's own tokens change the count; a few passes settle it (the number's digits are all that can change).
+  for (let pass = 0; pass < 4; pass++) {
+    const counted = count(withLine(tokens));
+    if (counted === tokens) break;
+    tokens = counted;
+  }
+  const text = withLine(tokens);
+  return { text, tokens: count(text) };
 }
 
 /** The cues a section's view text holds that its pointer names, so a hidden danger or question is never silent. */
@@ -639,9 +662,14 @@ function omitToFit(draft: Draft, scope: ViewScope, maxTokens: number): BudgetSec
   const cost = (s: BudgetSection) => sectionTokens(draft, s);
   // Omitting a section only helps when its content costs more than its pointer.
   // A section that shows `:::agent` text from an included file is kept, as one with its own `:::agent` block is.
+  // A section that shows a danger (its own, a CAUTION alert or one from an include) is mandatory content too
+  // (research contract, "Mandatory content is never a budget candidate").
   const holdsAgentText = (s: BudgetSection) => [...draft.agentLines].some((l) => l >= s.start && l <= s.end);
-  const candidates = omittableSections(scope.sections, scope.lines, scope.selected)
-    .filter((s) => !holdsAgentText(s) && cost(s) > draft.count(pointerOf(draft, s).text));
+  const candidates = omittableSections(scope.sections, scope.lines, scope.selected).filter((s) => {
+    if (holdsAgentText(s)) return false;
+    const pointer = pointerOf(draft, s);
+    return !pointer.cues.includes('danger') && cost(s) > draft.count(pointer.text);
+  });
   let omitted: BudgetSection[] = [];
   for (const s of omissionOrder(candidates, scope.lines, cost)) {
     if (draftCount(draft, omitted) <= maxTokens) break;
@@ -1221,6 +1249,24 @@ function plain(s: string, { today, openTask, figures, spec }: TextContext): stri
     .replace(/==(?=\S)([^=]+?)(?<=\S)==/g, '$1');
 }
 
+const METRIC_TRENDS = new Set(['up', 'down', 'flat']);
+
+/**
+ * What a `:metric` says beyond its value and delta (contract GAP-6): its written `trend`, then `good` or `bad` when
+ * the author wrote which direction is good, as the rendered colour shows it. The trend of a metric without one comes
+ * from the delta's sign, as rendering does, but is not printed: the delta already shows it. Without a written `good`
+ * the view says nothing about tone, since the author did not say (contract rule 3).
+ */
+function metricMeaning(v: Record<string, string>): string[] {
+  const written = v.trend?.toLowerCase();
+  const trend = written ?? (v.delta ? (v.delta.trim().startsWith('-') ? 'down' : 'up') : undefined);
+  const good = v.good?.toLowerCase();
+  const out: string[] = [];
+  if (written && METRIC_TRENDS.has(written)) out.push(written);
+  if ((good === 'up' || good === 'down') && (trend === 'up' || trend === 'down')) out.push(trend === good ? 'good' : 'bad');
+  return out;
+}
+
 /**
  * One `:name[content]{attrs}` in plain text (`m` as written), or `m` for a name the agent view keeps as written. In
  * spec v2 a name outside the vocabulary is a directive that shows its content (RFC proposal 7b), as a styled span does;
@@ -1247,7 +1293,10 @@ function directiveText(
       const late = openTask && dueState(content.trim(), today) === 'overdue';
       return `${pre}(due ${content}${late ? ', OVERDUE' : ''})`;
     }
-    case 'metric': return `${pre}${v.label ? `${v.label}: ` : ''}${content}${v.delta ? ` (${v.delta})` : ''}`;
+    case 'metric': {
+      const notes = [v.delta, ...metricMeaning(v)].filter(Boolean);
+      return `${pre}${v.label ? `${v.label}: ` : ''}${content}${notes.length ? ` (${notes.join(', ')})` : ''}`;
+    }
     default: return m;
   }
 }
