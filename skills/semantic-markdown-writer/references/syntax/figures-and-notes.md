@@ -23,7 +23,7 @@ flowchart LR
 
 - `:::figure` wraps one image, diagram, table or code block. The title after the name (or `title="…"`) is the caption.
 - Figures are numbered in document order, one counter per `kind`: `figure` (default) → Figure 1, `table` → Table 1, `listing` (code) → Listing 1.
-- `:ref[id]` renders "Figure 2" as a link to the figure with `{#id}`; it may come before the figure. Give every figure you refer to an `{#id}` (e.g. `fig-…`, `tbl-…`, `lst-…`). An unknown id is a `figure/unknown-ref` warning; two figures with one id are `figure/duplicate-id`.
+- `:ref[id]` renders "Figure 2" as a link to the figure with `{#id}`; it may come before the figure. Give every figure you refer to an `{#id}` (e.g. `fig-…`, `tbl-…`, `lst-…`). An unknown id is a `figure/unknown-ref` warning; two figures with one id are `figure/duplicate-id`. `:ref[R1]` to a heading or block with `{#R1}` shows `R1`, linked.
 - Write `:ref[id]` instead of "the figure below": the numbers stay right when figures move.
 
 ## Glossary and abbreviations

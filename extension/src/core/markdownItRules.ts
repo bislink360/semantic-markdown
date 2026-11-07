@@ -6,8 +6,9 @@ import { normalizeFootnoteLabel } from './footnotes';
 import { parseFrontMatter, unreadFrontMatter } from './frontmatter';
 import { renderInlineDirective, renderUnknownDirective, withoutDueNotes } from './markdownItHtml';
 import { HEADING_ATTRS, headingAttrList, slugify } from './sections';
-import { INLINE_DIRECTIVES } from './spec';
+import { INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { isSpecVersion, isV2, resolveSpec, specEnv, specOf, type SpecEnv, type SpecVersion } from './specVersion';
+import { splitTaskId } from './taskId';
 import { typographyOf } from './typography';
 import type { IncludeResult, IncludeScope } from './include';
 import type { SmdContext } from './markdownItSetup';
@@ -233,6 +234,76 @@ export function envFigures(env: unknown): ReadonlyMap<string, FigureNumber> {
   return (env as FigureEnv | undefined)?.smdFigures ?? new Map();
 }
 
+/** A block that gives an id, for `:ref[id]` to anything but a figure (semantic tags RFC, D4). */
+export interface BlockTarget {
+  /** How many blocks give the id: more than one makes a reference ambiguous (R17). */
+  count: number;
+  /** The block's title as plain text: a heading's text, a container's title, a task's text. */
+  title?: string;
+}
+
+/** Where the rendered document's block ids are kept for `:ref[id]`, on the env of one render. */
+export interface BlockIdEnv {
+  smdBlockIds?: Map<string, BlockTarget>;
+}
+
+/**
+ * Index every id the rendered blocks give, from the same sources as the parse (headings, tasks, containers, styled
+ * spans, raw HTML), so `:ref[id]` can name any of them. Runs after heading ids, task ids and included blocks are in
+ * place; inline-only parses (titles) keep the document's index.
+ */
+export function indexBlockIds(state: StateCore): void {
+  const env = state.env as BlockIdEnv | undefined;
+  if (state.inlineMode || !env || typeof env !== 'object') return;
+  const ids = new Map<string, BlockTarget>();
+  const add = (id: string, title?: string) => {
+    const known = ids.get(id);
+    if (known) known.count++;
+    else ids.set(id, { count: 1, ...(title ? { title } : {}) });
+  };
+  const tokens = state.tokens;
+  tokens.forEach((t, i) => {
+    if (t.type === 'container_smd_open') {
+      const meta = t.meta as ContainerMeta | null;
+      if (meta?.attrs.id) add(meta.attrs.id, plainTitle(meta.title));
+      return;
+    }
+    const id = t.attrGet('id');
+    if (id) add(id, t.type === 'heading_open' || t.type === 'list_item_open' ? nextInlineText(tokens, i) : undefined);
+    if (t.type === 'html_block') htmlIdsOf(t.content, add);
+    for (const c of t.children ?? []) {
+      const inner = c.attrGet('id');
+      if (inner) add(inner);
+      if (c.type === 'html_inline') htmlIdsOf(c.content, add);
+    }
+  });
+  env.smdBlockIds = ids;
+}
+
+/** The ids the rendered document's blocks give (empty outside a render). */
+export function envBlockIds(env: unknown): ReadonlyMap<string, BlockTarget> {
+  return (env as BlockIdEnv | undefined)?.smdBlockIds ?? new Map();
+}
+
+/** The plain text of the first inline token after `from` (a heading's text, a task's text). */
+function nextInlineText(tokens: Token[], from: number): string | undefined {
+  for (let i = from + 1; i < tokens.length; i++) {
+    if (tokens[i].type === 'inline') return taskLabel(tokens[i].children ?? [], false).replace(/\s+/g, ' ').trim() || undefined;
+    if (tokens[i].nesting < 0) return undefined;
+  }
+  return undefined;
+}
+
+/** A container title as plain text: emphasis, code and strike marks taken out. */
+function plainTitle(title: string | undefined): string | undefined {
+  return title?.replace(/[*_`~]/g, '').replace(/\s+/g, ' ').trim() || undefined;
+}
+
+/** The `id` and `name` attributes written in raw HTML, as the parse reads them. */
+function htmlIdsOf(html: string, add: (id: string) => void): void {
+  for (const m of html.matchAll(/\s(?:id|name)="([^"]*)"/g)) add(m[1]);
+}
+
 // ---------------------------------------------------------------------------
 // Inline syntax
 // ---------------------------------------------------------------------------
@@ -288,8 +359,8 @@ export function directiveNameAt(src: string, start: number, end: number, spec: S
   if (!/[\s([{>*_~"'-]/.test(prev)) return undefined;
   const m = (spec >= 2 ? DIRECTIVE_NAME_V2 : DIRECTIVE_NAME_V1).exec(src.slice(start, end));
   if (!m) return undefined;
-  // Own names only: `:constructor[x]` is not a known directive (in spec v2 it is an unknown one).
-  if (spec < 2 && !Object.hasOwn(INLINE_DIRECTIVES, m[1])) return undefined;
+  // The v1 names only (D5), and own ones: `:constructor[x]` is not a known directive (in spec v2 it is an unknown one).
+  if (spec < 2 && !isKnownDirective(m[1], 1)) return undefined;
   return { name: spec >= 2 ? m[1].toLowerCase() : m[1], length: m[0].length };
 }
 
@@ -747,6 +818,8 @@ function markTask(state: StateCore, i: number, checked: boolean): void {
   const first = inline.children![0];
   first.content = first.content.slice(3).replace(/^[ \t]/, '');
   const item = tokens[i - 2];
+  const id = takeTaskId(inline.children!);
+  if (id) item.attrSet('id', id);
   const line = (item.map?.[0] ?? 0) + ((state.env as Env | undefined)?.lineOffset ?? 0);
   // A task from an included document lives in another file, so the preview can't toggle it.
   const where = includedFrom(item) ? ' disabled' : ` data-task-line="${line}"`;
@@ -758,6 +831,19 @@ function markTask(state: StateCore, i: number, checked: boolean): void {
   inline.children!.unshift(box);
   item.attrJoin('class', `smd-task${checked ? ' smd-task-done' : ''}`);
   markTaskList(tokens, i - 2);
+}
+
+/**
+ * Read a task's `{#id}` off the end of its first line, as the line-based readers do (splitTaskId), and take it out of
+ * the text: the id goes on the list item, so `#id` links to the task.
+ */
+function takeTaskId(children: Token[]): string | undefined {
+  const br = children.findIndex((c) => c.type === 'softbreak' || c.type === 'hardbreak');
+  const last = children[(br < 0 ? children.length : br) - 1];
+  if (last?.type !== 'text') return undefined;
+  const { text, id } = splitTaskId(last.content);
+  if (id) last.content = text;
+  return id;
 }
 
 /** The plain text of a task's inline tokens: text, code, and the text of inline HTML such as directives. */

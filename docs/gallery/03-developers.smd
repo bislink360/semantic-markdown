@@ -12,7 +12,7 @@ accent: indigo
 **Responses:** `201` created · `409` idempotency key reused · `422` validation errors
 :::
 
-```ts file="../../examples/src/pricing.ts" lines="7-13" title="src/pricing.ts — embedded from the repo" {7-9}
+```ts file="src/pricing.ts" lines="7-13" title="src/pricing.ts — embedded from the repo" {7-9}
 ```
 
 ```mermaid

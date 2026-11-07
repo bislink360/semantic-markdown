@@ -9,11 +9,11 @@
   Decisions, risks, tasks and agent instructions that tools understand, validated in CI, and read by agents a section at a time.
 </p>
 
-<p align="center"><sub>Formerly <b>Styled Markdown</b>. Same format, new name: see <a href="docs/INSTALL.md#moving-from-styled-markdown">moving from Styled Markdown</a>.</sub></p>
+<p align="center"><sub>Formerly <b>Styled Markdown</b>. Same format, new name: see <a href="docs/guides/upgrading.md#moving-from-styled-markdown">moving from Styled Markdown</a>.</sub></p>
 
 <p align="center">
   <a href="https://github.com/bislink360/semantic-markdown/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/bislink360/semantic-markdown?label=release&color=4f46e5"></a>
-  <a href="docs/COMPATIBILITY.md"><img alt="Spec: smd v2, stable" src="https://img.shields.io/badge/spec-smd%20v2%20stable-7c3aed"></a>
+  <a href="docs/reference/compatibility.md"><img alt="Spec: smd v2, stable" src="https://img.shields.io/badge/spec-smd%20v2%20stable-7c3aed"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
 </p>
 
@@ -21,9 +21,8 @@
   <a href="#install">Install</a> ·
   <a href="#for-ai-agents">For agents</a> ·
   <a href="https://bislink360.github.io/semantic-markdown/playground/">Playground</a> ·
-  <a href="docs/FEATURES.md">Feature guide</a> ·
-  <a href="examples/">Examples</a> ·
-  <a href="docs/SPEC.md">Specification</a>
+  <a href="docs/reference/features.md">Feature guide</a> ·
+  <a href="docs/reference/spec.md">Specification</a>
 </p>
 
 <p align="center">
@@ -56,9 +55,9 @@ npm install -g https://github.com/bislink360/semantic-markdown/releases/download
 smd validate docs/
 ```
 
-> The npm registry and Open VSX listings are coming. Until the package is on npm, `npx semantic-markdown …` doesn't work yet: use the files from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest), or `node smd.cjs init --agent claude` with the [single-file CLI](docs/INSTALL.md#install-the-smd-cli).
+> The npm registry and Open VSX listings are coming. Until the package is on npm, `npx semantic-markdown …` doesn't work yet: use the files from the [latest release](https://github.com/bislink360/semantic-markdown/releases/latest), or `node smd.cjs init --agent claude` with the [single-file CLI](docs/guides/install.md#install-the-smd-cli).
 
-Everything else (the MCP server on its own, JetBrains, Obsidian, MkDocs, Neovim and other editors, the GitHub Action, pre-commit hooks, Astro and Docusaurus): **[docs/INSTALL.md](docs/INSTALL.md)**. Or try it first in the **[web playground](https://bislink360.github.io/semantic-markdown/playground/)**, nothing to install.
+Everything else (the MCP server on its own, JetBrains, Obsidian, MkDocs, Neovim and other editors, the GitHub Action, pre-commit hooks, Astro and Docusaurus): **[docs/guides/install.md](docs/guides/install.md)**. Or try it first in the **[web playground](https://bislink360.github.io/semantic-markdown/playground/)**, nothing to install.
 
 ![A Semantic Markdown document rendered in the preview](docs/images/01-overview.png)
 
@@ -74,9 +73,9 @@ Semantic Markdown makes the meaning of a document explicit, so an agent can tell
 | `smd validate docs/` · MCP `validate` | Problems with rule codes and machine-applicable fixes, as a gate before it commits |
 | `smd mcp --allow-write` | Opt-in write tools: `check_task`, `set_status`, `add_decision`, each validated |
 
-**What it saves, measured.** The agent view drops styling, layout and content marked for people only. On the [examples](examples/), the full agent view is **5–37% smaller** than the file (median ≈17%) and `--brief` **14–43%**; reading the outline plus one section costs **about 80% less** than the file on 6k–8k-token documents. The bigger the document and the more often it is read, the more that adds up. For a small document (under ≈1,500 tokens) the skill and tool overhead costs more than it saves: just read the file, as the reader skill does. Methodology, fixed costs and a break-even table: **[docs/TOKENS.md](docs/TOKENS.md)**; what the agent view keeps and drops: [docs/SKILLS.md](docs/SKILLS.md#how-token-reduction-works). `smd savings docs/` reports the numbers for your own repository.
+**What it saves, measured.** The agent view drops styling, layout and content marked for people only. On seven sample documents ([extension/test/samples](extension/test/samples/)), the full agent view is **5–37% smaller** than the file (median ≈17%) and `--brief` **14–43%**; reading the outline plus one section costs **about 80% less** than the file on 6k–8k-token documents. The bigger the document and the more often it is read, the more that adds up. For a small document (under ≈1,500 tokens) the skill and tool overhead costs more than it saves: just read the file, as the reader skill does. Methodology, fixed costs and a break-even table: **[docs/reports/tokens.md](docs/reports/tokens.md)**; what the agent view keeps and drops: [docs/guides/agent-setup.md](docs/reports/tokens.md#how-the-savings-arise). `smd savings docs/` reports the numbers for your own repository.
 
-Measured on [`examples/checkout-redesign.smd`](examples/checkout-redesign.smd), a ≈2,500-token PRD (≈4 characters per token):
+Measured on [`checkout-redesign.smd`](extension/test/samples/checkout-redesign.smd), a ≈2,500-token PRD (≈4 characters per token):
 
 | How it's read | ≈ tokens | Saving |
 |---|---:|---:|
@@ -84,10 +83,10 @@ Measured on [`examples/checkout-redesign.smd`](examples/checkout-redesign.smd), 
 | `smd agent` (whole document) | 1,540 | 38% |
 | `smd agent --brief` | 1,406 | 43% |
 | `smd outline` + `smd agent --section "open questions"` | 630 | 75% |
-| `smd tasks examples/` vs. reading all 7 examples | 704 vs 7,328 | 90% |
-| `smd query "decision, risk" examples/` vs. reading all 7 examples | 827 vs 7,328 | 89% |
+| `smd tasks` on all 7 samples vs. reading them | 704 vs 7,328 | 90% |
+| `smd query "decision, risk"` on all 7 samples vs. reading them | 827 vs 7,328 | 89% |
 
-**Spec-driven work:** `spec`, `plan` and `tasks` templates turn a feature into three linked documents an agent works through, with `smd tasks` as its queue and `smd validate` as the gate: [docs/SPEC-DRIVEN.md](docs/SPEC-DRIVEN.md). Setup for each agent: [docs/SKILLS.md](docs/SKILLS.md) and [docs/AGENTS.md](docs/AGENTS.md).
+**Spec-driven work:** `spec`, `plan` and `tasks` templates turn a feature into three linked documents an agent works through, with `smd tasks` as its queue and `smd validate` as the gate: [docs/guides/spec-driven.md](docs/guides/spec-driven.md). Setup for each agent: [docs/guides/agent-setup.md](docs/guides/agent-setup.md) and [docs/reference/agents.md](docs/reference/agents.md).
 
 ## Why Semantic Markdown?
 
@@ -98,7 +97,7 @@ Markdown is the lingua franca of engineering docs, but teams keep stretching it.
 - **Everything is validated,** with rule codes and automatic fixes, in VS Code and in CI.
 - **Agents read only what matters,** through the agent view, the outline and queries.
 - **Safe and portable.** No scripts, allowlisted styles, and a one-command export to HTML, GitHub Markdown, PDF or Word.
-- **Stable.** Spec v2 gets no breaking changes; tools releases follow a [compatibility policy](docs/COMPATIBILITY.md).
+- **Stable.** Spec v2 gets no breaking changes; tools releases follow a [compatibility policy](docs/reference/compatibility.md).
 
 | | Developers | Product & project managers | AI agents |
 |---|---|---|---|
@@ -142,7 +141,7 @@ History and research. People see it; agents skip it.
 :::
 ````
 
-Every construct, with what it renders, what an agent reads and its plain-Markdown fallback: **[the feature guide](docs/FEATURES.md)** (its [At a glance](docs/FEATURES.md#at-a-glance) section lists everything the format, the VS Code extension, the CLI and the skills do).
+Every construct, with what it renders, what an agent reads and its plain-Markdown fallback: **[the feature guide](docs/reference/features.md)** (its [At a glance](docs/reference/features.md#at-a-glance) section lists everything the format, the VS Code extension, the CLI and the skills do).
 
 ## At a glance
 
@@ -159,7 +158,7 @@ Every construct, with what it renders, what an agent reads and its plain-Markdow
 
 ## On GitHub
 
-GitHub renders `.md` files but shows `.smd` files as source. You can write Semantic Markdown syntax in `.md` files, generate `.md` copies in CI with `smd export --to md`, or post the changed sections on pull requests: **[docs/GITHUB.md](docs/GITHUB.md)** compares them, with complete workflows. To check documents on every pull request, with each problem annotated on its line:
+GitHub renders `.md` files but shows `.smd` files as source. You can write Semantic Markdown syntax in `.md` files, generate `.md` copies in CI with `smd export --to md`, or post the changed sections on pull requests: **[docs/guides/github-and-ci.md](docs/guides/github-and-ci.md)** compares them, with complete workflows. To check documents on every pull request, with each problem annotated on its line:
 
 ```yaml
 - uses: bislink360/semantic-markdown/validate@v3.0.0
@@ -167,34 +166,23 @@ GitHub renders `.md` files but shows `.smd` files as source. You can write Seman
     paths: docs
 ```
 
-## Examples
-
-| File | Shows |
-|---|---|
-| [showcase.smd](examples/showcase.smd) | Every feature on one page |
-| [checkout-redesign.smd](examples/checkout-redesign.smd) | A realistic PRD: requirements, API, decisions, risks, rollout, agent constraints |
-| [feature-spec.smd](examples/feature-spec.smd) | A short product spec |
-| [adr-0007-event-bus.smd](examples/adr-0007-event-bus.smd) | Architecture decision record |
-| [runbook-payments-latency.smd](examples/runbook-payments-latency.smd) | On-call runbook with safe-automation rules |
-| [api-orders.smd](examples/api-orders.smd) | API reference with endpoints and embedded source |
-| [status-report-2026-09.smd](examples/status-report-2026-09.smd) | Weekly status report with KPIs, risks and decisions needed |
-
-Each has a rendered `.html` version next to it that you can open in a browser. More in [examples/README.md](examples/README.md).
-
 ## Documentation
+
+All the documentation, grouped into guides, reference, reports, RFCs and requirements: **[docs/README.md](docs/README.md)**. The ones most people need:
 
 | Document | For |
 |---|---|
-| [docs/INSTALL.md](docs/INSTALL.md) | Installing and updating everything: agents, VS Code, the CLI and library, CI, pre-commit hooks, other editors and integrations, upgrading to 2.0 |
-| [docs/FEATURES.md](docs/FEATURES.md) | Feature guide: every construct with syntax, rendering, agent view and plain-Markdown fallback; the VS Code extension, the CLI and the Block Editor |
-| [docs/SKILLS.md](docs/SKILLS.md) | Importing the agent skills into Claude Code, Claude.ai, the API/Agent SDK and other agents |
-| [docs/AGENTS.md](docs/AGENTS.md) | One-page guide to paste into any agent's instructions, and the MCP server |
-| [docs/SPEC-DRIVEN.md](docs/SPEC-DRIVEN.md) | Spec → plan → tasks with an agent |
-| [docs/TOKENS.md](docs/TOKENS.md) | What the agent view saves, measured, and when it doesn't pay |
-| [docs/EDITORS.md](docs/EDITORS.md) | Using `.smd` in Neovim, Helix, Zed and other editors with the language server and Tree-sitter highlighting |
-| [docs/SPEC.md](docs/SPEC.md) | The formal specification (v2, with the v1 rules it keeps) and validation rules |
-| [docs/GITHUB.md](docs/GITHUB.md) | Making `.smd` documents readable on GitHub: `.md` files, generated copies, pull request comments |
-| [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) | The stability promise: spec v2 is stable, what each release may change, deprecations, release cadence |
+| [docs/guides/install.md](docs/guides/install.md) | Installing and updating the VS Code extension, the CLI and library, MkDocs, the playground and Obsidian |
+| [docs/guides/agent-setup.md](docs/guides/agent-setup.md) | Setting up AI agents: the Claude Code plugin, `smd init --agent`, the MCP server and the agent skills |
+| [docs/reference/features.md](docs/reference/features.md) | Feature guide: every construct with syntax, rendering, agent view and plain-Markdown fallback; the VS Code extension, the CLI and the Block Editor |
+| [docs/reference/agents.md](docs/reference/agents.md) | One-page guide to paste into any agent's instructions, and the MCP server's tools |
+| [docs/guides/github-and-ci.md](docs/guides/github-and-ci.md) | The GitHub Action, pre-commit hooks, and making `.smd` documents readable on GitHub |
+| [docs/guides/editors.md](docs/guides/editors.md) | Using `.smd` in Neovim, Helix, Zed, JetBrains IDEs and other editors |
+| [docs/guides/spec-driven.md](docs/guides/spec-driven.md) | Spec → plan → tasks with an agent |
+| [docs/guides/upgrading.md](docs/guides/upgrading.md) | Moving from Styled Markdown and upgrading to 2.0 |
+| [docs/reports/tokens.md](docs/reports/tokens.md) | What the agent view saves, measured, and when it doesn't pay |
+| [docs/reference/spec.md](docs/reference/spec.md) | The formal specification (v2, with the v1 rules it keeps) and validation rules |
+| [docs/reference/compatibility.md](docs/reference/compatibility.md) | The stability promise: spec v2 is stable, what each release may change, deprecations, release cadence |
 
 ## Contributing
 
@@ -211,7 +199,7 @@ npm run build:npm      # → ../npm/dist (the npm package)
 npm run build:playground  # → dist/playground (the web playground; open its index.html)
 ```
 
-Press **F5** in `extension/` to launch an Extension Development Host with the examples open.
+Press **F5** in `extension/` to launch an Extension Development Host with the test samples open.
 
 ## Author
 

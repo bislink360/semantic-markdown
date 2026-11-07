@@ -1,0 +1,22 @@
+{
+  "guide": "research/annotation-guide.smd 0.2",
+  "items": [
+    { "id": "utf8-default-replaces-ascii", "kind": "decision-status", "md": [195, 195], "smd": [207, 207], "evidence": ["replaced the ASCII default", "a source file without an encoding declaration is read as UTF-8"], "annotator": "ai-annotator-g", "notes": "Superseded ASCII default reads authoritative at line 21 (Python will default to ASCII) and in example 4 (line 105)." },
+    { "id": "decl-line-1-or-2", "kind": "limit", "md": [23, 23], "smd": [30, 30], "evidence": ["either as first or second line in the file"], "annotator": "ai-annotator-g", "notes": "Position bound on the magic comment; limit chosen over constraint because the bound is a line count." },
+    { "id": "coding-regex", "kind": "fact", "md": [43, 46], "smd": [50, 53], "evidence": ["the first or second line must match the following regular expression", "coding[:=]"], "annotator": "ai-annotator-g" },
+    { "id": "unknown-encoding-error", "kind": "fact", "md": [49, 49], "smd": [56, 56], "evidence": ["If the encoding is unknown to Python, an error is raised during compilation"], "annotator": "ai-annotator-g" },
+    { "id": "no-statement-on-decl-line", "kind": "constraint", "md": [49, 49], "smd": [56, 56], "evidence": ["There must not be any Python statement on the line that contains the encoding declaration"], "annotator": "ai-annotator-g" },
+    { "id": "first-line-wins", "kind": "fact", "md": [49, 49], "smd": [56, 56], "evidence": ["If the first line matches the second line is ignored"], "annotator": "ai-annotator-g" },
+    { "id": "bom-means-utf8", "kind": "fact", "md": [51, 51], "smd": [58, 58], "evidence": ["will be interpreted as 'utf-8' encoding as well"], "annotator": "ai-annotator-g" },
+    { "id": "bom-comment-utf8-only", "kind": "constraint", "md": [53, 53], "smd": [61, 61], "evidence": ["the only allowed encoding for the comment is 'utf-8'"], "annotator": "ai-annotator-g", "notes": "Also summarized by the last table row (line 63)." },
+    { "id": "tools-keep-declaration", "kind": "constraint", "md": [143, 143], "smd": [153, 153], "evidence": ["keep an existing encoding declaration on line 1 or 2"], "annotator": "ai-annotator-g", "notes": "Prose-only constraint for automated tools." },
+    { "id": "tools-only-interpreter-line-above", "kind": "negation", "md": [143, 143], "smd": [153, 153], "evidence": ["do not insert any other line above it except an interpreter line"], "annotator": "ai-annotator-g", "notes": "Prohibition with an exception; negation chosen over constraint." },
+    { "id": "tools-reencode-on-change", "kind": "constraint", "md": [143, 143], "smd": [153, 153], "evidence": ["do not change the declared encoding unless you also re-encode the file contents"], "annotator": "ai-annotator-g" },
+    { "id": "single-encoding-per-file", "kind": "constraint", "md": [149, 149], "smd": [160, 160], "evidence": ["Embedding of differently encoded data is not allowed"], "annotator": "ai-annotator-g" },
+    { "id": "no-utf16-source", "kind": "negation", "md": [151, 151], "smd": [162, 162], "evidence": ["It does not include encodings which use two or more bytes for all characters"], "annotator": "ai-annotator-g" },
+    { "id": "phase1-iso-8859-1", "kind": "fact", "md": [177, 177], "smd": [188, 188], "evidence": ["treating a missing encoding declaration as a declaration of \"iso-8859-1\""], "annotator": "ai-annotator-g" },
+    { "id": "ascii-default-in-2-5", "kind": "fact", "md": [191, 193], "smd": [202, 204], "evidence": ["except for changing the default encoding to \"ascii\"", "The default encoding was set to \"ascii\" in version 2.5"], "annotator": "ai-annotator-g" },
+    { "id": "compile-unicode-with-decl", "kind": "constraint", "md": [185, 185], "smd": [196, 196], "evidence": ["If a Unicode string with a coding declaration is passed to compile(), a SyntaxError will be raised"], "annotator": "ai-annotator-g" },
+    { "id": "utf16-undecided", "kind": "open-question", "md": [199, 199], "smd": [213, 213], "evidence": ["such as UTF-16, is undecided", "must be converted to an ASCII compatible encoding"], "annotator": "ai-annotator-g" }
+  ]
+}

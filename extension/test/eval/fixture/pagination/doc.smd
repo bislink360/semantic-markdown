@@ -1,0 +1,33 @@
+---
+smd: 2
+title: "ADR-0012: Pagination for list endpoints"
+summary: List endpoints use cursor pagination. Offset pagination was rejected.
+status: approved
+owners: ["@harness"]
+tags: [fixture, adr]
+updated: 2026-10-01
+---
+
+## Decision
+
+:::decision{status=accepted date=2026-09-30} Cursor pagination
+List endpoints return a `next_cursor` token. Clients pass it back to get the next page.
+:::
+
+:::decision{status=rejected date=2026-09-30} Offset pagination
+Clients pass `offset` and `limit` on every request.
+:::
+
+## Limits
+
+The page size must not exceed 100 items. The default page size is 25.
+
+:::warning
+Do not write cursors to logs, because they encode customer ids.
+:::
+
+## Open questions
+
+:::question Should cursors expire?
+Until this is decided, cursors stay valid for 24 hours.
+:::

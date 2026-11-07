@@ -1,0 +1,338 @@
+---
+smd: 2
+title: "ADR-014: Message broker for the order pipeline"
+summary: Basketline moves the order pipeline from Hopwire queues to a managed Ferrybus log, with one topic per event family keyed by order ID.
+status: approved
+---
+
+Status: accepted on 2026-07-21 by the architecture group. This ADR supersedes ADR-006. Owner: Ines Okafor (Platform).
+
+Basketline moves the order pipeline from Hopwire queues to a managed Ferrybus log, with one topic per event family keyed by order ID. This record explains why, what we gave up, and how the move happens without losing orders during the autumn peak.
+
+## Context
+
+Every grocery order at Basketline turns into a chain of events. Checkout writes the order, the payment service confirms it, the picking service splits it into store tasks, the dispatch service assigns a rider or a van slot, and the tracking service tells the customer where their shopping is. Eleven services publish or consume order events today, and the number grows by one or two each quarter.
+
+On an ordinary weekday we see about 300 orders per minute at the lunchtime peak. Saturday mornings between 09:00 and 11:00 reach 1,800 orders per minute, and the week before Christmas 2025 peaked at 2,650. Each order produces 14 events on average over its life (more when items are substituted), so the Saturday peak is roughly 420 messages per second across the pipeline. We size the broker for 5 times the highest peak we have seen, which today means 13,250 orders per minute or about 3,100 messages per second.
+
+The current broker, Hopwire, has carried the pipeline since 2024. It works, and most of the team knows it well. The problems are about what it was not built for.
+
+- Replay. When a consumer has a bug, we cannot re-read the events it mishandled. Hopwire deletes a message once it is acknowledged, so fixing the picking service after the March incident meant a hand-written script that rebuilt 41,000 events from the database.
+- Ordering. Events for one order must be handled in the order they happened. With competing consumers on one queue, two workers can pick up `order.paid` and `order.cancelled` for the same order and finish them in the wrong order. We work around it with a version check in each consumer, and three services have got it wrong at least once.
+- Fan-out cost. Each new consumer needs its own queue and binding, and every message is copied into every queue. At the Christmas peak the Hopwire cluster used 78% of its memory for queue copies alone.
+- Operations. The cluster runs on our own virtual machines. Two of the three people who set it up have left, and the version we run goes out of vendor support on 2027-03-31.
+
+None of this is a crisis on its own. Together, and with the autumn peak four months away when this work started, it was enough to look again.
+
+### The earlier decision
+
+ADR-006, accepted on 2024-03-11, set up the pipeline as it runs today. Its decision section reads as follows, and it is copied here so that people do not need to open the old record.
+
+:::decision{status=superseded date=2024-03-11}
+Decision (ADR-006): all order events go through Hopwire. Each consuming service owns one durable queue bound to the `orders` topic exchange with a routing key per event type. Consumers acknowledge a message only after processing it, and a message that fails 5 deliveries moves to that service's dead-letter queue. New services that need order events add a queue the same way. Self-hosting keeps the cost below 900 euros a month and keeps order data inside our own network.
+:::
+
+## Requirements
+
+These are the requirements the options were measured against. They came out of the workshop on 2026-06-02 with the teams that own the eleven services.
+
+Events for the same order must be delivered to each consumer in the order they were published. Events for different orders may be processed in any order and in parallel.
+
+Delivery is at least once. Consumers must therefore be idempotent, and every event carries an `event_id` that consumers use to drop duplicates. Exactly-once delivery is not a requirement, and we did not score options on it.
+
+The broker must keep events for at least 7 days after they are written, so a consumer can be rewound and replayed after a bug fix. Longer is welcome but not needed, since the data warehouse keeps the full history.
+
+A single event is at most 256 KB. The largest event we have today is `order.placed` for a basket with 300 lines, at about 90 KB, so this leaves room for growth. Events larger than 256 KB are not allowed, and producers must reject them before publishing rather than relying on the broker to refuse them.
+
+The end-to-end delay from publish to delivery must stay under 500 milliseconds at the 99th percentile during the Saturday peak. The tracking service shows live status to customers and is the most sensitive to delay.
+
+The broker must run in our primary region only. Cross-region replication is not needed for this decision, and the disaster recovery plan for the order database covers a regional outage separately.
+
+Order events contain names, delivery addresses and phone numbers. They do not contain payment card data, and they never will, since card handling stays inside the payment provider's hosted fields.
+
+:::danger
+> **Warning:** A producer must never publish an order event before the database transaction that created the change has committed. Publishing first creates phantom orders that downstream services pick and dispatch even though checkout rolled back, and in 2025 this sent 37 riders to collect orders that did not exist. All producers use the outbox table described under Consequences.
+:::
+
+### Out of scope
+
+This ADR is about order events only. Stock updates from stores, rider location pings and marketing events have their own pipelines and stay where they are. Rider location pings in particular arrive at about 9,000 per second at peak and are not worth keeping for 7 days, so they were never a candidate for this broker. If a later ADR wants to move them, it should start from the cost model in the Cost section rather than assume the cluster has room.
+
+The customer notification service is also out of scope. It reads from its own Hopwire virtual host fed by a small bridge, and its team has said they will decide on their own timeline. Nothing in this ADR stops them from staying on Hopwire, as long as they do not depend on the order pipeline's Hopwire cluster after phase 5.
+
+## Options considered
+
+We looked at four options in June. The numbers in the table come from the load test on 2026-06-19, which replayed a recorded Saturday at 5 times its volume against each option, and from the price lists in force that month.
+
+| Option | Ordering per order | Replay | p99 delay at 5x peak | Monthly cost estimate | Who runs it |
+|-|-|-|-|-|-|
+| A. Stay on Hopwire, upgrade to the supported version | Only with one consumer per queue | No | 140 ms | 1,100 EUR | Us |
+| B. Self-hosted Ferrybus | Yes, by partition key | Yes, by offset | 95 ms | 1,600 EUR plus about 0.5 of an engineer | Us |
+| C. Managed Ferrybus from Nimbus Cloud | Yes, by partition key | Yes, by offset | 110 ms | 2,400 EUR | Nimbus Cloud |
+| D. Cachestream streams | Yes, per stream | Yes, limited by memory | 60 ms | 1,300 EUR | Us |
+
+### Option A, stay on Hopwire
+
+Upgrading Hopwire would fix the support date and nothing else. Replay stays impossible, and the ordering workaround stays in every consumer. Single active consumer queues would give us ordering, but then a queue is processed by one worker at a time, and at the 5x load the picking queue fell 9 minutes behind in the test. We kept this option as the baseline.
+
+### Option B, self-hosted Ferrybus
+
+Ferrybus is a partitioned log. A topic is split into partitions, a producer chooses the partition by key, and each consumer group reads every partition in order and keeps its own offset. Keying by order ID gives ordering per order and parallel work across orders, which is exactly the requirement. Retention is set per topic, and rewinding a consumer group is one command.
+
+Self-hosting it means running a cluster of at least 3 brokers plus the coordination nodes, handling upgrades and rebalancing, and owning the disks. Nobody on the platform team has run Ferrybus in production. Our estimate was half an engineer for the first year, more during the first peak.
+
+### Option C, managed Ferrybus from Nimbus Cloud
+
+The same Ferrybus protocol, run by Nimbus Cloud in our primary region, with storage, upgrades and broker failures handled by them. We pay more per month and we cannot tune everything, for example the coordination settings are fixed and the largest allowed message is 1 MB (well above our 256 KB rule). Client libraries are the same as for option B, so moving between B and C later is a configuration change, not a rewrite.
+
+### Option D, Cachestream streams
+
+:::decision{status=rejected date=2026-06-24}
+Rejected. Cachestream streams are fast and the team already runs Cachestream for sessions and carts. But a stream lives in memory, and keeping 7 days of order events at the Christmas peak needs about 180 GB of memory per replica. Consumer groups exist but rebalancing them is manual, and a failover in our test lost the last 2 seconds of writes. We are not willing to lose order events on failover, so this option was rejected on 2026-06-24 and not scored further.
+:::
+
+## Decision
+
+:::decision{status=accepted date=2026-07-21}
+We use option C, managed Ferrybus from Nimbus Cloud, for all order events. This ADR supersedes ADR-006, and the Hopwire setup it describes is retired once the migration below is finished.
+
+The reasons, in the order they mattered in the review:
+
+1. It meets every requirement, including replay and per-order ordering, without consumer workarounds.
+2. Nobody on the team has to learn to operate Ferrybus brokers during the autumn peak.
+3. The extra cost over option B, about 800 EUR a month, is less than the half engineer that option B needs.
+4. Moving to option B later stays possible, since clients and topics are the same.
+
+Data residency was the main objection. ADR-006 chose self-hosting partly to keep order data inside our own network. Nimbus Cloud runs the service in our primary region under the data processing agreement we already have for our databases, and legal confirmed on 2026-07-09 that order events fall under it. Messages are encrypted in transit and at rest with keys we hold.
+:::
+
+## Consequences
+
+### Topics and keys
+
+Order events are grouped into four topics by event family. Every event is keyed by `order_id`, so all events of one order land in the same partition and keep their order.
+
+| Topic | Events | Partitions | Retention | Producers |
+|-|-|-|-|-|
+| `orders.lifecycle` | placed, paid, cancelled, completed | 48 | 7 days | checkout, payment |
+| `orders.fulfilment` | picking started, item substituted, picked, packed | 48 | 7 days | picking |
+| `orders.delivery` | slot assigned, rider assigned, out for delivery, delivered, failed | 48 | 7 days | dispatch |
+| `orders.dlq` | any event a consumer gave up on | 12 | 14 days | every consumer |
+
+We chose 48 partitions so that the busiest consumer, the picking service, can scale to 48 workers before the topic needs to be split. The partition count of a topic cannot be lowered later, and raising it moves keys between partitions, which breaks ordering for orders in flight. Raising it is therefore not done during trading hours, and only with a short publish freeze agreed with the on-call lead.
+
+New topics need a review by the platform team. Teams do not create topics in the shared cluster themselves, except in the `sandbox.` prefix, which is wiped every Sunday at 03:00.
+
+### Producers
+
+Producers write the event to the `outbox` table in the same database transaction as the change, and a relay process publishes rows from the outbox to Ferrybus. The relay deletes a row only after the broker has acknowledged it with all in-sync replicas. Producers do not talk to Ferrybus directly. The shared producer settings live in the `order-events` library.
+
+```yaml
+# order-events/producer.yaml (shared by every outbox relay)
+acks: all
+enable_idempotence: true
+max_in_flight_requests: 5
+compression: zstd
+linger_ms: 5
+max_message_bytes: 262144   # 256 KB, our own limit, not the broker's
+retries: 10
+delivery_timeout_ms: 30000
+key: order_id
+```
+
+The relay polls the outbox every 200 milliseconds and publishes at most 500 rows per batch. If the outbox holds more than 50,000 unpublished rows, the relay pages the owning team, since that means the broker or the relay has been failing for several minutes at peak.
+
+Every event uses the same envelope. The payload differs per event type and is described by its schema in the `order-events` repository.
+
+```json
+{
+  "event_id": "01J9ZQ3K4T7Y2M8N5P6R0S1V2W",
+  "event_type": "order.paid",
+  "schema_version": 3,
+  "order_id": "ORD-2026-4471920",
+  "occurred_at": "2026-07-04T09:41:12.381Z",
+  "producer": "payment",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "payload": { "amount_minor": 6842, "currency": "EUR", "method": "card" }
+}
+```
+
+`occurred_at` is the time of the change in the producer's database, not the time of publishing. Consumers that need to know how old an event is must use it rather than the broker timestamp, which can be several seconds later when the relay is catching up. Amounts are always in minor units as integers. Floating point amounts are not accepted by the schema check.
+
+### Consumers
+
+Each service reads with its own consumer group, named after the service. A consumer commits its offset only after it has finished processing the event and written the result. When processing fails, the consumer retries the same event 3 times with a pause of 1, 4 and 16 seconds. After the third failure it writes the event to `orders.dlq` with the reason and moves on, so one bad event does not block the whole partition.
+
+Consumers must keep dropping duplicates by `event_id`. Ferrybus with idempotent producers removes most duplicates, but a consumer that crashes after processing and before committing will see the event again.
+
+The refunds consumer is the exception to all of this. It keeps reading from Hopwire until the finance systems migration in the first quarter of 2027, because its ledger integration cannot be changed during the year-end audit. Until then the outbox relay for the payment service publishes refund events to both brokers.
+
+Consumer lag is the main health signal. Each consumer group has an alert when its lag on any partition stays above 30 seconds for 2 minutes. The tracking service has a stricter alert at 5 seconds, since customers see its delay directly.
+
+### What we lose
+
+Hopwire's per-message routing goes away. A consumer that wants only one event type now reads the whole topic and skips what it does not need. At our volumes the extra reading costs little, but it does mean a consumer cannot be added for a single rare event without reading everything in its family.
+
+Message priority is not supported in Ferrybus. The dispatch service used a high-priority Hopwire queue for express deliveries. Express events now go through the same topic, and dispatch sorts its work by delivery slot after reading them.
+
+Delayed messages are not supported either. The two services that used Hopwire's delayed delivery for reminders move those reminders to the scheduler service.
+
+### Access and security
+
+Each service gets its own service account in the managed cluster. A producer account can write only to the topics its service owns, and a consumer account can read only the topics it has been granted, through the platform team's access request form. The analytics feed is the one service with read access to every order topic, and it has no write access anywhere.
+
+People do not get write access to production topics. On-call leads can request a break-glass account for up to 4 hours, for example to republish events from the dead-letter topic, and every use is reviewed in the next operations meeting. Read access for debugging is granted per person for 7 days and expires on its own.
+
+Service account credentials are rotated every 90 days by the secrets pipeline. Rotation overlaps old and new credentials for 24 hours, so consumers pick up the new ones on their next deploy or restart without a gap.
+
+### Ownership
+
+| Area | Owner | Escalation |
+|-|-|-|
+| Managed cluster settings, topics, access | Platform team | Platform on-call |
+| Outbox table and relay per service | The service's team | That team's on-call |
+| `order-events` library and schemas | Platform team, with reviews from each producer team | Platform on-call |
+| Nimbus Cloud contract and bill | Finance partner for platform | Head of engineering |
+| Hopwire cluster until shutdown | Platform team | Platform on-call |
+
+The platform team does not own consumer lag. Lag alerts page the consuming team, and the platform team joins only when several consumer groups lag at the same time, which points at the broker rather than a consumer.
+
+### Testing and observability
+
+Every producer and consumer runs contract tests against the schemas in `order-events` in CI. A consumer test feeds the consumer every published example of the event types it reads, including the oldest schema version still allowed on the topic, and fails if any of them is rejected. Schema versions older than 2 major versions are not allowed on any topic, so a consumer never has to handle more than three versions of one event.
+
+Integration tests run against a single-broker Ferrybus container, not the managed service. The container does not enforce the managed service's limits, so a test that passes locally can still fail in staging on message size or on the number of connections. Staging uses a small managed cluster with the same settings as production and 6 partitions per topic.
+
+The relay and every consumer export the same four metrics: events published or consumed per second, consumer lag per partition, retries per minute, and events sent to the dead-letter topic per minute. The shared dashboard shows all eleven services on one page. A service that is not on the dashboard is not allowed to switch in phase 4.
+
+Once a quarter, during a weekday morning, the platform team kills one broker in staging and checks that no events are lost and that every consumer recovers within 2 minutes. Production failover is tested by Nimbus Cloud under the contract, and we receive their report twice a year.
+
+## Migration
+
+The migration runs in five phases. A phase starts only when the previous one has run for its full soak time without a SEV2 or worse incident caused by the migration.
+
+```mermaid
+flowchart LR
+  P1[1. Outbox in every producer] --> P2[2. Dual publish to Hopwire and Ferrybus]
+  P2 --> P3[3. Shadow consumers on Ferrybus]
+  P3 --> P4[4. Switch consumers one by one]
+  P4 --> P5[5. Stop publishing to Hopwire]
+  P4 -. rollback .-> P2
+```
+
+1. Outbox in every producer. Checkout, payment, picking and dispatch write to the outbox table, and the relay publishes to Hopwire only. Nothing changes for consumers. Soak time 1 week.
+2. Dual publish. The relay publishes every event to Hopwire and to Ferrybus. Consumers still read Hopwire. We compare counts per event type every hour and expect them to match exactly. Soak time 1 week, including one Saturday peak.
+3. Shadow consumers. Each team runs a second copy of its consumer that reads Ferrybus and writes its results to a shadow table instead of the real one. A nightly job compares shadow and real tables. Soak time 2 weeks.
+4. Switch consumers. Teams switch one service at a time, starting with the least critical (the analytics feed) and ending with picking and tracking. At most two services switch on the same day, and no switch happens on a Friday, a Saturday, or the day before a public holiday.
+5. Stop publishing to Hopwire. Once every consumer except refunds reads from Ferrybus, the relay stops publishing to Hopwire for everything but refund events. The Hopwire cluster shrinks to one node for refunds and is shut down after the finance migration.
+
+The target was to finish phase 4 before 2026-10-26, four weeks before the start of the Christmas trading period. The whole migration freezes from 2026-11-23 to 2027-01-04, whatever phase it is in. During the freeze no consumer switches broker, in either direction.
+
+Progress as of 2026-09-30:
+
+| Phase | Started | Finished | Notes |
+|-|-|-|-|
+| 1. Outbox | 2026-08-03 | 2026-08-24 | Dispatch took an extra week, its orders table had no reliable primary key for the relay |
+| 2. Dual publish | 2026-08-25 | 2026-09-14 | Counts matched except for 12 events on 2026-09-05, traced to a relay restart and republished |
+| 3. Shadow consumers | 2026-09-28 | | Nine of eleven services running in shadow, picking and tracking start on 2026-10-05 |
+| 4. Switch consumers | | | Analytics feed first, planned for 2026-10-12 |
+| 5. Stop Hopwire publishing | | | Not before 2027-01-04 because of the freeze |
+
+Phase 4 now runs closer to the freeze than planned. If picking and tracking have not switched by 2026-11-16, they stay on Hopwire through the peak and switch in January. That is acceptable, since dual publishing keeps both paths complete, but it means paying for both brokers for one more month.
+
+Every switch is announced in the platform channel the day before, with the service, the time and the person who will be watching the dashboards. Support gets a short note for picking and tracking only, since those are the two services whose problems customers notice within minutes.
+
+### Rolling back
+
+Until phase 5, every consumer can go back to Hopwire, because the relay keeps publishing there. A rollback is the owning team's call and needs no approval. They switch the consumer's configuration back, let it drain what Hopwire has queued since the switch, and tell the platform channel. The shadow comparison from phase 3 then runs again for that service before it tries a second time.
+
+After phase 5 there is no rollback to Hopwire. If the managed service fails badly after that point, we follow the broker outage section of the order pipeline runbook, which buffers events in the outbox tables for up to 6 hours.
+
+## Cost
+
+Option C is estimated at 2,400 EUR a month at today's volume, against 1,100 EUR for the upgraded Hopwire cluster. During the migration we pay for both, about 3,500 EUR a month for roughly three months. The finance partner for platform approved a budget of 32,000 EUR for the 2026 calendar year on 2026-07-17.
+
+Managed Ferrybus is billed by partition hours, storage and data transfer. The biggest single cost is partitions, so new topics default to 6 partitions and need a written reason for more. If the monthly bill passes 3,500 EUR in steady state, the platform team reviews it with finance before adding more.
+
+## Risks
+
+:::risk{impact=medium likelihood=medium}
+Price changes at Nimbus Cloud. Our contract fixes prices until 2027-06-30. After that the price can change with 90 days' notice. Impact medium, likelihood medium. We would compare against option B at that point, which is a configuration change for clients but means hiring or training someone to run brokers.
+:::
+
+:::risk{impact=low likelihood=high}
+Partition hot spots. An order with hundreds of substitutions creates a burst of events on one partition, and one large wholesale customer places about 400 orders at once every Monday at 06:00. Impact low, likelihood high. The load test showed lag of up to 12 seconds on one partition during such bursts, which is inside the alert limits. We will watch it and look at splitting `orders.fulfilment` if the lag gets worse.
+:::
+
+:::risk{impact=high likelihood=low}
+Team knowledge. Only four engineers have used Ferrybus before, none in production. Impact high, likelihood low. The platform team runs two internal training sessions before phase 3, and the order pipeline runbook gets a Ferrybus section before phase 4 starts.
+:::
+
+## Open questions
+
+:::question Do we register event schemas in a schema registry, and which format do we use?
+Undecided. The managed service offers a schema registry that supports a compact binary format and JSON Schema, and both have supporters on the team. The binary format would make events about 60% smaller, JSON Schema keeps events readable in the console. Until then, events stay JSON, and the schemas in the `order-events` repository are checked in CI for every producer and consumer, with a breaking change failing the build.
+:::
+
+:::question
+How long do we keep `orders.dlq` events after a team has looked at them? Teams currently delete them by hand. This needs an owner but does not block the migration.
+:::
+
+## Notes for automated reviewers
+
+The repositories of the eleven order services run automated review bots and coding assistants on every pull request. The platform team asks those tools to follow these rules when they comment on or write changes in those repositories.
+
+:::agent
+- Flag any new code that publishes order events to Hopwire, except in the payment service's refund publisher.
+- Flag any producer that calls the Ferrybus client directly instead of writing to the outbox table.
+- Do not suggest raising the partition count of an existing topic. Ask the author to contact the platform team instead.
+- When a change adds a new event type, check that its schema is added to the `order-events` repository in the same pull request.
+:::
+
+## Appendix: load test details
+
+The load test on 2026-06-19 replayed the events of Saturday 2026-05-30 between 09:00 and 11:00 at 5 times their original rate, about 3,100 messages per second at the top. Each option ran for 2 hours with the same eleven consumer stubs. The stubs did no real work and slept for the median processing time of the service they stood in for, which ranged from 3 milliseconds (analytics) to 45 milliseconds (picking).
+
+| Measure | A. Hopwire | B. Ferrybus self-hosted | C. Ferrybus managed | D. Cachestream |
+|-|-|-|-|-|
+| Messages delivered | 22.3 million | 22.3 million | 22.3 million | 22.3 million less 6,140 |
+| p50 delay | 18 ms | 21 ms | 26 ms | 9 ms |
+| p99 delay | 140 ms | 95 ms | 110 ms | 60 ms |
+| Worst consumer lag | 9 min (picking, single active consumer) | 7 s | 12 s | 4 s |
+| Events out of order per order | 214 | 0 | 0 | 0 |
+| Broker failover tested | Yes, no loss | Yes, no loss | Yes, no loss | Yes, lost 2 s of writes |
+
+The 214 out-of-order events for option A came from the run with competing consumers. The run with single active consumers had none, but that is the run where picking fell 9 minutes behind. The 6,140 events missing for option D were all written in the 2 seconds before the forced failover.
+
+The test did not cover a full regional failure, consumer rebalancing during deploys at peak, or the cost of reading whole topics for consumers that need one event type. Those were judged small enough to check during the shadow phase instead.
+
+## Background {agent=skip}
+
+This section is for people who want to know how the pipeline got here. Nothing in it is needed to build against the decision above.
+
+In 2022 Basketline was a single application. Checkout, picking and dispatch were modules in one codebase, and they found new orders by polling the orders table every 10 seconds. Polling worked until about 200 orders per minute. In the first winter after the launch in the second city, the polling queries took the database to 90% CPU every Saturday and twice caused checkout timeouts.
+
+The first split, in 2023, moved picking into its own service. It still polled, but through a read replica. That bought a year and taught the team that services sharing one database were not really separate.
+
+ADR-006 in March 2024 introduced Hopwire. At the time the team had six engineers, one of whom had run Hopwire at a previous job, and the main goals were to stop polling and to keep costs low. Managed brokers were considered and rejected because the cheapest one then cost more than three times the self-hosted cluster, and because the data processing agreement with Nimbus Cloud only covered databases. Both of those have since changed. The ADR-006 choice was right for a team of six and 400 orders per minute.
+
+The March 2026 incident was the push for this ADR. A picking release mishandled `item.substituted` events for 3 hours on a Saturday. The fix took 20 minutes, but because Hopwire had already deleted the acknowledged events, rebuilding the 41,000 affected events took two engineers most of the following week. About 1,900 customers got the wrong substitution notice, and support handled roughly 700 contacts about it.
+
+## Review meeting notes (2026-07-14) {agent=skip}
+
+Notes from the architecture review, kept for the people who were not there. Present were Ines Okafor, Tomasz Wren, Priya Haldane, Joaquin Ferro, Mette Lindqvist (finance partner) and two engineers from the picking team.
+
+- Ines walked through options A to D. Nobody argued for D after the failover result.
+- Tomasz argued for B. He thinks the team will need to run Ferrybus brokers eventually and would rather learn now than during an outage at Nimbus Cloud. Ines and Priya agreed it may come to that, but not before the peak. Recorded as a known disagreement, revisit after the price lock ends.
+- Priya asked whether 48 partitions is too many. The picking team said they already run 30 workers at peak and expect 40 by next year. 48 stays.
+- Mette asked for the overlap period with both brokers running to be as short as possible. Joaquin said three months is realistic, two would be optimistic.
+- Joaquin asked whether legal had signed off on data residency. Nobody in the room had seen it. Ines found it after the meeting: legal had confirmed on 2026-07-09, but the e-mail was not forwarded until 2026-07-15. No impact on the decision.
+- Agreed to accept option C, subject to the finance approval, which came on 2026-07-17. ADR status set to accepted on 2026-07-21.
+
+## Revision history {agent=skip}
+
+- 2026-06-05: first draft by Ines Okafor, requirements only.
+- 2026-06-26: options and load test results added. Option D marked rejected.
+- 2026-07-21: accepted after the architecture review and finance approval.
+- 2026-08-18: consumer retry rule changed from 5 attempts to 3 attempts with backoff, after the shadow consumer design review. The ADR-006 rule of 5 deliveries no longer applies to Ferrybus consumers.
+- 2026-09-30: migration target dates confirmed. Phase 3 started on 2026-09-28.

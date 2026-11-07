@@ -1,0 +1,252 @@
+---
+smd: 2
+title: Tree and graph filtering for agent reads
+summary: Let agents select exactly the blocks they need from .smd documents by walking the document tree (headings and nested containers) and the reference graph (links and typed edges), so a focused read costs fewer tokens and fewer calls and still carries the rules that apply.
+status: draft
+owners: ["@roshanmadhushanka"]
+audience: both
+tags: [requirements, agents, query, tokens]
+version: 0.1
+created: 2026-11-06
+updated: 2026-11-06
+related: [../reports/tokens.md, ../reference/spec.md]
+toc: true
+---
+
+## Problem
+
+An agent that needs one part of a long document has two choices today. It can read the whole agent view, or it can read the outline and then ask for sections by heading. The second path is cheap but blind. The agent only finds out that a decision in another section constrains its task after it has read that section, so it pays for extra calls and sometimes misses the rule altogether.
+
+`smd query` already selects blocks by type and attribute, for example `question, timeline` or `risk[impact>=high]`. It cannot say where a block sits (inside which heading or container), and it cannot say what a block points to or what points at it. This document asks for both.
+
+There are two kinds of filtering here. Tree filtering selects blocks by type, attributes and position in the document. Graph filtering starts from the selected blocks and follows references to their neighbors. They answer different questions and they share one output format.
+
+## Background {agent=skip}
+
+The idea came from a question about whether a graph helps when language models already keep their own picture of a text. A model relates only what is already in its context window. It keeps no map between sessions, so an agent rebuilds one each time by reading, and that reading is the token cost this work tries to avoid. A map the tool computes from the source costs no model tokens to build. Only the part handed to the agent is paid for.
+
+The model is still better than a tool at noticing loose, unstated links once the text is in front of it. So the tool should compute only the structure it can find for certain, and leave interpretation to the model.
+
+Measured in 2.5.0 (see [the token report](../reports/tokens.md)), reading one section of a 6k to 8k token document costs about 80% less than reading the raw file, and the tools stop paying for their own instructions below about 1,500 tokens. Any new filter has to keep within that budget, because its instructions are paid in every session whether or not it is used.
+
+## Terms
+
+| Term         | Meaning                                                                                                                                                           |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node         | A block the tools already recognize, such as a heading section, a container (`:::decision`, `:::question`, `:::timeline`, `::::tabs`), a task, or an inline value |
+| Tree         | Containment. A heading holds its subsections and blocks, and a container holds the blocks nested in it                                                            |
+| Graph        | References between nodes, in the same document or across documents                                                                                                |
+| Tree filter  | Selects nodes by type, attributes and position in the tree                                                                                                        |
+| Graph filter | Starts from selected nodes and follows edges to their neighbors                                                                                                   |
+| Pointer      | A one-line reference to a node (type, title, line, section, token cost) in place of its content                                                                   |
+
+## What exists today
+
+| Capability                                 | Where                                                                                                                       | Gap                                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Select blocks by type and attribute        | `query` in `query.ts`, CLI and MCP                                                                                          | No position in the tree beyond the nearest heading                                                |
+| `section` key on every match               | `query.ts`                                                                                                                  | Holds only the nearest heading, so `task[section=Rollout]` misses tasks in subsections of Rollout |
+| Read chosen sections with agent rules kept | `read` with `sections`                                                                                                      | Selection by heading only                                                                         |
+| Constraint pointers outside a section read | `constraints/1` in `constraints.ts`                                                                                         | A fixed one-hop rule, not something the agent can ask for                                         |
+| Summaries of linked documents              | `related:` in `related.ts`                                                                                                  | One level, front matter only                                                                      |
+| Links, anchors, includes                   | `links.ts`, `include.ts`                                                                                                    | Parsed for validation, never offered as edges                                                     |
+| Typed references                           | Planned in the Semantic tags milestone (shared block ids, `depends-on`, `supersedes`, `verifies`, `supports`, `applies-to`) | Not built                                                                                         |
+
+Two more facts shape the design. `query` results today do not carry the document's `:::agent` block, unlike `read` with sections. And a space or `>` between two selectors is a parse error today, so adding them as combinators changes no selector that already works.
+
+## Goals and non-goals
+
+### Goals
+
+1. An agent can ask for a focused set of blocks in one call, by type, by position in the tree, or by relation, and get only those.
+2. Every filtered result still carries the rules that apply to it.
+3. A cross-section question costs fewer tokens and fewer calls than outline plus sections, with the same or better coverage.
+4. The fixed cost of the tools grows by no more than 60 tokens in the MCP tool list and the reader skill together.
+
+### Non-goals
+
+- A stored graph database or index file. Everything is computed from the source when asked.
+- Embeddings, vector search or ranking by similarity.
+- Edges guessed by a model and used without a person accepting them.
+- Handing the whole graph to the agent.
+- New block types. Typed edges come from the Semantic tags milestone.
+
+## Requirements
+
+### Tree filtering
+
+| ID  | Requirement                                                                                                                                                                              | Priority |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| T1  | A space between two selectors matches a descendant. `heading[title=Rollout] task` matches every task anywhere under the Rollout heading, including its subsections and nested containers | P0       |
+| T2  | `>` matches a direct child. `tabs > tab` matches tabs directly inside a tab group, and `heading[level=2] > decision` matches decisions in that section but not in its subsections        | P1       |
+| T3  | `:not(selector)` excludes matches, for example `risk:not([status=closed])`                                                                                                               | P1       |
+| T4  | Each match records its ancestors (headings and containers) so T1 and T2 can be tested. The existing `section` key keeps its meaning, the nearest heading                                 | P0       |
+| T5  | A `within` key matches any ancestor heading by title or id, for example `task[within=rollout]`, as a short form of T1                                                                    | P2       |
+| T6  | Inline values become nodes that selectors can match, namely `:status`, `:due`, `:priority`, `:metric`, `:mention` and front matter variables, for example `metric[label*=latency]`       | P2       |
+| T7  | Selectors that work today return the same matches in the same order                                                                                                                      | P0       |
+
+### Graph filtering
+
+| ID  | Requirement                                                                                                                                                                                        | Priority |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| G1  | Edges are derived from what documents already contain. Links to `#anchor`, links to other `.smd` files, `:ref[id]`, `related:` entries and `:::include` blocks each give an edge of their own type | P0       |
+| G2  | Typed edges from the Semantic tags milestone (`depends-on`, `supersedes`, `verifies`, `supports`, `contradicts`, `applies-to`) join the same graph once they ship, each as its own edge type       | P1       |
+| G3  | `query` and `read` take a `follow` option naming the edge types to follow (or `*`) and a direction (`out`, `in` or `both`). Depth is 1 by default and at most 3                                    | P0       |
+| G4  | Navigation and evidence neighbors are returned as pointers by default, with content only when asked for and within the token budget. Mandatory edges (`include`, `applies-to`, `depends-on`) are followed to their closure, with cycles and depth reported (research contract, accepted 2026-11-06)                                                                            | P0       |
+| G5  | Edges across files work for paths the sandbox allows. A target outside it, or a missing one, is a pointer marked missing and never an error. A missing or denied target of a mandatory edge counts as an unsatisfied dependency                                                        | P1       |
+| G6  | `smd graph <paths>` prints the edges as text, or as JSON with `--json`, for people and scripts. It is not an MCP tool                                                                              | P2       |
+| G7  | The validator warns about a cycle in `depends-on` or `supersedes` and about an accepted decision that depends on a superseded one. Missing link targets already warn today                         | P1       |
+
+### Rules for both
+
+| ID  | Requirement                                                                                                                                                                            | Priority |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| S1  | A filtered read includes the document's `:::agent` blocks, as `read` with sections does. `query` gets this through a `constraints` option, off by default so its output stays the same, and the result then says that constraints were not included (research contract, accepted 2026-11-06) | P0       |
+| S2  | Content left out by `{agent=skip}` and `:::human` stays out of filtered results unless asked for, as today                                                                             | P0       |
+| S3  | Results are deterministic. The same source and selector give the same output in the same order                                                                                         | P0       |
+| S4  | Every result says how many tokens it holds and how many it left out as pointers, so the agent can decide whether to expand                                                             | P1       |
+| S5  | The MCP tool list and the reader skill grow by no more than 60 tokens together, measured with `npm run bench:tokens`                                                                   | P0       |
+| S6  | Selector syntax follows CSS wherever CSS has a form for it, so agents can write selectors without new instructions                                                                     | P0       |
+
+## Design sketch
+
+### Selectors
+
+The tree part lives in the selector. Each line shows a selector and the requirement it comes from.
+
+```text
+question, timeline                      --  types, works today
+heading[title=Rollout] task             T1  any task under Rollout
+heading[level=2] > decision             T2  decisions directly in the section
+risk:not([status=closed])               T3  open risks
+task[within=rollout][done=false]        T5  short form of T1
+metric[label*=latency]                  T6  inline values
+```
+
+### Following edges
+
+The graph part is an option next to the selector, so the selector grammar never grows past CSS.
+
+```bash
+smd query "decision[id=d-bus]" docs/ --follow "*" --direction both
+smd query "requirement[priority=P0]" docs/ --follow verifies --direction in
+```
+
+The MCP `query` tool gets the same two fields.
+
+### Output
+
+A match is shown in the agent view as today. Its neighbors follow as pointers, one line each, with their token cost, so the agent can ask for one of them by line or id.
+
+```text
+docs/adr-0007.smd:11-13  decision  Publish order events to AWS EventBridge  {status=accepted}
+<decision status="accepted"> Publish order events to AWS EventBridge
+...
+</decision>
+  -> supersedes  decision  Add a retry queue in front of each HTTP consumer  [L44]  §Consequences  ≈60 tokens
+  <- link        task      Migrate consumers to rules  docs/rollout.smd [L18]  §Rollout  ≈25 tokens
+[smd] 1 match, 2 neighbors as pointers (≈85 tokens not read).
+```
+
+## Examples
+
+Three agent tasks, with what they cost today and with this work.
+
+| Task                                               | Today                                                                                                            | With tree and graph filtering                                                                                                                            |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Which questions are still open in the rollout plan | The outline, then the Rollout section and each subsection, or `query "question"` and sorting the results by hand | `query "heading[title=Rollout] question"` in one call                                                                                                    |
+| Implement requirement R3                           | Read the section with R3, then search for anything that constrains it                                            | `query "requirement[id=R3]" --follow "*" --direction in` gives R3 with its acceptance criteria and constraints as pointers (needs the Semantic tags ids) |
+| Is this decision still current                     | Read the decision, then grep other documents for its title                                                       | `--follow supersedes --direction in` across `docs/`                                                                                                      |
+
+## Success metrics
+
+Add a task type to `extension/test/bench/netTokens.ts`, a question whose answer needs context from more than one section. For each sample and composite document, compare outline plus sections with the new filters.
+
+| Metric                                         | Target                                        |
+| ---------------------------------------------- | --------------------------------------------- |
+| Tokens per task on documents over 4,000 tokens | At least 30% lower than outline plus sections |
+| Calls per task                                 | At most 2, against 3 or more today            |
+| Coverage (the benchmark's proxy)               | No lower than outline plus sections           |
+| Fixed cost                                     | Within S5                                     |
+
+The targets are proposed. They get fixed after the first measurement in phase 1.
+
+## Rollout
+
+:::timeline
+- [ ] **Phase 1** Tree selectors T1 to T4 and T7, the `constraints` option from S1, and the benchmark task
+- [ ] **Phase 2** Derived edges G1, the `follow` option G3 with pointers G4, and edges across files G5
+- [ ] **Phase 3** Typed edges G2 and the validator rules G7, after the Semantic tags block ids land
+- [ ] **Phase 4** Inline values T6, `within` T5 and `smd graph` G6, only if phases 1 to 3 show they get used
+:::
+
+## Decisions
+
+:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} One selector language for the tree and a follow option for the graph
+Tree filtering extends the existing CSS-like `query` selectors with descendant, child and `:not()`. Graph traversal is a separate `follow` option and not new selector syntax. Models already know CSS selectors, so the tree part needs almost no new instructions. Keeping edges out of the grammar stops it from growing into a query language of its own.
+:::
+
+:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Compute the graph from the source and never store it
+Edges are built from the source each time they are asked for. A stored index would go stale as documents change and would need upkeep of its own. The parsers already run on every validate and preview, and `smd index` can cache edges later if measurement shows a need.
+:::
+
+:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Neighbors are pointers unless the agent asks for them
+A pointer costs one line. The agent reads the neighbors it needs by line or id. This keeps a one-hop walk from turning into a full read of the document.
+:::
+
+:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Edges a model infers are only suggestions
+A model can propose an edge, for example through the writer skill, but the edge goes into the source only when a person accepts it. The tools only follow edges a person wrote or edges derived from links.
+:::
+
+## Risks
+
+:::risk{impact=high likelihood=medium owner=@roshanmadhushanka status=open} A narrow filter drops a rule that applies
+An agent that asks only for tasks under Rollout can miss a danger block elsewhere in the document. S1 keeps `:::agent` blocks in every filtered read, and the `constraints/1` pointers stay available on request.
+:::
+
+:::risk{impact=medium likelihood=medium owner=@roshanmadhushanka status=open} Following edges pulls in too much
+A depth of 1 by default, pointers in place of content and a budget on any expansion keep it bounded. S4 shows what was left out.
+:::
+
+:::risk{impact=medium likelihood=high owner=@roshanmadhushanka status=open} Writers do not add typed edges
+Most of the value has to come from links people already write (G1). Typed edges are a bonus. The writer skill can suggest one where a plain link already connects two blocks.
+:::
+
+:::risk{impact=medium likelihood=medium owner=@roshanmadhushanka status=open} Nesting in real documents is shallow
+Most documents are a heading tree with flat blocks inside. If that holds, T2 and long descendant chains add little and T1 under headings carries the value. Phase 1 measures nesting depth across the sample and gallery documents before T2 ships.
+:::
+
+:::risk{impact=low likelihood=medium owner=@roshanmadhushanka status=open} The fixed cost eats the saving
+S5 caps the growth. Small documents keep the read-the-file shortcut in the reader skill.
+:::
+
+## Open questions
+
+:::question Should query include agent blocks by default?
+Including them changes the output of calls that work today. This document keeps them behind a `constraints` option. Decide before phase 1 starts.
+:::
+
+:::question Is T6 what static placeholders should mean?
+T6 reads static placeholders as inline values and front matter variables. If the intent is something else, such as fixed template fields, T6 changes. Decide before phase 4.
+:::
+
+:::question What shape should the follow option take on the MCP tool?
+Two fields (`follow` and `direction`) are clearer. One field such as `edges: "in:verifies"` costs fewer tokens in the tool definition. Decide with the S5 measurement in phase 2.
+:::
+
+:::question Should read take a selector too?
+`read` already takes sections by heading. A selector field would let one tool do both, but it adds to the tool definition. Decide after phase 1.
+:::
+
+## Implementation notes
+
+:::agent Constraints for implementers
+- Existing selectors must return the same matches in the same order (T7). Add tests for that before changing the parser.
+- Keep the `section` key as the nearest heading. Put ancestors in a new field.
+- Never store a graph or index file. Build edges from the source on each call.
+- Neighbors are pointers unless the caller asks for content, and any expansion respects the token budget.
+- Measure the MCP `tools/list` and the reader `SKILL.md` token cost before and after with `npm run bench:tokens`, and stay within 60 tokens of growth.
+- Typed edges are out of scope until the Semantic tags block ids ship. Phase 2 uses derived edges only.
+- Add no block types and change nothing about how documents render.
+- Until the open questions are decided, `query` output stays as it is today unless a new option is passed.
+:::

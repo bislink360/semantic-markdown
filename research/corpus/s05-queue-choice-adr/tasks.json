@@ -1,0 +1,214 @@
+{
+  "tasks": [
+    {
+      "id": "s05-01",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "A consumer of order events receives `order.paid` for one order and `order.cancelled` for a different order. May it process those two events in parallel and in either order?",
+      "items": ["per-order-ordering"],
+      "expected": { "verdict": ["yes"], "constraint": "per-order-ordering" },
+      "notes": "Outside the constraint: ordering is only required for events of the same order."
+    },
+    {
+      "id": "s05-02",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "A team building a new order-event consumer argues that, because the Ferrybus producers are idempotent, the consumer does not need to drop duplicate events by `event_id`. May the consumer skip duplicate handling?",
+      "items": ["consumers-idempotent", "no-exactly-once"],
+      "expected": { "verdict": ["no"], "constraint": "consumers-idempotent" }
+    },
+    {
+      "id": "s05-03",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "Checkout produces a 300 KB `order.placed` event for a very large basket. The managed broker accepts messages up to 1 MB. May the producer publish this event?",
+      "items": ["producers-reject-oversize", "max-event-size"],
+      "expected": { "verdict": ["no"], "constraint": "producers-reject-oversize" }
+    },
+    {
+      "id": "s05-04",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "May the order pipeline's broker run in the primary region only, with no cross-region replication of order events?",
+      "items": ["primary-region-only"],
+      "expected": { "verdict": ["yes"], "constraint": "primary-region-only" }
+    },
+    {
+      "id": "s05-05",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "To cut latency, the checkout team proposes publishing `order.placed` as soon as the order is validated, before the database transaction commits, and sending a compensating event if the commit later fails. May checkout publish before the commit?",
+      "items": ["publish-after-commit"],
+      "expected": { "verdict": ["no"], "constraint": "publish-after-commit" }
+    },
+    {
+      "id": "s05-06",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "The platform team wants to raise the partition count of `orders.fulfilment` from 48 to 64 at 02:00, outside trading hours, with a short publish freeze agreed with the on-call lead. May they do it?",
+      "items": ["partition-count-changes"],
+      "expected": { "verdict": ["yes"], "constraint": "partition-count-changes" },
+      "notes": "Within the stated conditions; lowering or raising during trading hours would be a no."
+    },
+    {
+      "id": "s05-07",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "The dispatch service wants to publish `rider assigned` events straight to Ferrybus with the client library, skipping the outbox to save a round trip. May it?",
+      "items": ["producers-via-outbox-only"],
+      "expected": { "verdict": ["no"], "constraint": "producers-via-outbox-only" }
+    },
+    {
+      "id": "s05-08",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "A consumer needs to know how old an order event is to decide whether it is stale. May it use the broker's message timestamp for that?",
+      "items": ["use-occurred-at"],
+      "expected": { "verdict": ["no"], "constraint": "use-occurred-at" }
+    },
+    {
+      "id": "s05-09",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "May the payment service send the amount of an `order.paid` event as the decimal number 68.42 for a 68.42 EUR payment?",
+      "items": ["amounts-minor-units"],
+      "expected": { "verdict": ["no"], "constraint": "amounts-minor-units" }
+    },
+    {
+      "id": "s05-10",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "The dual publish phase has run for its full week, including a Saturday peak. During that week the migration caused one SEV3 incident and nothing worse. May the shadow consumers phase start?",
+      "items": ["phase-gate"],
+      "expected": { "verdict": ["yes"], "constraint": "phase-gate" }
+    },
+    {
+      "id": "s05-11",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "On a Wednesday that is not the day before a public holiday, the analytics feed and one other service plan to switch their consumers to Ferrybus. Nobody else switches that day. Is that allowed?",
+      "items": ["switch-day-rules"],
+      "expected": { "verdict": ["yes"], "constraint": "switch-day-rules" }
+    },
+    {
+      "id": "s05-12",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "On 2026-12-02 the tracking service's Ferrybus consumer starts misbehaving, and the tracking team wants to switch it back to Hopwire, which still receives every event. May they switch it back that day?",
+      "items": ["migration-freeze", "rollback-before-phase5"],
+      "expected": { "verdict": ["no"], "constraint": "migration-freeze" },
+      "notes": "cross-section: the rollback rule (Rolling back) says rollback needs no approval, but the freeze (Migration) forbids switches in either direction."
+    },
+    {
+      "id": "s05-13",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "It is 2026-11-18 and the picking service has not yet switched its consumer to Ferrybus. May picking switch on Thursday 2026-11-19?",
+      "items": ["picking-tracking-cutoff"],
+      "expected": { "verdict": ["no"], "constraint": "picking-tracking-cutoff" }
+    },
+    {
+      "id": "s05-14",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "During the consumer switch phase, in October, the picking team sees errors after moving its consumer to Ferrybus. May the picking team roll its consumer back to Hopwire on its own, without asking for approval?",
+      "items": ["rollback-before-phase5"],
+      "expected": { "verdict": ["yes"], "constraint": "rollback-before-phase5" }
+    },
+    {
+      "id": "s05-15",
+      "type": "decision-status",
+      "author": "ai-task-writer-a",
+      "prompt": "A new service needs to consume order events. Which broker setup should it read them from?",
+      "items": ["managed-ferrybus-replaces-hopwire"],
+      "expected": { "option": ["managed Ferrybus from Nimbus Cloud", "managed Ferrybus", "Ferrybus", "option C", "Nimbus Cloud managed Ferrybus", "Ferrybus managed by Nimbus Cloud", "a Ferrybus consumer group"], "superseded": ["Hopwire", "Hopwire queues", "a Hopwire queue", "its own Hopwire queue", "a durable Hopwire queue bound to the orders topic exchange", "a durable queue bound to the orders topic exchange"] },
+      "notes": "The ADR-006 decision quoted in Context ('New services that need order events add a queue the same way') reads as current."
+    },
+    {
+      "id": "s05-16",
+      "type": "decision-status",
+      "author": "ai-task-writer-a",
+      "prompt": "Cachestream streams had the lowest p99 delay in the June load test, and the team already runs Cachestream. Is Cachestream the broker for order events, and if not, which option is?",
+      "items": ["cachestream-rejected", "managed-ferrybus-replaces-hopwire"],
+      "expected": { "option": ["managed Ferrybus from Nimbus Cloud", "managed Ferrybus", "Ferrybus", "option C", "Nimbus Cloud managed Ferrybus", "Ferrybus managed by Nimbus Cloud"], "superseded": ["Cachestream streams", "Cachestream", "option D"] },
+      "notes": "cross-section: rejection in Options considered, chosen option in Decision. The options table lists D without saying it was rejected."
+    },
+    {
+      "id": "s05-17",
+      "type": "decision-status",
+      "author": "ai-task-writer-a",
+      "prompt": "What retry rule should a consumer on the new broker apply to a failing order event before it gives up and sends the event to the dead-letter topic?",
+      "items": ["consumer-retry-rule-changed", "consumer-retry-limit"],
+      "expected": { "option": ["3 retries with a pause of 1, 4 and 16 seconds", "3 times with a pause of 1, 4 and 16 seconds", "3 attempts with backoff", "3 times with backoff", "3 retries with backoff", "3 times", "3 retries", "3 attempts", "3"], "superseded": ["5 deliveries", "5 attempts", "5 times", "5 retries", "5"] },
+      "notes": "cross-section: rule in Consumers, change recorded only in Revision history; the ADR-006 quote still says 5 deliveries."
+    },
+    {
+      "id": "s05-18",
+      "type": "open-question",
+      "author": "ai-task-writer-a",
+      "prompt": "Should order event schemas be registered in the managed schema registry, and how should events be encoded and their schemas checked in the meantime?",
+      "items": ["schema-registry-open"],
+      "expected": { "fallback": ["events stay JSON", "JSON", "stay JSON", "events stay JSON and schemas in the order-events repository are checked in CI", "JSON with schemas in the order-events repository checked in CI", "keep JSON and check schemas in CI", "events stay JSON with schemas checked in CI"] }
+    },
+    {
+      "id": "s05-19",
+      "type": "open-question",
+      "author": "ai-task-writer-a",
+      "prompt": "How long should `orders.dlq` events be kept after a team has looked at them?",
+      "items": ["dlq-retention-open"],
+      "expected": { "fallback": ["teams delete them by hand", "delete them by hand", "teams currently delete them by hand", "deleted by hand", "manual deletion", "teams delete them manually", "by hand"] },
+      "notes": "The document does not say 'Undecided' in words; it says the question needs an owner and does not block the migration. The topic table's 14-day retention is a distractor, not the answer to this question."
+    },
+    {
+      "id": "s05-20",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "For at least how long must the order event broker keep events after they are written?",
+      "items": ["min-retention"],
+      "expected": { "accepted": ["7 days", "at least 7 days", "seven days", "7", "one week", "a week", "1 week"] }
+    },
+    {
+      "id": "s05-21",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "How many unpublished rows in the outbox make the relay page the owning team?",
+      "items": ["outbox-backlog-page"],
+      "expected": { "accepted": ["50,000", "more than 50,000", "50,000 rows", "more than 50,000 rows", "more than 50,000 unpublished rows", "50,000 unpublished rows", "over 50,000", "fifty thousand"] }
+    },
+    {
+      "id": "s05-22",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "At what consumer lag does the tracking service's lag alert fire?",
+      "items": ["tracking-lag-alert", "lag-alert"],
+      "expected": { "accepted": ["5 seconds", "5 s", "5s", "five seconds", "5", "above 5 seconds", "more than 5 seconds"] },
+      "violations": [{ "item": "tracking-lag-alert", "answers": ["30 seconds", "30 seconds for 2 minutes", "30 s"] }]
+    },
+    {
+      "id": "s05-23",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "For how long can an on-call lead hold a break-glass account with write access to production order topics?",
+      "items": ["break-glass-duration"],
+      "expected": { "accepted": ["4 hours", "up to 4 hours", "four hours", "at most 4 hours", "4 h", "4"] }
+    },
+    {
+      "id": "s05-24",
+      "type": "qualification",
+      "author": "ai-task-writer-a",
+      "prompt": "Summarise in a few sentences how a producer publishes order events under this ADR and which rules it must follow.",
+      "items": ["publish-after-commit", "producers-via-outbox-only", "max-event-size", "producers-reject-oversize", "per-order-ordering", "amounts-minor-units", "refunds-consumer-stays-on-hopwire"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Producers write the event to the outbox table in the same transaction as the change, a relay publishes it, and producers never publish before the transaction commits or talk to Ferrybus directly.", "items": ["publish-after-commit", "producers-via-outbox-only"] }, { "id": "r2", "text": "A single event is at most 256 KB, and producers must reject larger events themselves before publishing rather than rely on the broker (which allows 1 MB).", "items": ["max-event-size", "producers-reject-oversize"] }, { "id": "r3", "text": "Every event is keyed by order_id so events of one order stay in order; events of different orders may be handled in parallel.", "items": ["per-order-ordering"] }, { "id": "r4", "text": "Amounts are integers in minor units; floating point amounts are rejected by the schema check.", "items": ["amounts-minor-units"] }, { "id": "r5", "text": "Exception: the payment service's relay also publishes refund events to Hopwire until the finance systems migration in the first quarter of 2027.", "items": ["refunds-consumer-stays-on-hopwire"] }] },
+      "notes": "cross-section: Requirements, Consequences (Producers, Consumers)."
+    },
+    {
+      "id": "s05-25",
+      "type": "edit-plan",
+      "author": "ai-task-writer-a",
+      "prompt": "Which lines must change to raise the largest allowed order event from 256 KB to 512 KB?",
+      "items": ["max-event-size"],
+      "expected": { "md": [[38, 38], [77, 77], [124, 124]], "smd": [[45, 45], [86, 86], [137, 137]] },
+      "notes": "Rule in Requirements, comparison with the 1 MB broker limit under option C, and the shared producer setting max_message_bytes."
+    }
+  ]
+}

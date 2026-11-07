@@ -81,8 +81,8 @@ test('omitted sections leave a pointer saying how to read them', () => {
   assert.doesNotMatch(r.text, /hist0/);
   assert.match(budgeted(brief.tokens - 1).text, /— smd agent <file> --section "History"\]/);
   assert.match(budgeted(brief.tokens - 1, { file: 'my plan.smd' }).text, /— smd agent "my plan\.smd" --section "History"\]/);
-  // A trailing section's pointer ends the view.
-  assert.match(budgeted(1).text, /\n\n\[section omitted: ## Appendix, L76-L79, [^\n]*\]\n$/);
+  // A trailing section's pointer ends the body; a view still over its budget then ends with the overflow line.
+  assert.match(budgeted(1).text, /\n\n\[section omitted: ## Appendix, L76-L79, [^\n]*\]\n\n\[budget: ≈\d+ of 1 tokens, required content does not fit\]\n$/);
 });
 
 const wordCounter: Tokenizer = { name: 'words', count: (text) => text.split(/\s+/).filter(Boolean).length };
@@ -124,7 +124,7 @@ test('loadTokenizer resolves js-tiktoken at run time, or says how to install it'
 
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
-const example = join(__dirname, '..', '..', 'examples', 'checkout-redesign.smd');
+const example = join(__dirname, 'samples', 'checkout-redesign.smd');
 const run = (args: string[], cwd?: string) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', cwd });
 
 test('CLI: smd agent --max-tokens and --tokenizer', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
@@ -135,6 +135,12 @@ test('CLI: smd agent --max-tokens and --tokenizer', { skip: !existsSync(cli) && 
   const tight = run(['agent', example, '--max-tokens', '10']);
   assert.equal(tight.status, 0);
   assert.match(tight.stderr, /warning: still over the budget of 10 tokens/);
+  // GAP-10: fewer sections are suggested only when sections were asked for.
+  assert.match(tight.stderr, /ask for a larger budget, or read one section at a time with --section\./);
+  assert.doesNotMatch(tight.stderr, /fewer sections/);
+  assert.match(tight.stdout, /\n\[budget: ≈\d+ of 10 tokens, required content does not fit\]\n$/);
+  const tightSections = run(['agent', example, '--max-tokens', '10', '--section', 'Architecture']);
+  assert.match(tightSections.stderr, /ask for fewer sections or a larger budget\./);
   assert.equal(run(['agent', example, '--max-tokens', '0']).status, 2);
 
   // The tokenizer package comes from the working directory, not the bundle.

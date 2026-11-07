@@ -1,0 +1,161 @@
+---
+smd: 2
+title: Study 1 marking and annotation guide
+summary: How a document becomes a pair of plain Markdown and Semantic Markdown files with identical text, and how an independent annotator lists the items a reader needs from it. The guide is part of the G0 baseline and is frozen, with its version, before any corpus document is marked.
+status: approved
+owners: ["@roshanmadhushanka"]
+tags: [research, study-1, annotation, corpus]
+version: 0.2
+created: 2026-11-06
+updated: 2026-11-06
+related:
+  - study-1-agent-evaluation.smd
+  - token-accounting.smd
+  - evidence-matrix.smd
+  - ../docs/requirements/research-interaction.smd
+---
+
+## Purpose
+
+Study 1 compares how well agents work from plain Markdown and from Semantic Markdown views of the same text. Two people shape what the study measures. The marker decides which markup a document gets, and the annotator decides which items a correct answer needs. If either of them works from what the tool shows, the study measures the tool against itself. This guide keeps both jobs independent of the tool and of each other (AF30).
+
+The guide covers three jobs in order.
+
+1. Marking turns a source document into `doc.md` and `doc.smd`.
+2. Annotation lists items in `annotations.json`.
+3. Task writing turns items into `tasks.json`.
+
+The file formats are the ones the harness reads, described in `extension/test/eval/README.md` and `extension/test/eval/types.ts`. The harness fixture in `extension/test/eval/fixture/` was written by the tool's developers and is never an example of this guide.
+
+:::agent Annotation constraints
+- Do not mark, annotate or write tasks for the study corpus unless this guide is `approved` and its version is recorded in `corpus.json`.
+- Never write or revise an annotation or a task while looking at an agent view, an outline, `smd query` output or a provenance manifest of the same document.
+- Send only documents written for the study, or licensed for it, to any model provider.
+:::
+
+## Roles and independence
+
+|Role|Sees|Never sees|
+|-|-|-|
+|Marker|The source document and this guide|Annotations, tasks, agent views of the marked file|
+|Annotator|`doc.md` only|`doc.smd`, agent views, tasks, the marker's log|
+|Second annotator|`doc.md` only, for a random quarter of documents|The first annotator's items until both are done|
+|Task writer|`doc.md` and the resolved annotations|Agent views, `doc.smd`, any condition output|
+|Adjudicator|Both annotations and `doc.md`|Conditions and model output|
+
+The author may mark half the corpus as the study protocol says, but must not also annotate or write tasks for a document they marked. The research plan's open question about the second marker and annotator stays open until the author names them.
+
+### Roles drafted by AI agents
+
+For corpus draft 0.2 the author had every role drafted by AI agents, approved on 2026-11-06. Each agent ran in its own session, saw only what the table above allows for its role, and filled one role for a document. No agent annotated or wrote tasks for a document it marked, and no agent annotated a document twice. Files name the agent role, for example `ai-annotator-b`, in `annotator` and `author`.
+
+People verify every mark, item and task before the corpus is frozen. A change a person makes is recorded in `notes` with their initials. The paper reports that the roles were drafted by AI agents and verified by people, and reports agreement on the drafts.
+
+## Part 1 Marking
+
+### The text rule
+
+`doc.smd` holds the same words as `doc.md` in the same order. Marking adds fences, attributes, directives and front matter only. It never adds a sentence, rewords one, summarizes one or moves one. Two exceptions keep the files parallel.
+
+- A container title may repeat the first words of the paragraph it wraps, or a heading already in the text.
+- Front matter `title`, `summary` and `status` may be copied from the source's own title, abstract and status line.
+
+The harness reports a line similarity between the two files. A value under 0.9 means the marker should check for changed text.
+
+### What to mark
+
+Mark what the source already says about a passage. Never mark from what you think the passage means for an agent.
+
+|The source says or shows|Mark it as|Do not|
+|-|-|-|
+|A decision with a stated state (accepted, proposed, rejected, superseded, replaced by)|`:::decision{status=…}` around that decision's text|Infer a status the text does not state|
+|A question it calls open, undecided or to be decided, with any interim answer|`:::question` around it|Mark a rhetorical question|
+|A must or must not that the source calls out (bold, a "Warning" or "Important" label, a callout)|`:::danger` for prohibitions with stated harm, `:::warning` otherwise|Promote a plain-prose constraint. It stays prose and becomes an annotation item|
+|Instructions the source addresses to an automated reader or agent|`:::agent`|Write new instructions, or move human guidance into `:::agent`|
+|A section the source labels history, background, changelog or for people only|`{agent=skip}` on its heading, or `:::human` for a passage|Hide anything a task might need because it looks long|
+|A risk with impact or likelihood|`:::risk{…}`|Invent scores the source does not give|
+|Tasks with checkboxes, owners or dates|Task syntax with `:priority`, `@owner`, `:due` when stated|Tick a box the source did not tick|
+|Endpoint definitions|`:::api{method=… path=…}`|Describe endpoints the text only mentions|
+
+Constraints written once in plain prose stay unmarked on purpose. The corpus needs them to test whether a view keeps content that has no markup.
+
+### The marking log
+
+For every container, attribute or skip mark, the marker writes one line in `<doc>/marking-log.md` with the line number, the mark and the source words that justify it. A mark with no justifying words is removed. The log is study material and is released with the corpus.
+
+### Marker comparison
+
+The second marker marks four of the author's documents and the author marks four of theirs, without seeing the other's marks. Report the share of marks that match exactly (same kind, same span within one line, same status) and list every difference. Results are reported per marker, as the protocol says. Marker differences are findings, not errors to fix silently.
+
+## Part 2 Annotation
+
+### What an item is
+
+An item is one thing a reader needs to do a task about the document correctly. Each item has one kind.
+
+|Kind|An item when|Example|Not an item|
+|-|-|-|-|
+|`fact`|A specific value, name or relation a reader could be asked about|"Webhooks are signed with HMAC-SHA256"|Background that no task about the system needs|
+|`constraint`|Something that must or must not be done, under stated conditions|"Accounts with unpaid invoices cannot be closed"|A preference stated as "we like" or "ideally"|
+|`negation`|A statement that something is not the case or not supported, or an exception to a rule|"Except for admin users, exports are limited to 10,000 rows"|A negation inside a quoted example of what not to write|
+|`limit`|A number that bounds behavior (count, size, time, rate)|"Retried up to 8 times"|A number that only describes history|
+|`decision-status`|Which option is current, and which were superseded or rejected|"Cursor pagination replaces offset pagination"|A list of options with no decision|
+|`open-question`|Something the document says is undecided, with any fallback it gives|"Restoring archived projects is undecided. Until then, only through the API"|An answered question|
+
+One item holds one claim. A sentence with a limit and an exception gives two items, a `limit` and a `negation`. A decision that replaces another gives one `decision-status` item whose evidence names both options.
+
+### Spans and evidence
+
+Each item records its line span in `doc.md` and in `doc.smd` (1-based, inclusive), its evidence phrases, and the annotator's initials. An annotator sees only `doc.md`, so they record the `doc.md` span and `npm run eval -- map-spans` fills the `doc.smd` span by aligning the lines of the two files. Evidence is the shortest exact phrase, or a regular expression, that a view must contain for a reader to see the item. All evidence entries must sit inside both spans. The validator rejects evidence outside the span and warns when a phrase also appears elsewhere. Rewrite a repeated phrase until it is unique, or record the repetition in `notes`.
+
+Item ids are short, lower case and hyphenated, unique in the document, and never reused after deletion (`retry-limit`, `no-close-unpaid`). An id names the claim, not its position, so it survives later edits to the guide's examples.
+
+### Annotating a document
+
+1. Read `doc.md` whole once without annotating.
+2. Read it again section by section and list every candidate item.
+3. Keep a candidate only if a plausible question about the documented system would need it. Drop items a reader could answer without the document.
+4. Record the span, evidence and kind. When torn between two kinds, pick the one whose definition is most specific (`limit` over `fact`, `negation` over `constraint`) and write why in `notes`.
+5. Check that every decision with a superseded or rejected option, every open question and every constraint stated only in prose has an item. The corpus requires each document to contain these.
+
+### Agreement
+
+A second annotator annotates a random quarter of documents (six of 24), chosen by a seeded draw recorded in the freeze record. Two items match when their `doc.md` spans overlap and their evidence describes the same claim. Report
+
+- item F1 over matched items,
+- Cohen's kappa on kinds over matched items,
+- the list of unmatched items from each annotator.
+
+Disagreements are resolved by discussion with the adjudicator before any model run. The resolved file replaces both annotations, and the pre-resolution files are kept with the release. Agreement is reported on the pre-resolution files.
+
+## Part 3 Task writing
+
+Tasks are written from resolved annotations and `doc.md`, never from an agent view (Study 1 constraints). Each task names the item ids it depends on.
+
+- Aim for about ten tasks per document, spread over the six task types in the Study 1 protocol.
+- Every `constraint` item is used by at least one constraint check, and every `decision-status` and `open-question` item by at least one task of its type.
+- At least two tasks per document need items from more than one section, so selective views can fail on them.
+- Write the expected answer before any condition is rendered. Record accepted answer variants, the verdict and the cited constraint as the harness schema requires.
+- A task that a reader can answer without the document is removed.
+
+The task writer records each task's author. Tasks and expected answers are frozen with the corpus.
+
+## Freeze record
+
+Before the pilot, `research/corpus/corpus.json` records the items below, and nothing in the corpus changes after the confirmatory run starts. Any change restarts the run.
+
+- This guide's version and commit.
+- The tool commit and the executable version that renders conditions.
+- The seeded draw for the second-annotator quarter and the marker comparison.
+- Agreement results before resolution.
+- The `today` date used for overdue dates in views.
+
+## Open questions
+
+:::question Who marks and annotates the second half?
+The author names a second marker and a second annotator who did not write tasks. Undecided. Until then, separate AI agents draft those roles as described in Roles drafted by AI agents, and people verify the drafts before the freeze.
+:::
+
+:::question Should constraints stated only in prose stay unmarked?
+Leaving them unmarked tests whether views keep content without markup. Marking them tests the markup's value. The protocol's ablations already remove markup, so this guide keeps them unmarked. The author confirms before freezing.
+:::

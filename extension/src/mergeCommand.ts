@@ -5,7 +5,7 @@ import { blockMerge, isMergeDoubt } from './core/blockMerge';
 import { fail } from './cliIo';
 
 /**
- * `smd merge`, a block-aware Git merge driver (docs/COLLABORATION-RFC.smd, D1). Git runs it as
+ * `smd merge`, a block-aware Git merge driver (docs/rfcs/collaboration.smd, D1). Git runs it as
  * `smd merge %O %A %B %L %P`, and it writes the merge to %A. It runs Git's own line merge (`git merge-file`) first and
  * keeps that result byte for byte whenever it is clean; only when Git leaves conflicts does it merge by blocks
  * (core/blockMerge.ts), and when that is in doubt it keeps Git's conflicts. `--install` sets the driver up in a

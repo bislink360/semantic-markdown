@@ -56,15 +56,6 @@ const setTomlVersion = (path) => {
 };
 setTomlVersion(join(ROOT, 'integrations', 'mkdocs', 'pyproject.toml'));
 
-// The packages under the pre-3.0 names (legacy/, published by the "Release (old names)" workflow): their version,
-// and the PyPI stub's pin on the new package.
-setVersion(join(ROOT, 'legacy', 'vscode', 'package.json'), (j) => { j.version = next; });
-const legacyToml = join(ROOT, 'legacy', 'pypi', 'pyproject.toml');
-setTomlVersion(legacyToml);
-if (existsSync(legacyToml)) {
-  writeFileSync(legacyToml, readFileSync(legacyToml, 'utf8').replace(/"mkdocs-semantic-markdown==[^"]*"/, `"mkdocs-semantic-markdown==${next}"`));
-}
-
 const changelogPath = join(ROOT, 'extension', 'CHANGELOG.md');
 const changelog = readFileSync(changelogPath, 'utf8');
 if (!changelog.includes(`## ${next} `)) {

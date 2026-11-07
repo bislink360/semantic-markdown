@@ -9,8 +9,8 @@ import {
 import { addChangelogRules, changelogEntries } from './markdownItChangelog';
 import { expandIncludes, includedLinks } from './markdownItInclude';
 import {
-  annotateContainers, collectVariables, containerBlock, envFigures, footnoteDefinition, footnoteReference, footnoteTail, frontMatterBlock,
-  headingAttrs, headingIds, hostSpec, inlineDirective, inlineVariable, mark, mathBlock, mathInline, numberFigures, sourceLines, styledSpan, taskLists,
+  annotateContainers, collectVariables, containerBlock, envBlockIds, envFigures, footnoteDefinition, footnoteReference, footnoteTail, frontMatterBlock,
+  headingAttrs, headingIds, hostSpec, indexBlockIds, inlineDirective, inlineVariable, mark, mathBlock, mathInline, numberFigures, sourceLines, styledSpan, taskLists,
   variablesAsText,
 } from './markdownItRules';
 import { glossaryTerms } from './markdownItGlossary';
@@ -150,6 +150,8 @@ export function applySmd(md: MarkdownIt, features: SmdFeatures, ctx: SmdContext)
   // After linkify and the typographer, so URLs are links by then; before source lines.
   if (features.containers && features.glossary) md.core.ruler.push('smd_glossary', glossaryTerms);
   addCorePasses(md, features);
+  // After heading ids, task ids, included blocks and glossary terms, so `:ref[id]` can name any block (D4).
+  if (features.directives) md.core.ruler.push('smd_block_ids', indexBlockIds);
   if (features.fences) {
     const previous: RenderRule = md.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts));
     md.renderer.rules.fence = fenceRule(previous, ctx, features.codeFrames);
@@ -242,7 +244,7 @@ function addDirectives(md: MarkdownIt, ctx: SmdContext): void {
   md.inline.ruler.before('emphasis', 'smd_directive', (state, silent) => inlineDirective(state, silent, ctx));
   md.renderer.rules.smd_ref = (tokens, idx, _opts, env) => {
     const id = (tokens[idx].meta as { id: string }).id;
-    return renderRef(id, envFigures(env).get(id), ctx.messages(env));
+    return renderRef(id, envFigures(env).get(id), ctx.messages(env), envBlockIds(env).get(id));
   };
 }
 

@@ -73,6 +73,8 @@ interface Block {
   bases: Array<string | null>;
   /** Ids other than heading ids, outside footnote definitions. */
   ids: string[];
+  /** The body-relative line each of `ids` is given on: the line its block-level token starts on. */
+  idLines: number[];
   figures: FigureSource[];
   /** Code blocks in the block (nested ones too), [first, end) with body-relative lines. */
   code: Array<[number, number]>;
@@ -245,6 +247,24 @@ function inPlaceFootnotes(instance: MarkdownIt): MarkdownIt {
 /** Recent documents: the final results by text, and the block states edits start from. */
 const results: Array<{ text: string; result: ParseResult }> = [];
 const states: State[] = [];
+/** Inside withParses: every text parsed since it began. */
+let kept: Map<string, ParseResult> | undefined;
+
+/**
+ * Run `make` with every text it parses kept until it returns, so none is parsed twice in it. One agent view parses an
+ * included file, its included lines and texts made from them more than once, more texts than the three recent ones
+ * kept above. Nothing is kept after `make` returns. Inside another withParses, it shares that one.
+ */
+export function withParses<T>(make: () => T): T {
+  if (kept) return make();
+  kept = new Map();
+  try {
+    return make();
+  } finally {
+    kept = undefined;
+  }
+}
+
 /** The opening lines of the fenced code blocks of each result (see fenceLines): zero-based, in the whole document. */
 const fenceStarts = new WeakMap<ParseResult, number[]>();
 /** The GitHub alerts of each result (see alertLines), in the whole document. */
@@ -258,6 +278,30 @@ const shiftAlert = (a: AlertLines, delta: number): AlertLines => ({ ...a, start:
  */
 export function alertLines(text: string): readonly AlertLines[] {
   return alertsOf.get(parseSmd(text)) ?? [];
+}
+
+/**
+ * A block that gives an id: a heading (by its `{#id}`, or by its slug, which changes with its text and so is not
+ * `stable`) or an element with an id attribute (a task's or container's `{#id}`, a figure, raw HTML).
+ */
+export interface IdBlock { line: number; heading: boolean; stable: boolean }
+
+/** The blocks that give each id, of each result (see idOwners). */
+const ownersOf = new WeakMap<ParseResult, ReadonlyMap<string, readonly IdBlock[]>>();
+
+function addOwner(owners: Map<string, IdBlock[]>, id: string, owner: IdBlock): void {
+  const list = owners.get(id);
+  if (list) list.push(owner);
+  else owners.set(id, [owner]);
+}
+
+/**
+ * Every id the document's blocks give, with each block that gives it, in document order, zero-based lines in the
+ * whole document. Two owners make an id ambiguous (see ids.ts). Ids rendering makes up for footnotes, and those in
+ * footnote definitions and the front matter title, are not listed.
+ */
+export function idOwners(text: string): ReadonlyMap<string, readonly IdBlock[]> {
+  return ownersOf.get(parseSmd(text)) ?? new Map();
 }
 
 /** The task lines of each result (see renderedTaskLines), in the whole document. */
@@ -317,11 +361,24 @@ function cutLines(text: string, count: number): string[] {
 export function resetParseCache(): void {
   results.length = 0;
   states.length = 0;
+  kept?.clear();
 }
 
+/**
+ * Internal, for test/bench/profile.ts only: how much parsing ran since the benchmark last zeroed it. Not API and read
+ * by nothing else. `calls` and `cached` are parseSmd calls and cache hits, `full` and `incremental` the block parses
+ * behind the misses, `ranges` and `lines` the markdown-it runs and the lines they read; `figures` is expandedFigures.
+ */
+export const parseCounts = { calls: 0, cached: 0, full: 0, incremental: 0, ranges: 0, lines: 0, figures: 0 };
+
 export function parseSmd(text: string): ParseResult {
-  const hit = results.find((r) => r.text === text);
-  if (hit) return hit.result;
+  parseCounts.calls++;
+  const hit = kept?.get(text) ?? results.find((r) => r.text === text)?.result;
+  if (hit) {
+    parseCounts.cached++;
+    kept?.set(text, hit);
+    return hit;
+  }
 
   const fm = parseFrontMatter(text);
   // markdown-it treats a lone \r as a line break, but line numbers everywhere else split on \r?\n.
@@ -333,6 +390,7 @@ export function parseSmd(text: string): ParseResult {
   const headings: Heading[] = [];
   const ids = new Set<string>();
   const slugs = new Map<string, number>();
+  const owners = new Map<string, IdBlock[]>();
   for (const block of state.blocks) {
     block.headings.forEach((h, i) => {
       // The same de-duplication as a full parse: explicit ids don't count, repeats get -1, -2…
@@ -345,8 +403,12 @@ export function parseSmd(text: string): ParseResult {
       }
       headings.push({ ...h, slug, line: h.line + fm.bodyStartLine });
       ids.add(slug);
+      addOwner(owners, slug, { line: h.line + fm.bodyStartLine, heading: true, stable: base === null });
     });
-    for (const id of block.ids) ids.add(id);
+    block.ids.forEach((id, i) => {
+      ids.add(id);
+      addOwner(owners, id, { line: block.idLines[i] + fm.bodyStartLine, heading: false, stable: true });
+    });
   }
   for (const id of footnoteIds(state.blocks)) ids.add(id);
   // The document header renders the title and summary as inline Markdown.
@@ -364,11 +426,13 @@ export function parseSmd(text: string): ParseResult {
   };
   fenceStarts.set(result, state.blocks.flatMap((b) => b.fences).map((line) => line + fm.bodyStartLine));
   alertsOf.set(result, state.blocks.flatMap((b) => b.alerts).map((a) => shiftAlert(a, fm.bodyStartLine)));
+  ownersOf.set(result, owners);
   tasksOf.set(result, new Set(state.blocks.flatMap((b) => b.tasks).map((line) => line + fm.bodyStartLine)));
   rowsOf.set(result, new Set(state.blocks.flatMap((b) => b.rows).map((line) => line + fm.bodyStartLine)));
   itemsOf.set(result, state.blocks.flatMap((b) => b.items).map((item) => shiftItem(item, fm.bodyStartLine)));
   results.unshift({ text, result });
   results.length = Math.min(results.length, 3);
+  kept?.set(text, result);
   return result;
 }
 
@@ -517,6 +581,7 @@ function update(lines: string[], vars: ParseVariables): State {
 
 /** Parse everything. Inline parsing needs every reference label, so repeat once if new ones turn up. */
 function full(lines: string[], vars: ParseVariables, labels: string[] = []): State {
+  parseCounts.full++;
   for (;;) {
     const parsed = parseRange(lines, 0, lines.length, { labels, vars: vars.data, spec: vars.spec }, true);
     const state: State = { lines, ...parsed, refKey: labels.join('\u0001'), vars };
@@ -527,6 +592,7 @@ function full(lines: string[], vars: ParseVariables, labels: string[] = []): Sta
 }
 
 function incremental(old: State, lines: string[], prefix: number, suffix: number): State | undefined {
+  parseCounts.incremental++;
   const delta = lines.length - old.lines.length;
   const damageEnd = lines.length - suffix; // first unchanged line after the edit, in new lines
   // Restart at the last block that starts before the changed line (the edit may extend or end it), or
@@ -607,6 +673,7 @@ function shift(block: Block, delta: number): Block {
     fences: block.fences.map((line) => line + delta),
     definitions: block.definitions.map((d) => ({ ...d, line: d.line + delta })),
     alerts: block.alerts.map((a) => shiftAlert(a, delta)),
+    idLines: block.idLines.map((line) => line + delta),
     tasks: block.tasks.map((line) => line + delta),
     rows: block.rows.map((line) => line + delta),
     items: block.items.map((item) => shiftItem(item, delta)),
@@ -620,6 +687,8 @@ function shift(block: Block, delta: number): Block {
 function parseRange(
   lines: string[], from: number, to: number, scope: { labels: string[]; vars: Variables; spec: SpecVersion }, complete: boolean, carried: Definition[] = [],
 ): { blocks: Block[]; trailing: Definition[]; mathHorizon: number } {
+  parseCounts.ranges++;
+  parseCounts.lines += to - from;
   const env = newEnv(from, scope.labels, scope.vars, scope.spec);
   acceptAnyFootnote(env); // which labels are defined is known once every block is (footnoteIds)
   const items: ItemsByText = new Map();
@@ -654,7 +723,7 @@ function parseRange(
   let d = 0;
   for (const g of groups) {
     const block: Block = {
-      start: g.start, end: g.end, headings: [], bases: [], ids: [], figures: figuresIn(g.tokens, from), code: linesOf(g.tokens, from, CODE_TOKENS),
+      start: g.start, end: g.end, headings: [], bases: [], ids: [], idLines: [], figures: figuresIn(g.tokens, from), code: linesOf(g.tokens, from, CODE_TOKENS),
       math: linesOf(g.tokens, from, MATH_TOKENS), inlineMath: multiLineMath(g.tokens, lines, from),
       fences: linesOf(g.tokens, from, ['fence']).map(([first]) => first), definitions: [], notes: [], noteRefs: [], alerts: alertsIn(g.tokens, from),
       tasks: taskLinesIn(g.tokens, from), rows: linesOf(g.tokens, from, ['tr_open']).map(([first]) => first), items: multiLineItems(g.tokens, lines, from, items),
@@ -664,16 +733,18 @@ function parseRange(
       h++;
     }
     while (d < definitions.length && definitions[d].line < g.end) block.definitions.push(definitions[d++]);
-    collectBlockIds(g.tokens, block, scope.spec);
+    collectBlockIds(g.tokens, block, scope.spec, from);
     blocks.push(block);
   }
   return { blocks, trailing: complete ? definitions.slice(d) : [], mathHorizon };
 }
 
-/** A block's ids, footnote definitions and references; ids inside a definition go with it. */
-function collectBlockIds(tokens: Token[], block: Block, spec: SpecVersion): void {
+/** A block's ids, footnote definitions and references; ids inside a definition go with it. `from` is the first line parsed. */
+function collectBlockIds(tokens: Token[], block: Block, spec: SpecVersion, from: number): void {
   const open: number[] = [];
+  let line = block.start;
   for (const t of tokens) {
+    if (t.map) line = from + t.map[0];
     if (t.type === 'smd_footnote_definition_open') {
       open.push(block.notes.push({ label: (t.meta as { label: string }).label, ids: [] }) - 1);
       continue;
@@ -684,6 +755,7 @@ function collectBlockIds(tokens: Token[], block: Block, spec: SpecVersion): void
     }
     const inside = open[open.length - 1] ?? -1;
     collectIds([t], inside < 0 ? block.ids : block.notes[inside].ids, true, spec);
+    while (block.idLines.length < block.ids.length) block.idLines.push(line);
     block.noteRefs.push(...noteRefsIn(t, inside));
   }
 }

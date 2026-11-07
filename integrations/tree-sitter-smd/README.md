@@ -7,7 +7,7 @@ A [Tree-sitter](https://tree-sitter.github.io/) grammar for **Semantic Markdown*
 
 ## How it works
 
-Markdown in Tree-sitter is already two grammars: [tree-sitter-markdown](https://github.com/tree-sitter-grammars/tree-sitter-markdown) for blocks and `markdown_inline` for inline text. This grammar doesn't fork them. It parses only what `.smd` adds (see [docs/SPEC.md](../../docs/SPEC.md)), and the queries inject Markdown for the rest.
+Markdown in Tree-sitter is already two grammars: [tree-sitter-markdown](https://github.com/tree-sitter-grammars/tree-sitter-markdown) for blocks and `markdown_inline` for inline text. This grammar doesn't fork them. It parses only what `.smd` adds (see [docs/reference/spec.md](../../docs/reference/spec.md)), and the queries inject Markdown for the rest.
 
 - **Parsed here:**
   - front matter (injected as YAML)
@@ -20,7 +20,7 @@ Container and directive names are not fixed in the grammar: a name it doesn't kn
 
 ### Spec versions
 
-Like the renderer, the grammar reads a document with the rules its front matter selects ([docs/SPEC.md §10](../../docs/SPEC.md)). `smd: 2` (also `"2"`, `2.0`, or a higher whole number) selects spec v2. No `smd` key, `smd: 1`, or a value that isn't a whole number selects spec v1. In a spec v2 document:
+Like the renderer, the grammar reads a document with the rules its front matter selects ([docs/reference/spec.md §10](../../docs/reference/spec.md)). `smd: 2` (also `"2"`, `2.0`, or a higher whole number) selects spec v2. No `smd` key, `smd: 1`, or a value that isn't a whole number selects spec v1. In a spec v2 document:
 
 | Rule | Spec v2 (`smd: 2`) | Spec v1 |
 |---|---|---|
@@ -123,7 +123,7 @@ Check with `:checkhealth nvim-treesitter` and `:InspectTree` in a `.smd` buffer.
 
 ### Helix
 
-In `languages.toml` (`~/.config/helix/languages.toml`), declare the grammar and use it for the `smd` language. With the language server from [EDITORS.md](../../docs/EDITORS.md#helix), replace that entry's `grammar = "markdown"` with this:
+In `languages.toml` (`~/.config/helix/languages.toml`), declare the grammar and use it for the `smd` language. With the language server from [guides/editors.md](../../docs/guides/editors.md#helix), replace that entry's `grammar = "markdown"` with this:
 
 ```toml
 [[language]]
@@ -155,7 +155,7 @@ The `cp` is run from this folder (any checkout of the repository at the same tag
 
 ### Zed
 
-Zed reads grammars from extensions, so the grammar goes into a small extension like the one in [EDITORS.md](../../docs/EDITORS.md#zed). Declare the grammar in `extension.toml` instead of Markdown's:
+Zed reads grammars from extensions, so the grammar goes into a small extension like the one in [guides/editors.md](../../docs/guides/editors.md#zed). Declare the grammar in `extension.toml` instead of Markdown's:
 
 ```toml
 [grammars.smd]
@@ -178,7 +178,7 @@ npm ci                         # tree-sitter-cli, pinned in package.json
 npx tree-sitter generate --abi 14
 npx tree-sitter test           # test/corpus/*.txt
 node scripts/parse-all.mjs     # every .smd file in the repository, also with CRLF line endings
-npx tree-sitter parse ../../examples/showcase.smd
+npx tree-sitter parse ../../extension/test/samples/showcase.smd
 ```
 
 - **Generated files:** `src/parser.c`, `src/grammar.json`, `src/node-types.json` and `src/tree_sitter/` are generated and committed, as Tree-sitter grammars conventionally are, so editors can compile the parser without the CLI. Regenerate them after changing `grammar.js`; CI checks that they are up to date.

@@ -12,7 +12,7 @@ This package provides the complete engine as a **library** and the **`smd` CLI**
 
 - 📦 One install gives you the render, validate, fix, convert, agent-view, outline and task-extraction tools
 - 🧩 CommonJS + ESM + TypeScript types; runs in Node 22+ and in bundlers/browsers (the library has no `fs` dependency)
-- 🤖 Built for LLM pipelines: `agentView()` cuts 5–37% of tokens from a whole document while keeping meaning, and about 80% when an agent reads only the section it needs ([measured](https://github.com/bislink360/semantic-markdown/blob/main/docs/TOKENS.md))
+- 🤖 Built for LLM pipelines: `agentView()` cuts 5–37% of tokens from a whole document while keeping meaning, and about 80% when an agent reads only the section it needs ([measured](https://github.com/bislink360/semantic-markdown/blob/main/docs/reports/tokens.md))
 
 ## Install
 
@@ -59,7 +59,7 @@ smd lsp --stdio                       # language server for Neovim, Helix, Zed�
 
 Run `smd --help` for every option. The export commands before 2.0, `smd render`, `smd to-md`, `smd pdf` and `smd docx`, still work as before.
 
-The package also installs **`smd-language-server`**, the same as `smd lsp`: point your editor's LSP client at `smd-language-server --stdio` for `.smd` files to get diagnostics with quick fixes, the outline, symbol search, hover, completion, go to definition and formatting. Setups for Neovim, Helix and Zed: [editor guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/EDITORS.md).
+The package also installs **`smd-language-server`**, the same as `smd lsp`: point your editor's LSP client at `smd-language-server --stdio` for `.smd` files to get diagnostics with quick fixes, the outline, symbol search, hover, completion, go to definition and formatting. Setups for Neovim, Helix and Zed: [editor guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/editors.md).
 
 ## Library
 
@@ -84,7 +84,7 @@ const { html, frontMatter, headings, spec } = renderSmd(source, {
   spec: 2,                                   // spec version for documents without an `smd:` key (default 1); their own `smd:` wins
 });
 
-specVersion(source);                         // 1 or 2: which rules read the document (its `smd:`; see SPEC.md §10)
+specVersion(source);                         // 1 or 2: which rules read the document (its `smd:`; see docs/reference/spec.md §10)
 specVersion(frontMatter);                    // the same from front matter you already parsed
 LATEST_SPEC;                                 // 2: the newest spec version this release reads; type SpecVersion = 1 | 2
 
@@ -151,7 +151,7 @@ It turns on `headingIds`, `frontMatter`, `codeFrames` and `sourceLines`, sets yo
 
 **`readFile` (since 2.0)** has one signature for `renderSmd` and the plugin, `ReadFile = (relativePath: string, env?: unknown) => string | undefined` (exported as a type). `env` is the render's markdown-it env, the same object for every file one render reads: the `env` you passed to `md.render`, or `renderSmd`'s own (opaque). A one-argument function works for both.
 
-Each rule is named `smd_…`, so `md.disable('smd_mark')` turns a single one off. The blocks are styled by `smd.css` on their own; wrap the output in `<article class="smd-doc">` for the `.smd` typography too. Mermaid blocks render as `<pre class="smd-mermaid">` source inside `.smd-diagram`, ready for `mermaid.run({ querySelector: 'pre.smd-mermaid' })`. Figures are numbered per `md.render` call, and `:ref[id]` resolves against the figures of that call (they are kept on the `env` as `smdFigures`). Two things need the whole document and stay with `renderSmd`: the computed `:::risk-matrix` grid (the plugin renders its title and body) and the `toc: true` table of contents.
+Each rule is named `smd_…`, so `md.disable('smd_mark')` turns a single one off. The blocks are styled by `smd.css` on their own; wrap the output in `<article class="smd-doc">` for the `.smd` typography too. Mermaid blocks render as `<pre class="smd-mermaid">` source inside `.smd-diagram`, ready for `mermaid.run({ querySelector: 'pre.smd-mermaid' })`. Figures are numbered per `md.render` call, and `:ref[id]` resolves against the figures of that call (they are kept on the `env` as `smdFigures`), or else the one block that gives the id (the render's block ids are kept on the `env` as `smdBlockIds`). Two things need the whole document and stay with `renderSmd`: the computed `:::risk-matrix` grid (the plugin renders its title and body) and the `toc: true` table of contents.
 
 ### remark and rehype plugins (Astro, Docusaurus, Next.js)
 
@@ -255,7 +255,7 @@ const diagnostics = validateSmd(source, { fileExists: (p) => fs.existsSync(p) })
 const { text, applied } = applyFixes(source, diagnostics);
 ```
 
-Every diagnostic has a stable `code` (`container/unclosed`, `attrs/value`, `mermaid/type`, `task/overdue`, …). They're listed in the [specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md#7-validation-rules).
+Every diagnostic has a stable `code` (`container/unclosed`, `attrs/value`, `mermaid/type`, `task/overdue`, …). They're listed in the [specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/spec.md#7-validation-rules).
 
 ```ts
 // Turn rules off or change their severity, by code, category or '*'; the most specific key wins.
@@ -406,8 +406,8 @@ People read this; agents skip it.
 
 ## More
 
-- **VS Code extension:** live preview, Block Editor, validation, IntelliSense and agent view. Install **Semantic Markdown** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.semantic-markdown), or `semantic-markdown-X.Y.Z.vsix` from the [latest GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) for Cursor, VSCodium and Windsurf (the Open VSX listing is coming); see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/INSTALL.md).
-- **AI agent skills** for Claude and other agents: [skills guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/SKILLS.md)
-- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/FEATURES.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/SPEC.md) · [Examples](https://github.com/bislink360/semantic-markdown/tree/main/examples)
+- **VS Code extension:** live preview, Block Editor, validation, IntelliSense and agent view. Install **Semantic Markdown** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bislink360.semantic-markdown), or `semantic-markdown-X.Y.Z.vsix` from the [latest GitHub release](https://github.com/bislink360/semantic-markdown/releases/latest) for Cursor, VSCodium and Windsurf (the Open VSX listing is coming); see the [install guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/install.md).
+- **AI agent skills** for Claude and other agents: [skills guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/agent-setup.md)
+- [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/features.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/spec.md)
 
 Author: **Roshan Alwis** · License: MIT

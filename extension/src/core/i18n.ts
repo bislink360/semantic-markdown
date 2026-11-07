@@ -77,6 +77,7 @@ export const EN = {
   'figure.table': 'Table {n}',
   'figure.listing': 'Listing {n}',
   'figure.missingRef': 'No figure with this id',
+  'ref.ambiguous': 'More than one block has this id',
   'quote.caption': '— {by}',
   'quote.separator': ', ',
   'footnote.heading': 'Footnotes',
@@ -121,6 +122,8 @@ export const EN = {
   'runtime.codeCopied': 'Code copied',
   'runtime.mermaidMissing': 'Mermaid is not loaded — showing diagram source.',
   'runtime.diagramError': 'Diagram error',
+  'runtime.diagram': 'Diagram',
+  'runtime.diagramSource': 'Diagram source',
 
   // Static site (smd build)
   'site.documentation': 'Documentation',

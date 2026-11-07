@@ -7,11 +7,11 @@ import { blocksHtml, renderBlocks } from '../src/core/blocks';
 import { editInline, scanInline, SPAN, type InlineChange, type InlineItem } from '../src/core/inlineEdit';
 import { NAMED_COLORS } from '../src/core/spec';
 import { shownValues, substituteLine } from '../src/core/variables';
-import { exampleDocuments, fuzzCase, prng, type Random } from './fuzz/generate';
+import { sampleDocuments, fuzzCase, prng, type Random } from './fuzz/generate';
 
 /**
  * Inline directives and styled spans for the Block Editor's inline forms (src/core/inlineEdit.ts): the scan finds
- * what rendering numbers, in the same order, over every example, the compatibility corpus and generated documents;
+ * what rendering numbers, in the same order, over every sample, the compatibility corpus and generated documents;
  * code, math and escapes are skipped; an edit changes only the item's own text. Rendering without `inlineIndex`
  * is renderSmd's HTML, and with it only the marks are added.
  *
@@ -21,7 +21,7 @@ const RUNS = Number(process.env.SMD_FUZZ_RUNS ?? 300);
 const SEED = Number(process.env.SMD_FUZZ_SEED ?? 20261015);
 
 const corpusDir = path.join(__dirname, 'compat', 'corpus');
-const examplesDir = path.join(__dirname, '..', '..', 'examples');
+const samplesDir = path.join(__dirname, 'samples');
 const readDir = (dir: string) =>
   fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort().map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, f), 'utf8') }));
 const options = (dir?: string): RenderOptions => ({
@@ -33,11 +33,11 @@ const options = (dir?: string): RenderOptions => ({
 });
 
 const documents = [
-  ...readDir(examplesDir).map((d) => ({ ...d, name: `examples/${d.name}`, options: options(examplesDir) })),
+  ...readDir(samplesDir).map((d) => ({ ...d, name: `samples/${d.name}`, options: options(samplesDir) })),
   ...readDir(corpusDir).map((d) => ({ ...d, name: `corpus/${d.name}`, options: options(corpusDir) })),
 ];
 const random = prng(SEED);
-const seeds = exampleDocuments();
+const seeds = sampleDocuments();
 const generated = Array.from({ length: RUNS }, (_, i) => ({ name: `fuzz case ${i} (seed ${SEED})`, text: fuzzCase(random, seeds), options: options() }));
 const LINE_BREAK = /\r?\n/;
 const MARK = /data-smd-inline="(\d+)"/g;
@@ -78,7 +78,7 @@ function agree(items: readonly InlineItem[], rendered: NonNullable<ReturnType<ty
   return undefined;
 }
 
-test('the scan finds every inline directive and span rendering numbers, in order, in every example, corpus and generated document', () => {
+test('the scan finds every inline directive and span rendering numbers, in order, in every sample, corpus and generated document', () => {
   let total = 0;
   for (const doc of [...documents, ...generated]) {
     const r = renderBlocks(doc.text, { ...doc.options, inlineIndex: true });
@@ -96,7 +96,7 @@ test('the scan finds every inline directive and span rendering numbers, in order
   assert.ok(total > 80, `the documents have inline items (${total})`);
 });
 
-test('every item of the examples and the corpus that is on one line is placed on it', () => {
+test('every item of the samples and the corpus that is on one line is placed on it', () => {
   for (const doc of documents) {
     const lines = doc.text.split(LINE_BREAK);
     const r = renderBlocks(doc.text, { ...doc.options, inlineIndex: true });

@@ -19,7 +19,7 @@ The checker computes the **required** bump. A release may bump more than require
 `SMD_VERSION` changes only when documents written for the old format would be read differently. That is rare and always implies a major release. When it happens:
 
 - The validator accepts both versions for at least one major cycle and warns on the old one.
-- `docs/SPEC.md` gets a migration section.
+- `docs/reference/spec.md` gets a migration section.
 - `smd migrate` (or `--fix`) upgrades documents automatically where possible.
 
 ## Pre-releases

@@ -70,15 +70,15 @@ export function downloadsTable(version) {
     '',
     '| Asset | What it is | How to install |',
     '|---|---|---|',
-    `| \`semantic-markdown-${version}.vsix\` | VS Code extension | \`code --install-extension semantic-markdown-${version}.vsix\`, or Extensions → ⋯ → Install from VSIX… ([guide](${docs}/INSTALL.md)) |`,
+    `| \`semantic-markdown-${version}.vsix\` | VS Code extension | \`code --install-extension semantic-markdown-${version}.vsix\`, or Extensions → ⋯ → Install from VSIX… ([guide](${docs}/guides/install.md)) |`,
     `| \`semantic-markdown-${version}.tgz\` | npm package (library + \`smd\` CLI), the same file as on npm | \`npm install -g ./semantic-markdown-${version}.tgz\` |`,
-    `| \`semantic-markdown-writer.zip\` | Agent skill: create and edit \`.smd\` following the rules | Unzip into \`~/.claude/skills/\` or upload in Claude → Settings → Capabilities → Skills ([guide](${docs}/SKILLS.md)) |`,
+    `| \`semantic-markdown-writer.zip\` | Agent skill: create and edit \`.smd\` following the rules | Unzip into \`~/.claude/skills/\` or upload in Claude → Settings → Capabilities → Skills ([guide](${docs}/guides/agent-setup.md)) |`,
     '| `semantic-markdown-reader.zip` | Agent skill: token-efficient reading | Same as above |',
-    `| \`semantic-markdown-playground.zip\` | Web playground: edit, preview and share \`.smd\` in the browser | Unzip and open \`playground/index.html\`, or serve the folder ([guide](${docs}/INSTALL.md#web-playground)) |`,
-    `| \`mkdocs_semantic_markdown-${version}-py3-none-any.whl\` | MkDocs plugin (Python wheel; needs Node.js 22+) | \`pip install ./mkdocs_semantic_markdown-${version}-py3-none-any.whl\` ([guide](${docs}/INSTALL.md#mkdocs-plugin)) |`,
+    `| \`semantic-markdown-playground.zip\` | Web playground: edit, preview and share \`.smd\` in the browser | Unzip and open \`playground/index.html\`, or serve the folder ([guide](${docs}/guides/install.md#web-playground)) |`,
+    `| \`mkdocs_semantic_markdown-${version}-py3-none-any.whl\` | MkDocs plugin (Python wheel; needs Node.js 22+) | \`pip install ./mkdocs_semantic_markdown-${version}-py3-none-any.whl\` ([guide](${docs}/guides/install.md#mkdocs-plugin)) |`,
     `| \`mkdocs_semantic_markdown-${version}.tar.gz\` | MkDocs plugin source distribution | \`pip install ./mkdocs_semantic_markdown-${version}.tar.gz\` |`,
-    `| \`semantic-markdown-obsidian-${version}.zip\` | Obsidian plugin (a \`styled-markdown\` folder, the plugin's ID, with \`main.js\`, \`manifest.json\` and \`styles.css\`) | Unzip into your vault's \`.obsidian/plugins/\`, then turn it on in Settings → Community plugins ([guide](${docs}/INSTALL.md#obsidian-plugin)) |`,
-    `| \`semantic-markdown-jetbrains-${version}.zip\` | JetBrains plugin (IntelliJ IDEA 2025.3+, PyCharm, WebStorm…): highlighting and the language server; needs Node.js 22+ | Settings → Plugins → ⚙ → Install Plugin from Disk… ([guide](${docs}/INSTALL.md#jetbrains-ides)) |`,
+    `| \`semantic-markdown-obsidian-${version}.zip\` | Obsidian plugin (a \`styled-markdown\` folder, the plugin's ID, with \`main.js\`, \`manifest.json\` and \`styles.css\`) | Unzip into your vault's \`.obsidian/plugins/\`, then turn it on in Settings → Community plugins ([guide](${docs}/guides/install.md#obsidian-plugin)) |`,
+    `| \`semantic-markdown-jetbrains-${version}.zip\` | JetBrains plugin (IntelliJ IDEA 2025.3+, PyCharm, WebStorm…): highlighting and the language server; needs Node.js 22+ | Settings → Plugins → ⚙ → Install Plugin from Disk… ([guide](${docs}/guides/editors.md#jetbrains-ides)) |`,
   ].join('\n');
 }
 

@@ -23,6 +23,7 @@ Style text with [named colors]{color=blue}, ==highlights== and badges: :badge[Sh
 
 ```mermaid
 flowchart LR
+    accTitle: Write, check, share
     A[Write .smd] --> B{Valid?}
     B -- no --> A
     B -- yes --> C[Share]

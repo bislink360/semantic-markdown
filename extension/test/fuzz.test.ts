@@ -7,7 +7,7 @@ import {
   type Diagnostic, type ValidateOptions,
 } from '../src/core';
 import { migrationPlan } from '../src/core/migrate';
-import { exampleDocuments, fuzzCase, prng } from './fuzz/generate';
+import { sampleDocuments, fuzzCase, prng } from './fuzz/generate';
 
 /**
  * Fuzz the core with generated and mutated documents. Every entry point must accept any text: no
@@ -158,10 +158,10 @@ function shrink(text: string): string {
 test(`fuzz: ${RUNS} generated documents (seed ${SEED})`, (t) => {
   // KaTeX warns on the console about the Unicode noise in generated math; it is not a failure.
   t.mock.method(console, 'warn', () => {});
-  const examples = exampleDocuments();
+  const samples = sampleDocuments();
   const random = prng(SEED);
   for (let i = 0; i < RUNS; i++) {
-    const text = fuzzCase(random, examples);
+    const text = fuzzCase(random, samples);
     const problem = check(text);
     if (!problem) continue;
     const small = shrink(text);
@@ -173,6 +173,6 @@ test(`fuzz: ${RUNS} generated documents (seed ${SEED})`, (t) => {
   }
 });
 
-test('fuzz: every example passes the invariants', () => {
-  for (const text of exampleDocuments()) assert.equal(check(text), undefined);
+test('fuzz: every sample passes the invariants', () => {
+  for (const text of sampleDocuments()) assert.equal(check(text), undefined);
 });

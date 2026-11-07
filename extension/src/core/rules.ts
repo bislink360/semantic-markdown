@@ -1,3 +1,4 @@
+import { maskCodeSpans } from './footnotes';
 import { suggest } from './util';
 import type { Diagnostic, Severity } from './validate';
 
@@ -32,6 +33,7 @@ export const RULE_CODES: Record<string, string> = {
   'directive/content': 'Inline directive needs `[content]`',
   'mermaid/type': 'Unknown Mermaid diagram type',
   'mermaid/empty': 'Empty Mermaid diagram',
+  'mermaid/acc-title': 'Mermaid diagram that screen readers can only call "Diagram": no `accTitle:`, no `:::figure` caption, no title of its own',
   'mermaid/syntax': 'Mermaid diagram does not parse (checked where a Mermaid parser is available: the editor and the CLI)',
   'math/syntax': 'KaTeX parse error',
   'math/unclosed': 'Display math `$$` is never closed',
@@ -47,12 +49,16 @@ export const RULE_CODES: Record<string, string> = {
   'include/depth': 'Includes nest more than 8 deep',
   'include/section-match': 'The `:::include` `section` finds a heading only by a part of its text; spec v2 matches an exact id or the whole text',
   'include/too-large': 'Includes read more than a document may (200 includes, 2,000,000 characters)',
+  'id/duplicate': 'Two blocks share an id (a heading, task, container, figure or HTML element); links and feedback naming it resolve to neither',
+  'link/ambiguous-anchor': 'Link to an `#anchor` that two or more blocks share, which resolves to none of them',
   'link/github-anchor': 'Link to a heading by the id GitHub gives it (`#foo_bar`), which differs from its own id (`#foobar`)',
   'link/missing-anchor': 'Link to an `#anchor` that does not exist',
   'link/missing-file': 'Link to a relative file that does not exist',
   'link/undefined-reference': 'Reference link with no `[label]: …` definition',
   'figure/duplicate-id': 'Two `:::figure` blocks share an `{#id}`; references go to the first',
-  'figure/unknown-ref': '`:ref[id]` names no `:::figure` in this document',
+  'figure/unknown-ref': '`:ref[id]` names no `:::figure` or other block in this document',
+  'ref/unknown': 'An id attribute (`verifies`, `applies-to`) names an id no block of this document gives',
+  'ref/ambiguous': 'An id attribute or `:ref[id]` names an id two or more blocks give, so it names none of them',
   'footnote/undefined': 'Footnote reference `[^label]` with no `[^label]: …` definition (info when the document defines no footnotes)',
   'footnote/unused': 'Footnote definition that nothing references (it is not shown)',
   'footnote/duplicate': 'Second definition of a footnote label (the first one is used)',
@@ -178,7 +184,7 @@ export function readRuleConfig(data: unknown): { rules: RuleSettings; problems: 
 const COMMENT = /<!--\s*smd-(disable-next-line|disable-line|disable|enable)\b([^>]*?)\s*-->/g;
 
 /**
- * Honor suppression comments, outside code fences:
+ * Honor suppression comments, outside code fences and inline code spans (a comment quoted as `code` is an example):
  * - `<!-- smd-disable-next-line [codes] -->` for the line below
  * - `<!-- smd-disable-line [codes] -->` for its own line
  * - `<!-- smd-disable [codes] -->` … `<!-- smd-enable [codes] -->` for a range of lines
@@ -203,7 +209,8 @@ export function applySuppressions(text: string, diagnostics: Diagnostic[], repor
     }
     if (mark) fence = { char: mark[1][0], len: mark[1].length };
     let enabledHere: string[] | null = null;
-    for (const m of raw.matchAll(COMMENT)) {
+    // Code spans are blanked to spaces of the same length, so columns still match `raw`.
+    for (const m of maskCodeSpans(raw).matchAll(COMMENT)) {
       const patterns = m[2].split(/[\s,]+/).filter(Boolean);
       const start = m.index! + m[0].indexOf(m[2].trim() || '-->');
       for (const p of patterns) {

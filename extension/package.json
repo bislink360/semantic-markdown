@@ -2,7 +2,7 @@
   "name": "semantic-markdown",
   "displayName": "Semantic Markdown (.smd)",
   "description": "Semantic Markdown: Markdown for humans and AI agents. Callouts, colors, diagrams, math, decisions, risks, APIs, KPIs — with live preview, validation, and token-efficient agent views.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "publisher": "bislink360",
   "author": {
     "name": "Roshan Alwis"
@@ -41,7 +41,22 @@
     "adr",
     "ai agents",
     "llm",
-    "tokens"
+    "tokens",
+    "mcp",
+    "claude",
+    "claude code",
+    "cursor",
+    "copilot",
+    "agents.md",
+    "spec",
+    "specification",
+    "rfc",
+    "runbook",
+    "callouts",
+    "admonitions",
+    "docs as code",
+    "technical writing",
+    "validation"
   ],
   "main": "./dist/extension.js",
   "bin": {
@@ -223,6 +238,11 @@
       {
         "command": "smd.showAgentViewBrief",
         "title": "Show Brief Agent View",
+        "category": "Semantic Markdown"
+      },
+      {
+        "command": "smd.showAgentViewOmissions",
+        "title": "What the Agent View Leaves Out…",
         "category": "Semantic Markdown"
       },
       {
@@ -421,6 +441,10 @@
           "when": "editorLangId == smd"
         },
         {
+          "command": "smd.showAgentViewOmissions",
+          "when": "editorLangId == smd"
+        },
+        {
           "command": "smd.copyAgentView",
           "when": "editorLangId == smd"
         },
@@ -603,7 +627,10 @@
     "test": "node scripts/test.mjs",
     "bench": "node --import tsx test/bench/bench.ts",
     "bench:tokens": "node --import tsx test/bench/netTokens.ts",
+    "bench:profile": "node --expose-gc --import tsx test/bench/profile.ts",
+    "eval": "node --import tsx test/eval/cli.ts",
     "test:vscode": "npm run build && node test/integration/run.mjs",
+    "test:a11y": "node --import tsx test/browser/a11y.ts",
     "package": "npm run build && vsce package --no-dependencies",
     "vscode:prepublish": "npm run build",
     "build:npm": "npm run build && node scripts/build-npm.mjs && tsc -p tsconfig.npm.json",

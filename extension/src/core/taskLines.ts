@@ -3,6 +3,7 @@ import { parseFrontMatter } from './frontmatter';
 import { renderedTaskLines } from './parse';
 import { withoutHeadingAttrs } from './sections';
 import { specVersion, type SpecVersion } from './specVersion';
+import { splitTaskId } from './taskId';
 
 /**
  * The lines of a document that tasks are read from: headings (each task belongs to the one above it) and
@@ -11,7 +12,7 @@ import { specVersion, type SpecVersion } from './specVersion';
  */
 export type TaskScanLine =
   | { kind: 'heading'; line: number; text: string }
-  | { kind: 'task'; line: number; mark: string; body: string };
+  | { kind: 'task'; line: number; mark: string; body: string; id?: string };
 
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const HEADING = /^\s{0,3}#{1,6}\s+(.*?)(?:\s+\{[^{}]*\})?\s*#*\s*$/;
@@ -85,7 +86,7 @@ function fenceStep(line: string, fence: string | null): { fence: string | null; 
 }
 
 /**
- * The headings and tasks (`- [ ] …`, `1. [x] …`) of a document in order, from the first body line on (after the
+ * The headings and tasks (`- [ ] …`, `1. [x] …`) of a document in order, a task's `{#id}` read off its text (see splitTaskId), from the first body line on (after the
  * front matter when `from` is left out). A task is a line that rendering shows with a checkbox: code holds none, and
  * a task-shaped line that continues a paragraph is text. The parse is only asked about lines whose shape leaves that
  * open (see needsParse), so most documents parse nothing here.
@@ -111,7 +112,9 @@ export function scanTasks(text: string, from = parseFrontMatter(text).bodyStartL
     const m = TASK.exec(line);
     // A task's text can't be empty, as in rendering.
     if (!m?.[3].trim()) continue;
-    if (!needsParse(line, i > from ? lines[i - 1] : undefined, m[1], raw) || isTask(i)) found.push({ kind: 'task', line: i, mark: m[2], body: m[3] });
+    if (needsParse(line, i > from ? lines[i - 1] : undefined, m[1], raw) && !isTask(i)) continue;
+    const { text: body, id } = splitTaskId(m[3]);
+    found.push({ kind: 'task', line: i, mark: m[2], body, ...(id ? { id } : {}) });
   }
   return found;
 }

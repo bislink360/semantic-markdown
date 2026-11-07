@@ -233,7 +233,7 @@ test('VS Code status bar: the tooltip names spec v2 for a document that opts in;
 
 const root = path.join(__dirname, '..', '..');
 const smdFiles = (dir: string) => fs.readdirSync(path.join(root, dir)).filter((f) => f.endsWith('.smd')).map((f) => path.join(dir, f));
-const DOCUMENTS = [...smdFiles('examples'), ...smdFiles(path.join('extension', 'test', 'compat', 'corpus'))];
+const DOCUMENTS = [...smdFiles(path.join('extension', 'test', 'samples')), ...smdFiles(path.join('extension', 'test', 'compat', 'corpus'))];
 
 /**
  * The document with its `smd` line written as `line`, and `typography: true` after it unless it has the key, so spec
@@ -295,7 +295,7 @@ const READERS: Record<string, (text: string) => unknown> = {
  * `typography: true` (withVersionLine), so proposal 8 differs only in links.
  */
 const READ_DIFFERENTLY_IN_V2: Record<string, string> = {
-  'examples/showcase.smd': 'proposal 10: `version: 1.0` shows 1.0',
+  'extension/test/samples/showcase.smd': 'proposal 10: `version: 1.0` shows 1.0',
   'extension/test/compat/corpus/attribute-escapes.smd': 'proposal 6: `\\\\server` is one backslash; a value ending in one does not parse',
   'extension/test/compat/corpus/glossary.smd': 'proposal 8: API.md, a bare domain, is not a link',
   'extension/test/compat/corpus/migrate.smd': 'proposal 10: `version: 2.10` shows 2.10; 8: a bare domain is not a link; 5: `## Object {}`; 6: `\\\\server`; 7b: `:abbr[HTML]`',
@@ -312,7 +312,7 @@ const READ_DIFFERENTLY_IN_V2: Record<string, string> = {
 };
 const posix = (file: string) => file.split(path.sep).join('/');
 
-test('every reader gives the same output for smd: 1, no smd key and smd: 2, where no v2 rule applies (examples and the corpus)', () => {
+test('every reader gives the same output for smd: 1, no smd key and smd: 2, where no v2 rule applies (samples and the corpus)', () => {
   assert.ok(DOCUMENTS.length >= 20, `${DOCUMENTS.length} documents`);
   const differ = new Set<string>();
   for (const file of DOCUMENTS) {

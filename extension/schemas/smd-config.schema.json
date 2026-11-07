@@ -100,6 +100,16 @@
           ],
           "description": "Every fence/… rule. Exact codes win."
         },
+        "id/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every id/… rule. Exact codes win."
+        },
         "include/*": {
           "enum": [
             "off",
@@ -129,6 +139,16 @@
             "hint"
           ],
           "description": "Every figure/… rule. Exact codes win."
+        },
+        "ref/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every ref/… rule. Exact codes win."
         },
         "footnote/*": {
           "enum": [
@@ -500,6 +520,16 @@
           ],
           "description": "Empty Mermaid diagram"
         },
+        "mermaid/acc-title": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Mermaid diagram that screen readers can only call \"Diagram\": no `accTitle:`, no `:::figure` caption, no title of its own"
+        },
         "mermaid/syntax": {
           "enum": [
             "off",
@@ -610,6 +640,16 @@
           ],
           "description": "The :::include section matches no heading in the file"
         },
+        "id/duplicate": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Two blocks share an id (a heading, task, container, figure or HTML element); links and feedback naming it resolve to neither"
+        },
         "include/cycle": {
           "enum": [
             "off",
@@ -649,6 +689,16 @@
             "hint"
           ],
           "description": "Includes read more than a document may (200 includes, 2,000,000 characters)"
+        },
+        "link/ambiguous-anchor": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Link to an #anchor that two or more blocks share, which resolves to none of them"
         },
         "link/github-anchor": {
           "enum": [
@@ -708,7 +758,27 @@
             "info",
             "hint"
           ],
-          "description": ":ref[id] names no :::figure in this document"
+          "description": ":ref[id] names no :::figure or other block in this document"
+        },
+        "ref/unknown": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An id attribute (verifies, applies-to) names an id no block of this document gives"
+        },
+        "ref/ambiguous": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An id attribute or :ref[id] names an id two or more blocks give, so it names none of them"
         },
         "footnote/undefined": {
           "enum": [

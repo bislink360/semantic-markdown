@@ -15,7 +15,7 @@ import { fillTemplate } from '../src/core';
 
 const TODAY = '2026-09-26';
 const codes = (text: string, opts = {}) => validateSmd(text, { today: TODAY, ...opts }).map((d) => d.code);
-const prd = readFileSync(join(__dirname, '..', '..', 'examples', 'checkout-redesign.smd'), 'utf8');
+const prd = readFileSync(join(__dirname, 'samples', 'checkout-redesign.smd'), 'utf8');
 
 // ---------------------------------------------------------------------------
 // PM / developer components
@@ -104,7 +104,7 @@ test('agent view drops human-only content and styling but keeps meaning', () => 
   assert.match(r.text, /<question title="Should guest users see wallet buttons/);
   assert.match(r.text, /## Requirements {2}\[L53\]/);
   assert.match(r.text, /\[P1\] @api-team \(due 2026-09-25, OVERDUE\)/);
-  assert.match(r.text, /Checkout abandonment: 38% \(\+2\.1pp\)/);
+  assert.match(r.text, /Checkout abandonment: 38% \(\+2\.1pp, up, bad\)/, 'a metric keeps its trend and tone (contract GAP-6)');
   assert.match(r.text, /\[code: src\/pricing\.ts lines 7-13/);
   assert.deepEqual(r.skippedSections, ['Background', 'Design', 'Analytics']);
 });
@@ -485,7 +485,7 @@ test('CLI: skills install writes both self-contained skills', { skip: !existsSyn
       assert.equal(readFileSync(join(dir, name, f), 'utf8'), readFileSync(join(repoSkills, name, f), 'utf8'), `${name}/${f}`);
     }
   }
-  const out = execFileSync(process.execPath, [join(reader, 'scripts', 'smd.cjs'), 'outline', join(__dirname, '..', '..', 'examples', 'feature-spec.smd')], { encoding: 'utf8' });
+  const out = execFileSync(process.execPath, [join(reader, 'scripts', 'smd.cjs'), 'outline', join(__dirname, 'samples', 'feature-spec.smd')], { encoding: 'utf8' });
   assert.match(out, /Saved Searches · review/);
 });
 

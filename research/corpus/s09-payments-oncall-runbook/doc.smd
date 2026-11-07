@@ -1,0 +1,765 @@
+---
+smd: 2
+title: Paywise Rail on-call runbook
+summary: "This runbook is what the Paywise Rail on-call engineer uses to keep card and bank payments flowing: how to read a page, which levers are safe to pull, and when to wake someone else up."
+status: approved
+---
+
+Status: approved for use on call. Last full review on 2026-10-08 by the Rail on-call group. Owner: Payments Reliability (Kofi Annerud).
+
+This runbook is what the Paywise Rail on-call engineer uses to keep card and bank payments flowing: how to read a page, which levers are safe to pull, and when to wake someone else up. It assumes you have done the on-call onboarding and have production access through the break-glass portal.
+
+## How to use this runbook
+
+Start with the alert name. Every page from Rail carries an alert name and a link to the matching playbook below. If the alert has no playbook, go to "Unknown alert" at the end of the playbooks, declare an incident if customers are affected, and add a playbook afterwards.
+
+Read the safety rules once at the start of each shift, even if you have read them before. Most of the bad nights on Rail came from a well-meant action taken quickly, not from the original fault.
+
+The playbooks are written in the order you would normally act: confirm, contain, fix, tell people. You do not have to finish one step before starting the next if the incident is clearly bigger than one person, but you do have to say in the incident channel what you are doing before you do it.
+
+Some sections are long. If you are paged, you can skip the overview and the background and go straight to the alert's playbook and the safety rules. Everything else is for quiet hours.
+
+## Notes for automated assistants
+
+:::agent
+The on-call chat assistant and the alert triage bot both read this runbook to answer questions and to suggest next steps in the incident channel. If you are one of those tools, follow these rules.
+
+- Quote the playbook step you are relying on, with its section name, whenever you suggest an action.
+- Never suggest a command from the commands reference that changes production state (anything under "Commands that change things") unless a human on the incident has asked for it in the channel.
+- Do not suggest replaying, retrying or re-sending a capture, a refund or a payout. Point the human to the double charge playbook instead.
+- If you cannot find a playbook for an alert, say so and link to "Unknown alert". Do not improvise steps.
+- Treat anything in the background and incident history sections as history, not as current procedure.
+:::
+
+## System overview
+
+Paywise Rail is the payments gateway behind the Paywise checkout. Merchants call Rail to authorize, capture, refund and void card payments, and to start bank transfers. Rail does not move money itself. It routes each request to one of our acquirers or bank partners, records the result, and tells the merchant.
+
+In a normal week Rail handles about 38 million payment requests. The busiest hour is Friday between 18:00 and 19:00 UTC, at around 1,900 requests per second. The highest hour so far was 4,700 requests per second during the November 2025 sales weekend.
+
+```mermaid
+flowchart LR
+  M[Merchant] --> E[Edge API]
+  E --> R[Router]
+  R --> F[Fraud scoring]
+  R --> V[Token vault]
+  R --> A1[Acquirer connector: Northgate]
+  R --> A2[Acquirer connector: Coralpay]
+  R --> B[Bank transfer connector]
+  R --> L[Ledger writer]
+  L --> W[Webhook dispatcher]
+  L --> S[Settlement batch]
+  W --> M
+```
+
+| Component | What it does | Runs on | Owning team |
+|-|-|-|-|
+| Edge API | Authenticates merchants, checks rate limits and idempotency keys, validates requests | 12 pods per region | Rail Core |
+| Router | Picks an acquirer for each card request and calls it, applies retries and timeouts | 18 pods per region | Rail Core |
+| Fraud scoring | Scores every authorization before it goes to the acquirer | 8 pods per region | Risk Engineering |
+| Token vault | Swaps card numbers for tokens and back, the only service that sees full card numbers | 6 pods, dedicated cluster | Vault team |
+| Acquirer connectors | One per acquirer, translate our requests into each acquirer's format | 4 to 6 pods each | Rail Integrations |
+| Bank transfer connector | Starts and tracks bank transfers through two bank partners | 4 pods per region | Rail Integrations |
+| Ledger writer | Writes every payment state change to the payments ledger | 6 pods per region | Payments Ledger |
+| Webhook dispatcher | Tells merchants about state changes, with retries | 10 pods per region | Rail Core |
+| Settlement batch | Builds the nightly settlement files for each acquirer | Scheduled job, 01:30 UTC | Payments Ledger |
+
+Rail runs in two regions, West and Central, both active. Merchants are pinned to a home region by their account, and either region can take the other's traffic if needed. The token vault is the exception. It runs only in West, and Central calls it across regions with a budget of 40 milliseconds per call.
+
+We have two card acquirers, Northgate and Coralpay. By default the router sends 70% of card traffic to Northgate and 30% to Coralpay, split by merchant. Some merchants are pinned to one acquirer by contract and never move, whatever the weights say. The pinned list lives in the router configuration under `pinned_merchants`, and on-call does not edit it.
+
+Card networks and acquirers impose their own limits. Northgate accepts at most 3,000 requests per second from us across both regions and Coralpay at most 1,500. Going above these limits gets requests rejected with a throttling code, and repeated breaches are billed. The router has a client-side limiter set 10% below each limit.
+
+Every request carries a Rail request ID (`rr_` followed by 24 characters) and, for anything that changes state, the merchant's idempotency key. Rail keeps idempotency keys for 24 hours. A repeated request with the same key and the same body within that time returns the stored result and does not call the acquirer again. A repeated key with a different body is rejected with error `idempotency_mismatch`.
+
+### Payment states
+
+Every card payment moves through a small set of states, recorded by the ledger writer. Knowing them helps when a merchant asks why a payment looks stuck.
+
+```mermaid
+stateDiagram-v2
+  [*] --> created
+  created --> authorized
+  created --> declined
+  created --> unknown: acquirer timeout
+  unknown --> authorized: reconciled
+  unknown --> declined: reconciled
+  authorized --> captured
+  authorized --> voided
+  authorized --> expired: 7 days without capture
+  captured --> refunded: full refund
+  captured --> partially_refunded
+  partially_refunded --> refunded
+```
+
+| State | Meaning | Money moved | Can change next |
+|-|-|-|-|
+| `created` | Request received, not yet answered by the acquirer | No | Yes |
+| `authorized` | Card checked and amount reserved | No | Yes |
+| `declined` | Refused by the issuer, the acquirer or fraud scoring | No | No |
+| `unknown` | Acquirer did not answer in time | Maybe | Yes, through reconciliation only |
+| `captured` | Cardholder charged | Yes, at the next settlement | Yes |
+| `voided` | Authorization cancelled before capture | No | No |
+| `expired` | Not captured within 7 days, reservation released | No | No |
+| `partially_refunded` | Part of the capture returned | Yes | Yes |
+| `refunded` | All of the capture returned | Yes | No |
+
+A payment in `unknown` is never moved to another state by hand. Reconciliation moves it once the acquirer's report shows what happened, usually within 24 hours. Merchants see `unknown` as "pending" in their dashboard, and they are told not to retry the payment with a new idempotency key while it is pending.
+
+Authorizations expire after 7 days for most cards. Some card types used for hotel and car rental bookings can stay authorized for up to 30 days, and the router knows which merchants are allowed to use them. On-call does not extend authorizations.
+
+## Access and tooling
+
+Production access for on-call goes through the break-glass portal. A session lasts 8 hours and can be renewed twice, so 24 hours at most, after which you sign in again with your hardware key. Every session is logged, and every session that changes production state is reviewed by Payments Reliability within a week.
+
+On-call work is done from a company laptop, through the jump hosts. Personal devices are not allowed to reach production, not even to look at a dashboard. The dashboards and the paging tool work from a personal phone, which is the one exception, since you need to acknowledge pages wherever you are.
+
+The tools you need during a shift:
+
+- The paging tool, for acknowledging and escalating pages.
+- The Rail overview dashboard and the component dashboards linked from it.
+- The log search tool, with 30 days of logs.
+- `railctl` on the jump hosts, described in the commands reference.
+- The incident bot in the chat tool, for declaring incidents and running the incident channel.
+- The acquirer contact sheet, which holds phone numbers and account references for both acquirers and both bank partners. It is in the on-call vault in the password manager, not on the wiki.
+
+Check that all of these work before your first shift, and again at the start of each shift. The handover call is a good time. Expired hardware keys and laptops that lost their jump host certificates are the two usual surprises.
+
+## On-call rota and escalation
+
+Rail has a primary and a secondary on-call engineer at all times. Shifts run for one week and hand over on Mondays at 10:00 UTC, in a 15-minute call where the outgoing primary walks through open incidents, silenced alerts and anything half-finished. The handover is not optional. If the incoming primary cannot make the call, the outgoing primary stays on until they have spoken.
+
+The primary acknowledges pages and leads incidents until an incident commander takes over. The secondary is paged when the primary has not acknowledged within the time for the incident's severity, and is always paged for SEV1 and SEV2. The secondary does not need to join a SEV3 unless the primary asks.
+
+The handover call covers the same points every week, so nothing gets lost.
+
+1. Open incidents and their current state, including any temporary levers still in place.
+2. Active alert silences and when each one ends.
+3. Merchants in the webhook slow lane, and why.
+4. Planned acquirer or bank maintenance in the coming week.
+5. Deploys or migrations planned for the week that on-call should watch.
+6. Anything odd that did not become an incident.
+
+The outgoing primary writes these in the handover thread in the Rail channel before the call, and the incoming primary confirms in the same thread when they have taken over.
+
+| Role | Who | How to reach them | When |
+|-|-|-|-|
+| Rail primary | Weekly rota | Paged automatically | Every Rail alert |
+| Rail secondary | Weekly rota | Paged automatically | No acknowledgement in time, or SEV1 and SEV2 |
+| Engineering manager on call | Monthly rota of the four Payments managers | Paged automatically for SEV1, by hand otherwise | SEV1, or when you need a decision above your level |
+| Vault team on call | Vault team rota | Page "vault-oncall" | Anything touching the token vault |
+| Risk Engineering on call | Risk rota, business hours only | Page "risk-oncall" between 07:00 and 19:00 UTC on weekdays | Fraud scoring problems |
+| Finance operations | Settlement desk | Phone on the incident template, 06:00 to 22:00 UTC | Settlement and payout problems |
+| Acquirer support | Northgate and Coralpay technical desks | Phone numbers in the acquirer contact sheet | Problems on the acquirer's side |
+
+Risk Engineering has no out-of-hours rota. Outside their hours, the Rail primary may switch fraud scoring to its fail-open mode as described in the fraud scoring playbook, and nothing else on the fraud side. Model changes, rule changes and threshold changes wait for Risk Engineering.
+
+Escalate to the engineering manager on call whenever you are about to do something this runbook does not cover, whenever an incident has been SEV1 for 30 minutes without a clear cause, and whenever an acquirer or bank partner asks to speak to someone senior. You will not be blamed for escalating too early. You may well be asked why you did not escalate if you wait.
+
+Pages are acknowledged in the paging tool, not by replying to the text message. A reply to the text message does not stop the escalation timer, and the secondary will be paged anyway.
+
+Shift swaps are fine with at least 48 hours' notice and a note in the rota channel. Shorter notice needs the engineering manager on call to agree. Nobody does more than two consecutive weeks as primary, except during the December freeze, when the rota runs on volunteers and the limit is three.
+
+## Severity levels
+
+:::include{file=../_shared/incident-severity.smd}
+:::
+
+For Rail, any incident where merchants may have been charged twice, or where captures or refunds may have been lost, starts as SEV1 until shown otherwise. An authorization success rate below 90% for any acquirer for more than 5 minutes is at least SEV2.
+
+## Safety rules
+
+These rules apply to every playbook. Where a playbook seems to say otherwise, the rule wins, and the playbook needs fixing.
+
+:::danger
+> **Warning:** Never replay, retry or re-send a capture, refund or payout by hand, and never run a script that does. A capture sent twice charges the cardholder twice. Rail's idempotency protection only works for requests that carry the original key within 24 hours, and hand-built requests almost never do. In the March 2025 incident a well-meant replay of 2,300 captures charged 1,140 cardholders twice and took finance four weeks to unwind.
+:::
+
+Do not restart more than one router pod at a time in a region, and wait for the restarted pod to report ready before starting the next. Restarting several at once drops in-flight acquirer calls, and the merchant sees a timeout for a payment that may have gone through.
+
+Do not change acquirer routing weights by more than 30 percentage points in one step. Each acquirer warms up its fraud checks per merchant, and a sudden shift raises their declines for an hour or more.
+
+:::danger
+**Important:** Do not touch the token vault, its database or its network rules yourself, even with break-glass access. Page the vault team. The vault holds full card numbers, and any change outside the vault team's process puts our card data compliance at risk.
+:::
+
+Never paste a full card number, a bank account number or a customer's personal data into the incident channel, a ticket or a chat with an acquirer. Use the Rail request ID or the payment ID. If someone else pastes one, delete the message and tell the vault team, who keep the log of such exposures.
+
+Production changes during an incident go through the incident channel. Say what you are about to run, run it, and paste the result. A change that is not written in the channel did not happen as far as the postmortem is concerned.
+
+Feature flags may be changed by on-call during an incident, except flags under the `ledger.` prefix, which only the Payments Ledger team changes.
+
+## Dashboards and alerts
+
+Start every investigation on the Rail overview dashboard. It shows request rate, success rate and latency per region, per acquirer and per operation, with the last 7 days drawn faintly behind the current line so you can see what normal looks like for this hour.
+
+The alerts below page the Rail primary. Thresholds are evaluated per region unless the table says otherwise.
+
+| Alert | Fires when | Severity on page | Playbook |
+|-|-|-|-|
+| `AuthSuccessLow` | Authorization success rate for an acquirer below 92% for 5 minutes | SEV2 | Elevated authorization declines |
+| `AcquirerTimeouts` | More than 2% of calls to one acquirer time out over 3 minutes | SEV2 | Acquirer timeouts |
+| `EdgeLatencyHigh` | p99 latency at the edge above 1,200 ms for 10 minutes | SEV3 | Slow responses |
+| `WebhookBacklog` | More than 200,000 undelivered webhooks, or the oldest older than 15 minutes | SEV3 | Webhook backlog |
+| `VaultLatencyHigh` | p99 vault call above 150 ms for 5 minutes | SEV2 | Token vault slow or failing |
+| `SettlementBatchFailed` | The nightly settlement job exits with an error or has not finished by 03:30 UTC | SEV2 | Settlement batch failed |
+| `DuplicateCaptureSuspected` | Two captures for the same payment ID within 10 minutes | SEV1 | Suspected double charges |
+| `CertExpirySoon` | A client or server certificate expires within 14 days | SEV4 | Certificate expiry |
+| `FraudScoringDown` | More than 5% of fraud scoring calls fail over 5 minutes | SEV2 | Fraud scoring failing |
+| `LedgerWriteLag` | Ledger writes more than 60 seconds behind the router for 5 minutes | SEV2 | Ledger writer lagging |
+
+Our latency objective is a p99 of 800 ms for authorizations at the edge, measured over 28 days, with acquirer time included. `EdgeLatencyHigh` fires well above it on purpose, since a few minutes over 800 ms are normal during acquirer hiccups and paging on them burned people out in 2024.
+
+Do not silence an alert for more than 4 hours. A longer silence needs a ticket that says why and when it ends, linked from the silence. Silences on `DuplicateCaptureSuspected` are not allowed at all, not even for a few minutes during a deploy.
+
+Logs are kept for 30 days in the log search tool. Payment request and response bodies are not logged, only their IDs, status codes and timings. If you need a body to debug, ask the merchant for it through support, or ask the Rail Core team to enable sampled body logging, which strips card data and needs a ticket.
+
+## Playbooks
+
+### Elevated authorization declines
+
+Alert: `AuthSuccessLow`.
+
+A drop in authorization success is usually not our fault. Cardholders get declined for many reasons, and a bank having a bad night shows up as declines on our dashboard. Your first job is to find out whether the drop is spread across many issuing banks (likely us or the acquirer) or concentrated on a few (likely the banks).
+
+1. Open the declines panel on the overview dashboard and split by decline code. Codes 05 (do not honour) and 51 (insufficient funds) rising together across many banks is normal on paydays and the last days of a month. A spike in code 91 (issuer unavailable) or 96 (system error) points at the acquirer or the network.
+2. Split by issuing bank. If one or two banks make up most of the increase, it is their problem. Post in the incident channel, keep watching, and do not change routing.
+3. Split by acquirer. If the drop is on one acquirer only and spread across banks, follow "Acquirer timeouts" even if timeouts are not elevated, since the acquirer may be answering quickly with errors.
+4. Split by merchant. If one merchant makes up the drop, check whether they changed their integration recently (the merchant changes feed shows deploys they told us about). A merchant sending bad expiry dates or missing security codes looks like a decline spike. Contact them through their account manager, not directly.
+5. If nothing explains it after 20 minutes and the success rate is below 90%, raise to SEV1 and escalate.
+
+Declines are never retried by Rail on a second acquirer. Retrying a declined card on another acquirer is called cascading, and our acquirer contracts forbid it except for decline code 91 on merchants who have signed the cascading addendum. The router does this automatically for those merchants, and on-call does not turn it on for anyone else.
+
+### Acquirer timeouts
+
+Alert: `AcquirerTimeouts`.
+
+The router waits up to 6 seconds for an acquirer to answer an authorization and up to 10 seconds for a capture or refund. After that it gives up and returns `acquirer_timeout` to the merchant. A timed-out request is in an unknown state. The acquirer may have processed it, and we will find out in the reconciliation later. That is why timeouts are worse than errors.
+
+1. Check the acquirer's status page and the acquirer channel. Both acquirers post planned maintenance there, usually with 7 days' notice.
+2. Check whether the timeouts are in one region or both. If one region only, the problem is probably our network path to the acquirer. Look at the connector's connection pool panel. A pool stuck at its maximum of 200 connections per pod means requests are queuing on our side.
+3. Check the connector pods. If one pod is much slower than the others, restart that one pod. Follow the safety rule on restarts.
+4. If the timeouts are on the acquirer's side and above 5% for 10 minutes, call the acquirer's technical desk and open a case. Write the case number in the incident channel.
+5. Consider moving traffic to the other acquirer. See "Acquirer failover" below.
+
+Count the timed-out captures and refunds separately from timed-out authorizations, and write both numbers in the incident document. Timed-out authorizations mostly expire harmlessly. Timed-out captures and refunds are the ones finance operations and the Payments Ledger team will need to reconcile, and merchants will ask about them first.
+
+#### Acquirer failover
+
+:::decision{status=superseded}
+Failover between acquirers is automatic. When an acquirer's error and timeout rate stays above 5% for 3 minutes in a region, the router moves all non-pinned card traffic in that region to the other acquirer and pages the Rail primary. When the rate has been below 1% for 15 minutes, the router moves traffic back in steps of 10 percentage points every 5 minutes. On-call does not need to act unless the failover flaps, in which case set `router.failover.hold` to keep traffic where it is.
+:::
+
+Pinned merchants never fail over. Their payments fail until their acquirer recovers, and their account managers are told through the incident template.
+
+The other acquirer can only take so much. Coralpay accepts at most 1,500 requests per second, so moving all of Northgate's traffic to Coralpay at the Friday peak would hit Coralpay's limit. When the combined traffic is more than the receiving acquirer's limit, the router's client-side limiter rejects the excess with `acquirer_capacity`, and merchants retry.
+
+### Slow responses
+
+Alert: `EdgeLatencyHigh`.
+
+Edge latency is the sum of everything behind it, so this alert is a symptom, not a cause. Open the latency breakdown panel, which shows the time spent in the edge, fraud scoring, the vault, the router and the acquirer for the slowest 1% of requests.
+
+- If acquirer time dominates, follow "Acquirer timeouts", even if the timeout alert has not fired.
+- If vault time dominates, follow "Token vault slow or failing".
+- If fraud scoring time dominates, follow "Fraud scoring failing". Fraud scoring has a budget of 120 ms per call, and the router skips the score and uses the merchant's fallback rule when the budget runs out.
+- If edge or router time dominates, check CPU and garbage collection panels for those pods. A recent deploy is the usual cause. Roll back the deploy if it went out in the last 2 hours and the latency started with it. Rolling back a Rail Core deploy does not need the team's approval during an incident, but tell them in their channel.
+
+Do not scale the router beyond 30 pods per region. Above that, the connection pools to the acquirers together exceed what Northgate allows from us, and Northgate starts refusing connections. The edge can scale to 40 pods per region without that problem.
+
+### Webhook backlog
+
+Alert: `WebhookBacklog`.
+
+The webhook dispatcher tells merchants about state changes: authorized, captured, refunded, failed, disputed. Merchants rely on these to update their orders, so a backlog means shops that do not know they have been paid. It does not mean money is at risk.
+
+A webhook is retried up to 16 times over 72 hours, with the wait doubling from 30 seconds up to a maximum of 6 hours between attempts. After the last attempt it is marked failed and the merchant can fetch it through the events API for another 30 days.
+
+1. Look at the backlog by merchant. A single merchant whose endpoint is down or slow fills the backlog with retries. If one merchant makes up more than half of it, move that merchant to the slow lane with `railctl webhooks slow-lane add <merchant_id>`. The slow lane has its own workers and keeps that merchant from delaying everyone else.
+2. If the backlog is spread across merchants, check the dispatcher pods. The dispatcher can scale to 40 pods per region. Scale up in steps of 10.
+3. If the dispatcher is healthy and the backlog still grows, the ledger writer may be producing events faster than usual, for example during a settlement run or a bulk refund by a large merchant. That is expected to clear by itself within an hour.
+
+Never delete webhooks from the queue to clear a backlog. Merchants reconcile against them, and a missing webhook becomes a support case days later. The only exception is a merchant who has asked in writing, through their account manager, for undelivered webhooks to be dropped, and then only for that merchant.
+
+Merchants on the legacy webhook format (version 1) are not moved to the slow lane, because the slow lane only speaks version 2. Their webhooks wait in the main queue. There are 14 such merchants left, and the list is on the Rail Core wiki page.
+
+### Token vault slow or failing
+
+Alert: `VaultLatencyHigh`.
+
+The token vault is owned by the vault team, and you do not change it yourself. Your job is to confirm the problem, protect the rest of Rail, and get the vault team on the call.
+
+1. Page vault-oncall straight away. Do not wait to investigate first.
+2. Check whether the slowness is only from Central. Central calls the vault across regions, and a problem on the link between regions shows up as vault latency from Central only. If so, tell the vault team and the network on-call, and consider moving Central merchants to West, which the vault team can approve.
+3. Watch the router's vault circuit breaker panel. When more than 20% of vault calls fail over 30 seconds, the router opens the breaker and returns `service_unavailable` for card payments that need detokenization, which is most of them. Saved-card payments fail first, since they always need the vault. Payments where the merchant sends us a network token do not need the vault and keep working.
+4. Post the merchant notice for degraded card payments if the breaker stays open for more than 5 minutes.
+
+The vault team may ask you to switch payments to "token pass-through", where the router sends network tokens to the acquirer without detokenizing. Only the vault team can decide that, and it works only for merchants and cards that have network tokens, roughly 60% of card payments.
+
+### Fraud scoring failing
+
+Alert: `FraudScoringDown`.
+
+Every authorization is scored before it goes to the acquirer. If scoring fails, the router applies each merchant's fallback rule. Most merchants have "allow below 250 EUR, decline above", some have "allow all" and a few have "decline all". The fallback rules are set by Risk Engineering with each merchant and are not changed on call.
+
+During Risk Engineering's hours, page risk-oncall and let them lead. Outside their hours, and only if scoring has been failing for more than 15 minutes, you may switch scoring to fail-open with `railctl fraud fail-open --region <region> --minutes 60`. Fail-open skips the scoring call entirely and applies the fallback rules straight away, which removes the scoring timeout from every payment. It does not allow payments the fallback rule would decline.
+
+Fail-open lasts at most 60 minutes per command. Renew it if needed, and write each renewal in the incident channel. Risk Engineering reviews every fail-open period the next business day, so note when it started and ended.
+
+### Settlement batch failed
+
+Alert: `SettlementBatchFailed`.
+
+Every night at 01:30 UTC the settlement batch reads the day's captures and refunds from the ledger and builds one settlement file per acquirer. The files must reach Northgate by 04:00 UTC and Coralpay by 05:00 UTC. A file that misses its cut-off is settled a day late, which delays merchant payouts by a day and, for some merchants, breaks their contractual payout date.
+
+The batch normally takes 40 to 70 minutes. It runs in four stages: extract, aggregate, build files, upload. Each stage writes a checkpoint, and a rerun starts from the last good checkpoint.
+
+1. Find the failed stage in the job log. The first error line names the stage.
+2. If the extract stage failed with a database timeout, check the ledger database's replica lag. The batch reads from a replica, and it refuses to start extracting while lag is over 60 seconds. Wait for the lag to fall, then rerun with `railctl settlement rerun --date <yyyy-mm-dd>`.
+3. If the upload stage failed, the files were built correctly and only the transfer failed. Check the acquirer's file transfer status page and rerun. The upload stage refuses to upload a file the acquirer has already received, by comparing checksums, so a rerun of the upload stage cannot send a file twice.
+4. If aggregate or build failed, do not rerun more than once. A second failure in the same stage usually means bad data in the ledger, and that needs the Payments Ledger team. Page them, and call finance operations so they can warn the acquirers.
+
+You may rerun the batch yourself until 03:30 UTC. After 03:30, a rerun needs finance operations to agree on the phone, because a late file may land after the acquirer has already started its own processing and get rejected or, worse, processed in part. After 05:00 UTC, never rerun the batch at all. Finance operations then sends the files by hand the next morning, with the acquirers on the phone.
+
+The batch skips merchants who are in a payout hold, and their captures wait for the next run. That is not a failure. The hold list comes from the risk team and is not edited on call.
+
+### Suspected double charges
+
+Alert: `DuplicateCaptureSuspected`.
+
+This alert starts a SEV1, every time, until you have shown that no cardholder was charged twice. Declare the incident first, then investigate.
+
+Two captures for one payment ID can happen in three ways. The merchant sent two captures with different idempotency keys (their bug, but our problem to spot), Rail retried a capture after a timeout and both went through (our bug), or a person replayed captures by hand (a breach of the safety rules). The dashboard's duplicate captures panel lists the payment IDs, the request IDs and the idempotency keys of both captures.
+
+1. Stop new damage first. If the duplicates come from one merchant, set `router.capture.block` for that merchant. This rejects their captures with `capture_blocked`, which they will notice, so tell their account manager straight away. If the duplicates come from many merchants, page the engineering manager on call and the Rail Core on-call before doing anything else.
+2. Do not void or refund anything yourself. Undoing a double charge is done by the Payments Ledger team with finance operations, with a refund per affected payment, after they have checked with the acquirer which captures settled. Refunding the wrong capture creates a third problem.
+3. Collect the list of affected payment IDs in the incident document, and nothing more. No card data, no cardholder names.
+4. Ask the Payments Ledger team to start reconciliation against the acquirer's capture report. The report is available every hour from Northgate and every 4 hours from Coralpay.
+
+Merchants are told within 2 hours of the incident being declared, through the incident template for payment errors. Cardholders are not contacted by Rail. Merchants contact their own customers, and their account managers help them with wording.
+
+### Certificate expiry
+
+Alert: `CertExpirySoon`.
+
+Rail uses client certificates to talk to both acquirers and both bank partners, and server certificates on the edge. Server certificates renew automatically 30 days before expiry. Client certificates for acquirers and banks do not, because each partner has to accept the new certificate on their side first.
+
+When the alert fires for a client certificate, open a ticket for Rail Integrations with the certificate name and expiry date. They request the new certificate, send it to the partner, and schedule the switch. The switch needs a window agreed with the partner, usually on a Tuesday or Wednesday morning, never within the change freeze.
+
+When the alert fires for a server certificate, automatic renewal has failed. Check the certificate manager's log for the error. Expired DNS validation records are the usual reason. If you cannot fix it within the business day, hand it to Rail Core with a ticket. A server certificate that expires takes the edge down for every merchant, so treat anything under 3 days as SEV2.
+
+### Bank transfer delays
+
+There is no alert for this one yet. Finance operations or merchants raise it through support.
+
+Bank transfers are slow by nature. Our two bank partners process outgoing transfers in batches, at 06:00, 10:00, 14:00 and 18:00 UTC on banking days. A transfer started at 14:05 leaves at 18:00. Transfers are not processed on weekends or on the bank partners' public holidays, and the bank transfer connector does not try.
+
+A transfer is delayed only when it has not been accepted by the bank in the batch after it was started. Check its state with `railctl transfer show <transfer_id>`. If it shows `submitted` for longer than one batch, check the bank partner's status page and call their operations desk. Do not resubmit a transfer. A resubmitted transfer is a second transfer, and the bank will pay both.
+
+Transfers above 100,000 EUR are held for a second approval in the finance tool and are not on-call's to release. If a merchant complains about a large transfer, check whether it is waiting for that approval before calling the bank.
+
+When one bank partner is down for a whole batch, the bank transfer connector can send new transfers through the other partner. This is a setting per merchant, not a global switch, because some merchants have told their customers which bank the money comes from. Switching a merchant needs finance operations to agree, and finance operations keeps the list of merchants who may be switched. Transfers already submitted to the failing bank stay there. They are not cancelled and resent, for the same reason as above.
+
+A bank partner outage that lasts past the 18:00 UTC batch means transfers leave the next banking day at the earliest. Finance operations decides whether merchants are told, and the communications lead uses the settlement delayed template if they are.
+
+### Ledger writer lagging
+
+Alert: `LedgerWriteLag`.
+
+The router hands every payment state change to the ledger writer through a durable queue, so a slow ledger writer does not lose anything. It does delay webhooks, the merchant dashboard and, if it lasts long enough, the settlement batch, which only sees what the ledger has written.
+
+1. Check the ledger writer's queue depth and its database panel. Lock waits on the ledger database are the usual cause, often from a long-running report query on the primary instead of a replica.
+2. Page the Payments Ledger team. The ledger writer and its database are theirs, and on-call does not scale, restart or roll back the ledger writer.
+3. If the lag is still growing at 00:30 UTC, call finance operations. The settlement batch at 01:30 will not include payments the ledger has not written, and they may want to delay the batch, which only they can decide.
+
+Payments themselves keep working while the ledger lags. Merchants see their payments as successful in the API response, and the dashboard catches up when the ledger does.
+
+### Both acquirers failing
+
+If Northgate and Coralpay are both failing at once, the cause is almost never both acquirers. Check, in this order, our own network egress in both regions, the router's outbound certificate, DNS resolution for the acquirer hosts, and a card network outage, which both acquirers' status pages would show.
+
+Do not shift traffic between acquirers or regions while both are failing. It only adds moves on top of the problem. Declare a SEV1, page the engineering manager on call and Rail Integrations, and post the status page message for card payments.
+
+If a card network is down, there is nothing Rail can fix. Keep the status page updated, make sure the router is not retrying declined payments in a loop (it should not, but check the request rate per payment), and wait. Network outages have lasted between 20 minutes and 4 hours in the past.
+
+### Unknown alert
+
+If an alert has no playbook here, or the playbook does not match what you see:
+
+1. Decide whether customers are affected. If they are, or you cannot tell, declare an incident at SEV3 or higher.
+2. Look at the overview dashboard and the recent deploys feed. Most unexplained problems on Rail started with a deploy in the previous 2 hours.
+3. Escalate early. Page the secondary, and the owning team of the component the alert names.
+4. Afterwards, write the missing playbook or open a ticket for the owning team to write it. An alert without a playbook is a bug in this runbook.
+
+## Region evacuation
+
+Moving all of one region's traffic to the other is the biggest lever on-call has. It is the right call when a region is broken in a way that playbooks cannot fix quickly, for example a network failure inside the region, a failed database failover, or a cloud provider incident. It is the wrong call for an acquirer problem, which affects both regions the same way.
+
+:::warning
+**Important:** Evacuation needs the engineering manager on call to agree, on the incident call or in the channel. Once they agree, the primary runs it. Nobody else runs it at the same time, and only one evacuation can be in progress.
+:::
+
+Before you start, check that the receiving region can take the load. Each region is sized to carry 120% of the combined normal peak, so a full evacuation is safe at any time except during the November sales weekend and the week before Christmas, when combined traffic has reached 140% of normal peak. In those periods, move traffic in steps and watch the receiving region's edge and router CPU between steps.
+
+```bash
+# Check that the receiving region is healthy and has headroom
+railctl region status --region central
+
+# Move traffic in steps of 25% (the command refuses steps above 50%)
+railctl region shift --from west --to central --percent 25
+railctl region shift --from west --to central --percent 50
+railctl region shift --from west --to central --percent 75
+railctl region shift --from west --to central --percent 100
+
+# Watch the shift take effect (edge request rate per region)
+railctl region traffic --watch
+```
+
+Wait at least 3 minutes between steps. DNS and merchant connection pools take that long to follow, and the dashboard will show traffic still arriving in the old region until they do.
+
+Evacuating West has one big catch. The token vault runs only in West. If West is down because of the vault, or the vault's region link is down, evacuating West does not bring card payments back, because Central still needs the vault for detokenization. Only network-token payments and bank transfers keep working. In that case evacuation helps only if the problem in West is somewhere other than the vault, which the vault team must confirm first.
+
+Moving traffic back follows the same steps in reverse, also in steps of 25%, and also with the manager's agreement. Do not move back during the same shift unless the region has been healthy for at least 2 hours.
+
+## Commands reference
+
+`railctl` is the Rail command line tool. It is installed on the on-call jump hosts, and it uses your break-glass session, which lasts 8 hours and must be renewed through the portal. Every `railctl` command is logged with your name, and commands that change production state also post themselves to the Rail audit channel.
+
+### Commands that only read
+
+```bash
+railctl payment show <payment_id>            # state, amounts, acquirer, request IDs
+railctl payment history <payment_id>         # every state change with timestamps
+railctl request show <rr_id>                 # one request, its timings and outcome
+railctl acquirer status                      # error, timeout and success rates per acquirer and region
+railctl routing show                         # current weights, pinned merchants, holds
+railctl webhooks backlog --top 20            # merchants with the most undelivered webhooks
+railctl settlement status --date <yyyy-mm-dd>
+railctl transfer show <transfer_id>
+railctl flags list --prefix router.
+```
+
+### Commands that change things
+
+```bash
+railctl routing set-weights --region <region> --northgate <pct> --coralpay <pct>
+railctl routing hold --region <region> --minutes <n>          # keep routing as it is
+railctl webhooks slow-lane add <merchant_id>
+railctl webhooks slow-lane remove <merchant_id>
+railctl fraud fail-open --region <region> --minutes <n>       # at most 60
+railctl settlement rerun --date <yyyy-mm-dd> [--stage <stage>]
+railctl flags set <flag> <value> --reason "<incident id and why>"
+railctl region shift --from <region> --to <region> --percent <n>
+railctl deploy rollback <component> --region <region>        # one version back only
+```
+
+`set-weights` refuses a change of more than 30 percentage points in one step, in line with the safety rule. `flags set` refuses any flag under `ledger.`. Neither refusal can be overridden from the command line, and asking someone to change the limits in the middle of an incident is not a good idea.
+
+There is no `railctl` command to replay, retry or re-send a payment request, on purpose. If you find a script that does, do not run it, and tell Rail Core so they can remove it.
+
+## Deploys and rollbacks
+
+Rail components deploy through the delivery pipeline, one region at a time, West first. Each deploy goes to 10% of pods, waits 15 minutes while the pipeline compares error rates and latency with the rest of the fleet, then goes to the remaining pods. If the comparison fails, the pipeline rolls back by itself and posts in the owning team's channel.
+
+The recent deploys feed in the Rail channel lists every deploy, configuration change and flag change from the last 24 hours, with the person who made it. It is the first place to look when something changes for no clear reason.
+
+During an incident, on-call may roll back any Rail component to its previous version, without the owning team's approval, with `railctl deploy rollback <component> --region <region>`. Rolling back two versions or more is not allowed from on-call, since migrations may have run in between. The ledger writer is the exception to all of this. It is never rolled back by on-call, because a rollback of the ledger writer can write payment states in an old format that the settlement batch rejects. Page the Payments Ledger team instead.
+
+A rollback is a change, so write it in the incident channel before you run it, and tell the owning team in their channel afterwards. If a rollback does not fix the problem within 15 minutes, the deploy was probably not the cause, and you should say so in the channel rather than roll back further.
+
+## Maintenance windows and the change freeze
+
+Planned changes to Rail go out on weekdays between 08:00 and 16:00 UTC, so that the teams who made them are awake when problems show. Deploys on Friday after 12:00 UTC are not allowed, except for fixes to an open SEV1 or SEV2.
+
+Each acquirer has a maintenance window of its own. Northgate's is on Sundays between 02:00 and 04:00 UTC, and Coralpay's is on the first Tuesday of the month between 01:00 and 03:00 UTC. During their window the acquirer may answer slowly or not at all, and the router's failover thresholds are not changed for it. Expect some declines and timeouts, and do not open a case with the acquirer unless the problems run past the end of the window.
+
+The change freeze for the end-of-year trading season runs from 2026-11-20 to 2027-01-05. During the freeze:
+
+- No deploys to Rail components, except fixes for an open SEV1 or SEV2 approved by the engineering manager on call.
+- No configuration changes to routing, limits or feature flags, except as playbooks in this runbook describe during an incident.
+- No certificate switches with acquirers or banks. Certificates expiring during the freeze are switched before it starts.
+- Region evacuations and fail-open are still allowed, since they are incident levers, not changes.
+
+Freeze exceptions are recorded in the freeze log with the incident ID, who approved, and what was changed.
+
+## Running an incident
+
+Anyone can declare an incident by typing `/incident declare` in the Rail channel. The bot opens an incident channel, creates the incident document from the template, and pages according to the severity you choose. If you are not sure whether something is an incident, declare it. Closing an incident that turned out to be nothing costs a minute. Not declaring one that was real has cost us hours.
+
+For SEV1 and SEV2, the roles are:
+
+- Incident commander. Runs the call, decides, keeps the timeline. The Rail primary until someone else takes the role, which for SEV1 is usually the engineering manager on call.
+- Operations lead. Runs commands and changes. Usually the Rail primary once someone else is commander.
+- Communications lead. Writes status updates, the status page and merchant notices. For SEV1 this is the support duty lead, who joins when paged by the bot.
+- Scribe. Optional. Writes the timeline if the commander is too busy to.
+
+One person may hold two roles in a small incident, but the incident commander and the operations lead should be different people for any SEV1 that lasts more than 30 minutes. Someone has to look up from the terminal.
+
+The incident commander writes a status update in the incident channel at the interval for the incident's severity, even if nothing has changed. "No change, still investigating the Coralpay timeouts, next update at 19:30" is a fine update.
+
+Hand over the commander role explicitly. Say "I am handing commander to Priya", and wait for Priya to say "I have commander". An incident with two commanders is worse than one with none.
+
+## Communication
+
+### Status page
+
+The public status page has one component per product area: card payments, bank transfers, webhooks, dashboard and API. Update it for every SEV1 and SEV2 that affects merchants, within 15 minutes of declaring the incident. Do not update it for SEV3 or SEV4 unless the communications lead decides a merchant-visible problem needs it.
+
+Status page posts are written for merchants, not engineers. Say what is affected, since when, and what merchants should do, if anything. Do not name the acquirer, the region, or a component. Do not guess at causes or at when it will be fixed, and never promise a time unless the fix is already rolling out.
+
+```text
+Title: Some card payments are failing
+Body: Since 18:12 UTC, a share of card payments are being declined with a
+"service unavailable" error. Bank transfers and network-token payments are
+not affected. We are working on a fix. You do not need to do anything; retried
+payments will succeed once service recovers. Next update by 18:45 UTC.
+```
+
+### Merchant notices
+
+For problems that affect specific merchants, such as a pinned acquirer outage or blocked captures, the account managers contact the merchants directly. The communications lead gives them the incident template for the problem type, with the affected merchant list. Account managers send the notices, not on-call.
+
+There are four templates: card payments degraded, payment errors (possible double charges or lost captures), webhooks delayed, and settlement delayed. Each template has fields for start time, scope and next update, and a fixed paragraph that legal has approved. Do not edit the fixed paragraph.
+
+### Acquirers and banks
+
+When you open a case with an acquirer or a bank partner, give them the time window, the share of requests affected, a handful of their own reference numbers from failed requests, and our merchant IDs if the problem is merchant-specific. Do not send them our internal request IDs, which mean nothing to them, and never any card data.
+
+Northgate's technical desk answers within 15 minutes for priority 1 cases. Coralpay's priority 1 promise is 30 minutes, and in practice it has been closer to an hour at night. If you need Coralpay faster, the engineering manager on call has the escalation number for their duty manager.
+
+## After an incident
+
+Close the incident in the bot when customer impact has ended and no changes made during the incident still need watching. Leave it open if a temporary lever is still in place, such as fail-open, a routing hold, or a region shifted away. Removing those is part of the incident.
+
+Every SEV1 and SEV2 gets a postmortem. The incident commander owns writing it and picks a facilitator for the review meeting who was not on the incident. Postmortems are blameless. They describe what happened, why it made sense to the people involved at the time, and what we change so that it does not happen again.
+
+The postmortem template asks for a timeline, the impact in numbers (payments affected, money affected, merchants affected, time to detect, time to mitigate), contributing factors, what went well, and follow-up actions with owners. Each follow-up has a ticket. Follow-ups that change this runbook are done by the person who owns the follow-up, and reviewed by Payments Reliability.
+
+Postmortem reviews are on Thursdays at 15:00 UTC. A postmortem can be reviewed only after the impact numbers have been checked by the Payments Ledger team, since early numbers have been wrong by a factor of ten more than once.
+
+## Decisions
+
+Decisions that change how on-call works are recorded here with their date and status. The full reasoning lives in the linked decision records on the Payments Reliability wiki.
+
+:::decision{status=accepted date=2026-04-14} Manual acquirer failover (accepted 2026-04-14)
+Failover between acquirers is now manual. When an acquirer's error and timeout rate stays above 5% for 3 minutes in a region, the router pages the Rail primary and does nothing else. The primary decides whether to move traffic, using `railctl routing set-weights` in steps of at most 30 percentage points, and needs no approval for it. Moving traffic back is also manual, once the acquirer has been healthy for 15 minutes. This replaces automatic failover, which was switched off in all regions on 2026-04-20. The automatic failover flapped four times during the February 2026 Northgate incident, moving traffic back and forth every few minutes, and each move restarted the acquirers' fraud warm-up, which raised declines more than the outage itself.
+:::
+
+:::decision{status=accepted date=2025-11-03} Fraud fail-open outside business hours (accepted 2025-11-03)
+The Rail primary may switch fraud scoring to fail-open outside Risk Engineering's hours, for at most 60 minutes per command. Risk Engineering reviews each use the next business day. This decision came out of the October 2025 incident, where scoring was down for 3 hours on a Saturday night and every payment waited 120 ms for a scoring timeout.
+:::
+
+:::decision{status=rejected date=2026-02-09} Second region for the token vault (rejected 2026-02-09)
+Running a second vault in Central was proposed after the January 2026 link outage between regions. It was rejected for 2026 because a second vault doubles the scope of our card data compliance audit and the vault team could not staff it this year. It will be looked at again for 2027. Until then, a West vault problem is a card payments problem in both regions, and the region evacuation section explains what that means.
+:::
+
+:::decision{status=accepted date=2024-09-16} Webhook retry schedule (accepted 2024-09-16)
+Webhooks are retried up to 16 times over 72 hours, with the wait doubling from 30 seconds to a maximum of 6 hours. Before that, webhooks were retried 5 times over 1 hour, and merchants with weekend maintenance windows lost events.
+:::
+
+## Open questions
+
+:::question Should on-call be allowed to issue bulk refunds?
+Undecided. Finance operations wants on-call to be able to refund a list of payments during an incident, so that cardholders who were charged twice get their money back the same night. Payments Ledger is against it until refunds can be checked against the acquirer's capture report automatically, since a wrong bulk refund is its own SEV1. The decision is due at the operations review in January 2027. Until then, on-call never issues refunds, single or bulk. Collect the list of affected payment IDs and hand it to the Payments Ledger team, who refund the next business morning, or the same night if finance operations asks for it during a SEV1.
+:::
+
+:::question Should Risk Engineering have an out-of-hours rota?
+Undecided as well. The fail-open decision covers the most common case. Risk Engineering has asked for budget for a rota in 2027 and will hear in December. Until then, fraud problems outside business hours are handled with fail-open only, as described in the fraud scoring playbook.
+:::
+
+## Follow-ups
+
+Actions from recent postmortems that change on-call. They are tracked as tickets, and the list here is updated at each runbook review.
+
+- [x] Remove the automatic failover code path from the router — @tomas-veidt, :priority[P1], :due[2026-06-30]
+- [ ] Add an alert for bank transfers stuck in `submitted` for more than one batch — @amara-quist, :priority[P2], :due[2026-11-15]
+- [ ] Raise the lead time of `CertExpirySoon` for client certificates from 14 to 30 days — @lena-marsh, :priority[P2], :due[2026-11-20]
+- [ ] Add the Coralpay duty manager escalation number to the acquirer contact sheet — @kofi-annerud, :priority[P3], :due[2026-11-10]
+- [ ] Write the playbook for disputes and chargeback spikes — @priya-nandakumar, :priority[P3], :due[2026-12-15]
+
+## Limits reference
+
+The limits below come up often during incidents. Most of them are set in configuration and some are set by partners. The table says which, so you know whether a limit can move.
+
+| Limit | Value | Set by | Can on-call change it |
+|-|-|-|-|
+| Merchant request rate at the edge | 1,000 requests per second per merchant | Rail configuration | No, Rail Core only |
+| Request rate for platform merchants | 5,000 requests per second per merchant | Rail configuration | No, Rail Core only |
+| Idempotency key retention | 24 hours | Rail design | No |
+| Authorization timeout to acquirer | 6 seconds | Rail configuration | No |
+| Capture and refund timeout to acquirer | 10 seconds | Rail configuration | No |
+| Northgate request rate from Paywise | 3,000 per second, both regions together | Northgate contract | No |
+| Coralpay request rate from Paywise | 1,500 per second, both regions together | Coralpay contract | No |
+| Connections per acquirer connector pod | 200 | Rail configuration | No |
+| Router pods per region | 30 at most | Northgate connection limit | Scale within it |
+| Edge and dispatcher pods per region | 40 at most | Rail configuration | Scale within it |
+| Fraud scoring budget per call | 120 ms | Risk Engineering | No |
+| Fail-open duration per command | 60 minutes | Rail design | Renew, not extend |
+| Webhook retries | 16 over 72 hours | Rail design | No |
+| Largest single refund | The captured amount of the payment, never more | Card network rules | No |
+| Bank transfer second approval | Above 100,000 EUR | Finance policy | No |
+
+A merchant who hits the edge rate limit gets HTTP 429 with a `Retry-After` header. That is working as intended, and it is not an incident unless the merchant is a platform merchant who has been mistakenly left on the standard limit. The platform merchant list is in the edge configuration and has 23 entries.
+
+Refunds can be split, so one capture can have several partial refunds, but together they can never exceed the captured amount. A refund request that would go over is rejected with `refund_exceeds_capture` before it reaches the acquirer. Refunds older than 180 days after the capture are not supported by either acquirer. Merchants must pay those customers back outside Rail.
+
+## Error codes merchants see
+
+Merchants and support often quote an error code. These are the ones that come up during incidents, with what they usually mean for on-call.
+
+| Code | HTTP status | What happened | Usually means |
+|-|-|-|-|
+| `acquirer_timeout` | 504 | The acquirer did not answer in time | Acquirer problem or our network path, payment state unknown |
+| `acquirer_capacity` | 503 | Our client-side limiter rejected the request | Too much traffic for one acquirer, often after a weight change |
+| `service_unavailable` | 503 | A dependency is down, often the vault breaker | Vault or region problem |
+| `capture_blocked` | 409 | Captures for this merchant are blocked by on-call | An open double charge incident |
+| `idempotency_mismatch` | 409 | Same idempotency key, different body | Merchant bug, not an incident |
+| `refund_exceeds_capture` | 422 | Refunds would total more than the capture | Merchant bug or a refund sent twice |
+| `rate_limited` | 429 | Merchant over their edge rate limit | Working as intended, check the platform list |
+| `fraud_declined` | 402 | Fraud scoring or the fallback rule declined it | Normal, unless it spikes during fail-open |
+
+The error message text that goes with each code is written for merchants' developers, and it never says which acquirer was involved. When a merchant asks which acquirer handled a payment, support can tell them through the dashboard's payment detail page, which shows it for their own payments only.
+
+A spike in `fraud_declined` during fail-open means a merchant's fallback rule is "decline all" or has a low limit. That is the rule working as agreed with the merchant, and on-call does not change it. Tell the merchant's account manager, so they can talk to Risk Engineering on the next business day.
+
+## Merchant exceptions
+
+Some merchants have arrangements that change how a playbook applies to them. Check this list when an incident is limited to one merchant.
+
+- Merchants pinned to one acquirer by contract do not fail over and are not moved by `set-weights`. There are 41 of them, listed under `pinned_merchants`. Their account managers must be told when their acquirer has problems.
+- Merchants on the cascading addendum are retried on the second acquirer for decline code 91 only. There are 6 of them.
+- Merchants on the legacy webhook format do not use the slow lane. There are 14 of them.
+- Charities on the reduced-fee programme settle once a week instead of daily, on Mondays. A missing settlement file for them on other days is expected.
+- Two marketplace merchants split each payment between many sellers. Their captures carry up to 50 split instructions each, and their capture calls take up to 4 seconds even when everything is healthy. Do not count their slow captures towards latency incidents.
+
+Merchants with a dedicated support plan have a named technical contact at Paywise. For those merchants, the account manager joins every SEV1 or SEV2 that affects them, and the communications lead adds them to the incident channel.
+
+## Daily checks
+
+The primary does these checks every weekday morning before 10:00 UTC, and on weekends when convenient. They take about 20 minutes on a quiet day and catch most slow-burning problems before they page anyone.
+
+1. Settlement. Confirm that last night's settlement files were uploaded to both acquirers and that both acquirers have acknowledged them. The acknowledgement for Northgate arrives within an hour of upload, Coralpay's can take until 08:00 UTC.
+2. Reconciliation report. Open the overnight reconciliation report from Payments Ledger. Any line in the "unmatched captures" section older than 2 days goes to the Payments Ledger team as a ticket. Do not try to fix unmatched captures yourself.
+3. Webhook failures. Check the list of merchants with more than 1,000 failed webhooks in the last 24 hours. Tell their account managers through the shared queue, so the merchant can fix their endpoint before they miss more events.
+4. Certificates. Look at the certificate panel for anything expiring within 30 days, even though the alert only fires at 14.
+5. Silences. Review every active alert silence. Remove silences whose reason has passed, and ask the owner of any silence without a ticket to add one.
+6. Slow lane. Review the merchants in the webhook slow lane. Remove any merchant whose endpoint has answered normally for 24 hours, with `railctl webhooks slow-lane remove`.
+
+Write "daily checks done" in the Rail channel with anything you found. If you skip a day because of an incident, say so, and the next primary does the checks first thing.
+
+## Reconciliation
+
+Reconciliation compares what Rail recorded with what the acquirers report. It runs every night after settlement, owned by the Payments Ledger team. On-call does not run it, but its results often explain alerts and merchant complaints, so it helps to know how to read them.
+
+The report has three sections. Matched lines need no action. Unmatched captures are captures Rail recorded that the acquirer has not reported, or the other way round. Amount mismatches are captures where Rail and the acquirer disagree on the amount, almost always because of currency conversion on the acquirer's side.
+
+An unmatched capture from yesterday is usually just late. The acquirer reports some captures a day after they settle, especially captures made between 23:00 and 01:30 UTC. An unmatched capture older than 2 days is a real problem, and an unmatched capture that Rail does not know about but the acquirer does is the worst kind, since it means someone charged a card outside Rail. That case goes straight to the Payments Ledger team and the engineering manager on call as a SEV2.
+
+Amount mismatches under 0.5% of the payment are expected for payments in another currency and are not reported. Mismatches above that go to the Payments Ledger team as a ticket, not as an incident, unless more than 100 appear in one night.
+
+## Glossary
+
+- Acquirer: the bank or payment company that processes card payments for our merchants and connects to the card networks. Rail uses Northgate and Coralpay.
+- Authorization: the request that checks a card can pay and reserves the amount. No money moves yet.
+- Capture: the request that turns an authorization into a charge. This is when the cardholder is actually charged.
+- Cascading: retrying a declined payment on a second acquirer. Restricted by our contracts.
+- Detokenization: swapping a stored token back for the card number before sending a payment to the acquirer. Only the vault does this.
+- Network token: a token issued by the card network that the acquirer accepts directly. Payments with network tokens do not need our vault.
+- Pinned merchant: a merchant whose payments always go to one acquirer.
+- Settlement: the nightly process in which we tell each acquirer which captures and refunds to move money for.
+- Slow lane: a separate set of webhook workers for merchants whose endpoints are slow or failing.
+- Void: cancelling an authorization before it is captured. No money moves.
+
+## Notes for new on-call engineers {agent=skip}
+
+These notes are for people joining the rota, not for the on-call tools. They collect advice from people who have done many shifts.
+
+Your first few pages will feel bigger than they are. Most Rail alerts resolve themselves or turn out to be a bank or an acquirer having a bad few minutes. Acknowledge, open the dashboard, and give yourself five minutes to look before deciding anything. Nobody expects you to have a theory in the first minute.
+
+Ask for help early. The secondary is there for that, and so is the engineering manager on call. People on the rota would much rather be woken for something that turns out to be nothing than read about a long night the next morning.
+
+Write as you go. Short messages in the incident channel ("looking at Coralpay timeouts in West", "restarting connector pod 3 of 5") help the people who join later and help you write the postmortem. They also stop two people from doing the same thing at once.
+
+Shadow shifts are the best way to learn. During your two shadow shifts, follow every page the primary gets, even the small ones, and ask them to talk through what they are looking at. Most of what is in this runbook makes more sense after you have seen it used.
+
+Take the time back. After a night with more than an hour of pages, you are expected to start late or take the afternoon off. Tell your team lead, and they will move your other work.
+
+If you are going to be out of reach for any part of your shift, even for an hour, arrange cover with the secondary and write it in the rota channel. The two incidents that created the secondary role both started with someone who expected to be reachable and was not.
+
+## Background {agent=skip}
+
+This section explains how Rail and its on-call came to be the way they are. It is for people who are new to the team or who want the history behind a rule. Nothing in it is needed to handle a page.
+
+Paywise started in 2019 as a checkout plugin for small online shops, and in its first two years it did not process payments itself. Shops brought their own payment provider, and the plugin passed payment details through. The first version of Rail was built in 2021, when Paywise signed its first acquirer agreement with Northgate and started offering payments as part of the plugin. That first version was a single service with a database, running in one region, and it handled about 30 requests per second at its peak. On-call was whoever had written the code that broke.
+
+The second acquirer, Coralpay, came in 2022. The main reason was resilience after a Northgate outage in the spring of that year, which stopped every Paywise payment for 5 hours on a Saturday. Adding Coralpay meant adding the router, and with it the routing weights and the first version of failover, which at the time was a person changing a configuration file and redeploying. That process took about 25 minutes on a good night.
+
+The token vault was split out in 2023, as part of the work to reduce the scope of our card data compliance audit. Before that, card numbers were encrypted inside the main Rail database, which put every Rail engineer and every Rail server in scope. The split cut the audit scope to the vault cluster and the vault team, and it is the reason the vault is the one component on-call cannot touch. The vault was placed in West because that was the only region at the time, and moving or doubling it has been discussed every year since.
+
+The Central region went live in 2024. Before that, a regional problem in West meant a full outage. The move to two active regions took nine months, mostly because of the ledger, which had to learn to accept writes from both regions without double-counting.
+
+A formal on-call rota started in early 2023, with six engineers taking a week each. Before that, the Rail Core lead was paged for everything, and in 2022 he was woken on average three nights a week. The secondary role was added in 2024, after two incidents where the primary was unreachable for over 30 minutes, once because of a dead phone battery and once because of a flight that nobody had noticed on the rota. The rule that the outgoing primary stays on until the handover call has happened came from the second one.
+
+Payments Reliability was formed in 2025 as a small team of four, to own this runbook, the alerts, the postmortem process and the on-call tooling. Before that, each component team kept its own notes, and the playbooks for the same alert disagreed. Merging them into this runbook took most of the first half of 2025, and the safety rules section was the part that needed the most arguing.
+
+The on-call group today has 14 engineers from Rail Core, Rail Integrations and Payments Ledger, so each person is primary about once every 14 weeks and secondary about as often. New members shadow two shifts before their first one as secondary, and serve as secondary twice before their first shift as primary.
+
+## Notable incidents {agent=skip}
+
+Short summaries of incidents that shaped this runbook. They are kept for context and for training. The full postmortems are on the Payments Reliability wiki. The procedures in them are as they were at the time, and several have changed since, so do not follow them.
+
+### March 2025, duplicate captures after a replay
+
+A database failover in West left about 2,300 captures in an unknown state for 40 minutes. The on-call engineer at the time found a script in the Rail Core repository that replayed captures from a list, checked that it had been used before, and ran it on the 2,300 payments. About half of those captures had in fact reached the acquirer the first time. The replay sent them again with new idempotency keys, and 1,140 cardholders were charged twice. Finance operations and the Payments Ledger team spent four weeks refunding them and handling the related disputes.
+
+What changed: the safety rule against replaying captures, refunds and payouts, the removal of the replay script, the `DuplicateCaptureSuspected` alert, and the rule that this alert can never be silenced. The engineer who ran the script helped write the safety rule, and is still on the rota.
+
+### October 2025, fraud scoring down overnight
+
+A certificate on the fraud scoring service expired at 23:10 UTC on a Saturday. Every scoring call failed, and the router waited for the full 120 ms timeout on each payment before applying fallback rules. Payments kept working but slowly, and three merchants whose fallback rule was "decline all" declined every payment for 3 hours. Risk Engineering had no out-of-hours rota, and the Rail primary was not allowed to change anything on the fraud side, so the incident lasted until a Risk Engineering lead saw the messages on Sunday morning.
+
+What changed: the fraud fail-open decision, the fail-open command, and the start of the discussion about a Risk Engineering rota, which is still open.
+
+### January 2026, link between regions down
+
+A configuration change at our cloud provider broke the private link between West and Central for 52 minutes. Central could not reach the vault, and every card payment for Central merchants that needed detokenization failed. The on-call engineer moved Central merchants to West, which fixed card payments within 15 minutes but overloaded West's edge, since it was the first Monday after the holidays and traffic was high. The second step of the move was done in one jump of 50% instead of 25%.
+
+What changed: the evacuation steps of 25% with 3 minutes between them, the headroom check before evacuating, and the proposal for a second vault, which was rejected for 2026.
+
+### February 2026, Northgate partial outage and failover flapping
+
+Northgate had a partial outage for about 2 hours on a Friday evening, with error rates going between 3% and 9%. Automatic failover moved traffic to Coralpay when the error rate passed 5%, moved it back when it fell under 1% for 15 minutes, and moved it again when it rose. It flapped four times. Each move restarted the fraud warm-up at the receiving acquirer, and declines at Coralpay doubled for an hour after each move. Coralpay also hit its 1,500 requests per second limit twice, and the router rejected about 31,000 payments with `acquirer_capacity`. The primary set a routing hold after the third flap, which stopped the moves but also left traffic on the failing acquirer.
+
+What changed: the decision to make failover manual, the 30-point limit on weight changes, and the removal of the automatic failover code, which was finished in June.
+
+### August 2026, webhook backlog from one merchant
+
+A large merchant's webhook endpoint started answering every request after 29 seconds, just under our 30-second timeout, for a whole afternoon. The dispatcher's workers spent most of their time waiting on that one endpoint, and the backlog for every other merchant grew to 1.4 million webhooks and 3 hours of delay. Merchants who depend on webhooks to release orders could not ship.
+
+What changed: the slow lane, the `slow-lane` commands, and the step in the webhook backlog playbook that checks for one merchant first.
+
+## Review meeting notes (2026-10-08) {agent=skip}
+
+Notes from the quarterly runbook review, for the people on the rota who could not attend. Present were Kofi Annerud, Tomas Veidt, Amara Quist, Lena Marsh, Priya Nandakumar and two engineers from Rail Integrations.
+
+- Kofi went through the follow-ups. The automatic failover code is gone from the router since June, so the routing hold flag only matters for manual weight changes now. Tomas will check whether any dashboards still show the old failover state panel.
+- Amara raised bank transfers again. Finance operations finds stuck transfers before we do, every time. The alert is on the follow-up list, due mid-November.
+- Lena asked whether 14 days is enough warning for client certificates, given that Coralpay needed 19 days last time to accept a new one. Agreed to move to 30 days.
+- Long discussion about bulk refunds. Finance operations sent a written request before the meeting. Payments Ledger still says no without automatic checks against the capture report. No decision. It goes to the January operations review, and the current rule stays.
+- Priya asked for a disputes playbook. Chargeback spikes have paged people twice this quarter with no playbook. She will write the first version.
+- The group agreed to run a tabletop exercise on a West vault outage in November, before the freeze, since the January incident showed that most of the rota had never thought through what evacuation means without a vault.
+- Next review in January 2027, after the freeze.
+
+## Runbook changes {agent=skip}
+
+A record of changes to this runbook, newest first. It is kept for reviewers and auditors.
+
+- 2026-10-08: quarterly review. Added the ledger writer lagging and both acquirers failing playbooks, the daily checks, and the limits reference. Merged the old "payment states" page into this runbook.
+- 2026-08-27: added the webhook slow lane after the August incident.
+- 2026-07-15: quarterly review. Rewrote the incident roles section. Moved the acquirer contact sheet out of the wiki into the password manager.
+- 2026-04-20: decisions section updated for manual acquirer failover.
+- 2026-02-16: evacuation steps changed to 25% with 3 minutes between steps after the January incident. Added the second vault proposal to the decisions section as rejected.
+- 2026-01-12: quarterly review. Added the change freeze dates for 2026 to 2027.
+- 2025-11-03: added fraud fail-open.
+- 2025-04-02: added the safety rules section and the duplicate capture playbook after the March incident.
+- 2025-01-20: first version, merged from the component teams' notes by Payments Reliability.
