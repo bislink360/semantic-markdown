@@ -30,7 +30,7 @@ smd init specs/saved-searches/plan.smd  --template plan  --title "Saved searches
 smd init specs/saved-searches/tasks.smd --template tasks --title "Saved searches"
 ```
 
-Each template has a `:::agent` block with the rules an agent follows for that document, and `smd: 2` front matter. An agent with the [writer skill](SKILLS.md) can fill them: "Write the spec for saved searches in specs/saved-searches/spec.smd".
+Each template has a `:::agent` block with the rules an agent follows for that document, and `smd: 2` front matter. An agent with the [writer skill](agent-setup.md) can fill them: "Write the spec for saved searches in specs/saved-searches/spec.smd".
 
 ## 1. Write the spec
 
@@ -99,7 +99,7 @@ When a task is done and its checks pass, the agent checks it off in `tasks.smd`.
 smd validate specs/ --strict
 ```
 
-It catches broken syntax, links between the three documents (`related:` and `spec.smd#requirements`), task dates that aren't dates, and Mermaid errors, with `--fix` for the safe ones. Run it before every commit (a [pre-commit hook](INSTALL.md#pre-commit-hooks)) and in CI (the [GitHub Action](INSTALL.md#github-actions)), so a task list an agent edited stays valid. Overdue tasks show up as `task/overdue`.
+It catches broken syntax, links between the three documents (`related:` and `spec.smd#requirements`), task dates that aren't dates, and Mermaid errors, with `--fix` for the safe ones. Run it before every commit (a [pre-commit hook](github-and-ci.md#pre-commit-hooks)) and in CI (the [GitHub Action](github-and-ci.md#github-actions)), so a task list an agent edited stays valid. Overdue tasks show up as `task/overdue`.
 
 `smd diff specs/ --since main` shows a reviewer what changed in the spec, plan and tasks on a branch, section by section.
 
@@ -113,4 +113,4 @@ It catches broken syntax, links between the three documents (`related:` and `spe
 | Work | "Take the next open task from `smd tasks specs/feature/ --mine @agent`, implement it, run the tests and `smd validate specs/`, then check it off." |
 | Review | "Summarize what changed in specs/ since main with `smd diff`, and list open questions." |
 
-Agents set up with `smd init --agent` or the Claude Code plugin ([INSTALL.md](INSTALL.md#set-up-an-ai-agent)) already know the commands; others can be pointed at [AGENTS.md](AGENTS.md).
+Agents set up with `smd init --agent` or the Claude Code plugin ([guides/install.md](install.md#set-up-an-ai-agent)) already know the commands; others can be pointed at [reference/agents.md](../reference/agents.md).

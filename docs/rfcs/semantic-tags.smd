@@ -9,17 +9,17 @@ created: 2026-11-07
 updated: 2026-11-07
 toc: true
 related:
-  - semantic-tags-requirement.smd
-  - RESEARCH-CONTRACT-RFC.smd
-  - research-interaction-requirements.smd
-  - static-and-graph-based-filtering-requirement.smd
-  - SPEC.md
-  - TOKENS.md
+  - ../requirements/semantic-tags.smd
+  - research-contract.smd
+  - ../requirements/research-interaction.smd
+  - ../requirements/tree-and-graph-filtering.smd
+  - ../reference/spec.md
+  - ../reports/tokens.md
 ---
 
 ## How to read this
 
-This RFC answers the [semantic tags requirements](semantic-tags-requirement.smd) (R1 to R69, AC1 to AC20). Requirement ids in this document refer to that file. The [research contract](RESEARCH-CONTRACT-RFC.smd) is approved and binds this design where the two overlap. Where its decisions change a requirement, the contract wins and this RFC says so.
+This RFC answers the [semantic tags requirements](../requirements/semantic-tags.smd) (R1 to R69, AC1 to AC20). Requirement ids in this document refer to that file. The [research contract](research-contract.smd) is approved and binds this design where the two overlap. Where its decisions change a requirement, the contract wins and this RFC says so.
 
 Each phase has its own section, and the maintainer accepts each one separately. Nothing in a phase is built before its section is accepted. Phase 1 is written out in full. Phases 2 and 3 are outlined so the phase 1 choices don't block them, and each gets a full section before it starts.
 

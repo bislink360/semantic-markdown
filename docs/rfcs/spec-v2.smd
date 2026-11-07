@@ -306,6 +306,6 @@ Proposal 8's recommendation stands. Documents with `smd: 2` get no typographic r
 
 ## Background {agent=skip}
 
-The evidence was gathered from `docs/SPEC.md`, the changelog, the release skill's compatibility and versioning rules, the core sources and tests, and every pull request since 1.0. No GitHub issues exist. Each behaviour above was checked on throwaway documents with the 1.9.0 CLI. The 36 tracked `.smd` files (examples, gallery, compatibility corpus and writer templates) were scanned to estimate breakage.
+The evidence was gathered from `docs/reference/spec.md`, the changelog, the release skill's compatibility and versioning rules, the core sources and tests, and every pull request since 1.0. No GitHub issues exist. Each behaviour above was checked on throwaway documents with the 1.9.0 CLI. The 36 tracked `.smd` files (examples, gallery, compatibility corpus and writer templates) were scanned to estimate breakage.
 
 No deprecations exist in 1.x: there is no `### Deprecated` changelog entry, no `deprecated/*` code and no `@deprecated` in the code. The versioning rules deprecate in a minor with a hint and remove in the next major, so anything 2.0 removes must first be deprecated in 1.10.

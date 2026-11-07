@@ -4,7 +4,7 @@ import { agentView, duplicateIds, estimateTokens, extractTasks, outline, querySm
 import { readDocument } from '../src/readView';
 
 /**
- * The research contract (docs/RESEARCH-CONTRACT-RFC.smd), G0.
+ * The research contract (docs/rfcs/research-contract.smd), G0.
  *
  * The first group locks what the agent view and queries do today, so later gates change it only on purpose
  * (AF01, AF16, AF21). The GAP group covers the gaps the contract found and fixed in G0 (contract section "Gaps the

@@ -151,7 +151,7 @@ Checking and converting:
       Format .smd files in place: container fences, attribute lists, tables and blank lines.
       --check   change nothing; list unformatted files and exit 1 if there are any
       --stdout  print the formatted file instead of writing it (one file)
-      validate and fmt take any number of files: use them as a pre-commit hook (see docs/INSTALL.md).
+      validate and fmt take any number of files: use them as a pre-commit hook (see docs/guides/install.md).
       After --, every argument is a file, even one that starts with "-".
 ${MIGRATE_HELP}${EXPORT_HELP}
   smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
@@ -191,7 +191,7 @@ Editor integration:
   smd lsp [--stdio]
       Language server (LSP) over stdio for Neovim, Helix, Zed and other editors: diagnostics with quick
       fixes, outline, workspace symbols, hover, completion, go to definition and formatting. Also
-      installed as smd-language-server by the npm package. Setup guides: docs/EDITORS.md
+      installed as smd-language-server by the npm package. Setup guides: docs/guides/editors.md
 
 Agent skills:
   smd skills install [--dir <skills-dir>] [--global] [--only reader|writer]

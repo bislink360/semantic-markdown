@@ -1,6 +1,6 @@
 # Publishing to agent registries
 
-Maintainer notes for the listings that sit outside the tag-triggered Release workflow (which publishes the VS Code Marketplace, Open VSX, npm and the GitHub release). Users don't need this page; their side is in [INSTALL.md](INSTALL.md#claude-code-plugin).
+Maintainer notes for the listings that sit outside the tag-triggered Release workflow (which publishes the VS Code Marketplace, Open VSX, npm and the GitHub release). Users don't need this page; their side is in [guides/install.md](../guides/agent-setup.md#claude-code-plugin).
 
 ## Claude Code plugin marketplace
 
@@ -39,10 +39,10 @@ On Windows (PowerShell), then move `mcp-publisher.exe` to a folder on your `PATH
 $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }; Invoke-WebRequest -Uri "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile "mcp-publisher.tar.gz"; tar xf mcp-publisher.tar.gz mcp-publisher.exe; rm mcp-publisher.tar.gz
 ```
 
-For each release, from the repository root on the tagged commit:
+For each release, from the repository root on the tagged commit (`X.Y.Z` is the version being released):
 
 ```bash
-npm view semantic-markdown@3.0.0 mcpName     # must print io.github.bislink360/semantic-markdown
+npm view semantic-markdown@X.Y.Z mcpName     # must print io.github.bislink360/semantic-markdown
 mcp-publisher login github                 # a GitHub account that is a member of the bislink360 organization
 mcp-publisher publish                      # reads ./server.json
 curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.bislink360/semantic-markdown"
@@ -50,16 +50,4 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.bis
 
 The `io.github.bislink360/` namespace is granted to members of the `bislink360` GitHub organization; if `publish` refuses the name, make your membership of the organization public and log in again.
 
-**Before the first publish:** registry clients run the server as `npx semantic-markdown mcp`, which needs the package's `semantic-markdown` command (npm runs the command named like the package when there are several). Check that `npx -y semantic-markdown@3.0.0 mcp` starts the server: it waits for input on stdin; stop it with Ctrl+C.
-
-## The 3.0 rename (one time)
-
-Styled Markdown became Semantic Markdown in 3.0. Everything in the repository uses the new names; these steps happen outside it, in this order.
-
-1. **Before tagging v3.0.0: rename the repository** on GitHub (Settings → General → Repository name) from `styled-markdown` to `semantic-markdown`. GitHub redirects the old URL, clones and `uses:` lines. Don't create a new repository under the old name later, or the redirect stops. Then turn GitHub Pages back on if it is off, because the site moves to `bislink360.github.io/semantic-markdown`.
-2. **Tokens for the new names.** `VSCE_PAT` and `OVSX_PAT` already cover the new extension (same `bislink360` publisher). `NPM_TOKEN` must be allowed to publish `semantic-markdown` (for the first publish a token for all packages, narrowed to `semantic-markdown` afterwards). `PYPI_TOKEN` must be account-wide for the first upload of `mkdocs-semantic-markdown`, then scoped to it. `JETBRAINS_TOKEN` is unchanged: the plugin keeps its ID (35420).
-3. **Tag v3.0.0** as usual. The Release workflow publishes the new names.
-4. **Mark the old names deprecated.** Only the VS Code extension was ever published under the old name, so there is no stub release:
-   - VS Code Marketplace: in the publisher portal (marketplace.visualstudio.com/manage), mark `bislink360.styled-markdown` deprecated with `bislink360.semantic-markdown` as its replacement, so VS Code shows the replacement to existing users. If the portal has no such option, ask the Marketplace team to do it. Check their current process first: it has changed over time.
-   - MCP Registry: publish `server.json` as in [Official MCP Registry](#official-mcp-registry) for `io.github.bislink360/semantic-markdown`.
-5. **JetBrains Marketplace and Obsidian:** only the display name changes. Rename the plugin page's title on plugins.jetbrains.com if it doesn't follow the uploaded `plugin.xml`.
+**Before the first publish:** registry clients run the server as `npx semantic-markdown mcp`, which needs the package's `semantic-markdown` command (npm runs the command named like the package when there are several). Check that `npx -y semantic-markdown@X.Y.Z mcp` starts the server: it waits for input on stdin; stop it with Ctrl+C.

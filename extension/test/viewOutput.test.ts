@@ -6,7 +6,7 @@ import { readDocument } from '../src/readView';
 import { DIGESTS, digest, viewCases } from './bench/viewCases';
 
 // The digests were written by the view code before the budget path and include loading were made faster
-// (docs/PERFORMANCE.md), and rewritten for the research contract fixes (docs/RESEARCH-CONTRACT-RFC.smd, GAP-1 to GAP-5
+// (docs/reports/performance.md), and rewritten for the research contract fixes (docs/rfcs/research-contract.smd, GAP-1 to GAP-5
 // and GAP-7), for the C04 decision that section views show the dangers of other sections, and for G1 (a `:metric`
 // keeps its trend and tone, `--max-tokens` never omits a section with a danger, and a view over its budget ends with
 // an overflow line; each of the 131 changed cases was checked against the code before, one change at a time). Any change to a view's text, budget, provenance or outline shows up here.

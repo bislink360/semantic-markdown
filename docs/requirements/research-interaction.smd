@@ -9,14 +9,14 @@ created: 2026-11-06
 updated: 2026-11-06
 toc: true
 related:
-  - semantic-tags-requirement.smd
-  - static-and-graph-based-filtering-requirement.smd
-  - COLLABORATION-RFC.smd
-  - RESEARCH-CONTRACT-RFC.smd
-  - ../research/evidence-matrix.smd
-  - ../research/research-plan.smd
-  - ../research/study-1-agent-evaluation.smd
-  - ../research/study-2-authoring.smd
+  - semantic-tags.smd
+  - tree-and-graph-filtering.smd
+  - ../rfcs/collaboration.smd
+  - ../rfcs/research-contract.smd
+  - ../../research/evidence-matrix.smd
+  - ../../research/research-plan.smd
+  - ../../research/study-1-agent-evaluation.smd
+  - ../../research/study-2-authoring.smd
 ---
 
 ## Problem

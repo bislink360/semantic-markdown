@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for the idea. Open questions and "how do I…?" fit better in [Discussions](https://github.com/bislink360/semantic-markdown/discussions).
-        Semantic Markdown keeps documents working across releases: new syntax is added, and existing syntax keeps its meaning ([compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/COMPATIBILITY.md)).
+        Semantic Markdown keeps documents working across releases: new syntax is added, and existing syntax keeps its meaning ([compatibility policy](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/compatibility.md)).
   - type: textarea
     id: problem
     attributes:

@@ -8,7 +8,7 @@ import { fail } from './cliIo';
 import { collect, read, readerFor } from './workspace';
 
 /**
- * `smd migrate <files|dirs...> --to 2`: migrate documents to spec v2 (SPEC.md §10.1), report the plan (`--dry-run`),
+ * `smd migrate <files|dirs...> --to 2`: migrate documents to spec v2 (docs/reference/spec.md §10.1), report the plan (`--dry-run`),
  * or only say whether anything needs migrating (`--check`, for CI).
  *
  * Writing is careful: only `.smd` files, only files whose plan changes something, never a file that a symbolic link

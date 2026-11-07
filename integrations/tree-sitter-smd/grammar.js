@@ -4,7 +4,7 @@
  * @license MIT
  *
  * This grammar is the host language of a .smd buffer. It parses only what Semantic Markdown adds
- * (docs/SPEC.md): front matter, `:::name{attrs} Title` … `:::` containers, fenced code and `$$` math
+ * (docs/reference/spec.md): front matter, `:::name{attrs} Title` … `:::` containers, fenced code and `$$` math
  * (so that their contents are opaque), and inline directives, styled spans, `==mark==`, `$math$`,
  * `{{variables}}`, footnotes, task boxes and attribute lists. Everything else is a `line`, and
  * queries/injections.scm hands those lines to tree-sitter-markdown as one combined document, so

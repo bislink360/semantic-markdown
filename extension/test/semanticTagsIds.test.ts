@@ -5,7 +5,7 @@ import { migrationPlan } from '../src/core/migrate';
 import { ID_ATTRIBUTES, idList, INLINE_DIRECTIVES, isKnownDirective, V1_DIRECTIVES } from '../src/core/spec';
 
 /**
- * Semantic tags groundwork (docs/SEMANTIC-TAGS-RFC.smd): the frozen spec v1 directive list (D5), `:ref[id]` to any
+ * Semantic tags groundwork (docs/rfcs/semantic-tags.smd): the frozen spec v1 directive list (D5), `:ref[id]` to any
  * block (D4, R14) and the id attribute checks `ref/unknown` and `ref/ambiguous` (R15 to R17). Test names give the
  * requirement and acceptance ids they cover.
  */

@@ -7,7 +7,7 @@ Semantic Markdown is a **strict superset of CommonMark + GitHub-Flavored Markdow
 - Media type (suggested): `text/x-semantic-markdown` (`text/x-styled-markdown` before 3.0, still accepted as the same format)
 - Encoding: UTF-8
 - Spec version: `2` (declared in front matter as `smd: 2`). A document without `smd: 2` follows spec v1, which Semantic Markdown 2.x keeps in full. Where the two differ, a rule says so: see §10
-- Status: **stable**. Spec v2 gets no breaking change; a change that reads existing documents differently needs a spec v3 RFC. The spec is versioned apart from the tools (tools 2.5.0 implement spec v2): see the [compatibility policy](COMPATIBILITY.md)
+- Status: **stable**. Spec v2 gets no breaking change; a change that reads existing documents differently needs a spec v3 RFC. The spec is versioned apart from the tools (tools 2.5.0 implement spec v2): see the [compatibility policy](compatibility.md)
 
 ---
 
@@ -296,7 +296,7 @@ Tools before 1.10 render an alert as a blockquote whose first line is the `[!WAR
 [text]{attributes}
 ```
 
-A bracketed span immediately followed by an attribute list. Only style attributes (§5) are allowed. Content may contain other inline Markdown. Links (`[text](url)`) and images are unaffected because a styled span requires `{` directly after `]`.
+A bracketed span immediately followed by an attribute list. Only style attributes (§5) are allowed. Content may contain other inline Markdown. Links (`[text](../url)`) and images are unaffected because a styled span requires `{` directly after `]`.
 
 Any attribute list that parses makes a span, in both spec versions: the rule that a heading's `{}` or `{word}` is text (§4.2.2) is not applied to spans. A heading's braces end ordinary prose (`## Returns {ok}`, `## Object {}` in API references), where a span's need `{` right after a `]`, which prose almost never has; a bare word in a span is already reported as an unknown style attribute (`attrs/unknown`); and reading such spans as text would change documents that render a span today, for no case in the corpus.
 
@@ -426,7 +426,7 @@ Retries are capped at five[^retries], as the SRE review asked[^SRE].
 
 - **Reference:** `[^label]`. The label is a number or a word without spaces or tabs and matches its definition case-insensitively (`[^SRE]` uses `[^sre]:`).
 - **Definition:** `[^label]: text` at the start of a line (up to 3 spaces of indent), anywhere in the document, including inside containers and lists. Lines indented by 4 spaces continue it, so a footnote can hold several paragraphs, lists or code.
-- **Rendering:** footnotes are numbered by their first reference, whatever the labels and the order of the definitions, and collected in a footnotes section at the end of the document, each with a back link (↩) to every reference. Unreferenced definitions are not shown, the first definition of a repeated label wins, and a reference to an undefined label stays literal text — all as on GitHub. References inside link text stay text, and `[^x](url)` remains a link.
+- **Rendering:** footnotes are numbered by their first reference, whatever the labels and the order of the definitions, and collected in a footnotes section at the end of the document, each with a back link (↩) to every reference. Unreferenced definitions are not shown, the first definition of a repeated label wins, and a reference to an undefined label stays literal text — all as on GitHub. References inside link text stay text, and `[^x](../url)` remains a link.
 - **HTML:** GitHub's structure, with `smd-` classes added and ids without GitHub's `user-content-` prefix:
 
   ```html
@@ -490,7 +490,7 @@ Text is shown as written: renderers make no typographic replacements unless the 
 | `(c)`, `(r)`, `(tm)`, `+-` | ©, ®, ™, ± |
 
 - **Where:** text in paragraphs, headings, lists, tables, block quotes and footnotes, container titles, inline directive content, the header's `title` and `summary`, front matter values shown with `{{key}}` (§4.7), and text included with `:::include` (§3.4), which follows the including document's front matter. Never code, math, raw HTML, link destinations or the text of an autolink.
-- **Autolinks:** text becomes a link only as a GFM autolink literal: a URL that starts with `http://`, `https://` or `ftp://`, a `mailto:` address, `www.` followed by a domain (in lower case; linked as `http://www.…`), or an e-mail address (`team@example.com`). A bare domain (`example.com`, `README.md`), a protocol-relative `//host` and `WWW.` in capitals are text. `typography: true` doesn't change links. `<https://…>` autolinks and `[text](url)` links are links as in CommonMark.
+- **Autolinks:** text becomes a link only as a GFM autolink literal: a URL that starts with `http://`, `https://` or `ftp://`, a `mailto:` address, `www.` followed by a domain (in lower case; linked as `http://www.…`), or an e-mail address (`team@example.com`). A bare domain (`example.com`, `README.md`), a protocol-relative `//host` and `WWW.` in capitals are text. `typography: true` doesn't change links. `<https://…>` autolinks and `[text](../url)` links are links as in CommonMark.
 - **The key:** `typography: true`, a YAML boolean; any other value leaves typography off. A spec v1 document may have the key; it has no effect there.
 - **What doesn't change:** heading ids come from the source text in either version (§4.2.3). The agent view, `smd to-md`, tasks and query show the source text. Glossary terms match straight and typographic quotes and dashes alike (§3.5), so they are found with typography on or off.
 - **Hosts:** the markdown-it plugin applies these rules to a spec v2 document (`smd: 2` in its front matter, or the plugin's `spec: 2` option) whatever the host's `typographer` and `linkify` options say, but it only takes away: a host with the typographer off (the Obsidian plugin) shows no typography even with `typography: true`, and a host with `linkify` off makes no autolinks. A host that removes the front matter passes `typography` with the rest of it in `env.smdVariables`.
@@ -583,7 +583,7 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `mermaid/syntax` | error | The diagram does not parse (checked with Mermaid's own parser where the tool ships it). A warning from 1.2 to 1.10, an error in every document since 2.0; there is no fix |
 | `math/syntax` · `math/unclosed` | error | KaTeX parse error / unclosed `$$` |
 | `fence/unclosed` | error | Unclosed code fence (fix: add it at the end of the document, for an unindented fence) |
-| `link/missing-anchor` | warning | `[x](#id)` or `[x](other.smd#id)` with no heading or element with that id (fix: closest id) |
+| `link/missing-anchor` | warning | `[x](#id)` or `[x](../other.smd#id)` with no heading or element with that id (fix: closest id) |
 | `link/github-anchor` | info | `[x](#max_tokens)`: the anchor is the GitHub id of a heading whose own id differs (`#maxtokens`, §4.2.3). It works on GitHub but not in the rendered HTML (fix: the heading's id) |
 | `link/missing-file` | warning | Relative link, image, reference definition, HTML `href`/`src` or `related:` entry does not exist |
 | `link/undefined-reference` | warning | `[text][label]` or `[label][]` with no `[label]: …` definition |
@@ -592,7 +592,7 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `ref/ambiguous` | warning | Since 3.1: an id attribute or `:ref[id]` names an id two or more blocks give, so it names none of them (figures keep their first-match rule) |
 | `figure/duplicate-id` | warning | Two `figure` blocks share an `{#id}`; references go to the first |
 | `id/duplicate` | warning | Since 3.1: a block gives an id that an earlier block already gives (a heading's id or slug, a task's, container's or figure's `{#id}`, a raw HTML id), so links and feedback naming it resolve to neither (§4.2.1). Two figures get `figure/duplicate-id` instead |
-| `link/ambiguous-anchor` | warning | Since 3.1: `[x](#id)` or `[x](other.smd#id)` names an id that two or more blocks of that document give, so it resolves to none of them |
+| `link/ambiguous-anchor` | warning | Since 3.1: `[x](#id)` or `[x](../other.smd#id)` names an id that two or more blocks of that document give, so it resolves to none of them |
 | `glossary/entry` | warning | A list item in a `glossary` is not `**Term**: definition` (its list then renders as a plain list and defines no terms), or an entry has no definition |
 | `glossary/duplicate` | warning | A term is defined again (in any glossary of the document); uses link to the first definition |
 | `glossary/duplicate-id` | warning | A term's id `term-{slug}` is also the id of a heading (such as `## Term limits`) or of another element in the document; links to it and the term's uses may lead there. Give the other element its own `{#id}` or rename one of them |
@@ -644,7 +644,7 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 | `:::include` | The included text, converted the same way, after an `<!-- included from … -->` comment (GitHub can't include); when the file can't be read, the fallback body, or a link to the file when the body is empty |
 | `:::glossary Title` | a `**Title**` paragraph, then the `- **Term**: definition` list unchanged; uses of terms stay as written |
 | `:::changelog Title` | a `**Title**` paragraph, then the release headings and lists as written |
-| `:::quote{author source cite}` | a blockquote of the body ending with a `— Author, *Source*` line (`*[Source](cite)*` with a valid `cite`) |
+| `:::quote{author source cite}` | a blockquote of the body ending with a `— Author, *Source*` line (`*[Source](../cite)*` with a valid `cite`) |
 | `box`, `columns`, `steps` | content only |
 | Unknown container `:::name Title` | a `**Title**` paragraph, then the content (§3) |
 | GitHub alert `> [!WARNING]` | unchanged, the same alert (§3.8) |
@@ -741,7 +741,7 @@ The value as YAML reads it decides, so `smd: 2.0`, the number 2, is spec v2, wit
 
 Implementations decide the version in one place: in this repository, `specVersion(text)` (or `specVersion(frontMatterData)`) for tools that have the text, and `isV2(env)` for markdown-it rules, which read the `smdSpec` the renderer puts on the env before parsing (`extension/src/core/specVersion.ts`).
 
-Additive features (new containers, directives, front matter keys) keep the spec version; older renderers degrade gracefully (unknown containers render as a box, with their title since 1.10 (§3), unknown keys are kept, and in spec v2 an unknown directive shows its content). Only breaking changes increment `smd`. Additive features under discussion are proposed in RFCs before they enter this specification, such as the exploratory collaboration RFC, [COLLABORATION-RFC.smd](COLLABORATION-RFC.smd); nothing in an RFC is part of the specification until it is accepted and written here.
+Additive features (new containers, directives, front matter keys) keep the spec version; older renderers degrade gracefully (unknown containers render as a box, with their title since 1.10 (§3), unknown keys are kept, and in spec v2 an unknown directive shows its content). Only breaking changes increment `smd`. Additive features under discussion are proposed in RFCs before they enter this specification, such as the exploratory collaboration RFC, [rfcs/collaboration.smd](../rfcs/collaboration.smd); nothing in an RFC is part of the specification until it is accepted and written here.
 
 How an inline directive that a reader doesn't know reads (spec v2 RFC, proposal 7b). Since spec v2 reads any name as a directive, a directive added in a later release shows its content, styled as a span, in every 2.x tool; a spec v1 document, and every reader that reads a document with v1 rules, keeps the text:
 
@@ -781,7 +781,7 @@ Localized labels (§2.2) degrade to English: tools before 1.6 don't know `lang`,
 
 ### 10.1 Migrating to spec v2
 
-Spec v2 (`smd: 2`, Semantic Markdown 2.0) reads a few things differently; the accepted changes are in the spec v2 RFC, [SPEC-V2-PROPOSALS.smd](SPEC-V2-PROPOSALS.smd). A document opts in by saying `smd: 2`. `smd migrate --to 2` plans what a document needs so that it means the same under v2 as it does today. It is a command of its own, because it changes text that `smd fmt`, which only changes layout, never touches. 1.10 only reported the plan (`--dry-run`); since 2.0, `smd migrate <files|dirs> --to 2` writes it, and VS Code's **Migrate to Spec v2** applies it to the open document as one undoable edit.
+Spec v2 (`smd: 2`, Semantic Markdown 2.0) reads a few things differently; the accepted changes are in the spec v2 RFC, [rfcs/spec-v2.smd](../rfcs/spec-v2.smd). A document opts in by saying `smd: 2`. `smd migrate --to 2` plans what a document needs so that it means the same under v2 as it does today. It is a command of its own, because it changes text that `smd fmt`, which only changes layout, never touches. 1.10 only reported the plan (`--dry-run`); since 2.0, `smd migrate <files|dirs> --to 2` writes it, and VS Code's **Migrate to Spec v2** applies it to the open document as one undoable edit.
 
 For example, this v1 document:
 
