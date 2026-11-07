@@ -49,6 +49,8 @@ export const RULE_CODES: Record<string, string> = {
   'include/depth': 'Includes nest more than 8 deep',
   'include/section-match': 'The `:::include` `section` finds a heading only by a part of its text; spec v2 matches an exact id or the whole text',
   'include/too-large': 'Includes read more than a document may (200 includes, 2,000,000 characters)',
+  'id/duplicate': 'Two blocks share an id (a heading, task, container, figure or HTML element); links and feedback naming it resolve to neither',
+  'link/ambiguous-anchor': 'Link to an `#anchor` that two or more blocks share, which resolves to none of them',
   'link/github-anchor': 'Link to a heading by the id GitHub gives it (`#foo_bar`), which differs from its own id (`#foobar`)',
   'link/missing-anchor': 'Link to an `#anchor` that does not exist',
   'link/missing-file': 'Link to a relative file that does not exist',

@@ -7,9 +7,12 @@ Part of the syntax reference (`../syntax.md` lists the topics). These carry mean
 ```markdown
 - [ ] Add idempotency keys :priority[P0] @api-team :due[2026-10-03]
 - [x] Kickoff with design @sam
+- [ ] Ship the migration @ops {#ship-migration}
 ```
 
 The owner (`@name` or `:mention[@name]`), priority and due date are extracted by `smd tasks` and `smd meta`. Overdue open tasks produce an info diagnostic.
+
+A task takes an id as a trailing `{#id}`, last on its line after a space, as headings do. Give one to a task that links, answers or reviews must point at (`[x](#ship-migration)`). Ids share one namespace with headings, figures and containers in a document: two blocks with the same id get `id/duplicate`, and a link to that id resolves to neither (`link/ambiguous-anchor`).
 
 ## Decisions and risks
 

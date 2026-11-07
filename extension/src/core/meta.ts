@@ -13,6 +13,8 @@ export interface TaskInfo {
   text: string;
   /** Zero-based line. */
   line: number;
+  /** The id written as a trailing `{#id}` on the task's line (`- [ ] Ship it {#ship}`), which links and feedback can target. */
+  id?: string;
   done: boolean;
   /** Nearest heading above the task. */
   section: string | null;
@@ -63,7 +65,7 @@ const TASK_FIELDS = {
 
 /** One task line as a task, under the heading `section`. */
 function taskInfo(
-  item: { line: number; mark: string; body: string }, section: string | null, { data, spec }: { data: Record<string, unknown>; spec: SpecVersion }, today?: string,
+  item: { line: number; mark: string; body: string; id?: string }, section: string | null, { data, spec }: { data: Record<string, unknown>; spec: SpecVersion }, today?: string,
 ): TaskInfo {
   const body = substituteLine(item.body, data, spec);
   const fields = TASK_FIELDS[spec];
@@ -83,6 +85,7 @@ function taskInfo(
       .replace(/\s{2,}/g, ' ')
       .trim(),
     line: item.line,
+    ...(item.id ? { id: item.id } : {}),
     done,
     section,
     assignees: [...new Set(assignees)],

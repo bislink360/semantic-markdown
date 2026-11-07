@@ -1,0 +1,49 @@
+---
+smd: 2
+title: Task ids
+summary: Pins task ids (a trailing {#id} on a task line) and the one id namespace per document, where an id two blocks share resolves to nothing, so later releases are compared against it.
+status: draft
+updated: 2026-11-06
+---
+
+## Plan {#plan}
+
+- [ ] Ship the migration :priority[P1] @ops :due[2026-12-01] {#ship-migration}
+- [x] Freeze the schema {#freeze}
+- [ ] A task without an id
+- [ ] Not an id {#a .b}
+- [ ] Escaped \{#escaped}
+  - [ ] Nested {#nested}
+
+1. [ ] Ordered {#ordered}
+
+> - [ ] Quoted {#quoted}
+
+See [the migration](#ship-migration) and [the plan](#plan).
+
+## Shared ids
+
+- [ ] First rollout {#rollout}
+- [ ] Second rollout {#rollout}
+
+:::note{#rollback} Rollback
+- [ ] Rehearse the rollback {#rollback}
+:::
+
+A link to [the rollout](#rollout) or [the rollback](#rollback) resolves to neither.
+
+## Figures keep their rule
+
+:::figure{#fig-flow} First flow
+![Flow](flow.png)
+:::
+
+:::figure{#fig-flow} Second flow
+![Flow](flow.png)
+:::
+
+:ref[fig-flow] goes to the first figure.
+
+```markdown
+- [ ] In code {#code}
+```

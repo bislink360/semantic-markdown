@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agentView, estimateTokens, querySmd } from '../src/core';
+import { agentView, duplicateIds, estimateTokens, extractTasks, outline, querySmd, renderSmd, resolveId, smdToMarkdown, validateSmd } from '../src/core';
 import { readDocument } from '../src/readView';
 
 /**
@@ -257,6 +257,91 @@ test('C04: provenance leaves the text unchanged and maps the head dangers to the
   assert.equal(traced.text, plain);
   const json = JSON.stringify(traced.provenance);
   assert.match(json, /risky\.smd/);
+});
+
+// ---------------------------------------------------------------------------
+// G1 identity: author-written task ids, and a duplicate id resolves to nothing (contract section "Identity")
+// ---------------------------------------------------------------------------
+
+const ids = (body: string[]) => ['---', 'smd: 2', 'title: Ids', '---', '', ...body, ''].join('\n');
+const plan = ids([
+  '## Plan {#plan}', '',
+  '- [ ] Ship it :priority[P1] @ann {#ship}',
+  '- [x] Write the spec {#spec}',
+  '- [ ] Untargeted task', '',
+  'See [the ship task](#ship).',
+]);
+const codes = (text: string) => validateSmd(text).map((d) => d.code);
+
+test('Identity: a task takes an id as a trailing {#id}, and every task reader agrees on it', () => {
+  const tasks = extractTasks(plan);
+  assert.deepEqual(tasks.map((t) => [t.text, t.id]), [['Ship it', 'ship'], ['Write the spec', 'spec'], ['Untargeted task', undefined]]);
+  assert.equal(tasks[0].priority, 'P1', 'fields before the id are still read');
+  assert.deepEqual(tasks[0].assignees, ['@ann']);
+  const q = querySmd(plan, 'task[id=ship]', { today: '2026-11-06' });
+  assert.deepEqual(q.map((m) => [m.title, m.attrs.id]), [['Ship it', 'ship']]);
+  assert.match(outline(plan), /2 open tasks/, 'outline counts are unchanged');
+});
+
+test('Identity: the rendered task carries its id on the item, not in its text, and #id links resolve to it', () => {
+  const html = renderSmd(plan).html;
+  assert.match(html, /<li id="ship" class="smd-task"[^>]*><input[^>]*aria-label="Ship it P1 @ann">Ship it <span class="smd-priority"/);
+  assert.doesNotMatch(html, /\{#ship\}|\{#spec\}/);
+  assert.deepEqual(codes(plan), [], 'the link to #ship resolves');
+  assert.deepEqual(resolveId(plan, 'ship'), { status: 'resolved', line: 7, stable: true });
+});
+
+test('Identity: the agent view shows the id as written, so an agent can name the task', () => {
+  const view = agentView(plan).text;
+  assert.match(view, /- \[ \] Ship it \[P1\] @ann \{#ship\}/);
+  assert.match(view, /- \[ \] Untargeted task\n/);
+});
+
+test('Identity: the line stays a GitHub task, and plain Markdown keeps the id as an anchor', () => {
+  const md = smdToMarkdown(plan);
+  assert.match(md, /^- \[ \] Ship it \*\*P1\*\* @ann <a id="ship"><\/a>$/m);
+  assert.match(md, /^- \[x\] Write the spec <a id="spec"><\/a>$/m);
+});
+
+test('Identity: a heading slug resolves but is reported as unstable, an author-written id as stable', () => {
+  const text = ids(['## Rollout', '', '## Plan {#plan}']);
+  assert.deepEqual(resolveId(text, 'rollout'), { status: 'resolved', line: 5, stable: false });
+  assert.deepEqual(resolveId(text, 'plan'), { status: 'resolved', line: 7, stable: true });
+  assert.deepEqual(resolveId(text, 'nope'), { status: 'missing' });
+});
+
+test('R17: a duplicate id resolves to nothing and is reported as ambiguous, never matched to the first', () => {
+  const text = ids(['- [ ] Ship it {#ship}', '- [ ] Ship again {#ship}', '', 'See [ship](#ship).']);
+  assert.deepEqual(resolveId(text, 'ship'), { status: 'ambiguous', lines: [5, 6] });
+  assert.deepEqual([...duplicateIds(text).keys()], ['ship']);
+  const found = validateSmd(text);
+  const dup = found.filter((d) => d.code === 'id/duplicate');
+  assert.deepEqual(dup.map((d) => [d.line, d.severity]), [[6, 'warning']], 'on the second block only (AC3)');
+  const link = found.find((d) => d.code === 'link/ambiguous-anchor');
+  assert.equal(link?.line, 8);
+  assert.match(link!.message, /lines 6 and 7.*resolves to none of them/);
+});
+
+test('R17: one namespace per document: a task id shared with a heading, a container or a heading slug is ambiguous', () => {
+  assert.equal(resolveId(ids(['## Plan {#ship}', '', '- [ ] Ship it {#ship}']), 'ship').status, 'ambiguous');
+  assert.equal(resolveId(ids([':::note{#ship} Note', ':::', '', '- [ ] Ship it {#ship}']), 'ship').status, 'ambiguous');
+  const slug = ids(['## Ship', '', '- [ ] Ship it {#ship}']);
+  assert.equal(resolveId(slug, 'ship').status, 'ambiguous');
+  assert.ok(codes(slug).includes('id/duplicate'));
+});
+
+test("R17: links to another document's duplicate id are ambiguous too", () => {
+  const other = ids(['- [ ] A {#x}', '- [ ] B {#x}']);
+  const text = ids(['See [x](other.smd#x).']);
+  const found = validateSmd(text, { fileExists: (p) => p === 'other.smd', readFile: (p) => (p === 'other.smd' ? other : undefined) });
+  assert.deepEqual(found.map((d) => d.code), ['link/ambiguous-anchor']);
+  assert.match(found[0].message, /in "other.smd"/);
+});
+
+test('R17: two figures keep the released figure/duplicate-id and :ref first-match behavior, with no id/duplicate', () => {
+  const text = ids([':::figure{#fig} First', '![a](a.png)', ':::', '', ':::figure{#fig} Second', '![b](b.png)', ':::', '', 'See :ref[fig].']);
+  assert.deepEqual(codes(text), ['figure/duplicate-id']);
+  assert.match(renderSmd(text).html, /<a class="smd-ref" href="#fig">Figure 1<\/a>/, ':ref still goes to the first figure');
 });
 
 // ---------------------------------------------------------------------------

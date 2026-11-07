@@ -8,6 +8,7 @@ import { renderInlineDirective, renderUnknownDirective, withoutDueNotes } from '
 import { HEADING_ATTRS, headingAttrList, slugify } from './sections';
 import { INLINE_DIRECTIVES } from './spec';
 import { isSpecVersion, isV2, resolveSpec, specEnv, specOf, type SpecEnv, type SpecVersion } from './specVersion';
+import { splitTaskId } from './taskId';
 import { typographyOf } from './typography';
 import type { IncludeResult, IncludeScope } from './include';
 import type { SmdContext } from './markdownItSetup';
@@ -747,6 +748,8 @@ function markTask(state: StateCore, i: number, checked: boolean): void {
   const first = inline.children![0];
   first.content = first.content.slice(3).replace(/^[ \t]/, '');
   const item = tokens[i - 2];
+  const id = takeTaskId(inline.children!);
+  if (id) item.attrSet('id', id);
   const line = (item.map?.[0] ?? 0) + ((state.env as Env | undefined)?.lineOffset ?? 0);
   // A task from an included document lives in another file, so the preview can't toggle it.
   const where = includedFrom(item) ? ' disabled' : ` data-task-line="${line}"`;
@@ -758,6 +761,19 @@ function markTask(state: StateCore, i: number, checked: boolean): void {
   inline.children!.unshift(box);
   item.attrJoin('class', `smd-task${checked ? ' smd-task-done' : ''}`);
   markTaskList(tokens, i - 2);
+}
+
+/**
+ * Read a task's `{#id}` off the end of its first line, as the line-based readers do (splitTaskId), and take it out of
+ * the text: the id goes on the list item, so `#id` links to the task.
+ */
+function takeTaskId(children: Token[]): string | undefined {
+  const br = children.findIndex((c) => c.type === 'softbreak' || c.type === 'hardbreak');
+  const last = children[(br < 0 ? children.length : br) - 1];
+  if (last?.type !== 'text') return undefined;
+  const { text, id } = splitTaskId(last.content);
+  if (id) last.content = text;
+  return id;
 }
 
 /** The plain text of a task's inline tokens: text, code, and the text of inline HTML such as directives. */
