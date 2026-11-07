@@ -92,8 +92,8 @@ Two more facts shape the design. `query` results today do not carry the document
 | G1  | Edges are derived from what documents already contain. Links to `#anchor`, links to other `.smd` files, `:ref[id]`, `related:` entries and `:::include` blocks each give an edge of their own type | P0       |
 | G2  | Typed edges from the Semantic tags milestone (`depends-on`, `supersedes`, `verifies`, `supports`, `contradicts`, `applies-to`) join the same graph once they ship, each as its own edge type       | P1       |
 | G3  | `query` and `read` take a `follow` option naming the edge types to follow (or `*`) and a direction (`out`, `in` or `both`). Depth is 1 by default and at most 3                                    | P0       |
-| G4  | Neighbors are returned as pointers by default. Content is included only when asked for and only within the token budget                                                                            | P0       |
-| G5  | Edges across files work for paths the sandbox allows. A target outside it, or a missing one, is a pointer marked missing and never an error                                                        | P1       |
+| G4  | Navigation and evidence neighbors are returned as pointers by default, with content only when asked for and within the token budget. Mandatory edges (`include`, `applies-to`, `depends-on`) are followed to their closure, with cycles and depth reported (research contract, accepted 2026-11-06)                                                                            | P0       |
+| G5  | Edges across files work for paths the sandbox allows. A target outside it, or a missing one, is a pointer marked missing and never an error. A missing or denied target of a mandatory edge counts as an unsatisfied dependency                                                        | P1       |
 | G6  | `smd graph <paths>` prints the edges as text, or as JSON with `--json`, for people and scripts. It is not an MCP tool                                                                              | P2       |
 | G7  | The validator warns about a cycle in `depends-on` or `supersedes` and about an accepted decision that depends on a superseded one. Missing link targets already warn today                         | P1       |
 
@@ -101,7 +101,7 @@ Two more facts shape the design. `query` results today do not carry the document
 
 | ID  | Requirement                                                                                                                                                                            | Priority |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| S1  | A filtered read includes the document's `:::agent` blocks, as `read` with sections does. `query` gets this through a `constraints` option, off by default so its output stays the same | P0       |
+| S1  | A filtered read includes the document's `:::agent` blocks, as `read` with sections does. `query` gets this through a `constraints` option, off by default so its output stays the same, and the result then says that constraints were not included (research contract, accepted 2026-11-06) | P0       |
 | S2  | Content left out by `{agent=skip}` and `:::human` stays out of filtered results unless asked for, as today                                                                             | P0       |
 | S3  | Results are deterministic. The same source and selector give the same output in the same order                                                                                         | P0       |
 | S4  | Every result says how many tokens it holds and how many it left out as pointers, so the agent can decide whether to expand                                                             | P1       |

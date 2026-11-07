@@ -134,11 +134,11 @@ test('escapes: rendering, validation, the agent view and to-md read v2 values', 
   const text = doc(String.raw`:::note{title="\\\\server\share"}` + '\nUNC.\n:::\n\n' + String.raw`Saved :metric[3]{label="C:\temp\\" trend=up} today.`);
   assert.deepEqual(codes(text), []);
   assert.match(agent(text), /<note title="\\\\server\\share">/);
-  assert.match(agent(text), /Saved C:\\temp\\: 3 today\./);
+  assert.match(agent(text), /Saved C:\\temp\\: 3 \(up\) today\./);
   assert.match(smdToMarkdown(text), /\*\*3\*\* C:\\temp\\ today/);
   assert.match(html(text), /<span class="smd-metric-label">C:\\temp\\<\/span>/);
   // In v1 the same list has two backslashes, as in 1.10.
-  assert.match(agent(text.replace('smd: 2', 'smd: 1')), /Saved C:\\temp\\\\: 3 today\./);
+  assert.match(agent(text.replace('smd: 2', 'smd: 1')), /Saved C:\\temp\\\\: 3 \(up\) today\./);
   // A value that ends in one backslash is malformed in v2: the item is text, and an attrs/syntax error.
   const old = doc(String.raw`Saved :metric[3]{label="C:\temp\" trend=up} today.`);
   assert.ok(codes(old).includes('attrs/syntax'));

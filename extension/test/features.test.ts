@@ -104,7 +104,7 @@ test('agent view drops human-only content and styling but keeps meaning', () => 
   assert.match(r.text, /<question title="Should guest users see wallet buttons/);
   assert.match(r.text, /## Requirements {2}\[L53\]/);
   assert.match(r.text, /\[P1\] @api-team \(due 2026-09-25, OVERDUE\)/);
-  assert.match(r.text, /Checkout abandonment: 38% \(\+2\.1pp\)/);
+  assert.match(r.text, /Checkout abandonment: 38% \(\+2\.1pp, up, bad\)/, 'a metric keeps its trend and tone (contract GAP-6)');
   assert.match(r.text, /\[code: src\/pricing\.ts lines 7-13/);
   assert.deepEqual(r.skippedSections, ['Background', 'Design', 'Analytics']);
 });
