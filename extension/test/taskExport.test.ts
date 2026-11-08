@@ -138,7 +138,8 @@ test('CLI: smd tasks text and --json output is unchanged', { skip: !fs.existsSyn
     '18  [ ] -1 day  — Odd "names"',
     '10  [ ] Soon, maybe (due next week)  — Build',
   ].map((l) => `${file}:${l}\n`).join(''));
-  assert.equal(text.stderr, '[smd] 10 task(s) open, 2 overdue.\n');
+  // The summary, then the line added in 4.1: a checked box is a claim, not verification.
+  assert.equal(text.stderr, '[smd] 10 task(s) open, 2 overdue.\n[smd] Checked boxes are implementation claims, not verification: smd trace shows the evidence.\n');
   const json = smd(file, '--today', TODAY, '--json');
   assert.equal(json.stdout, JSON.stringify(JSON.parse(json.stdout), null, 2) + '\n');
   assert.deepEqual(Object.keys(JSON.parse(json.stdout)[0]), ['text', 'line', 'done', 'section', 'assignees', 'due', 'overdue', 'file']);

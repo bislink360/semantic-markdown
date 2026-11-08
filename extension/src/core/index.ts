@@ -41,6 +41,10 @@ export type {
   GraphDocument, GraphNode, GraphEdge, GraphOptions, DocumentRead, EdgeKind, EdgeDirection, TargetStatus, FollowOptions, Neighbor,
   ClosureOptions, ClosureBlock, Closure, Unsatisfied, UnsatisfiedKind, DependencyProblem,
 } from './graph';
+export { traceRequirements, formatTrace, traceSummary } from './trace';
+export type { TraceRequirement, TraceResult, TraceSummary, TraceOptions, TraceCriterion, TraceTask, TraceRecord } from './trace';
+export { evidenceRecords } from './evidence';
+export type { EvidenceRecord, EvidenceTarget, EvidenceFreshness } from './evidence';
 export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints, constraintNote, pointerLine } from './graphQuery';
 export type { QueryDocumentsOptions, QueryDocumentsResult, FileMatch, ConstraintBlock, DocumentConstraints, MatchGraph, FormatOptions } from './graphQuery';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';

@@ -25,6 +25,9 @@ import {
 } from './provenance';
 import { dueState, type Heading } from './render';
 import { matchesExactly, matchesHeading, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
+import { countsTasks, progressState, progressTag, sectionTaskCounts, type TaskCount } from './progress';
+import { evidenceRecords, type EvidenceRecord } from './evidence';
+import { documentBlocks, type DocumentBlock } from './query';
 import { quoteCite } from './quote';
 import { CALLOUT_TYPES, INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
@@ -84,6 +87,12 @@ export interface AgentViewOptions {
    * map and every omission with its reason (see provenance.ts). It never changes `text`. Off by default.
    */
   provenance?: boolean;
+  /**
+   * `full`: each requirement and acceptance block the view shows is followed by the evidence that supports or
+   * contradicts it, in full wherever it is, outdated records marked, and a requirement with none says so (AF27).
+   * `pointers` (the default) leaves the view as it is.
+   */
+  evidence?: 'pointers' | 'full';
 }
 
 export interface AgentViewResult {
@@ -767,8 +776,12 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const variables = options.variables ?? documentVariables(lines);
   // The document's spec version, from its front matter: an included document's is the including one's, as in rendering.
   const spec = specVersion(variables);
+  // The line being read, and the tasks of each line's section (for `:progress{basis=tasks}`), counted on the first ask.
+  let current = from;
+  let sectionCounts: ((line: number) => TaskCount) | undefined;
+  const counts = () => (sectionCounts ??= sectionTaskCounts(lines.join('\n'), from, spec))(current);
   const text = (s: string, openTask = false, math?: ReadonlyArray<[number, number]>, parts?: ReadonlyArray<InlinePart>) => {
-    const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec };
+    const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec, counts };
     // An item that runs over several lines is read whole, as rendering reads it; each line shows its part.
     return styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read)));
   };
@@ -809,8 +822,10 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const omit = (o: Omit<Omission, 'file' | 'lines'>, start: number, end: number) => {
     if (trace?.omissions) addOmission(trace.omissions, { ...o, file: trace.file, lines: [start + 1, end + 1] });
   };
+  const evidenceAfter = options.evidence === 'full' ? evidenceFollower(lines, options) : undefined;
   const closeFrame = (frame: Frame, at: number) => {
     if (frame.close) emit(frame.close, at);
+    if (evidenceAfter && frame.visible) for (const l of evidenceAfter(frame.name, frame.start, at)) emit(l, at, false);
     if (!frame.visible) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
     if (frame.condensed) omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
@@ -835,6 +850,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   });
 
   for (let i = from; i < lines.length; i++) {
+    current = i;
     // Inside a GitHub alert, the line without its quote marker; nothing for the alert's own marker line.
     const raw = alertView.line(i, lines[i]);
     if (raw === undefined) continue;
@@ -1212,6 +1228,8 @@ interface TextContext {
   /** The ids exactly one block gives, which `:ref[id]` shows as written when no figure has them (D4). */
   blocks?: ReadonlySet<string>;
   variables?: Variables; spec: SpecVersion;
+  /** The tasks of the line's section, for `:progress{basis=tasks}`; unknown without it. */
+  counts?: () => TaskCount;
 }
 
 /**
@@ -1247,15 +1265,25 @@ function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefin
 const DIRECTIVE_TEXT_V1 = /(^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 const DIRECTIVE_TEXT_V2 = /(^|[\s([{>*_~"'-]):([A-Za-z][A-Za-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 
-function plain(s: string, { today, openTask, figures, blocks, spec }: TextContext): string {
+function plain(s: string, { today, openTask, figures, blocks, spec, counts }: TextContext): string {
   return refText(s, figures, spec, blocks)
     .replace(/!\[([^\]\n]*)\]\([^)\n]*\)/g, (_m, alt) => (alt ? `[image: ${alt}]` : ''))
     .replace(spec >= 2 ? DIRECTIVE_TEXT_V2 : DIRECTIVE_TEXT_V1, (m, pre: string, name: string, content?: string, rawAttrs?: string) =>
       (content === undefined && rawAttrs === undefined
         ? m
-        : directiveText(m, { pre, name: spec >= 2 ? name.toLowerCase() : name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, { today, openTask, spec })))
+        : directiveText(m, { pre, name: spec >= 2 ? name.toLowerCase() : name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, { today, openTask, spec, counts })))
     .replace(/(!?)\[([^\]]*)\]\{([^{}\n]*)\}/g, (m, bang, content, rawAttrs) => (bang || !parseAttrs(rawAttrs, spec) ? m : content))
     .replace(/==(?=\S)([^=]+?)(?<=\S)==/g, '$1');
+}
+
+/**
+ * A bar with a basis in the view, after its label when it has one: `[progress 80%: 8 of 10 tasks checked]`,
+ * `[progress unknown]`, `[progress 40% (estimated)]`. Undefined for a bar without one, which reads as before.
+ */
+function progressBasisText(v: Record<string, string>, content: string, counts?: () => TaskCount): string | undefined {
+  if (countsTasks(v) && !counts) return `${v.label ? `${v.label} ` : ''}[progress: the checked tasks of its section]`;
+  const state = progressState(v, content, countsTasks(v) ? counts?.() : undefined);
+  return state.kind === 'plain' ? undefined : `${v.label ? `${v.label} ` : ''}${progressTag(state)}`;
 }
 
 const METRIC_TRENDS = new Set(['up', 'down', 'flat']);
@@ -1283,7 +1311,7 @@ function metricMeaning(v: Record<string, string>): string[] {
  */
 function directiveText(
   m: string, { pre, name, content, rawAttrs }: { pre: string; name: string; content: string; rawAttrs: string },
-  { today, openTask, spec }: { today: string | undefined; openTask: boolean; spec: SpecVersion },
+  { today, openTask, spec, counts }: { today: string | undefined; openTask: boolean; spec: SpecVersion; counts?: () => TaskCount },
 ): string {
   const attrs = parseAttrs(rawAttrs, spec);
   // In spec v2 a list that can't be read leaves the whole item as text, as rendering does.
@@ -1299,7 +1327,7 @@ function directiveText(
     case 'kbd': return `${pre}${content}`;
     case 'mention': return `${pre}${content}`;
     case 'status': return `${pre}[status: ${content}${status ? ` (${status})` : ''}]`;
-    case 'progress': return `${pre}${v.label ?? `${Math.round(Number(v.value ?? content) || 0)}%`}`;
+    case 'progress': return `${pre}${progressBasisText(v, content, counts) ?? v.label ?? `${Math.round(Number(v.value ?? content) || 0)}%`}`;
     case 'due': {
       const late = openTask && dueState(content.trim(), today) === 'overdue';
       return `${pre}(due ${content}${late ? ', OVERDUE' : ''})`;
@@ -1463,4 +1491,51 @@ function sectionCost(s: SectionCost): string {
 
 function costWidth(costs: string[], tokenizer?: Tokenizer): number {
   return tokenizer ? Math.max(...costs.map((c) => c.length), 6) : 6;
+}
+
+// ---------------------------------------------------------------------------
+// Evidence in review views (`evidence: 'full'`, research AF27)
+// ---------------------------------------------------------------------------
+
+/**
+ * The lines that follow a requirement or acceptance block in a view with `evidence: 'full'`: for each record that
+ * supports or contradicts it, a line that says how and whether it is outdated, then the record's own view unless the
+ * block already holds it. A requirement with no record gets `[evidence: none for R1]`. Records are read on the first ask.
+ */
+function evidenceFollower(lines: string[], options: TransformOptions): (name: string, start: number, end: number) => string[] {
+  let known: { blocks: DocumentBlock[]; records: EvidenceRecord[] } | undefined;
+  const read = () => {
+    if (!known) {
+      const text = lines.join('\n');
+      const blocks = documentBlocks(text, options.today);
+      known = { blocks, records: evidenceRecords(text, blocks) };
+    }
+    return known;
+  };
+  return (name, start, end) => {
+    if (name !== 'requirement' && name !== 'acceptance') return [];
+    const { blocks, records } = read();
+    const block = blocks.find((b) => b.line === start && b.type === name);
+    const id = typeof block?.attrs.id === 'string' ? block.attrs.id : undefined;
+    if (!id) return name === 'requirement' ? ['[evidence: none for this requirement, which has no id]'] : [];
+    const mine = records.filter((r) => r.supports.some((t) => t.id === id) || r.contradicts.some((t) => t.id === id));
+    if (!mine.length) return name === 'requirement' ? [`[evidence: none for ${id}]`] : [];
+    return mine.flatMap((r) => {
+      const inside = r.line > start && r.line <= end;
+      const view = inside ? [] : agentViewOfRange(lines, r.line, r.endLine, { today: options.today, lineRefs: options.lineRefs, includeHuman: options.includeHuman }).split('\n');
+      return [evidenceLine(r, id, inside), ...view];
+    });
+  };
+}
+
+/** `[evidence for R1: E1 supports it · test · pass · by @ci · L40]`, with OUTDATED and what to do when R1 changed since. */
+function evidenceLine(r: EvidenceRecord, id: string, above: boolean): string {
+  const support = r.supports.find((t) => t.id === id);
+  const how = support ? 'supports it' : 'contradicts it';
+  const facts = [r.method ?? 'method not stated', r.result ?? 'no result', ...(r.by ? [`by ${r.by}`] : []), ...(r.date ? [r.date] : [])];
+  const target = support ?? r.contradicts.find((t) => t.id === id);
+  const outdated = target?.freshness === 'outdated'
+    ? [`OUTDATED: ${id} changed after revision ${target.recorded}, recheck before treating it as current`]
+    : [];
+  return `[evidence for ${id}: ${r.id ?? 'a record'} ${how} · ${[...facts, ...outdated].join(' · ')} · L${r.line + 1}${above ? ', shown above' : ''}]`;
 }
