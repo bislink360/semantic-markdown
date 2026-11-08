@@ -508,12 +508,16 @@ export const CLOSURE_LIMITS = { depth: 5, blocks: 50 };
  * apply to them (`applies-to` pointing at them), then what those need in turn, depth first and bounded. Cycles, depth
  * cuts, the block limit, and missing, ambiguous or denied targets are reported as unsatisfied, and make the closure
  * incomplete. Reusable by any view that shows a block with its dependencies.
+ *
+ * The depth limit counts the fewest steps from a start, not the steps of the path the walk happens to take, so a
+ * dependency within the limit is never cut because a longer path reached it first.
  */
 export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNode[], options: ClosureOptions = {}): Closure {
   const types = new Set((options.types ?? MANDATORY_EDGES).filter((t) => MANDATORY_EDGES.includes(t)));
   const maxDepth = options.maxDepth ?? CLOSURE_LIMITS.depth;
   const maxBlocks = options.maxBlocks ?? CLOSURE_LIMITS.blocks;
-  const done = new Set([...(options.shown ?? []), ...starts.map(nodeKey)]);
+  const shown = new Set(options.shown ?? []);
+  const done = new Set([...shown, ...starts.map(nodeKey)]);
   const blocks: ClosureBlock[] = [];
   const unsatisfied: Unsatisfied[] = [];
   const reported = new Set<string>();
@@ -521,13 +525,32 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
     const key = `${u.kind}|${u.edge.from.file}:${u.edge.line}|${u.edge.target}`;
     if (!reported.has(key)) { reported.add(key); unsatisfied.push(u); }
   };
+  const wantedOf = (node: GraphNode): Array<{ edge: GraphEdge; target?: GraphNode }> => [
+    ...graph.outgoing(node).filter((e) => types.has(e.type) && needs(e, 'out')).map((edge) => ({ edge, target: edge.to })),
+    ...(types.has('applies-to') ? graph.appliesTo(node).map((edge) => ({ edge, target: edge.from })) : []),
+  ];
 
-  const visit = (node: GraphNode, path: GraphNode[], depth: number): void => {
-    const wanted: Array<{ edge: GraphEdge; target?: GraphNode }> = [
-      ...graph.outgoing(node).filter((e) => types.has(e.type) && needs(e, 'out')).map((edge) => ({ edge, target: edge.to })),
-      ...(types.has('applies-to') ? graph.appliesTo(node).map((edge) => ({ edge, target: edge.from })) : []),
-    ];
-    for (const { edge, target } of wanted) {
+  // The fewest steps from any start to each node within the limit, breadth first over the same edges the walk follows.
+  // Nodes already shown are not expanded, as the walk skips them. A node missing from `distance` is further away.
+  const distance = new Map<string, number>(starts.map((s) => [nodeKey(s), 0]));
+  let frontier = [...starts];
+  for (let d = 1; d <= maxDepth && frontier.length; d++) {
+    const next: GraphNode[] = [];
+    for (const node of frontier) {
+      for (const { edge, target } of wantedOf(node)) {
+        if (edge.status !== 'resolved' || !target || contains(node, target)) continue;
+        const key = nodeKey(target);
+        if (distance.has(key) || shown.has(key)) continue;
+        distance.set(key, d);
+        next.push(target);
+      }
+    }
+    frontier = next;
+  }
+
+  const visit = (node: GraphNode, path: GraphNode[]): void => {
+    const depth = distance.get(nodeKey(node)) ?? maxDepth;
+    for (const { edge, target } of wantedOf(node)) {
       if (edge.status !== 'resolved' || !target) {
         report({ kind: edge.status === 'resolved' ? 'missing' : edge.status as UnsatisfiedKind, edge, via: node, depth: depth + 1 });
         continue;
@@ -540,15 +563,16 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
         continue;
       }
       if (done.has(key)) continue;
-      if (depth + 1 > maxDepth) { report({ kind: 'depth', edge, via: node, depth: depth + 1 }); continue; }
-      if (blocks.length >= maxBlocks) { report({ kind: 'limit', edge, via: node, depth: depth + 1 }); continue; }
+      const steps = distance.get(key);
+      if (steps === undefined) { report({ kind: 'depth', edge, via: node, depth: maxDepth + 1 }); continue; }
+      if (blocks.length >= maxBlocks) { report({ kind: 'limit', edge, via: node, depth: steps }); continue; }
       done.add(key);
       const text = graph.content(target);
-      blocks.push({ node: target, edge, via: node, depth: depth + 1, text, tokens: estimateTokens(text) });
-      visit(target, [...path, target], depth + 1);
+      blocks.push({ node: target, edge, via: node, depth: steps, text, tokens: estimateTokens(text) });
+      visit(target, [...path, target]);
     }
   };
-  for (const start of starts) visit(start, [start], 0);
+  for (const start of starts) visit(start, [start]);
   return { blocks, unsatisfied, complete: unsatisfied.length === 0 };
 }
 
