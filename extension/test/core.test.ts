@@ -18,7 +18,8 @@ test('plain Markdown is valid SMD and renders normally', () => {
 });
 
 test('the showcase sample has no problems', () => {
-  assert.deepEqual(validateSmd(showcase, { today: '2026-09-01' }), []);
+  // Its progress bars predate bases, so each gets the progress/basis hint (4.1) and nothing else.
+  assert.deepEqual(validateSmd(showcase, { today: '2026-09-01' }).map((d) => `${d.code}:${d.severity}`), Array(3).fill('progress/basis:hint'));
 });
 
 test('front matter renders a document header and is validated', () => {

@@ -12,12 +12,17 @@ import { openTaskLines } from './taskLines';
  *
  * Never omitted: the header (title, front matter facts, summary), text before the first
  * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions or a danger (`:::danger`
- * or a CAUTION alert, their own or from a file they include), and
- * sections requested with `sections` (and their subsections). When these alone are over the budget, the view ends
+ * or a CAUTION alert, their own or from a file they include), sections requested with `sections` (and their
+ * subsections), and the head blocks "Constraints that apply here" and "Dependencies of the selected content". A section
+ * holding a `scope=document` constraint is never omitted, nor, while what needs it is kept, one holding a constraint
+ * whose `applies-to` target is kept or a dependency of kept content (see applicability.ts). A section constraint
+ * without `applies-to` goes with its section, whose pointer says `holds constraint`. When these alone are over the budget, the view ends
  * with a `[budget: …, required content does not fit]` line (see agentView's withOverflowLine).
  *
- * Order: sections without key content go first; sections with a danger or warning callout (or alert), an
- * accepted decision, a question or an open task are kept longer. Within each group the deepest
+ * Order: sections without key content go first; sections with a danger or warning callout (or alert), an accepted,
+ * implemented or verified requirement, an unvalidated assumption, a constraint, an
+ * accepted decision, an open question or an open task are kept longer. A question the lifecycle settled (answered,
+ * incorporated, withdrawn) is ordinary content. Within each group the deepest
  * headings go first, then the largest, then the latest in the document. A parent section is only
  * omitted after its subsections, and its pointer then replaces theirs.
  */
@@ -60,6 +65,11 @@ const KEY_CONTENT = [
   /^\s*:{3,}\s*(?:danger|warning|question)(?![\w-])/,
   /^ {0,3}>\s*\[!(?:CAUTION|WARNING)\]/i,
   /^\s*:{3,}\s*decision\b.*\bstatus\s*=\s*["']?accepted\b/,
+  // A settled requirement and an unvalidated assumption (semantic tags R23 and phase 2).
+  /^\s*:{3,}\s*requirement(?![\w-]).*\bstatus\s*=\s*["']?(?:accepted|implemented|verified)\b/,
+  /^\s*:{3,}\s*assumption(?![\w-])(?!.*\bstatus\s*=\s*["']?(?:validated|invalid)\b)/,
+  // A constraint (semantic tags R29): one that applies is never omitted, and the others are kept longer.
+  /^\s*:{3,}\s*constraint(?![\w-])/,
 ];
 
 const within = (inner: BudgetSection, outer: BudgetSection) => inner.start >= outer.start && inner.end <= outer.end;
@@ -70,9 +80,9 @@ const overlaps = (a: BudgetSection, b: BudgetSection) => a.start <= b.end && b.s
  * text: a container line in code or display math is shown as written, so it opens nothing (see literalLines). The
  * document is parsed only when a line matches.
  */
-function markedSections(lines: string[], patterns: RegExp[]): (s: BudgetSection) => boolean {
+function markedSections(lines: string[], patterns: RegExp[], ordinary?: ReadonlySet<number>): (s: BudgetSection) => boolean {
   const isLiteral = lazyLineSet(() => literalLines(lines.join('\n')));
-  return (s) => lines.slice(s.start, s.end + 1).some((l, k) => patterns.some((re) => re.test(l)) && !isLiteral(s.start + k));
+  return (s) => lines.slice(s.start, s.end + 1).some((l, k) => patterns.some((re) => re.test(l)) && !isLiteral(s.start + k) && !ordinary?.has(s.start + k));
 }
 
 /** Sections that may be omitted: not level 1, not skipped, no agent instructions, not requested. */
@@ -85,10 +95,15 @@ export function omittableSections(sections: BudgetSection[], lines: string[], re
     && !hasAgentBlock(s));
 }
 
-/** Omission order: least important first (see the module comment). `lines` are the whole document's. */
-export function omissionOrder(candidates: BudgetSection[], lines: string[], cost: (s: BudgetSection) => number): BudgetSection[] {
+/**
+ * Omission order: least important first (see the module comment). `lines` are the whole document's. `ordinary` are
+ * lines that look like key content but are not, such as the questions the lifecycle settled.
+ */
+export function omissionOrder(
+  candidates: BudgetSection[], lines: string[], cost: (s: BudgetSection) => number, ordinary?: ReadonlySet<number>,
+): BudgetSection[] {
   const openTasks = candidates.length ? openTaskLines(lines.join('\n')) : [];
-  const hasKeyContent = markedSections(lines, KEY_CONTENT);
+  const hasKeyContent = markedSections(lines, KEY_CONTENT, ordinary);
   // 1 when the section has content worth keeping longer (see the module comment), else 0.
   const keepTier = (s: BudgetSection) => (openTasks.some((l) => l >= s.start && l <= s.end) || hasKeyContent(s) ? 1 : 0);
   const ranked = candidates.map((s) => ({ s, tier: keepTier(s), tokens: cost(s) }));

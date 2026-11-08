@@ -37,7 +37,9 @@ export interface LanguageServerOptions {
 }
 
 /** LSP SymbolKind values for headings, decisions, risks and API endpoints. */
-const SYMBOL_KIND: Record<SmdSymbol['kind'], number> = { heading: 15, decision: 24, risk: 14, api: 6 };
+const SYMBOL_KIND: Record<SmdSymbol['kind'], number> = {
+  heading: 15, decision: 24, risk: 14, api: 6, requirement: 11, constraint: 20, acceptance: 17, assumption: 13, evidence: 19,
+};
 const SEVERITY: Record<Diagnostic['severity'], number> = { error: 1, warning: 2, info: 3, hint: 4 };
 const TEXT_DOCUMENT_SYNC_FULL = 1;
 const TRIGGER_CHARACTERS = [':', '{', '=', '`', '(', '/', '#', '"', '^'];
@@ -331,7 +333,7 @@ export class SmdLanguageServer {
     if (text === undefined) throw new LspError(LSP_ERRORS.invalidParams, `smd/renderHtml: ${uri} is not open and no text was sent`);
     const file = filePath(uri);
     const theme = params.theme === 'light' || params.theme === 'dark' ? params.theme : 'auto';
-    return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, today: this.options.today }, theme) };
+    return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, today: this.options.today, reviewBlocks: 'shown' }, theme) };
   }
 
   // -------------------------------------------------------------------------

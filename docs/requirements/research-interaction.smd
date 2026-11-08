@@ -6,13 +6,14 @@ status: draft
 owners: ["@roshanmadhushanka"]
 tags: [requirements, research, human-ai-interaction, attention, retrieval]
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-07
 toc: true
 related:
   - semantic-tags.smd
   - tree-and-graph-filtering.smd
   - ../rfcs/collaboration.smd
   - ../rfcs/research-contract.smd
+  - ../rfcs/feedback-loop.smd
   - ../../research/evidence-matrix.smd
   - ../../research/research-plan.smd
   - ../../research/study-1-agent-evaluation.smd
@@ -153,7 +154,7 @@ These are implementation gates, not claims that a study hypothesis is true. Test
 | G4 Confirmatory evidence  | Complete independent corpus, approved human-study materials, apparatus, pilot-based sizing and preregistration; freeze each condition separately                                            | Attention/feedback study, retrieval/agent study and full-loop study                |
 | G5 Paper and artifacts    | Report attention, correctness and tokens with limitations; archive reproducible materials and distinguish historical versions                                                               | Submission-ready evidence for the agreed paper title                               |
 
-Do not make the first paper depend on every ecosystem feature. Baseline evaluation and formative work can proceed alongside RFC work. Confirmatory comparisons involving new features wait for those features and their acceptance gates to be frozen.
+The [feedback loop RFC](../rfcs/feedback-loop.smd) turns G1 to G3 into one design. Do not make the first paper depend on every ecosystem feature. Baseline evaluation and formative work can proceed alongside RFC work. Confirmatory comparisons involving new features wait for those features and their acceptance gates to be frozen.
 
 ## Evaluation design
 

@@ -225,6 +225,12 @@
 :host .chrome .badge { position: absolute; top: 0; right: 0; }
 :host .chrome.child .badge { top: 2px; }
 
+/* A review block's buttons: at the right, left of the problem badge when there is one. */
+:host .chrome .review { position: absolute; top: 0; right: 0; display: flex; gap: 4px; }
+:host .chrome .badge:not([hidden]) + .review { right: 56px; }
+:host .chrome.child .review { top: 2px; }
+:host .chrome .review button { font-size: 11px; line-height: 18px; padding: 0 8px; }
+
 /* A block's problems, listed (Ctrl+.). */
 :host .problems { margin: 0 0 6px; padding-left: 1.2em; max-height: 40vh; overflow: auto; }
 :host .problems li { margin: 2px 0; overflow-wrap: anywhere; }

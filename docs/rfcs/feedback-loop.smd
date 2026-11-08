@@ -1,0 +1,181 @@
+---
+smd: 2
+title: "RFC: The feedback loop (gates G1 to G3)"
+summary: How the accepted research contract, semantic tags, collaboration and filtering decisions become code for gates G1 to G3. Block revisions, the phase 2 tags, review comments and suggestions, tree and graph selection, author task views, updates since a checkpoint, progress with a stated basis, and verification evidence.
+status: review
+owners: ["@roshanmadhushanka"]
+tags: [rfc, research, feedback, retrieval, verification]
+created: 2026-11-07
+updated: 2026-11-07
+toc: true
+related:
+  - research-contract.smd
+  - semantic-tags.smd
+  - collaboration.smd
+  - ../requirements/research-interaction.smd
+  - ../requirements/tree-and-graph-filtering.smd
+---
+
+## How to read this
+
+The [research contract](research-contract.smd) fixed what each state and edge means. The [semantic tags RFC](semantic-tags.smd), the [collaboration RFC](collaboration.smd) and the [filtering requirements](../requirements/tree-and-graph-filtering.smd) fixed most of the syntax. This RFC fills the gaps they left for gates G1 to G3 of the [research requirements](../requirements/research-interaction.smd), so the code can be built in one train. Where an owning document already decides something, this RFC points at it and doesn't repeat it.
+
+Requirement ids (AF06, AC-B) refer to the research requirements. R ids refer to the semantic tags requirements. T, G and S ids refer to the filtering requirements.
+
+## Decisions taken on 2026-11-07
+
+:::decision{#F1 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Semantic tags Q1 and Q2 take their fallbacks
+An acceptance block may sit inside a requirement or stand alone with `verifies=`, and both are valid (Q1). Requirements get no `kind` attribute for now (Q2). Phase 1 of the semantic tags RFC is accepted with these answers.
+:::
+
+:::decision{#F2 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Phase 2 is built from its outline
+`assumption`, `evidence`, `depends-on`, the question lifecycle and `supersedes` are built in this train as the semantic tags RFC outlines them, with the details below. References to other documents (R19) and workspace rename (R18) stay for later.
+:::
+
+:::decision{#F3 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Filtering is accepted, in the CLI and library first
+The filtering decisions proposed on 2026-11-06 are accepted: CSS selectors for the tree, a separate follow option for edges, a graph computed from source and never stored, neighbors as pointers, and edges a model infers are only suggestions. `--follow` ships in the CLI and the library. The MCP `query` tool gets no new fields until its token budget allows them (MCP is at 496 of 500 tokens).
+:::
+
+:::decision{#F4 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Review blocks are built in full, Block Editor included
+Collaboration phase 3 ships whole: the two containers in every tool, the `smd review` commands, the opt-in MCP `suggest` tool, and Accept, Reject and Resolve in the Block Editor.
+:::
+
+:::decision{#F5 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Transitions are recorded in place
+Accepting or rejecting a suggestion, resolving a comment and withdrawing either set `status`, `by` and `on` on the block and keep it, instead of deleting it as the collaboration sketch said. AF08 and AF09 need the attribution and the record, and AC-E needs rejected suggestions to be retrievable. Accepted and rejected blocks leave the default agent view and every export, so they cost readers nothing.
+:::
+
+## Block revisions
+
+A response stores the revision of the block it answers. The revision is the first 12 hex digits of the SHA-256 of the block's text (`blockRevision` in `core/revision.ts`). The text is a container's title and body, a task's text without its checkbox and `{#id}`, or a heading's text and its own section body. Attributes and nested comments and suggestions are not part of it, so a status change or a new comment never makes the other responses stale. `smd rev <file> <id>` prints a block's revision.
+
+A response whose `rev` differs from its target's current revision is stale. Tools show it as stale with the target's current text and refuse to apply it until a person rebases it (research contract, "Stale targets need a renewed decision").
+
+## Semantic tags phase 2
+
+### Assumption
+
+`:::assumption{#A1 status=unvalidated|validated|invalid owner=… review-by=YYYY-MM-DD depends-on=…}`, default `unvalidated`. An unvalidated assumption is key content for budgets, as an open question is.
+
+|Code|Severity|When|
+|-|-|-|
+|`assumption/overdue`|info|`review-by` has passed and the assumption is still unvalidated|
+|`assumption/invalid`|warning|An accepted requirement or decision `depends-on` an invalid assumption|
+
+### Evidence
+
+`:::evidence{#E1 supports=R1 contradicts=… method=test result=pass commit=1a2b3c4 date=2026-11-07 by=@ci source=… rev=R1@3f2a9c1b0d4e}`. `method` is free text, and `test`, `review`, `benchmark`, `manual`, `analysis` and `acceptance` are known. `method=acceptance` with a person in `by` is the human acceptance the research contract separates from verification. `rev` lists the revision of each supported block when the evidence was recorded, as `id@revision`. A bare revision is allowed when the record names one block.
+
+|Code|Severity|When|
+|-|-|-|
+|`evidence/target`|warning|Neither `supports` nor `contradicts`|
+|`evidence/stale`|warning|A block it supports changed since `rev` (AF28). The fix records the current revision only after a person rechecks|
+|`evidence/rev`|hint|No `rev`, so a later change can't be detected|
+|`requirement/verified`|warning|A requirement says `status=verified` and no current passing evidence supports it|
+
+Evidence is ordinary content in budgets. A view lists the evidence of each requirement it shows as pointers, and in full with `--evidence` or a task view with `evidence: full` (AF27). A requirement with no evidence says so in that mode.
+
+### Dependencies
+
+`depends-on=` on requirements, constraints, decisions, risks and assumptions, and `:depends[R1]` on a task (spec v2 only). A view that shows a block shows its dependencies too, transitively, under "Dependencies of the selected content", after "Constraints that apply here". Depth is at most 5. A cycle, a depth cut, or a missing, ambiguous or unopened target is reported in the view as an unsatisfied dependency and marks the view incomplete (AF15, AF20). Budgets treat a dependency's section as mandatory. `smd tasks` shows a task as blocked while a task it depends on is unchecked, a requirement it depends on isn't `implemented` or `verified`, or a question it depends on is open.
+
+|Code|Severity|When|
+|-|-|-|
+|`depends/cycle`|warning|A `depends-on` or `supersedes` chain returns to its start (filtering G7)|
+|`decision/depends-superseded`|warning|An accepted decision depends on a superseded one|
+
+### Questions
+
+`:::question{#Q1 status=open|answered|incorporated|withdrawn owner=… due=… between=A,B reason=…}`, default `open`. A question is answered only when an answer exists: a `:::comment{kind=answer for=Q1}` anywhere in the document, or nested in the question. The agent view writes `<question id="Q1" status="answered">` and shows the answer with it. A written `answered` or `incorporated` without an answer is shown as `status="open"` and warned (AF11). Bare `smd query question` keeps matching every question, and `question[status=open]` matches the ones without a status too.
+
+|Code|Severity|When|
+|-|-|-|
+|`question/unanswered`|warning|`answered` or `incorporated` with no answer|
+|`question/reason`|warning|`withdrawn` without `reason`|
+|`question/overdue`|info|`due` has passed and the question is open|
+
+`between=` names two blocks that disagree. Both are shown, marked as conflicting, and nothing picks a winner (research contract, "Conflicts stay visible").
+
+### Supersedes
+
+`:::decision{supersedes=D1}`. `decision/supersedes` warns when the superseded decision's status isn't `superseded`, with a fix that sets it. A view that shows a superseded decision adds `superseded-by="D3"` to it.
+
+## Review comments and suggestions
+
+The containers and their attributes are in `spec.ts` (`comment`, `suggestion`). `for` names the target by id and is needed. `rev` is the target's revision when the response was written.
+
+|Surface|Open|Resolved, accepted, rejected or withdrawn|
+|-|-|-|
+|Preview and Block Editor|A review box with author, date, kind and a "stale" pill when stale|A one-line collapsed record|
+|Agent view|`<comment for="R1" author="@maya" kind="remark">` or `<suggestion …>`, with `stale="true"` and the target's current revision when stale|Left out, with one count line pointing at `smd query`|
+|Exports, `smd build`, `smd to-md`|Left out. `--comments` keeps them|Left out|
+|Query|`comment` and `suggestion` with every attribute and `stale`|The same|
+
+An answer (`kind=answer`) is not a review remark. It stays in the agent view with its question and is never `review/open`.
+
+|Code|Severity|When|
+|-|-|-|
+|`review/for`|warning|No `for`|
+|`review/stale`|warning|Open and its target changed since `rev`|
+|`review/rev`|hint|No `rev`|
+|`review/open`|hint, error in a `status: approved` document|An open comment or suggestion|
+|`review/transition`|warning|A closed state without `by` and `on`|
+
+### Commands
+
+`smd review <file>` lists the open items with their targets and whether each is stale. Each transition is its own command, takes `--by @name`, records `on` as today, and changes no other line.
+
+|Command|Does|
+|-|-|
+|`smd review comment <file> <id> --text … --by …`|Adds a comment after the target, with its current `rev`|
+|`smd review answer <file> <question-id> --text … --by …`|Adds a `kind=answer` comment and sets the question to `answered`|
+|`smd review incorporate <file> <question-id> --by …`|Sets an answered question to `incorporated`|
+|`smd review suggest <file> <id> --text … --by …`|Adds a suggestion for the target's body|
+|`smd review accept <file> <item> --by …`|Replaces the target's body with the suggestion's and records `accepted`. Refused when stale|
+|`smd review reject <file> <item> --by … [--reason …]`|Records `rejected`|
+|`smd review withdraw <file> <item> --by … --reason …`|Records `withdrawn` on a suggestion, or on a question|
+|`smd review resolve <file> <item> --by …`|Records a comment as `resolved`|
+|`smd review reopen <file> <item> --by …`|Sets an item, or a question, back to `open`|
+|`smd review rebase <file> <item> --by …`|Shows the target's current text and records its current revision, so a person re-accepts a stale item explicitly|
+
+An item is named by its `{#id}` or by the 1-based line of its opening fence. The writes keep line endings, never run `smd fmt`, and fail with exit code 1 and the reason when refused. `smd mcp --allow-suggest` adds one tool, `suggest`, which inserts a suggestion with the target's revision and refuses when the document changed since the agent's `read`. The default tool list doesn't change.
+
+The Block Editor shows Accept and Reject on suggestions and Resolve on comments, through the same core functions, as one undoable edit. A stale suggestion shows Rebase instead of Accept.
+
+## Tree and graph selection
+
+Selectors gain descendant (`heading[title=Rollout] task`), child (`>`) and `:not(…)` (T1 to T3). Every match records its ancestors (T4), and existing selectors keep their matches and order (T7). `smd query --constraints` adds the document's `:::agent` blocks and document-scoped constraints to the result. Without it, a result from a document that has some ends with one line saying they were not included (S1).
+
+`smd query … --follow <types|*> --direction out|in|both --depth 1..3` walks edges from each match. Edges are derived on every call from links, `:ref`, `related:`, includes and the id attributes, and the kinds are in `EDGE_KINDS`. Navigation, evidence, lifecycle and review neighbors come back as one-line pointers with their token cost (G4, S4). Mandatory edges (`include`, `applies-to`, `depends-on`) are followed to their closure. Cycles, the depth limit, and missing, ambiguous or denied targets are reported, and a missing or denied mandatory target is an unsatisfied dependency (AC-D). Cross-file edges work inside the paths the command was given (G5).
+
+## Author task views
+
+```yaml
+views:
+  implement-r1:
+    sections: [Requirements]
+    query: "requirement[id=R1]"
+    mandatory: [C1, R3]
+    optional: [AC1]
+    budget: 1500
+    evidence: full
+```
+
+`smd agent <file> --view implement-r1` builds the view the author declared (AF14). Sections and the query select content, `mandatory` ids are included in full with their dependency closure, `optional` ids come back as pointers, `budget` caps the view with the overflow rule, and `evidence` picks pointers or full evidence. Flags the agent adds on top, such as more `--section`s, are recorded as agent-selected. `--provenance` records both apart, with the policies applied, the relationship paths followed and anything left incomplete (AF23). `smd agent <file> --view <name> --inspect` prints the same account for people. `smd agent <file> --views` lists the views. The validator checks the `views` key, and its ids with `ref/unknown`.
+
+## Updates since a checkpoint
+
+`smd updates <file> --since <checkpoint> [--json]` reports what changed in the document's feedback state since a checkpoint (AF22, AC-E). A checkpoint is a Git commit, tag or branch, or `rev:<revision>` from an earlier `read`, found by searching the file's history. An unknown checkpoint fails with the recovery path: read the document in full, or pass a commit.
+
+The report lists, by target id: questions answered, incorporated, withdrawn or reopened; suggestions added, accepted, rejected, withdrawn or reopened; comments added or resolved; tasks added, removed, checked or reopened; and requirements, constraints, acceptance criteria, decisions and evidence whose revision changed or that were removed. For each change it names the blocks that point at it (`verifies`, `depends-on`, `applies-to`, `supports`, `for`) as affected. Other text changes are counted, not replayed. The report ends with the next checkpoint and says that reading it records nothing: retrieval is not incorporation.
+
+## Progress with a basis
+
+`:progress{basis=tasks}` counts the checked tasks of its section (the section's subsections too) and shows "8 of 10 tasks checked". `:progress{value=unknown}` shows unknown progress instead of a number. `basis=measured` or `basis=estimate` says how a written value was found. The agent view writes the basis and the counts. `progress/basis` (hint) asks for a basis on a written value, and `progress/basis-value` (warning) says a value written next to `basis=tasks` is ignored. `smd tasks` states that checked boxes are implementation claims (AF25, AC-F).
+
+## Tracing requirements
+
+`smd trace <paths> [--uncovered] [--json]` lists each requirement with five separate columns: status, coverage (acceptance blocks that verify it), claims (tasks that depend on it or sit in it, checked of total), evidence (passing, failing and outdated records), and human acceptance. Each count states its denominator, and nothing in one column is inferred from another (AF26). A checked task is never verification and acceptance criteria are never evidence.
+
+## Left for later
+
+These need people or a decision, not code, and wait in the roadmap's Future section: the assistive-technology task audit (AC-A), maintainer review of the evidence matrix, and every study and pilot. MCP fields for `--follow`, `--view` and `smd updates` wait for room in the MCP token budget. Cross-document references (R19), workspace rename (R18), `smd graph` and the inline-value nodes (filtering phase 4) wait for demand.

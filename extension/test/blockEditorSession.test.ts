@@ -714,7 +714,9 @@ test('property: insert, move and delete never change a line they do not add, mov
         onlyInserted(before, h.doc.text);
       } else if (op === 1) {
         await h.send({ type: 'delete', key: target.key, editId: `d${i}` });
-        onlyInserted(h.doc.text, before);
+        // A blank line may take the block's place, so its neighbours don't join (deleteBlock).
+        const text = (t: string) => t.split('\n').filter((l) => l.trim()).join('\n');
+        onlyInserted(text(h.doc.text), text(before));
       } else if (i === 2) {
         await h.send({ type: 'move', key: target.key, direction: random() < 0.5 ? 'up' : 'down', editId: `m${i}` });
         assertMoved(before, h.doc.text, target, d.name);
@@ -799,7 +801,7 @@ test('render: a block\'s inline items by number, with forms; marks only when the
   assert.deepEqual(fields(3), ['color:color:red', 'bg:color:', 'border:color:']);
   assert.ok(ship.inline![2].fields![0].options!.includes('P0'));
   const task = block(r, '- [ ]');
-  assert.deepEqual(task.inline!.map((i) => i.fields!.map((f) => f.name)), [['value', 'color', 'label'], ['content', 'label', 'delta', 'trend', 'good']]);
+  assert.deepEqual(task.inline!.map((i) => i.fields!.map((f) => f.name)), [['value', 'color', 'label', 'basis'], ['content', 'label', 'delta', 'trend', 'good']]);
   assert.deepEqual(task.inline![1].fields!.find((f) => f.name === 'trend')!.options, ['', 'up', 'down', 'flat']);
   assert.equal(block(r, 'Last').inline, undefined, 'a block without items has none');
 });

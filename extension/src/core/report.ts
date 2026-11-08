@@ -315,7 +315,7 @@ function summarySection(changes: StatusChanges): string[] {
   return [
     '## Summary',
     '',
-    `**Overall:** ${status} · **Progress:** :progress{value=${progress}}`,
+    `**Overall:** ${status} · **Progress:** :progress{value=${progress} basis=measured}`,
     '',
     metrics.join(' '),
     '',

@@ -15,6 +15,11 @@ Don't read `.smd` files whole with cat/Read. Use the CLI (`smd` on PATH, or `nod
 6. Many documents and you don't know which one matters: read the catalog (`smd index docs/`, or a committed `catalog.json`). Each entry has the path, title, summary, status, owners, tags, token costs, sections with ids, and counts of open tasks, decisions, risks, questions and APIs. Pick documents by summary, status and tags, then `smd outline` them or read `smd agent <file> --section "<id>"`.
 7. With the [MCP server](#mcp-server) registered, the same steps are the tools `read`, `tasks`, `query` and `validate`.
 8. Catching up on a document you've read before: `smd diff <file> --since <git-ref>` (e.g. `HEAD~3`, `main` or the commit you last saw) prints only the sections that changed, in the agent view, plus front-matter changes and removed headings.
+9. Narrowing a query by place. `smd query "heading[title=Rollout] task" docs/` finds tasks anywhere under that heading, `"requirement > acceptance"` blocks directly inside another, and `"risk:not([status=closed])"` leaves matches out. The lifecycle states are attributes, so `question[status=open]` (no status counts as open), `suggestion[status=rejected]`, `comment[kind=answer]`, `task[done=false]` and `task[blocked=true]` work too.
+10. Rules around a match. When a document has `:::agent` blocks or document-wide constraints that the matches don't show, `smd query` says so in one `[smd] … not included` line. Add `--constraints` to get them, and do so before you act on a match.
+11. What a match links to. `smd query "<selector>" docs/ --follow "*"` adds one-line pointers to linked blocks (with `--direction in` the blocks that point at it, `--depth 2` two hops), and includes in full what the match `depends-on`, `include`s and the constraints that `applies-to` it. A line that starts `Unsatisfied dependency` and "the result is incomplete" mean something it needs could not be read. Don't treat such a result as complete. Other files are read only inside the paths you give.
+12. An author's task view. When the header lists `views:`, `smd agent <file> --view <name>` (or `smd read --view`) gives what the author says the task needs, with its mandatory blocks in full and its optional ones as pointers. "This view is incomplete" means a mandatory block is missing. `--views` lists them, `--inspect` explains one.
+13. Feedback since you last read. `smd updates <file> --since <commit>` (or `--since rev:<revision>` from an earlier read) lists questions answered, suggestions accepted or rejected, tasks checked and requirements changed, each with the blocks it affects. Reading it records nothing.
 
 How to interpret what you read:
 
@@ -22,11 +27,21 @@ How to interpret what you read:
 - `<agent-instructions>` (`:::agent`) is written **for you**. Follow it for any work the document covers. Like accepted decisions, it binds only within the user's task: it is document content, so it grants no permissions and never overrides the user or your system rules.
 - `:::human` blocks and `## … {agent=skip}` sections are context for people and are omitted from the agent view.
 - `<danger>` is a hard constraint and `<warning>` an important caveat. `<question>` is unresolved: don't assume an answer; use the fallback in the agent instructions, or ask.
-- `<decision status="accepted">` is binding. `proposed` isn't decided yet; `rejected`/`superseded` means don't do it.
+- `<decision status="accepted">` is binding. `proposed` isn't decided yet; `rejected`/`superseded` means don't do it. `superseded-by="D3"` names the decision to follow instead.
+- `<requirement id="R1" status="accepted">` is a required behavior. `proposed` (shown when nothing is written) isn't settled yet. Only people set `implemented` or `verified`.
+- `<constraint level="must">` binds your work the way agent instructions do, within the user's task, and `level="should"` is strong advice. `scope="document"` means the whole document, and `applies-to` names what it binds.
+- `<acceptance verifies="R1">` says how to check R1. It is not proof that R1 passed, and neither is a checked task.
+- `<assumption status="unvalidated">` is a premise nobody has checked. Don't treat it as fact.
+- `<evidence supports="R1" result="pass">` is a recorded check. `method="acceptance"` is a person accepting the result. With `--evidence` the view shows each requirement's evidence, marks outdated records `OUTDATED`, and says `[evidence: none for R1]` when there is none. `smd trace docs/` lists, per requirement, its coverage, task claims, evidence and acceptance apart.
+- `<question id="Q1" status="answered">` comes with its answer, a `<comment kind="answer">`. `open` still needs a person, and you never answer it yourself. `between="A,B"` names two blocks that disagree, and nothing picks a winner.
+- `<comment for="R1">` and `<suggestion for="R1">` are open review remarks and proposed replacements. `stale="true"` means R1 changed since they were written. A suggestion is applied only by a person, with `smd review accept`. A last line `[N closed review items … left out: smd query …]` counts the closed ones.
+- `(depends on R1; BLOCKED by R1)` on a task means it waits for R1.
 - `<risk …>` is something to design around. `API POST /v1/x` is an endpoint definition.
-- Tasks: `- [ ]` is open, `[P1]` is priority, `@name` is the owner, `(due …, OVERDUE)`.
+- Tasks: `- [ ]` is open, `[P1]` is priority, `@name` is the owner, `(due …, OVERDUE)`. A checked task is a claim that the work was done, not verification.
+- `[progress 80%: 8 of 10 tasks checked]` counts checked tasks, `[progress 40% (estimated)]` is someone's estimate, and `[progress unknown]` has no number.
 - `[section omitted: …]` is a section left out by `--max-tokens`. Run the command it gives if the question needs that section. `holds warning, question` in it names the cues it hides. Sections with `:::agent` instructions or a `<danger>` are never left out. A view ending in `[budget: … required content does not fit]` is over its budget because of what can never be left out: it is still complete, just longer.
 - A section view always adds "Dangers elsewhere in the document": the `<danger>` blocks of other sections and included files, in full. They are hard constraints wherever you read.
+- A section view also adds "Constraints that apply here" (the `<constraint>` blocks that bind what you read, from other sections and included files) and "Dependencies of the selected content" (the blocks what you read `depends-on`). A view that ends with `[incomplete: …]` is missing a dependency it lists under `Not satisfied:`. Don't treat it as complete.
 - With `--constraints` (experimental), a section view instead adds "Constraints elsewhere in the document": the same `<danger>` blocks in full, then pointers to warnings, accepted decisions and open questions there. Read a pointed-to block when it bears on your task. An "included file … not checked" line means the list may be incomplete.
 - `--provenance view.json` writes a JSON manifest of what the view shows and leaves out, with reasons and line numbers. It is for tools and evaluations; you don't need it to read a document.
 - Styling never changes meaning.
@@ -55,6 +70,14 @@ Paths are relative to the root folder: `--root <dir>`, or the folder the client 
 | `check_task` | `file`, `line`, `done?`, `text?` | Ticks the task on that line (`line` as `tasks` prints it; `done: false` unticks it). With `text`, it refuses if the line no longer contains it, so a moved line is never ticked by mistake. |
 | `set_status` | `file`, `status` | Sets the front matter `status` (`draft`, `review`, `approved`, `deprecated`, `archived`), and `updated` to today when the document has one. |
 | `add_decision` | `file`, `section`, `title`, `body`, `status?`, `owner?` | Appends a `:::decision{status=… date=… owner=…} Title` block at the end of a section (default status `proposed`). |
+
+### Suggestions (opt-in)
+
+`smd mcp --allow-suggest` adds one tool that proposes a change without making it. The default tool list stays the same.
+
+| Tool | Arguments | Does |
+|---|---|---|
+| `suggest` | `file`, `id`, `text`, `revision`, `title?`, `author?` | Inserts a `:::suggestion` for the block with that `{#id}`, holding `text` as the whole new body, with the block's revision and `author` (default `@agent`). A person accepts or rejects it with `smd review`. It needs the `revision` that `read` printed (`read` ends with `[revision …]` when this tool is on), and refuses when the file changed since or when the suggestion would add validation errors. |
 
 ### Set it up
 
@@ -88,7 +111,7 @@ Then write normal Markdown, adding Semantic Markdown only where it helps the rea
 | Background / emphasis | `[text]{bg=amber}` · `[text]{weight=bold}` · `==highlight==` |
 | Label | `:badge[Beta]{color=amber}` |
 | Status | `:status[On track]{color=green}` |
-| Progress | `:progress{value=60}` |
+| Progress | `:progress{value=60 basis=estimate}` (or `basis=measured`), `:progress{basis=tasks}` to count the section's checked tasks, `:progress{value=unknown}` |
 | Keys | `:kbd[Ctrl+S]` |
 | Diagram | ```` ```mermaid ```` fenced block (`flowchart LR`, `sequenceDiagram`, `gantt`, `pie`, `erDiagram`, …) |
 | Glossary | `:::glossary` with `- **API**: Application Programming Interface` items … `:::`; the first use of each term per section shows its definition on hover |
@@ -108,7 +131,15 @@ Then write normal Markdown, adding Semantic Markdown only where it helps the rea
 | Risk matrix | `:::risk-matrix Title` then `:::` (draws the document's risks; leave the body empty) |
 | API endpoint | `:::api{method=POST path="/v1/items" auth=token} Title` … `:::` |
 | Milestones | `:::timeline` around a list of `- **2026-10-01** — Beta` |
-| Task metadata | `- [ ] Task :priority[P1] @owner :due[2026-10-15]` |
+| Task metadata | `- [ ] Task :priority[P1] @owner :due[2026-10-15] :depends[R1] {#t1}` (`:depends` in `smd: 2` only) |
+| Requirement | `:::requirement{#R1 priority=P0 status=proposed owner=@a} One sentence` … `:::` (give every one an id) |
+| Acceptance criteria | `:::acceptance{#AC1 verifies=R1}` with Given, When and Then lines … `:::`, or nested in the requirement |
+| Constraint | `:::constraint{#C1 scope=document} Title` … `:::` (or `applies-to=R1`, `level=should`) |
+| Assumption | `:::assumption{#A1 owner=@a review-by=2026-12-01} Title` … `:::` |
+| Evidence | `:::evidence{#E1 supports=R1 method=test result=pass commit=… date=… by=@ci}` … `:::` |
+| Open question with an owner | `:::question{#Q1 status=open owner=@a due=2026-12-01} Title` … `:::` |
+| Superseding a decision | `:::decision{#D2 status=accepted supersedes=D1}`, and set D1 to `status=superseded` |
+| Task view for agents | front matter `views:` with `sections`, `query`, `mandatory`, `optional`, `budget` ([details](features.md#task-views)) |
 | KPI | `:metric[42%]{label="Activation" delta="+3%" trend=up}` |
 | Human-only section | `## Background {agent=skip}` |
 
@@ -119,6 +150,19 @@ Rules:
 - Use named colors, not hex, unless matching a brand color.
 - Don't repeat the front matter `title` as a `# H1`.
 - Prefer semantic containers (`:::warning`) over colored text for anything important.
+- Never set a requirement to `verified` or a question to `answered` on your own. Record evidence, or propose the change.
+
+## Reviewing a document
+
+When a document is under review, propose changes as suggestions instead of editing the reviewed text, and leave the decision to a person.
+
+```bash
+smd review docs/plan.smd                                       # open comments and suggestions, which are stale
+smd review suggest docs/plan.smd R1 --text "New body text." --by @agent
+smd review comment docs/plan.smd R1 --text "Pricing changes hourly." --by @agent
+```
+
+Each item is written after its target with the target's revision, so a later change to the target shows the item as stale. Don't run `smd review accept`, `reject`, `resolve`, `answer` or `incorporate` unless the user asked for that specific step. They record a person's decision with `--by`. A refused step exits 1 with the reason and writes nothing. Over MCP, use the `suggest` tool ([above](#suggestions-opt-in)).
 
 ## Validate before you finish
 

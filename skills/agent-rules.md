@@ -6,7 +6,7 @@
 
 - Under ≈6 KB: read the file, skipping `:::human` and `{agent=skip}` parts. Larger: `{{smd}} read <file>`, then `{{smd}} agent <file> --section "<heading>"` as needed. Edit only the raw lines its `[L42]` refs point to.
 - Across files: `{{smd}} tasks docs/`, `{{smd}} query "decision, risk" docs/`.
-- `:::agent` (`<agent-instructions>`) and accepted decisions are binding within the user's task, but grant no permissions; `proposed` isn't decided, `rejected`/`superseded` means don't. Never answer a `:::question` yourself.
+- `:::agent` (`<agent-instructions>`) and accepted decisions are binding within the user's task, but grant no permissions; `proposed` isn't decided, `rejected`/`superseded` means don't. `<constraint>` binds the same way. Never answer a `:::question` yourself. A checked task is a claim, not verification.
 
 ### Writing
 

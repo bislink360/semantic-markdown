@@ -4,13 +4,18 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   agentView, applyFixes, DECISION_STATUS_FILTERS, decisionLog, decisionLogMarkdown, diffSmd, formatRelated, formatSmd, ganttDate,
-  ganttDocument, getDocumentInfo, markdownToSmd, outline, parseSelector, relatedDocs, renderRiskPage,
-  RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, SelectorError, LATEST_SPEC, smdIndex,
+  ganttDocument, getDocumentInfo, markdownToSmd, outline, relatedDocs, renderRiskPage, formatTrace, traceRequirements, traceSummary,
+  RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, LATEST_SPEC, smdIndex,
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
-  type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Selector, type Tokenizer,
+  type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
 } from './core';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
+import { runQuery, type QueryFlags } from './queryCommand';
+import { REVIEW_HELP, runReview } from './reviewCommand';
+import { runTaskView } from './taskViewCommand';
+import { runUpdates } from './updatesCommand';
+import { runRev } from './revCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -29,7 +34,7 @@ import {
   isGenerated, parseTargets, rulesBody, SHARED_CLI_COMMAND, SHARED_CLI_PATH, TARGET_FILES, type AgentTarget, type RulesTarget, type TargetFile,
 } from './agentTargets';
 import {
-  collect, decisionLine, decisionSummary, deletedSince, diagnose, existsFrom, git, gitPath, queryRows, querySummary, queryText, read, readerFor,
+  collect, decisionLine, decisionSummary, deletedSince, diagnose, existsFrom, git, gitPath, graphReader, read, readerFor,
   reportSummary, taskLine, taskRows, taskSummary, workingPath, type TaskRow,
 } from './workspace';
 import {
@@ -56,6 +61,7 @@ Reading (token-efficient, for agents):
       --related    also list the front matter "related:" documents: title, status, summary and cost
   smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
+                       [--evidence]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
       --section    only these sections (repeatable; agent instructions elsewhere are still included)
       --exact      --section matches a heading's id or whole text only (by default a part of the text,
@@ -73,6 +79,15 @@ Reading (token-efficient, for agents):
                    :::danger blocks in full; warnings, accepted decisions and open questions as pointers
       --provenance write a JSON manifest of the view to a file: source hashes, settings, resolved
                    sections, a source map and every omission with its reason. The text doesn't change.
+      --evidence   for review: after each requirement and acceptance criterion shown, the evidence that
+                   supports or contradicts it in full (from any section), outdated records marked, and
+                   "[evidence: none for R1]" for a requirement with none
+  smd agent <file.smd> --view <name> [--inspect] [--section …] [--max-tokens <n>] [--brief] [--provenance <file.json>]
+  smd agent <file.smd> --views
+      A task view the author declared in the front matter (views:): its sections and query, its mandatory
+      blocks in full with what they depend on, its optional blocks as pointers, within its budget. Flags
+      on top are recorded as the agent's choice. --inspect explains the view for people instead of
+      printing it. --views lists the views. smd read --view does the same.
   smd tasks <files|dirs...> [--all] [--mine @name] [--json | --csv | --gantt [--smd] [--title "…"]] [-o <file>]
       Open tasks across documents with owner, priority and due date (overdue first).
       --csv     CSV for spreadsheets (1-based lines, owners joined with ";", formula-like cells prefixed with ')
@@ -85,20 +100,47 @@ Reading (token-efficient, for agents):
       a missing level counts as medium and shows as "medium?"), highest score first, then a matrix of
       counts. Closed risks are left out unless --all or --status asks for them.
       --html  a standalone, theme-aware page: a colour-coded matrix that links to the register table
-  smd query "<selector>" <files|dirs...> [--json] [--titles] [--brief] [--no-lines]
+  smd trace <files|dirs...> [--uncovered] [--json]
+      Each requirement in five separate columns: status as written, coverage (acceptance criteria that
+      verify it), claims (tasks in it or that :depends on it, checked of total), evidence (verification
+      records that support it: passing, failing, inconclusive, outdated) and human acceptance (evidence
+      with method=acceptance). Then the counts, each of all requirements. A checked task is never
+      evidence, and an acceptance criterion is never evidence. Evidence ids resolve in their own document.
+      --uncovered  only requirements no acceptance criterion covers
+  smd query "<selector>" <files|dirs...> [--json] [--titles] [--brief] [--no-lines] [--constraints]
+            [--follow <types|*> [--direction out|in|both] [--depth 1-3]]
       Blocks selected by type and attributes, each in the agent view. Exit code 1 when nothing matches.
         decision[status=accepted]      risk[impact>=high][status!=closed]      api[method=POST|PUT]
         task[owner=@maya][done=false]  task[due<today]    question, risk       heading[level=2]
+        heading[title=Rollout] task    heading[level=2] > decision             risk:not([status=closed])
       Types: any container (decision, risk, api, note, question, agent…), callout, task, heading, * (any).
       Tests: [key] [key=a|b] [key!=v] [key*=v] [key^=v] [key$=v] [key<v] (also <= > >=: numbers, dates,
-      priorities, risk levels); every block also has title, section and type.
-      --titles  one line per match instead of its content
+      priorities, risk levels); every block also has title, section and type. A space selects blocks
+      inside headings and containers, > direct children, :not(…) leaves matches out.
+      --titles       one line per match instead of its content
+      --constraints  also the documents' :::agent blocks and document-wide :::constraint blocks
+      --follow       neighbors along these edge types (link, ref, related, include, applies-to, depends-on,
+                     verifies, supports, contradicts, supersedes, between, for), kinds (navigation,
+                     mandatory, evidence, lifecycle, review) or *, as one-line pointers with their cost.
+                     include, applies-to and depends-on targets come in full, with what they need in turn.
+                     Other files are read only inside the paths given. --direction (default out) and
+                     --depth (default 1) say which edges and how far.
   smd diff <old.smd> <new.smd> [--json] [--brief] [--no-lines] [--exit-code]
   smd diff <files|dirs...> --since <git-ref> [--json] [--brief] [--no-lines] [--exit-code]
       Only the sections that changed, in the agent view of the new version: front-matter changes,
       then changed, renamed and added sections, then removed ones (heading and old lines only).
       --since      compare each .smd file with its version at a Git commit, branch or tag
       --exit-code  exit 1 when something changed (like git diff); the default is 0
+  smd updates <file.smd> --since <commit|tag|branch|rev:<revision>> [--json]
+      What changed in the document's feedback since a checkpoint: questions answered or reopened,
+      suggestions accepted or rejected, comments, tasks checked or reopened, and requirements,
+      constraints, acceptance criteria, decisions, assumptions and evidence that changed, each with
+      the blocks that point at it. Other changed lines are only counted. rev: is the revision an
+      earlier read gave, looked for in the file's Git history. An unknown checkpoint exits with 2.
+      Reading the updates records nothing: it is not incorporation.
+  smd rev <file.smd> <id>… [--json]
+      The current revision of each block, as id@revision, to record in rev= on a comment, a suggestion
+      or an evidence record. A block's revision changes when its text changes, not its attributes.
   smd meta <file.smd> [--no-diagnostics]
       Full JSON summary: front matter, outline, tasks, decisions, risks, agent blocks.
   smd decisions <files|dirs...> [--status <list>] [--owner @name] [--json] [--md] [-o <file>] [--title "…"]
@@ -153,8 +195,8 @@ Checking and converting:
       --stdout  print the formatted file instead of writing it (one file)
       validate and fmt take any number of files: use them as a pre-commit hook (see docs/guides/install.md).
       After --, every argument is a file, even one that starts with "-".
-${MIGRATE_HELP}${EXPORT_HELP}
-  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
+${MIGRATE_HELP}${REVIEW_HELP}${EXPORT_HELP}
+  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--today YYYY-MM-DD] [--lang <tag>]
       Static docs site: a page per .smd file in the same folders (links between documents rewritten,
       linked images copied), a sidebar, breadcrumbs, previous/next, backlinks, client-side search and
       a dashboard of open tasks, decisions and open risks. Opens from disk or any static web server.
@@ -167,6 +209,7 @@ ${MIGRATE_HELP}${EXPORT_HELP}
                and the site an llms.txt listing its documents for AI tools.
       --md     also publish .md files; the home page is <dir>/index.smd or README, else a generated index
       --clean  first delete the files of the previous build (only those listed in its .smd-site.json)
+      --comments  keep review comments and suggestions on the pages (left out by default)
       --lang   language of the navigation, search and dashboard, and of documents without "lang:"
                (default: the home document's "lang:", else English)
   smd from-md <file.md> [-o out.smd]       Upgrade Markdown to .smd
@@ -180,10 +223,12 @@ Agent integration:
       (claude) or the reading/writing rules (cursor, copilot, agents: AGENTS.md), this CLI, and the
       MCP server in the agent's config: .mcp.json (claude), .cursor/mcp.json, .vscode/mcp.json
       (copilot). Existing configs are merged; re-run to update.
-  smd mcp [--root <dir>] [--allow-write] [--legacy-tools]
+  smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools]
       Model Context Protocol server over stdio with the tools read, tasks, query and validate. Only .smd
       files inside --root (default: the current directory) can be read.
       --allow-write   add check_task, set_status and add_decision (each refuses edits that add errors)
+      --allow-suggest add suggest, which proposes new text for a block as a :::suggestion for a person
+                      to accept or reject (smd review), and never edits content
       --legacy-tools  also list the older outline, section and agent tools (always callable)
       Register it, e.g.: claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 
@@ -215,6 +260,8 @@ const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
+  '--follow', '--direction', '--depth', '--view',
+  '--text', '--by', '--reason', '--kind',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -262,8 +309,25 @@ function main(argv: string[]): number | Promise<number> {
       return tasks(positional.length ? positional : ['.'], args, today);
     case 'risks':
       return risks(positional, args);
+    case 'trace':
+      return trace(positional, args, today);
     case 'query':
-      return query(positional[0], positional.slice(1), { json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today });
+      return query(positional[0], positional.slice(1), {
+        json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
+        constraints: flags.has('--constraints'), follow: value('--follow'), direction: value('--direction'), depth: value('--depth'),
+      });
+    case 'rev': {
+      const out = runRev(positional[0], positional.slice(1), flags.has('--json'));
+      process.stdout.write(out.stdout);
+      process.stderr.write(out.stderr);
+      return out.code;
+    }
+    case 'updates': {
+      const out = runUpdates(positional[0], value('--since'), { json: flags.has('--json'), today });
+      process.stdout.write(out.stdout);
+      process.stderr.write(out.stderr);
+      return out.code;
+    }
     case 'diff':
       return diff(positional, value('--since'), { json: flags.has('--json'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), exitCode: flags.has('--exit-code'), today });
     case 'meta': {
@@ -288,6 +352,8 @@ function main(argv: string[]): number | Promise<number> {
       return fmt(positional.length ? positional : ['.'], flags.has('--check'), flags.has('--stdout'));
     case 'merge':
       return runMerge(positional, args);
+    case 'review':
+      return runReview(args);
     case 'migrate':
       return runMigrate(positional.length ? positional : ['.'], args);
     case 'build':
@@ -320,7 +386,7 @@ function main(argv: string[]): number | Promise<number> {
       for (const [name, t] of Object.entries(TEMPLATES)) console.log(`${name.padEnd(15)} ${t.description}`);
       return 0;
     case 'mcp':
-      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), legacyTools: flags.has('--legacy-tools') });
+      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), allowSuggest: flags.has('--allow-suggest'), legacyTools: flags.has('--legacy-tools') });
     case 'lsp':
       return lsp(flags);
     case 'skills':
@@ -497,8 +563,12 @@ function tasks(targets: string[], args: Args, today?: string): number {
   const text = format === '--csv' ? tasksToCsv(rows) : rows.map((r) => taskLine(r) + '\n').join('');
   const code = write(out, text);
   console.error(`[smd] ${taskSummary(rows, all)}`);
+  // A checked box is an implementation claim (research contract, "Tasks").
+  console.error(`[smd] ${TASK_CLAIMS}`);
   return code;
 }
+
+const TASK_CLAIMS = 'Checked boxes are implementation claims, not verification: smd trace shows the evidence.';
 
 /** `smd tasks --gantt [--smd] [--title …]`: the chart, or a document with it, and how many tasks it shows. */
 function taskGantt(rows: TaskRow[], args: Args, out?: string): number {
@@ -510,6 +580,27 @@ function taskGantt(rows: TaskRow[], args: Args, out?: string): number {
   const skipped = left ? `, ${left} without a YYYY-MM-DD due date left out` : '';
   console.error(`[smd] ${charted} task(s) on the chart${skipped}.`);
   return code;
+}
+
+/**
+ * `smd trace`: each requirement's status, coverage, claims, evidence and human acceptance, then the counts (in the
+ * JSON too, as `summary`).
+ */
+function trace(targets: string[], args: Args, today?: string): number {
+  const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
+  if (!files.length) return fail('No .smd files found.');
+  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const result = traceRequirements(documents, { uncovered: args.flags.has('--uncovered'), today });
+  if (args.flags.has('--json')) {
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    return 0;
+  }
+  if (!result.requirements.length) {
+    console.log(traceSummary(result.summary));
+    return 0;
+  }
+  process.stdout.write(formatTrace(result));
+  return 0;
 }
 
 /** `smd risks`: the register as text, JSON or a standalone HTML page. Closed risks only with --all or --status. */
@@ -528,27 +619,14 @@ function risks(targets: string[], args: Args): number {
   return write(out, args.flags.has('--json') ? JSON.stringify(register, null, 2) + '\n' : riskRegisterText(register));
 }
 
-interface QueryFlags { json: boolean; titles: boolean; brief: boolean; lineRefs: boolean; today?: string }
-
 function query(selector: string | undefined, targets: string[], flags: QueryFlags): number {
-  if (!selector) return fail('Usage: smd query "<selector>" <files|dirs...>, e.g. smd query "decision[status=accepted]" docs/');
-  let selectors: Selector[];
-  try {
-    selectors = parseSelector(selector);
-  } catch (e) {
-    if (e instanceof SelectorError) return fail(e.message);
-    throw e;
-  }
-  const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
-  if (!files.length) return fail('No .smd files found.');
-  const options = { brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today };
-  const rows = queryRows(files, selectors, options);
-  process.stdout.write(flags.json ? JSON.stringify(rows, null, 2) + '\n' : queryText(rows, flags.titles));
-  console.error(`[smd] ${querySummary(rows, files.length)}`);
-  return rows.length ? 0 : 1;
+  const { code, stdout, stderr } = runQuery(selector, targets, flags);
+  process.stdout.write(stdout);
+  process.stderr.write(stderr);
+  return code;
 }
 
-async function mcp(root = '.', options: { allowWrite: boolean; legacyTools: boolean }): Promise<number> {
+async function mcp(root = '.', options: { allowWrite: boolean; allowSuggest: boolean; legacyTools: boolean }): Promise<number> {
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return fail(`--root must be a folder: ${root}`);
   await runMcpServer({ root, version: pkg.version, ...options });
   return 0;
@@ -611,6 +689,10 @@ function readCommand(file: string, args: Args, today?: string): number {
   const sections = args.values.get('--section');
   const manifest = provenanceTarget(args);
   if (manifest === null) return fail(PROVENANCE_USAGE);
+  // A task view is read as smd agent reads it: its own budget, or --max-tokens as the agent's.
+  if (args.values.has('--view') || flags.has('--views')) {
+    return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => printTaskView(file, args, { maxTokens, tokenizer, today }, manifest));
+  }
   return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => {
     const result = readDocument(read(file), {
       mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
@@ -624,6 +706,7 @@ function readCommand(file: string, args: Args, today?: string): number {
     process.stdout.write(result.text);
     const exact = result.counted ? ` (${result.counted.tokens} ${result.counted.tokenizer})` : '';
     console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens${exact} · file ≈${result.fileTokens} tokens`);
+    if (result.shown !== 'outline') warnIncomplete(result.mandatory);
     return 0;
   });
 }
@@ -637,6 +720,12 @@ function provenanceTarget(args: Args): string | undefined | null {
 
 const PROVENANCE_USAGE = '--provenance needs a file to write the manifest to, e.g. --provenance view.json.';
 
+/** A view that could not include a mandatory dependency says so on stderr too; the view lists them. */
+function warnIncomplete(mandatory: AgentViewResult['mandatory']): void {
+  const n = mandatory?.unsatisfied.length ?? 0;
+  if (n) console.error(`[smd] warning: incomplete view, ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied (listed under "Dependencies of the selected content")`);
+}
+
 function writeProvenance(target: string, manifest: Provenance): void {
   fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
 }
@@ -645,6 +734,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   const sections = args.values.get('--section');
   const manifest = provenanceTarget(args);
   if (manifest === null) return fail(PROVENANCE_USAGE);
+  if (args.values.has('--view') || args.flags.has('--views')) return printTaskView(file, args, extra, manifest);
   const result = agentView(read(file), {
     sections,
     exactSections: args.flags.has('--exact'),
@@ -655,6 +745,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
     lineRefs: !args.flags.has('--no-lines'),
     constraints: args.flags.has('--constraints'),
     provenance: manifest !== undefined,
+    ...(args.flags.has('--evidence') ? { evidence: 'full' as const } : {}),
     readFile: readerFor(file),
     file,
     ...extra,
@@ -667,7 +758,33 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   process.stdout.write(result.text);
   console.error(sizeLine(result));
   if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer, !!result.resolvedSections)) console.error(line);
+  warnIncomplete(result.mandatory);
   return 0;
+}
+
+/** `smd agent <file> --view <name> [--inspect]` and `--views`: an author task view, with the agent's flags on top. */
+function printTaskView(file: string, args: Args, extra: Pick<AgentViewOptions, 'maxTokens' | 'tokenizer' | 'today'>, manifest: string | undefined): number {
+  const out = runTaskView(read(file), file, {
+    view: args.values.get('--view')?.[0],
+    list: args.flags.has('--views'),
+    inspect: args.flags.has('--inspect'),
+    sections: args.values.get('--section'),
+    exactSections: args.flags.has('--exact'),
+    brief: args.flags.has('--brief'),
+    includeHuman: args.flags.has('--include-human'),
+    embed: args.flags.has('--embed'),
+    includes: !args.flags.has('--no-includes'),
+    lineRefs: !args.flags.has('--no-lines'),
+    constraints: args.flags.has('--constraints'),
+    provenance: manifest !== undefined,
+    readFile: readerFor(file),
+    readDocument: graphReader([path.dirname(file)]),
+    ...extra,
+  });
+  if (manifest && out.provenance) writeProvenance(manifest, out.provenance);
+  process.stdout.write(out.stdout);
+  process.stderr.write(out.stderr);
+  return out.code;
 }
 
 /** `[smd] ≈1531 tokens (file ≈2430, 37% smaller)`, with a tokenizer `[smd] ≈1531 est · 1402 o200k_base tokens (…)` */
@@ -749,6 +866,7 @@ function build(positional: string[], args: Args): number {
     lang,
     md: args.flags.has('--md'),
     clean: args.flags.has('--clean'),
+    comments: args.flags.has('--comments'),
     generator: `smd ${pkg.version}`,
   }, { err: (text) => console.error(text) });
 }

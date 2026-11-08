@@ -47,7 +47,8 @@ test('parseSelector says what is wrong, with a suggestion', () => {
   fails('risk[impact<high|low]', /"<" takes one value/);
   fails('risk[impact=high', /Missing "\]"/);
   fails('card[title="x]', /Missing closing "/);
-  fails('decision risk', /List several selectors with commas/);
+  // A space is a descendant combinator since tree selectors (T1); other separators still ask for commas.
+  fails('decision;risk', /List several selectors with commas/);
   fails('decision,', /Missing a selector after ","/);
   fails('risk[=high]', /Expected an attribute name/);
   // Any key is allowed on * (containers may carry custom attributes).
@@ -74,6 +75,7 @@ test('querySmd reports lines, attributes, sections and the agent view of each ma
   assert.deepEqual({ ...risk, text: undefined }, {
     type: 'risk', line: 17, endLine: 21, title: 'Rate limits', section: 'Risks', text: undefined,
     attrs: { impact: 'high', likelihood: 'low', owner: '@ops' },
+    ancestors: [{ type: 'heading', line: 3, title: 'Plan', id: 'plan' }, { type: 'heading', line: 15, title: 'Risks', id: 'risks' }],
   });
   assert.equal(risk.text, '<risk impact="high" likelihood="low" owner="@ops"> Rate limits\n<warning title="Pre-warm">\nAsk for a quota.\n</warning>\n</risk>');
   const [warning] = querySmd(doc, 'warning');

@@ -29,6 +29,8 @@ export interface BuildOptions {
   md: boolean;
   /** Delete the files of the previous build first. */
   clean: boolean;
+  /** Keep review comments and suggestions on the pages. */
+  comments?: boolean;
   generator: string;
 }
 
@@ -47,6 +49,7 @@ export function runBuild(options: BuildOptions, io: BuildIo): number {
   if (options.clean && previous) removeFiles(out, previous);
   const site = buildSite(sources, {
     title: options.title, base: options.base, url: options.url, image: options.image, today: options.today, lang: options.lang, readFile: (source) => readerFor(path.join(dir, source)),
+    comments: options.comments,
   });
   const written = writeSite(out, site);
   const copied = copyAssets(dir, out, site.assets);

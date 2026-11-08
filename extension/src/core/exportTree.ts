@@ -6,14 +6,15 @@ import { langFromPath, parseFenceInfo, sliceLines } from './fence';
 import { FigureCounter } from './figures';
 import { label, term, type MessageKey, type Messages } from './i18n';
 import { includeHref, includeLabel, includeProblemText, includeRequest } from './include';
-import { figureLabel, PRIORITY_COLORS } from './markdownItHtml';
+import { figureLabel, parentRequirementOf, PRIORITY_COLORS, progressLabel, questionStateOf, supersedersOf } from './markdownItHtml';
+import { progressState } from './progress';
 import {
   envBlockIds, envFigures, type ContainerMeta, type DirectiveMeta, type FootnoteMeta, type SpanMeta, type TaskBoxMeta,
 } from './markdownItRules';
 import { quoteCite } from './quote';
 import { parseSmdTokens, type ParsedTokens } from './render';
 import { riskMatrix, riskRegister } from './risks';
-import { CALLOUT_TYPES } from './spec';
+import { CALLOUT_TYPES, idList } from './spec';
 import { specEnv } from './specVersion';
 
 /**
@@ -32,6 +33,8 @@ export interface ExportOptions {
   lang?: string;
   /** Start with the front matter's status, version, dates, summary, owners and tags (default true). The title is the page's own. */
   header?: boolean;
+  /** Keep `:::comment` and `:::suggestion` blocks, which exports leave out by default. */
+  comments?: boolean;
 }
 
 /** exportTree's options: the public ones, and those only smd's own writers use. */
@@ -66,7 +69,7 @@ export type Inline =
   | { kind: 'image'; src: string; alt: string };
 
 /** What a panel stands for, so a writer can give it an icon. */
-export type PanelType = 'card' | 'agent' | 'human' | 'decision' | 'risk' | 'api';
+export type PanelType = 'card' | 'agent' | 'human' | 'decision' | 'risk' | 'api' | 'requirement' | 'constraint' | 'acceptance' | 'assumption' | 'evidence';
 
 export interface ListItem {
   /** Set for task list items. */
@@ -103,7 +106,9 @@ export interface ExportDocument {
 
 /** The export tree of a .smd document. */
 export function exportTree(text: string, options: TreeOptions = {}): ExportDocument {
-  const parsed = parseSmdTokens(text, { readFile: options.readFile, agentBlocks: options.agentBlocks, lang: options.lang, today: '1970-01-01' });
+  const parsed = parseSmdTokens(text, {
+    readFile: options.readFile, agentBlocks: options.agentBlocks, lang: options.lang, today: '1970-01-01', reviewBlocks: options.comments ? 'shown' : 'hidden',
+  });
   const builder = new TreeBuilder(parsed, options);
   const header = options.header === false ? [] : builder.header();
   const blocks = [...builder.unreadFrontMatter(), ...header, ...builder.blocks(0, parsed.tokens.length)];
@@ -195,6 +200,8 @@ interface ContainerCall {
   meta: ContainerMeta;
   title: string;
   body: () => Block[];
+  /** The index of its opening token. */
+  open: number;
 }
 
 class TreeBuilder {
@@ -355,7 +362,7 @@ class TreeBuilder {
 
   private container(open: number, close: number): Step {
     const meta = this.tokens[open].meta as ContainerMeta;
-    const call: ContainerCall = { b: this, meta, title: meta.title ? this.plain(meta.title) : '', body: () => this.blocks(open + 1, close) };
+    const call: ContainerCall = { b: this, meta, title: meta.title ? this.plain(meta.title) : '', body: () => this.blocks(open + 1, close), open };
     return { blocks: containerRule(meta.name)(call), next: close + 1 };
   }
 
@@ -401,9 +408,124 @@ const titled = (c: ContainerCall): Block[] => (c.title ? [paragraph([text(c.titl
 function callout(c: ContainerCall): Block[] {
   const type = c.meta.name;
   const typeLabel = c.b.m[`callout.${type}` as MessageKey];
-  if (c.meta.attrs.values.collapsible === undefined) return [{ kind: 'callout', type, title: c.title || typeLabel, blocks: c.body() }];
+  // A question with lifecycle attributes starts with its state and facts; any other callout is as before.
+  const body = () => [...(type === 'question' ? questionFacts(c) : []), ...c.body()];
+  if (c.meta.attrs.values.collapsible === undefined) return [{ kind: 'callout', type, title: c.title || typeLabel, blocks: body() }];
   // Collapsible: the title on the expand, the type on the callout inside it.
-  return [{ kind: 'expand', title: c.title || typeLabel, blocks: [{ kind: 'callout', type, title: typeLabel, blocks: c.body() }] }];
+  return [{ kind: 'expand', title: c.title || typeLabel, blocks: [{ kind: 'callout', type, title: typeLabel, blocks: body() }] }];
+}
+
+/** A question's state, owner, due date, conflict and reason, when it uses the lifecycle. */
+function questionFacts(c: ContainerCall): Block[] {
+  const tokens = c.b.tokens;
+  if (tokens[c.open]?.type !== 'container_smd_open') return [];
+  const status = questionStateOf(tokens, c.open);
+  if (!status) return [];
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const between = idList(values.between ?? '');
+  return [paragraph(joinFacts([
+    [{ kind: 'status', text: term(m, 'questionStatus', status), color: status === 'open' ? 'amber' : 'gray' }],
+    values.owner ? [text(values.owner)] : [],
+    values.due ? [text(`${label(m, 'due.title', { date: '' }).trim()} `), dateOrText(values.due)] : [],
+    between.length ? [text(label(m, 'question.between', { a: between[0], b: between.slice(1).join(', ') || '?' }))] : [],
+    values.reason ? [text(label(m, 'question.reason', { reason: values.reason }))] : [],
+  ]))];
+}
+
+const SEMANTIC_COLORS = new Map([
+  ['proposed', 'amber'], ['accepted', 'green'], ['implemented', 'green'], ['verified', 'teal'], ['deprecated', 'gray'],
+  ['unvalidated', 'amber'], ['validated', 'green'], ['invalid', 'red'], ['must', 'red'], ['should', 'orange'],
+  ['pass', 'green'], ['fail', 'red'], ['inconclusive', 'gray'],
+]);
+
+/** A coloured status label with its value as text. */
+const statusOf = (word: string, value: string): Inline => ({ kind: 'status', text: word, color: SEMANTIC_COLORS.get(value.toLowerCase()) ?? 'gray' });
+const idText = (value: string | readonly string[]) => (typeof value === 'string' ? idList(value) : value).join(', ');
+
+/** A semantic tag as a panel: "Requirement R1: Title", then its facts, then the body. */
+function tagPanel(c: ContainerCall, type: PanelType, kind: string, facts: Inline[][]): Block[] {
+  const id = c.meta.attrs.id;
+  const head = id ? `${kind} ${id}` : kind;
+  const shown = joinFacts(facts);
+  return [{ kind: 'panel', type, title: withTitle(head, c.title), blocks: [...(shown.length ? [paragraph(shown)] : []), ...c.body()] }];
+}
+
+const factIf = (value: string | undefined, make: (v: string) => Inline[]): Inline[] => (value ? make(value) : []);
+const dependsFacts = (c: ContainerCall): Inline[] => factIf(c.meta.attrs.values['depends-on'], (v) => [text(label(c.b.m, 'tag.dependsOn', { ids: idText(v) }))]);
+
+function requirement(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const status = (values.status ?? 'proposed').toLowerCase();
+  return tagPanel(c, 'requirement', m['requirement.label'], [
+    factIf(values.priority, (p) => [{ kind: 'status', text: term(m, 'priority', p), color: PRIORITY_COLORS.get(p.toLowerCase()) ?? 'gray' }]),
+    [statusOf(term(m, 'requirementStatus', status), status)],
+    factIf(values.owner, (o) => [text(o)]),
+    dependsFacts(c),
+  ]);
+}
+
+function constraint(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const level = (values.level ?? 'must').toLowerCase();
+  let scope: Inline[] = [];
+  if (values['applies-to']) scope = [text(label(m, 'tag.appliesTo', { ids: idText(values['applies-to']) }))];
+  else if (values.scope?.toLowerCase() === 'document') scope = [text(m['tag.wholeDocument'])];
+  return tagPanel(c, 'constraint', m['constraint.label'], [[statusOf(term(m, 'constraintLevel', level), level)], scope, factIf(values.owner, (o) => [text(o)]), dependsFacts(c)]);
+}
+
+function acceptance(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const parent = parentRequirementOf(c.b.tokens, c.open);
+  const ids = [...new Set([...(parent ? [parent] : []), ...idList(values.verifies ?? '')])];
+  const href = quoteCite(values.test);
+  return tagPanel(c, 'acceptance', m['acceptance.label'], [
+    ids.length ? [text(label(m, 'tag.verifies', { ids: idText(ids) }))] : [],
+    factIf(values.test, (t) => [text(`${label(m, 'tag.test', { file: '' }).trim()} `), text(t, { code: true, ...(href ? { href } : {}) })]),
+  ]);
+}
+
+function assumption(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const status = (values.status ?? 'unvalidated').toLowerCase();
+  return tagPanel(c, 'assumption', m['assumption.label'], [
+    [statusOf(term(m, 'assumptionStatus', status), status)],
+    factIf(values.owner, (o) => [text(o)]),
+    factIf(values['review-by'], (d) => [text(label(m, 'tag.reviewBy', { date: d }))]),
+    dependsFacts(c),
+  ]);
+}
+
+function evidence(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const source = quoteCite(values.source);
+  return tagPanel(c, 'evidence', m['evidence.label'], [
+    factIf(values.result, (r) => [statusOf(term(m, 'evidenceResult', r.toLowerCase()), r)]),
+    factIf(values.supports, (v) => [text(label(m, 'tag.supports', { ids: idText(v) }))]),
+    factIf(values.contradicts, (v) => [text(label(m, 'tag.contradicts', { ids: idText(v) }))]),
+    factIf(values.method, (v) => [text(v)]),
+    factIf(values.commit, (v) => [text(v, { code: true })]),
+    factIf(values.date, (v) => [dateOrText(v)]),
+    factIf(values.by, (v) => [text(v)]),
+    factIf(values.source, (v) => [text(v, source ? { href: source } : {})]),
+  ]);
+}
+
+/** A decision's links: what it supersedes, what supersedes it, what it depends on. */
+function decisionLinks(c: ContainerCall): Inline[][] {
+  const { values, id } = c.meta.attrs;
+  const { m } = c.b;
+  const by = supersedersOf(c.b.tokens, id);
+  return [
+    factIf(values.supersedes, (v) => [text(label(m, 'tag.supersedes', { ids: idText(v) }))]),
+    by ? [text(label(m, 'tag.supersededBy', { ids: idText(by) }))] : [],
+    dependsFacts(c),
+  ];
 }
 
 function agent(c: ContainerCall): Block[] {
@@ -420,8 +542,22 @@ function decision(c: ContainerCall): Block[] {
     [{ kind: 'status', text: term(c.b.m, 'decisionStatus', status), color: DECISION_COLORS.get(status) ?? 'gray' }],
     values.date ? [dateOrText(values.date)] : [],
     values.owner ? [text(values.owner)] : [],
+    ...decisionLinks(c),
   ]);
   return [{ kind: 'panel', type: 'decision', title: withTitle(c.b.m['decision.label'], c.title), blocks: [paragraph(facts), ...c.body()] }];
+}
+
+/** A review block, kept with `comments`: a card with its kind, author, date and target. */
+function review(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const name = c.meta.name === 'suggestion' ? m['review.suggestion'] : (values.kind ?? '').toLowerCase() === 'answer' ? m['review.answer'] : m['review.comment'];
+  const facts = joinFacts([
+    values.for ? [text(label(m, 'review.for', { id: values.for }))] : [],
+    values.author ? [text(values.author)] : [],
+    values.date ? [dateOrText(values.date)] : [],
+  ]);
+  return [{ kind: 'panel', type: 'card', title: withTitle(name, c.title), blocks: [...(facts.length ? [paragraph(facts)] : []), ...c.body()] }];
 }
 
 function risk(c: ContainerCall): Block[] {
@@ -434,6 +570,7 @@ function risk(c: ContainerCall): Block[] {
     level(m['label.likelihood'], 'likelihood', values.likelihood),
     values.owner ? [text(`${m['label.owner']} ${values.owner}`)] : [],
     values.status ? [{ kind: 'status', text: term(m, 'riskStatus', values.status), color: 'gray' }] : [],
+    dependsFacts(c),
   ]);
   return [{ kind: 'panel', type: 'risk', title: withTitle(m['risk.title'], c.title), blocks: [paragraph(facts), ...c.body()] }];
 }
@@ -512,7 +649,14 @@ const CONTAINERS = new Map<string, (c: ContainerCall) => Block[]>([
   ['human', (c) => [{ kind: 'panel', type: 'human', title: withTitle(c.b.m['human.label'], c.title), blocks: c.body() }]],
   ['agent', agent],
   ['decision', decision],
+  ['comment', review],
+  ['suggestion', review],
   ['risk', risk],
+  ['requirement', requirement],
+  ['constraint', constraint],
+  ['acceptance', acceptance],
+  ['assumption', assumption],
+  ['evidence', evidence],
   ['api', api],
   ['risk-matrix', riskMatrixBlocks],
   ['include', include],
@@ -674,7 +818,7 @@ const DIRECTIVES = new Map<string, DirectiveExport>([
   ['due', (d, _b, marks) => [dateOrText(d.content.trim(), marks)]],
   ['kbd', (d, _b, marks) => [text(d.content.trim(), { ...marks, code: true })]],
   ['mention', (d, _b, marks) => [text(d.content, marks)]],
-  ['progress', (d, _b, marks) => [text(progressText(d), marks)]],
+  ['progress', (d, b, marks) => [text(progressText(d, b.m), marks)]],
   ['metric', metric],
 ]);
 
@@ -682,7 +826,10 @@ function directive(d: DirectiveMeta, b: TreeBuilder, marks: Marks): Inline[] {
   return (DIRECTIVES.get(d.directive) ?? ((x: DirectiveMeta) => [text(x.content, marks)]))(d, b, marks);
 }
 
-function progressText(d: DirectiveMeta): string {
+function progressText(d: DirectiveMeta, m: Messages): string {
+  // A bar with a basis says it in words: "8 of 10 tasks checked", "unknown", "40% (estimated)".
+  const state = progressState(d.values, d.content, d.progress);
+  if (state.kind !== 'plain') return progressLabel(state, m);
   const raw = Number.parseFloat(d.values.value ?? d.content ?? '0');
   const value = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
   return d.values.label ?? `${Math.round(value)}%`;

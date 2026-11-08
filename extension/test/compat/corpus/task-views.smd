@@ -1,0 +1,31 @@
+---
+smd: 2
+title: Task views
+summary: An author-defined task view with sections, mandatory and optional ids, a budget and full evidence.
+views:
+  implement-r1:
+    sections: [Requirements]
+    mandatory: [C1]
+    optional: [AC1]
+    budget: "1500"
+    evidence: full
+---
+
+## Requirements
+
+:::requirement{#R1 status=accepted} Reads keep their rules
+:::
+
+:::acceptance{#AC1 verifies=R1}
+Given a section read
+Then the rules are there
+:::
+
+## Rules
+
+:::constraint{#C1 applies-to=R1} No network access
+:::
+
+## Background {agent=skip}
+
+How the cache came to be.

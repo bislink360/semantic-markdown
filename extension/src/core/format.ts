@@ -284,6 +284,8 @@ export function attrRank(key: string, order: readonly string[], written: readonl
 const TEXT_KEYS = ['title', 'label', 'file', 'section'];
 /** Prose and URL keys of `:::quote`, quoted where the block accepts them (elsewhere they are unknown and left as written). */
 const OWN_TEXT_KEYS = ['author', 'source', 'cite'];
+/** `:::quote` is the block whose `author` is prose; on a review block it is an @name and stays bare. */
+const QUOTE_ORDER = CONTAINERS.quote.attrs ?? [];
 
 /**
  * Keywords, numbers, dates, sizes and @owners stay bare (`status=accepted width=50%`); the rest is quoted: in double
@@ -292,7 +294,7 @@ const OWN_TEXT_KEYS = ['author', 'source', 'cite'];
  * before the closing quote or at the end (`"C:\docs\\"`), or one of several in a row.
  */
 export function quote(key: string, value: string, order: readonly string[], spec: SpecVersion = 1): string {
-  const text = TEXT_KEYS.includes(key) || (OWN_TEXT_KEYS.includes(key) && order.includes(key));
+  const text = TEXT_KEYS.includes(key) || (OWN_TEXT_KEYS.includes(key) && order === QUOTE_ORDER);
   if (!text && /^[\w@][\w.%@-]*$/.test(value)) return value;
   if (spec >= 2) {
     const q = value.includes('"') && !value.includes("'") ? "'" : '"';

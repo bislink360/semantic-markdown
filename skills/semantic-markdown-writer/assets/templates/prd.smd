@@ -33,17 +33,14 @@ Why this matters now: customer evidence, history, previous attempts. People read
 
 ## Requirements
 
-::::tabs
-:::tab Must have
-- [ ] Requirement :priority[P0] @owner :due[{{today}}]
+:::requirement{#R1 priority=P0 status=proposed owner=@owner} The product must do the essential thing
+Who needs it, and how we will know it works.
 :::
-:::tab Should have
-- [ ] Requirement :priority[P2] @owner
+
+:::requirement{#R2 priority=P2 status=proposed owner=@owner} The product should do the next important thing
 :::
-:::tab Won't have (this release)
-- Out of scope item
-:::
-::::
+
+What this release won't have goes in the non-goals, so nobody builds it by accident.
 
 ## Design and architecture
 

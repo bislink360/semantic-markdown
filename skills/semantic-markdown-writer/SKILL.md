@@ -63,4 +63,6 @@ Output tokens cost about 5× input tokens. Write meaning: decisions, risks, task
 - **Hard constraints for implementers go in one `:::agent` block** near the end. Agents always receive it, even when they read one section.
 - **Narrative, history and research go under `## Background {agent=skip}` or in `:::human`.** People still see it; agents skip it.
 - **Unresolved decisions go in `:::question`**, with who decides and by when; the interim fallback goes in the `:::agent` block.
+- **Requirements, constraints and acceptance criteria get their own blocks with ids** (`:::requirement{#R1}`, `:::constraint{#C1 scope=document}`, `:::acceptance{#AC1 verifies=R1}`), not tables. See `references/syntax/requirements.md`.
+- **When a document is under review, propose changes as suggestions** (`smd review suggest <file> <id> --text … --by …`) instead of editing reviewed text. See `references/syntax/review.md`.
 - **Headings name the content** ("Requirements", "API", "Rollout") because agents select sections by heading.

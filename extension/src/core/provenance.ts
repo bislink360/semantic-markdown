@@ -1,7 +1,9 @@
 import type { AgentViewResult, ResolvedSection } from './agentView';
+import type { MandatoryContext } from './applicability';
 import type { ConstraintView } from './constraints';
 import type { Section } from './sections';
 import { sha256Hex } from './sha256';
+import type { TaskViewReport } from './taskViews';
 
 /**
  * Projection provenance (`agentView(text, { provenance: true })`, `smd agent --provenance <file>`): an optional,
@@ -20,7 +22,7 @@ export const PROVENANCE_SCHEMA = 'smd-projection/1';
 
 export type OmissionKind =
   | 'skipped-section' | 'not-selected' | 'budget' | 'human' | 'details' | 'diagram' | 'code' | 'completed-tasks'
-  | 'comment' | 'include' | 'embed' | 'outline';
+  | 'comment' | 'include' | 'embed' | 'outline' | 'deprecated' | 'dependency';
 
 export interface Omission {
   kind: OmissionKind;
@@ -128,6 +130,10 @@ export interface Provenance {
   /** The view's size and the file's, counted with `tokenizer`. */
   size: { tokens: number; originalTokens: number; tokenizer: string };
   constraints: ConstraintView | null;
+  /** An author task view (`--view`): the author's policy and the agent's choices apart, the paths followed, and what is unsatisfied. */
+  view?: TaskViewReport;
+  /** Only for a document with constraints or dependencies: what the view must carry and what it could not (see applicability.ts). */
+  mandatory?: MandatoryContext;
 }
 
 /** Add an omission; HTML comments on neighbouring lines become one. */
@@ -191,11 +197,14 @@ export function provenanceManifest(input: ManifestInput): Provenance {
     } : null,
     size: { tokens: result.counted?.tokens ?? result.tokens, originalTokens: result.counted?.originalTokens ?? result.originalTokens, tokenizer },
     constraints: result.constraints ?? null,
+    ...(result.mandatory ? { mandatory: result.mandatory } : {}),
   };
 }
 
 /** The manifest of an outline returned instead of a view (`smd read` over its budget): the view's, with the outline as text. */
-export function outlineProvenance(view: Provenance, outlineText: string, tokens: number): Provenance {
+export function outlineProvenance(provenance: Provenance, outlineText: string, tokens: number): Provenance {
+  // An outline shows no head blocks.
+  const { mandatory: _mandatory, ...view } = provenance;
   const lines = outlineText.replace(/\n$/, '').split('\n').length;
   const command = `smd agent ${view.source.file} --section "<heading>"`;
   return {

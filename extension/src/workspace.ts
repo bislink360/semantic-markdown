@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  checkMermaid, extractTasks, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type MermaidParse, type QueryMatch,
+  checkMermaid, extractTasks, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type DocumentRead, type MermaidParse, type QueryMatch,
   type QueryOptions, type RuleSettings, type Selector, type StatusChanges, type TaskInfo,
 } from './core';
 import { compareTasks } from './taskGroups';
@@ -10,7 +10,8 @@ import { compareTasks } from './taskGroups';
 /** Reading .smd files from disk, shared by the CLI and the MCP server. */
 
 export type TaskRow = TaskInfo & { file: string };
-export type QueryRow = QueryMatch & { file: string };
+/** A match as `smd query` and MCP `query` print it: without `ancestors`, so their released JSON keeps its shape. */
+export type QueryRow = Omit<QueryMatch, 'ancestors'> & { file: string };
 
 /** The .smd files under `target` (itself when it is a file), skipping node_modules and dot folders. */
 export function collect(target: string): string[] {
@@ -74,6 +75,24 @@ export function readerFor(file: string, roots = embedRoots(file)) {
   };
 }
 
+/**
+ * Reader for the files `smd query --follow` reaches outside the files it collected: only those inside `targets` (the
+ * folders and files the command was given), checked as written and with links followed. Others are denied, so their
+ * content and even whether they exist stay unknown.
+ */
+export function graphReader(targets: string[]) {
+  const roots = targets.map((t) => path.resolve(t));
+  const realRoots = roots.map(realPath);
+  return (p: string): DocumentRead => {
+    const target = path.resolve(p);
+    if (!roots.some((r) => isInside(r, target))) return { status: 'denied' };
+    let real: string;
+    try { real = fs.realpathSync.native(target); } catch { return { status: 'missing' }; }
+    if (!realRoots.some((r) => isInside(r, real))) return { status: 'denied' };
+    try { return { text: fs.readFileSync(real, 'utf8') }; } catch { return { status: 'missing' }; }
+  };
+}
+
 export function read(file: string): string {
   return fs.readFileSync(file, 'utf8');
 }
@@ -121,21 +140,26 @@ export function taskLine(r: TaskRow): string {
     r.text,
     r.assignees.length ? r.assignees.join(' ') : '',
     r.due ? `(due ${r.due}${r.overdue ? ', OVERDUE' : ''})` : '',
+    r.depends ? `(depends on ${r.depends.join(', ')}${isBlocked(r) ? `; BLOCKED by ${r.blocked!.join(', ')}` : ''})` : '',
     r.id ? `{#${r.id}}` : '',
   ].filter(Boolean);
   return `${r.file}:${r.line + 1}  ${bits.join(' ')}${r.section ? `  — ${r.section}` : ''}`;
 }
 
-/** `N task(s) open, M overdue.` */
+/** An open task waiting for a block it depends on (`:depends[…]`). */
+const isBlocked = (r: TaskRow) => !r.done && Boolean(r.blocked?.length);
+
+/** `N task(s) open, M overdue.`, and `, K blocked` when a task waits for another block. */
 export function taskSummary(rows: TaskRow[], all: boolean): string {
   const overdue = rows.filter((r) => r.overdue).length;
+  const blocked = rows.filter(isBlocked).length;
   const open = all ? '' : ' open';
-  return `${rows.length} task(s)${open}${overdue ? `, ${overdue} overdue` : ''}.`;
+  return `${rows.length} task(s)${open}${overdue ? `, ${overdue} overdue` : ''}${blocked ? `, ${blocked} blocked` : ''}.`;
 }
 
 /** Blocks in `files` that match `selectors`. `name` labels each file. */
 export function queryRows(files: string[], selectors: Selector[], options: QueryOptions, name = (file: string) => file): QueryRow[] {
-  return files.flatMap((file) => querySmd(read(file), selectors, options).map((m) => ({ file: name(file), ...m })));
+  return files.flatMap((file) => querySmd(read(file), selectors, options).map(({ ancestors: _, ...m }) => ({ file: name(file), ...m })));
 }
 
 /** Matches as text: each location and its agent view, or (with `titles`) one line per match. Empty when none. */

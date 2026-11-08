@@ -23,7 +23,10 @@ import { renderParsed, type RenderOptions } from './render';
  */
 
 /** Options of smdToPandocHtml: those of renderSmd. Agent blocks are hidden unless `agentBlocks` says otherwise. */
-export type PandocHtmlOptions = RenderOptions;
+export interface PandocHtmlOptions extends RenderOptions {
+  /** Keep `:::comment` and `:::suggestion` blocks, which exports leave out by default. */
+  comments?: boolean;
+}
 
 /** The front matter, as Pandoc reads it from `<title>` and `<meta>`. */
 interface Meta {
@@ -56,7 +59,9 @@ const DOT = ' · ';
 /** An .smd document as an HTML page for Pandoc (see above). */
 export function smdToPandocHtml(source: string, options: PandocHtmlOptions = {}): string {
   const fm = parseFrontMatter(source);
-  const result = renderParsed(source, fm, { ...options, agentBlocks: options.agentBlocks ?? 'hidden' });
+  const result = renderParsed(source, fm, {
+    ...options, agentBlocks: options.agentBlocks ?? 'hidden', reviewBlocks: options.reviewBlocks ?? (options.comments ? 'shown' : 'hidden'),
+  });
   const lang = result.lang ?? 'en';
   const ctx: Context = { level: 1, meta: { authors: [], keywords: [] } };
   const body = serializeHtml(convert(parseHtml(result.html), ctx)).replaceAll(/\n{3,}/g, '\n\n').trim();
@@ -320,6 +325,10 @@ const CLASS_RULES = new Map<string, Rule>([
   ['smd-callout', wrapIn(BLOCKQUOTE)],
   ['smd-decision', wrapIn(BLOCKQUOTE)],
   ['smd-risk', wrapIn(BLOCKQUOTE)],
+  ['smd-block', wrapIn(BLOCKQUOTE)],
+  ['smd-block-title', boldParagraph],
+  ['smd-block-head', joinedParagraph(DOT)],
+  ['smd-question-facts', joinedParagraph(DOT)],
   ['smd-callout-title', boldParagraph],
   ['smd-card-title', boldParagraph],
   ['smd-box-title', boldParagraph],

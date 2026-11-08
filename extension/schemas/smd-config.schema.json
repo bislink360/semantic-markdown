@@ -150,6 +150,36 @@
           ],
           "description": "Every ref/… rule. Exact codes win."
         },
+        "depends/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every depends/… rule. Exact codes win."
+        },
+        "decision/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every decision/… rule. Exact codes win."
+        },
+        "review/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every review/… rule. Exact codes win."
+        },
         "footnote/*": {
           "enum": [
             "off",
@@ -220,6 +250,16 @@
           ],
           "description": "Every table/… rule. Exact codes win."
         },
+        "views/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every views/… rule. Exact codes win."
+        },
         "rules/*": {
           "enum": [
             "off",
@@ -229,6 +269,76 @@
             "hint"
           ],
           "description": "Every rules/… rule. Exact codes win."
+        },
+        "requirement/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every requirement/… rule. Exact codes win."
+        },
+        "acceptance/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every acceptance/… rule. Exact codes win."
+        },
+        "constraint/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every constraint/… rule. Exact codes win."
+        },
+        "assumption/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every assumption/… rule. Exact codes win."
+        },
+        "evidence/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every evidence/… rule. Exact codes win."
+        },
+        "question/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every question/… rule. Exact codes win."
+        },
+        "progress/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every progress/… rule. Exact codes win."
         },
         "frontmatter/invalid": {
           "enum": [
@@ -780,6 +890,26 @@
           ],
           "description": "An id attribute or :ref[id] names an id two or more blocks give, so it names none of them"
         },
+        "depends/cycle": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A depends-on (or task :depends) or supersedes chain returns to its start"
+        },
+        "decision/depends-superseded": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An accepted decision depends on a superseded decision"
+        },
         "footnote/undefined": {
           "enum": [
             "off",
@@ -940,6 +1070,56 @@
           ],
           "description": "Open task past its :due[…] date"
         },
+        "review/for": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::comment or :::suggestion without for=, so it names no block"
+        },
+        "review/stale": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An open comment or suggestion whose target changed since its rev"
+        },
+        "review/rev": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::comment or :::suggestion without rev=, so a later change to its target cannot be detected"
+        },
+        "review/open": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An open comment or suggestion (an error in a document with status: approved)"
+        },
+        "review/transition": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A resolved, accepted, rejected or withdrawn comment or suggestion without by and on"
+        },
         "table/pipe-in-code": {
           "enum": [
             "off",
@@ -950,6 +1130,46 @@
           ],
           "description": "A | inside a code span in a table row still splits the cell, as on GitHub; write \\|"
         },
+        "views/key": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view in the front matter views: has a key it does not know"
+        },
+        "views/section": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view lists a section that names no heading"
+        },
+        "views/query": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view's query is not a valid selector"
+        },
+        "views/value": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view, or its sections, mandatory, optional, budget, evidence or description, has the wrong type or value"
+        },
         "rules/unknown": {
           "enum": [
             "off",
@@ -959,6 +1179,196 @@
             "hint"
           ],
           "description": "Suppression comment or rule setting names an unknown rule code"
+        },
+        "requirement/id": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::requirement has no {#id}; the fix adds the next free id in the document's pattern"
+        },
+        "requirement/uncovered": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An accepted, implemented or verified requirement that no :::acceptance block verifies"
+        },
+        "acceptance/id": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::acceptance block has no {#id}; the fix adds the next free id in the document's pattern"
+        },
+        "acceptance/verifies": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::acceptance block has no verifies and sits in no requirement"
+        },
+        "acceptance/verifies-type": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "verifies names a block that isn't a requirement"
+        },
+        "constraint/scope": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A section-scoped :::constraint above the first heading, which applies to the whole document"
+        },
+        "constraint/size": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Document-scoped constraints together cost more than 500 tokens, which every section read pays"
+        },
+        "assumption/overdue": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An unvalidated :::assumption whose review-by date has passed"
+        },
+        "assumption/invalid": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An accepted requirement or decision depends-on an invalid assumption"
+        },
+        "evidence/target": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence block with neither supports nor contradicts"
+        },
+        "evidence/rev": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence block without rev, so a later change to what it supports can't be detected"
+        },
+        "question/unanswered": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A question says answered or incorporated but no answer exists, so it reads as open"
+        },
+        "question/reason": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A question is withdrawn without a reason"
+        },
+        "question/overdue": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An open question whose due date has passed"
+        },
+        "decision/supersedes": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A decision is superseded by another, but its status isn't superseded"
+        },
+        "evidence/stale": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A block an :::evidence record supports changed after the revision its rev records, so the record needs a recheck before it counts as current"
+        },
+        "requirement/verified": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A requirement says status=verified and no current passing evidence supports it (result=pass, a method other than acceptance, not outdated)"
+        },
+        "progress/basis": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :progress value without a basis that says how it was found (measured, estimate)"
+        },
+        "progress/basis-value": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :progress{basis=tasks} also has a value, which is ignored"
         }
       },
       "additionalProperties": false

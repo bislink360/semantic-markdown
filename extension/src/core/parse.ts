@@ -158,13 +158,14 @@ function documentVariablesOf(lines: string[], fm: { data: Record<string, unknown
   return { key: uses ? text.split(/\r?\n/, fm.bodyStartLine).join('\n') : '', data: uses ? shownValues(fm.data, text, spec) : {}, spec };
 }
 
-const OPTIONS: ResolvedOptions = { allowHtml: true, agentBlocks: 'collapsed', readFile: undefined, today: '' };
+const OPTIONS: ResolvedOptions = { allowHtml: true, agentBlocks: 'collapsed', reviewBlocks: 'shown', readFile: undefined, today: '' };
 let md: MarkdownIt | undefined;
 const parser = () => (md ??= recordingInlineItems(recordingInlineMath(recordingDefinitions(inPlaceFootnotes(createMarkdownIt(OPTIONS))))));
 /** Container titles render as inline Markdown with raw HTML off (see renderContainer). */
 let titleMd: MarkdownIt | undefined;
 const titleParser = () => (titleMd ??= createMarkdownIt({ allowHtml: false }));
-const TITLED = new Set<string>([...CALLOUT_TYPES, 'details', 'card', 'tab', 'agent', 'human', 'decision', 'risk', 'api', 'figure', 'glossary']);
+const TITLED = new Set<string>([...CALLOUT_TYPES, 'details', 'card', 'tab', 'agent', 'human', 'decision', 'risk', 'api', 'figure', 'glossary',
+  'requirement', 'constraint', 'acceptance', 'assumption', 'evidence', 'comment', 'suggestion']);
 /** Whether a container renders its title: the ones above, and unknown containers (spec §3). */
 const rendersTitle = (name: string): boolean => TITLED.has(name) || !isKnownContainer(name);
 
