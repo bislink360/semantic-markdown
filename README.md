@@ -96,6 +96,7 @@ Markdown is the lingua franca of engineering docs, but teams keep stretching it.
 - **Meaning is explicit.** `:::warning`, `:::decision`, `:::risk`, `:::api` and `:::agent` say what content *is*, not just how it looks.
 - **Everything is validated,** with rule codes and automatic fixes, in VS Code and in CI.
 - **Agents read only what matters,** through the agent view, the outline and queries.
+- **Requirements and reviews live in the document.** `:::requirement`, `:::constraint` and `:::acceptance` blocks with ids, questions with a lifecycle, and `:::comment` and `:::suggestion` blocks that know when their target changed. `smd query --follow` brings what a block depends on, and `smd review` accepts or rejects a suggestion.
 - **Safe and portable.** No scripts, allowlisted styles, and a one-command export to HTML, GitHub Markdown, PDF or Word.
 - **Stable.** Spec v2 gets no breaking changes; tools releases follow a [compatibility policy](docs/reference/compatibility.md).
 
