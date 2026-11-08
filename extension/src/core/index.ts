@@ -32,7 +32,17 @@ export { outlineProvenance, PROVENANCE_SCHEMA } from './provenance';
 export type { Dependency, Omission, OmissionKind, Provenance, ProvenanceSettings, SourceSpan } from './provenance';
 export type { ConstraintPointer, ConstraintView } from './constraints';
 export { querySmd, parseSelector, SelectorError } from './query';
-export type { QueryMatch, QueryOptions, Selector, AttributeTest, QueryOperator } from './query';
+export type { QueryMatch, QueryOptions, QueryAncestor, Selector, AttributeTest, QueryOperator } from './query';
+export {
+  DocumentGraph, edgeTypes, EdgeTypeError, followEdges, mandatoryClosure, dependencyProblems, needs as edgeNeeds, MANDATORY_EDGES, CLOSURE_LIMITS,
+  MAX_FOLLOW_DEPTH,
+} from './graph';
+export type {
+  GraphDocument, GraphNode, GraphEdge, GraphOptions, DocumentRead, EdgeKind, EdgeDirection, TargetStatus, FollowOptions, Neighbor,
+  ClosureOptions, ClosureBlock, Closure, Unsatisfied, UnsatisfiedKind, DependencyProblem,
+} from './graph';
+export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints, constraintNote, pointerLine } from './graphQuery';
+export type { QueryDocumentsOptions, QueryDocumentsResult, FileMatch, ConstraintBlock, DocumentConstraints, MatchGraph, FormatOptions } from './graphQuery';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';
 export type { RelatedDoc, RelatedOptions, SmdSummary } from './related';
 export { indexEntry, smdIndex, INDEX_FORMAT, INDEX_VERSION } from './catalog';

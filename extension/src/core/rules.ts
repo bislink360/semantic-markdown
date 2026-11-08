@@ -59,6 +59,8 @@ export const RULE_CODES: Record<string, string> = {
   'figure/unknown-ref': '`:ref[id]` names no `:::figure` or other block in this document',
   'ref/unknown': 'An id attribute (`verifies`, `applies-to`) names an id no block of this document gives',
   'ref/ambiguous': 'An id attribute or `:ref[id]` names an id two or more blocks give, so it names none of them',
+  'depends/cycle': 'A `depends-on` (or task `:depends`) or `supersedes` chain returns to its start',
+  'decision/depends-superseded': 'An accepted decision depends on a superseded decision',
   'footnote/undefined': 'Footnote reference `[^label]` with no `[^label]: …` definition (info when the document defines no footnotes)',
   'footnote/unused': 'Footnote definition that nothing references (it is not shown)',
   'footnote/duplicate': 'Second definition of a footnote label (the first one is used)',

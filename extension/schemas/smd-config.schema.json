@@ -150,6 +150,26 @@
           ],
           "description": "Every ref/… rule. Exact codes win."
         },
+        "depends/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every depends/… rule. Exact codes win."
+        },
+        "decision/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every decision/… rule. Exact codes win."
+        },
         "footnote/*": {
           "enum": [
             "off",
@@ -779,6 +799,26 @@
             "hint"
           ],
           "description": "An id attribute or :ref[id] names an id two or more blocks give, so it names none of them"
+        },
+        "depends/cycle": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A depends-on (or task :depends) or supersedes chain returns to its start"
+        },
+        "decision/depends-superseded": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An accepted decision depends on a superseded decision"
         },
         "footnote/undefined": {
           "enum": [
