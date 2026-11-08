@@ -310,6 +310,16 @@
           ],
           "description": "Every assumption/… rule. Exact codes win."
         },
+        "non-goals/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every non-goals/… rule. Exact codes win."
+        },
         "evidence/*": {
           "enum": [
             "off",
@@ -1269,6 +1279,16 @@
             "hint"
           ],
           "description": "An accepted requirement or decision depends-on an invalid assumption"
+        },
+        "non-goals/list": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::non-goals block with no list item, so an exclusion can read as a goal"
         },
         "evidence/target": {
           "enum": [

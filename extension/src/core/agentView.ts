@@ -260,6 +260,11 @@ const CONTAINER_HEADS = new Map<string, (c: HeadSource) => ContainerHead>([
   ['acceptance', acceptanceHead],
   ['assumption', semanticTag('assumption', ['status', 'owner', 'review-by', 'depends-on'], { status: 'unvalidated' })],
   ['evidence', semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])],
+  // Phase 3 (RFC D10, D11). A bad example says so on its tag, so it is never copied as guidance (R58).
+  ['non-goals', semanticTag('non-goals', [])],
+  ['example', semanticTag('example', ['kind'])],
+  ['limitation', semanticTag('limitation', ['status', 'affects', 'owner'], { status: 'open' })],
+  ['deprecated', semanticTag('deprecated', ['since', 'use'])],
   ['risk-matrix', ({ title }) => ({ line: riskMatrixPointer(title) })],
   ['api', apiHead],
   ['details', tagged('details')],
@@ -1061,13 +1066,15 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   let tags: TagContext | undefined | null = null;
   const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'))) : tags);
   const inAgent = () => stack.some((f) => f.name === 'agent');
+  // `:::non-goals` is kept wherever `:::agent` is: outside the selected sections and whole in a condensed block (R57).
+  const inKept = () => stack.some((f) => f.name === 'agent' || f.name === 'non-goals');
   // Inside a danger block or a GitHub alert shown as one (the constraints pass).
   const inDanger = () => stack.some((f) => f.name === 'danger') || alertView.callout() === 'danger';
   // A danger is a hard constraint: like :::agent, it is kept whole inside a condensed :::details.
   const condensedHere = () => {
     if (alertView.callout() === 'danger') return false;
     for (let k = stack.length - 1; k >= 0; k--) {
-      if (stack[k].name === 'agent' || stack[k].name === 'danger') return false;
+      if (stack[k].name === 'agent' || stack[k].name === 'non-goals' || stack[k].name === 'danger') return false;
       if (stack[k].condensed) return true;
     }
     return false;
@@ -1075,9 +1082,9 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const dropping = () => stack.some((f) => f.drop) || condensedHere();
   /** Whether a line at `at` would be in the output now. */
   const visibleAt = (at: number) => inScope(at) && !dropping()
-    && (!options.onlyAgentBlocks || inAgent())
+    && (!options.onlyAgentBlocks || inKept())
     && (!options.onlyDangers || (inDanger() && !inAgent()))
-    && (!options.onlyMandatory || inAgent() || inDanger())
+    && (!options.onlyMandatory || inKept() || inDanger())
     && (!options.onlyConstraints || (inDanger() && !inAgent()))
     && (!options.pick || options.pick.lines(options.docPath ?? ROOT_DOC, at));
   const trace = options.trace;
@@ -1093,7 +1100,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     }
     out.push(line);
     options.collect?.push([at, line]);
-    if (inAgent()) options.onAgentLine?.(at);
+    if (inKept()) options.onAgentLine?.(at);
     if (traced) trace?.entries.push({ file: trace.file, line: at, end, root: trace.root ?? at, text: line });
   };
   /** Record lines [start, end] (zero-based) as left out of the view, when provenance is asked for. */
@@ -1638,6 +1645,7 @@ function directiveText(
     case 'kbd': return `${pre}${content}`;
     // The ids stay as written, so an agent can look each one up.
     case 'depends': return `${pre}(depends on ${idList(content).join(', ')})`;
+    case 'since': return `${pre}(since ${content.trim()})`;
     case 'mention': return `${pre}${content}`;
     case 'status': return `${pre}[status: ${content}${status ? ` (${status})` : ''}]`;
     case 'progress': return `${pre}${progressBasisText(v, content, counts) ?? v.label ?? `${Math.round(Number(v.value ?? content) || 0)}%`}`;
@@ -1736,6 +1744,9 @@ const SECTION_MARKS: SectionMark[] = [
   { note: 'requirement', line: /^\s*:{3,}\s*requirement(?![\w-])/ },
   { note: 'constraint', line: /^\s*:{3,}\s*constraint(?![\w-])/ },
   { note: 'assumption', line: /^\s*:{3,}\s*assumption(?![\w-])/ },
+  { note: 'non-goals', line: /^\s*:{3,}\s*non-goals(?![\w-])/ },
+  { note: 'limitation', line: /^\s*:{3,}\s*limitation(?![\w-])/ },
+  { note: 'deprecated', line: /^\s*:{3,}\s*deprecated(?![\w-])/ },
   { note: 'open question', line: /^\s*:{3,}\s*question\b/ },
 ];
 

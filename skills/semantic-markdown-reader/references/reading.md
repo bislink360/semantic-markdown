@@ -53,6 +53,11 @@ If the `smd` MCP server is registered, use its tools instead of the shell. Paths
 | `<acceptance verifies="R1">` | How to check R1. It is not proof that R1 passed |
 | `<assumption status="unvalidated">` | A premise nobody has checked yet. Don't treat it as fact |
 | `<evidence supports="R1" result="pass">` | A recorded check of R1. `method="acceptance"` is a person accepting it. Outdated evidence was recorded before R1 last changed |
+| `<non-goals>` | What the work leaves out on purpose. Don't build it. Section views show it under "Document-wide agent instructions" |
+| `<example kind="dont">` / `kind="do"` | A bad example, never to copy / a good one to follow. Without `kind`, a neutral example |
+| `<limitation status="open" affects="R1">` | Something that does not work, does not hold or wasn't checked. Don't promise it works. `resolved` no longer applies |
+| `<deprecated since="2.0" use="…">` | Still works, but don't use it in new work. Use what `use` names |
+| `(since 1.6)` | The version a feature appeared in |
 | `<question id="Q1" status="answered">` | Answered by the `<comment kind="answer">` with it. `open` still needs a person |
 | `<comment for="R1">`, `<suggestion for="R1">` | Open review remarks and proposed replacements. `stale="true"` means R1 changed since. Apply a suggestion only through `smd review accept`, which a person runs |
 | `(depends on R1; BLOCKED by R1)` | The task waits for R1 |

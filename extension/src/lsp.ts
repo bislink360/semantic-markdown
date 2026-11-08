@@ -39,6 +39,7 @@ export interface LanguageServerOptions {
 /** LSP SymbolKind values for headings, decisions, risks and API endpoints. */
 const SYMBOL_KIND: Record<SmdSymbol['kind'], number> = {
   heading: 15, decision: 24, risk: 14, api: 6, requirement: 11, constraint: 20, acceptance: 17, assumption: 13, evidence: 19,
+  'non-goals': 21, limitation: 22, deprecated: 26,
 };
 const SEVERITY: Record<Diagnostic['severity'], number> = { error: 1, warning: 2, info: 3, hint: 4 };
 const TEXT_DOCUMENT_SYNC_FULL = 1;

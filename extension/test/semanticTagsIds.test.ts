@@ -96,7 +96,7 @@ test('R15: id attributes take one id or a comma-separated list, bare or quoted',
   assert.deepEqual(idList('R1'), ['R1']);
   assert.deepEqual(idList('R1,R2'), ['R1', 'R2']);
   assert.deepEqual(idList(' R1, R2 ,'), ['R1', 'R2']);
-  assert.deepEqual(Object.keys(ID_ATTRIBUTES), ['verifies', 'applies-to', 'depends-on', 'supports', 'contradicts', 'supersedes', 'between', 'for']);
+  assert.deepEqual(Object.keys(ID_ATTRIBUTES), ['verifies', 'applies-to', 'depends-on', 'supports', 'contradicts', 'supersedes', 'between', 'for', 'affects']);
 });
 
 test('AC1 (R13, R16): an id in verifies that names nothing warns ref/unknown with a fix to the closest id', () => {

@@ -207,6 +207,7 @@ const CALLOUTS = new Map([
 const PANEL_ICONS: Record<PanelType, string> = {
   card: '🗂️', agent: '🤖', human: '👤', decision: '⚖️', risk: '🚩', api: '🔌',
   requirement: '📌', constraint: '⛔', acceptance: '✅', assumption: '💭', evidence: '🔎',
+  'non-goals': '🚫', example: '🧪', limitation: '⚠️', deprecated: '🗄️',
 };
 
 /** Fence language → Notion code language (a fixed list; anything else is "plain text"). */

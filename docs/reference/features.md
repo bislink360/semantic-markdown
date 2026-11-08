@@ -17,7 +17,7 @@ The short version of this guide; each item is described in full in the sections 
 | **Inline** | `:badge` `:status` `:priority` `:due` `:metric` `:progress` `:kbd` `:mention` · inline and display math (KaTeX) · front matter values in text with `{{version}}` |
 | **Layout** | `tabs` · `columns` · `card` · `box` · `steps` · `timeline` (nest to any depth) |
 | **Project management** | `decision` (ADR records, `supersedes`, `depends-on`) · `risk` (impact × likelihood) · tasks with owner, priority, due date and `:depends` · overdue and blocked detection |
-| **Requirements** | `requirement` · `constraint` · `acceptance` · `assumption` · `evidence`, each with an id · questions with a lifecycle (open, answered, incorporated, withdrawn) |
+| **Requirements** | `requirement` · `constraint` · `acceptance` · `assumption` · `evidence`, each with an id · `non-goals` · `example` (do, dont) · `limitation` · `deprecated` and `:since` · questions with a lifecycle (open, answered, incorporated, withdrawn) |
 | **Review** | `comment` and `suggestion` on any block with an id, against its revision, with stale detection · `smd review` to accept, reject and resolve |
 | **Developers** | `api` endpoint blocks · code titles · line highlights `{2,5-7}` · live source embeds `file="…" lines="…"` · shared text included from other documents `:::include{file="…" section="…"}` · syntax highlighting |
 | **Diagrams** | Every Mermaid type (flowchart, sequence, gantt, ER, state, class, pie, mindmap, timeline, xychart…), themed to match the document |
@@ -41,7 +41,7 @@ The short version of this guide; each item is described in full in the sections 
 - **Document status** in the status bar: click it to move a document from `draft` to `review` to `approved` (or `deprecated`, `archived`); only the front matter `status:` (and `updated:`) changes, as one undoable edit
 - **Workspace symbols** (`Ctrl+T`) across every `.smd` heading, decision, risk and API endpoint (`POST /v1/orders`), and **hover previews** of linked sections, linked documents and `file="…"` code embeds
 - **Editing comfort:** Enter continues task lists (unchecked, keeping `@owner`), bullets and numbered lists; paste or drop images to save them in `docs/images/` with a relative link; **Set Up Spell Checking** teaches cSpell to skip directives, attributes and code
-- **Outline, folding** and **46 snippets** (`prd`-style blocks, `decision`, `risk`, `requirement`, `constraint`, `acceptance`, `assumption`, `evidence`, `api`, `figure`, `glossary`, `changelog`, `quote`, `mermaid`, `gantt`, `task`, `embed`, `transclude`…)
+- **Outline, folding** and **50 snippets** (`prd`-style blocks, `decision`, `risk`, `requirement`, `constraint`, `acceptance`, `assumption`, `evidence`, `non-goals`, `example`, `limitation`, `deprecated`, `api`, `figure`, `glossary`, `changelog`, `quote`, `mermaid`, `gantt`, `task`, `embed`, `transclude`…)
 - **Agent view** (🤖 button), **brief agent view**, **copy for an agent** (whole doc or picked sections), and a **status-bar token counter**
 - **Export** to standalone HTML, plain GitHub Markdown, Confluence, Notion or Word (.docx) · **Convert** `.md` → `.smd` · **Validate workspace** · **Migrate to Spec v2** (and **Preview Migration to Spec v2**)
 - **Built-in Markdown preview:** `.md` files that opt in with `smd: 1` in their front matter render `.smd` syntax (callouts, directives, attribute lists, Mermaid, code titles) in VS Code's own preview too; `smd.markdownPreview.enabled` set to `always` does it for every `.md` file, `never` for none
@@ -550,6 +550,41 @@ The section-read tests pass.
 - **Templates.** `spec` and `prd` write their requirements, acceptance criteria and constraints with these blocks ([§18](#18-templates)).
 - `.smd` tools 4.0.0 and earlier show each tag as a plain box with its title and a `container/unknown` warning.
 
+### Non-goals, examples, limitations and deprecated content
+
+```markdown
+:::non-goals
+- No requirements-management tool.
+- No test runner integration.
+:::
+
+:::example{kind=dont} Spell the id as an attribute
+`:::requirement{id=R1}`
+:::
+
+:::limitation{#L1 status=open affects=R1 owner=@api-team} PDF export needs a local browser
+Workaround: export HTML and print it.
+:::
+
+:::deprecated{since=2.0 use="`smd export`"} `smd convert`
+Still works, and goes away in 3.0. Added :since[1.6].
+:::
+```
+
+| Block | Attributes (default first) | Agent view | GitHub |
+|---|---|---|---|
+| `non-goals` | none | `<non-goals>`, in every view | `> [!IMPORTANT]` with `**Non-goals**` |
+| `example` | `kind` do, dont (none means neutral) | `<example kind="dont">` | `> [!TIP]` for do, `> [!CAUTION]` for don't, else `> [!NOTE]` |
+| `limitation` | `status` open, mitigated, resolved · `affects` · `owner` | `<limitation id="L1" status="open" affects="R1">` | `> [!WARNING]`, or `> [!NOTE]` once resolved |
+| `deprecated` | `since` · `use` | `<deprecated since="2.0" use="…">` | `> [!WARNING]` with `**Deprecated** · since 2.0` |
+
+- **Non-goals stay in view.** A section view that doesn't include the non-goals still shows them, under "Document-wide agent instructions", and `--max-tokens` never drops them. The `spec` and `prd` templates use the block instead of a bold **Non-goals** paragraph. Written as prose, it gets the hint `non-goals/list`.
+- **Bad examples say so.** `kind=dont` shows a red "don't" pill in the preview and `kind="dont"` in the agent view, so an agent never copies it.
+- **Limitations** are known issues and threats to validity, with the blocks they affect linked. One that is not resolved is kept longer by `--max-tokens`.
+- **Deprecated content** names the version and the replacement. `smd query "deprecated[since=2.0]"` lists it.
+- **`:since[1.6]`** shows a small "since 1.6" label, in spec v2 documents only.
+- The outline notes `non-goals`, `limitation` and `deprecated`, and workspace symbols list them (not examples).
+
 ### Questions, superseded decisions and dependencies
 
 ```markdown
@@ -1037,7 +1072,7 @@ An `:::agent` block inside a section marked `{agent=skip}` is omitted with the s
 | Lists on Enter | Enter on `- [x] Ship it @maya` starts `- [ ] ` with the cursor before ` @maya`. Bullets repeat, numbers count up, Enter on an empty item ends the list, and code blocks are left alone (`smd.editor.continueLists`) |
 | Images | Paste an image, or drop image files, to save them in `docs/images/` (`smd.images.folder`) and insert `![alt](../relative/path.png)`. Images already in the workspace are linked where they are; name clashes get `-1`, `-2`… |
 | Spell checking | **Set Up Spell Checking (cSpell)** adds an `smd` entry to cSpell's `languageSettings`, so container and directive names, attribute lists, `@mentions`, link targets, front matter and code aren't flagged; titles and link text still are |
-| Snippets (46) | `frontmatter` `callout` `details` `card` `tabs` `columns` `steps` `agent` `human` `decision` `risk` `requirement` (`req`) `constraint` `acceptance` (`given`) `assumption` `evidence` `risk-matrix` `api` `timeline` `figure` `ref` `glossary` `changelog` `quote` `task` `priority` `due` `metric` `badge` `status` `progress` `kbd` `mermaid` `sequence` `gantt` `pie` `math` `code` `embed` `skip` `table` `tasks`… |
+| Snippets (50) | `frontmatter` `callout` `details` `card` `tabs` `columns` `steps` `agent` `human` `decision` `risk` `requirement` (`req`) `constraint` `acceptance` (`given`) `assumption` `evidence` `non-goals` `example` `limitation` `deprecated` `risk-matrix` `api` `timeline` `figure` `ref` `glossary` `changelog` `quote` `task` `priority` `due` `metric` `badge` `status` `progress` `kbd` `mermaid` `sequence` `gantt` `pie` `math` `code` `embed` `skip` `table` `tasks`… |
 
 ### Block Editor (Preview)
 
@@ -1120,6 +1155,7 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | `:::constraint` above the first heading without `scope=document` | `constraint/scope` (info) | adds `scope=document` |
 | document-wide constraints over 500 tokens together | `constraint/size` (hint) | — |
 | an unvalidated `:::assumption` past `review-by`, or an accepted requirement that `depends-on` an invalid one | `assumption/overdue` (info), `assumption/invalid` | — |
+| `:::non-goals` written as prose, with no list item | `non-goals/list` (hint) | — |
 | `:::evidence` with neither `supports` nor `contradicts`, or without `rev` | `evidence/target`, `evidence/rev` (hint) | — |
 | `:::evidence{rev=R1@…}` after R1 changed | `evidence/stale` | — (recheck R1, then record its new revision) |
 | `:::requirement{status=verified}` with no current passing evidence | `requirement/verified` | — |

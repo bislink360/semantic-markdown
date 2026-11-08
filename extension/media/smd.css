@@ -485,7 +485,7 @@ pre.smd-has-hl code { position: relative; }
 .smd-risk-facts b { color: var(--c); text-transform: uppercase; font-size: .9em; letter-spacing: .04em; }
 .smd-risk-status { text-transform: uppercase; font-weight: 650; letter-spacing: .04em; }
 
-/* ---------- Semantic tags (requirement, constraint, acceptance, assumption, evidence) ---------- */
+/* ---------- Semantic tags (requirement, constraint, acceptance, assumption, evidence, non-goals, example, limitation, deprecated) ---------- */
 .smd-block {
   --c: var(--smd-blue);
   margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 16px;
@@ -500,6 +500,13 @@ pre.smd-has-hl code { position: relative; }
 .smd-evidence-fail { --c: var(--smd-red); }
 .smd-requirement-deprecated, .smd-assumption-invalid { --c: var(--smd-gray); }
 .smd-requirement-deprecated > .smd-block-title { text-decoration: line-through; opacity: .75; }
+.smd-non-goals { --c: var(--smd-purple); }
+.smd-example { --c: var(--smd-gray); }
+.smd-example-do { --c: var(--smd-green); }
+.smd-example-dont { --c: var(--smd-red); }
+.smd-limitation { --c: var(--smd-orange); }
+.smd-limitation-resolved { --c: var(--smd-gray); }
+.smd-deprecated { --c: var(--smd-gray); }
 .smd-block-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8em; }
 .smd-block-kind { font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--smd-fg-muted); }
 .smd-block-id { font-family: var(--smd-font-mono); font-weight: 700; }
@@ -517,9 +524,16 @@ pre.smd-has-hl code { position: relative; }
 .smd-pill-status-deprecated, .smd-pill-status-withdrawn, .smd-pill-result-inconclusive { --p: var(--smd-gray); }
 .smd-pill-status-invalid, .smd-pill-result-fail, .smd-pill-level-must { --p: var(--smd-red); }
 .smd-pill-level-should { --p: var(--smd-orange); }
+.smd-pill-kind-do, .smd-pill-status-resolved { --p: var(--smd-green); }
+.smd-pill-kind-dont { --p: var(--smd-red); }
+.smd-pill-status-mitigated { --p: var(--smd-teal); }
 .smd-question-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8em; margin: 0 0 6px; }
 .smd-conflict { text-decoration: underline wavy; text-decoration-color: var(--smd-red); }
 .smd-depends { color: var(--smd-fg-muted); font-size: .9em; }
+.smd-since {
+  font-size: .8em; font-weight: 600; color: var(--smd-fg-muted); white-space: nowrap;
+  border: 1px solid var(--smd-border); border-radius: 999px; padding: 0 .5em;
+}
 
 /* ---------- Risk matrix (:::risk-matrix, smd risks --html) ---------- */
 .smd-risk-band-low { --c: var(--smd-green); }

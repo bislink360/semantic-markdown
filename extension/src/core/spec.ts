@@ -41,6 +41,9 @@ export const QUESTION_STATUS: readonly string[] = ['open', 'answered', 'incorpor
 export const COMMENT_KINDS: readonly string[] = ['remark', 'answer', 'correction'];
 export const COMMENT_STATUS: readonly string[] = ['open', 'resolved'];
 export const SUGGESTION_STATUS: readonly string[] = ['open', 'accepted', 'rejected', 'withdrawn'];
+// Semantic tags phase 3 (RFC D10, D11).
+export const EXAMPLE_KINDS: readonly string[] = ['do', 'dont'];
+export const LIMITATION_STATUS: readonly string[] = ['open', 'mitigated', 'resolved'];
 /** `:progress{basis=…}`: what a percentage counts (research AF25). `tasks` counts the checked tasks of the section. */
 export const PROGRESS_BASES: readonly string[] = ['tasks', 'measured', 'estimate'];
 
@@ -182,6 +185,30 @@ export const CONTAINERS: Readonly<Record<string, ContainerSpec>> = {
     attrs: ['title', 'supports', 'contradicts', 'method', 'result', 'source', 'commit', 'date', 'by', 'rev'],
     values: { result: EVIDENCE_RESULTS },
   },
+  // Semantic tags phase 3 (RFC D10, D11)
+  'non-goals': {
+    description: 'A list of what the work leaves out on purpose. Kept in every agent view and never dropped by a token budget, like :::agent.',
+    title: true,
+    attrs: ['title'],
+  },
+  example: {
+    description: 'A good (kind=do) or bad (kind=dont) example. Agents see kind="dont" on the tag, so a bad example is never copied as guidance.',
+    title: true,
+    attrs: ['title', 'kind'],
+    values: { kind: EXAMPLE_KINDS },
+  },
+  limitation: {
+    description: 'Something that does not work, does not hold or has not been checked: a known issue or a threat to validity. affects=… names the blocks it limits.',
+    title: true,
+    attrs: ['title', 'status', 'affects', 'owner'],
+    values: { status: LIMITATION_STATUS },
+    defaults: { status: 'open' },
+  },
+  deprecated: {
+    description: 'Content that still works but should not be used for new work: since=… is the version that deprecated it, use="…" what to use instead.',
+    title: true,
+    attrs: ['title', 'since', 'use'],
+  },
 
   // Review (collaboration RFC phase 3)
   comment: {
@@ -281,6 +308,12 @@ export const INLINE_DIRECTIVES: Readonly<Record<string, InlineDirectiveSpec>> = 
     attrs: [],
     example: ':depends[R1]',
   },
+  since: {
+    description: 'Version label (spec v2): the version a feature or behavior appeared in',
+    content: true,
+    attrs: [],
+    example: ':since[1.6]',
+  },
 };
 
 /**
@@ -293,7 +326,8 @@ export const V1_DIRECTIVES: readonly string[] = ['badge', 'kbd', 'progress', 'me
 /**
  * Attributes whose value names blocks by id, one id or a comma-separated list (`verifies=R1,R2`, semantic tags R15),
  * with the containers that take each. The validator checks every id they name (`ref/unknown`, `ref/ambiguous`).
- * Phase 2 added `depends-on`, `supports`, `contradicts`, `supersedes` and `between`, and the review blocks `for`.
+ * Phase 2 added `depends-on`, `supports`, `contradicts`, `supersedes` and `between`, and the review blocks `for`. Phase 3
+ * added `affects` on `:::limitation`.
  */
 export const ID_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
   verifies: ['acceptance'],
@@ -304,6 +338,7 @@ export const ID_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
   supersedes: ['decision'],
   between: ['question'],
   for: ['comment', 'suggestion'],
+  affects: ['limitation'],
 };
 
 /**
@@ -324,6 +359,7 @@ export const EDGE_KINDS: Readonly<Record<string, 'navigation' | 'mandatory' | 'e
   supersedes: 'lifecycle',
   between: 'lifecycle',
   for: 'review',
+  affects: 'evidence',
 };
 
 /**
@@ -339,6 +375,8 @@ export const NEW_VALUE_KEYS: Readonly<Record<string, readonly string[]>> = {
   ':::evidence': ['result'],
   ':::comment': ['kind', 'status'],
   ':::suggestion': ['status'],
+  ':::example': ['kind'],
+  ':::limitation': ['status'],
   ':progress': ['basis'],
 };
 

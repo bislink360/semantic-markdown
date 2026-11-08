@@ -133,6 +133,18 @@ export const EN = {
   'tag.supersededBy': 'superseded by {ids}',
   'question.between': 'conflict between {a} and {b}',
   'question.reason': 'reason: {reason}',
+  'nonGoals.label': 'Non-goals',
+  'example.label': 'Example',
+  'limitation.label': 'Limitation',
+  'deprecated.label': 'Deprecated',
+  'exampleKind.do': 'do',
+  'exampleKind.dont': "don't",
+  'limitationStatus.open': 'open',
+  'limitationStatus.mitigated': 'mitigated',
+  'limitationStatus.resolved': 'resolved',
+  'tag.affects': 'affects {ids}',
+  'tag.since': 'since {version}',
+  'tag.use': 'use {replacement}',
 
   // Inline directives
   'progress.label': 'Progress',
@@ -225,7 +237,7 @@ export type Messages = Readonly<Record<MessageKey, string>>;
  */
 export type TermGroup =
   'audience' | 'docStatus' | 'decisionStatus' | 'impact' | 'likelihood' | 'riskStatus' | 'priority' | 'trend' | 'tone' | 'color'
-  | 'requirementStatus' | 'constraintLevel' | 'assumptionStatus' | 'evidenceResult' | 'questionStatus';
+  | 'requirementStatus' | 'constraintLevel' | 'assumptionStatus' | 'evidenceResult' | 'questionStatus' | 'exampleKind' | 'limitationStatus';
 
 /** The language when a document names none. */
 export const DEFAULT_LANG = 'en';

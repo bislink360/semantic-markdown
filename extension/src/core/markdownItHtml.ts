@@ -452,6 +452,37 @@ function evidenceOpen(c: ContainerView): string {
     result ? [`smd-evidence-${result.replace(/[^a-z0-9-]/g, '')}`] : []);
 }
 
+// Phase 3 (RFC D10, D11): non-goals, examples, limitations and deprecated content.
+
+function nonGoalsOpen(c: ContainerView): string {
+  return tagOpen(c, c.m['nonGoals.label'], [], []);
+}
+
+/** `kind=do` and `kind=dont` show as a pill with the word, so colour never carries the meaning alone (R58). */
+function exampleOpen(c: ContainerView): string {
+  const kind = (c.attrs.values.kind ?? '').toLowerCase();
+  const known = kind === 'do' || kind === 'dont';
+  return tagOpen(c, c.m['example.label'], [known ? pill('kind', kind, term(c.m, 'exampleKind', kind)) : ''], [],
+    known ? [`smd-example-${kind}`] : []);
+}
+
+function limitationOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  const status = (values.status ?? 'open').toLowerCase();
+  const affects = values.affects ? htmlLabel(c.m, 'tag.affects', { ids: idLinks(c, values.affects) }) : '';
+  return tagOpen(c, c.m['limitation.label'], [pill('status', status, term(c.m, 'limitationStatus', status))], [affects, ownerFact(c)],
+    [`smd-limitation-${status.replace(/[^a-z0-9-]/g, '')}`]);
+}
+
+/** `since 2.0 · use smd export`: the replacement as inline Markdown, so it may hold code spans and links. */
+function deprecatedOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  return tagOpen(c, c.m['deprecated.label'], [], [
+    values.since ? escapeHtml(label(c.m, 'tag.since', { version: values.since })) : '',
+    values.use ? htmlLabel(c.m, 'tag.use', { replacement: c.inline(values.use) }) : '',
+  ]);
+}
+
 /** A decision's links to others: what it supersedes, what supersedes it, what it depends on. Empty without any. */
 function decisionLinks(c: ContainerView): string[] {
   const { values, id } = c.attrs;
@@ -657,6 +688,10 @@ const CONTAINERS = new Map<string, ContainerOpen>([
   ['acceptance', acceptanceOpen],
   ['assumption', assumptionOpen],
   ['evidence', evidenceOpen],
+  ['non-goals', nonGoalsOpen],
+  ['example', exampleOpen],
+  ['limitation', limitationOpen],
+  ['deprecated', deprecatedOpen],
 ]);
 
 // ---------------------------------------------------------------------------
@@ -827,6 +862,7 @@ const DIRECTIVES = new Map<string, (d: Directive) => string>([
   ['metric', metric],
   ['status', status],
   ['depends', depends],
+  ['since', ({ content, m }) => `<span class="smd-since">${escapeHtml(label(m, 'tag.since', { version: content.trim() }))}</span>`],
 ]);
 
 /** `:depends[R1,R2]` (spec v2): "depends on R1, R2", each id linked to its block. */

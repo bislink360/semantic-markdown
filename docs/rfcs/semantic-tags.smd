@@ -6,7 +6,7 @@ status: approved
 owners: ["@roshanmadhushanka"]
 tags: [rfc, spec, semantic-tags]
 created: 2026-11-07
-updated: 2026-11-07
+updated: 2026-11-08
 toc: true
 related:
   - ../requirements/semantic-tags.smd
@@ -24,7 +24,7 @@ This RFC answers the [semantic tags requirements](../requirements/semantic-tags.
 
 Each phase has its own section, and the maintainer accepts each one separately. Nothing in a phase is built before its section is accepted. Phase 1 is written out in full. Phases 2 and 3 are outlined so the phase 1 choices don't block them, and each gets a full section before it starts.
 
-The maintainer accepted decisions D1 to D6 on 2026-11-07, and with them the block id groundwork and the v1 directive list. Later that day Q1 and Q2 were answered with their fallbacks (D7, D8), phase 1 was accepted, and phase 2 was accepted to be built from its outline, with the details in the [feedback loop RFC](feedback-loop.smd).
+The maintainer accepted decisions D1 to D6 on 2026-11-07, and with them the block id groundwork and the v1 directive list. Later that day Q1 and Q2 were answered with their fallbacks (D7, D8), phase 1 was accepted, and phase 2 was accepted to be built from its outline, with the details in the [feedback loop RFC](feedback-loop.smd). On 2026-11-08 the maintainer answered Q3 by asking for phase 3 (D10) and added `limitation` to it (D11). Phase 3 is written out in full below.
 
 Recorded behavior was checked at f48e706 (the 3.1.0 release train, unreleased) by reading the source and running the CLI.
 
@@ -348,12 +348,24 @@ The question was Q2, whether requirements get a `kind` attribute. Answer: not no
 `assumption`, `evidence`, `depends-on`, the question lifecycle and `supersedes` are built with phase 1, from the outline below and the details in the feedback loop RFC. References to other documents (R19) and rename across the workspace (R18) wait.
 :::
 
+:::decision{#D10 status=accepted date=2026-11-08 owner=@roshanmadhushanka} Phase 3 is built now
+The question was Q3, whether phase 3 is worth building. Answer: yes, without waiting for adoption numbers. `non-goals`, `example`, `deprecated` and `:since` are built from the phase 3 section below.
+:::
+
+:::decision{#D11 status=accepted date=2026-11-08 owner=@roshanmadhushanka} `limitation` joins phase 3
+D1 deferred `limitation` because it overlaps `constraint` and `:::warning`. It is now a phase 3 tag, because a constraint is a rule the work must respect and a limitation is something that does not work or does not hold, which nothing else says. Known issues in release notes and threats to validity in research documents both need it. `claim`, `conflict` and a `dependency` block stay deferred for the reasons D1 gives.
+:::
+
 ## Open questions
 
-Q1 and Q2 are answered by D7 and D8.
+Q1 and Q2 are answered by D7 and D8, and Q3 by D10.
 
-:::question{#Q3 title="Is phase 3 worth building?"}
+:::question{#Q3 title="Is phase 3 worth building?" status=answered}
 `non-goals`, `example` and `deprecated` have weaker evidence than the core set. Decide after phase 2 ships, using adoption numbers. Until then, phase 3 stays on the roadmap as P2 and P3, and only the v1 directive list from D5 is built early.
+:::
+
+:::comment{for=Q3 author=@roshanmadhushanka date=2026-11-08 kind=answer}
+Yes. The maintainer asked for `non-goals`, `example`, `deprecated` and `:since` to be built on 2026-11-08, before adoption numbers exist, and added `limitation` (D10, D11).
 :::
 
 ## Phase 2 outline
@@ -368,14 +380,68 @@ Accepted to be built from this outline (D9). The [feedback loop RFC](feedback-lo
 - `smd trace` with `--uncovered` and `--json`. The MCP server gets no new tool (R56).
 - References to other documents, `other.smd#R1` (R19), and rename across the workspace (R18).
 
-## Phase 3 outline
+## Phase 3
 
-`:::non-goals`, `:::example{kind=do|dont}`, `:::deprecated{since=… use=…}` and inline `:since[…]`, if Q3 is answered yes. Each follows the shared shape, and `:since` relies on D5.
+Accepted to be built (D10, D11). Phase 3 adds four blocks and one inline directive. Each follows the shared shape of phases 1 and 2, with an optional `{#id}`, a title after the name and a body. None of them gets a required attribute, an error, or a word in the MCP surface.
+
+| Tag | Attributes | Agent view | Plain Markdown | Budget |
+| --- | --- | --- | --- | --- |
+| `:::non-goals` | none | `<non-goals>` | `> [!IMPORTANT]` Non-goals | Kept in every view, like `:::agent` |
+| `:::example{kind=do\|dont}` | `kind` | `<example kind="dont">` | `> [!TIP]` Do, `> [!CAUTION]` Don't, `> [!NOTE]` Example | Ordinary content |
+| `:::limitation{status=… affects=…}` | `status`, `affects`, `owner` | `<limitation status="open">` | `> [!WARNING]` Limitation, `> [!NOTE]` once resolved | Key content while not resolved |
+| `:::deprecated{since=… use=…}` | `since`, `use` | `<deprecated since="2.0" use="…">` | `> [!WARNING]` Deprecated | Ordinary content |
+| `:since[1.6]` (spec v2) | none | `(since 1.6)` | `(since 1.6)` | Inline text |
+
+### Non-goals
+
+`:::non-goals` wraps a list of things the work leaves out on purpose (R57). The spec and PRD templates use it in place of their bold **Non-goals** paragraph.
+
+A bold paragraph is ordinary content, so a section view or a budget can drop it, and an agent that never sees the non-goals builds them. A `:::non-goals` block is therefore treated like an `:::agent` block. It is never omitted by a budget, it is kept whole inside a condensed `:::details`, and a section view that does not include it still shows it under "Document-wide agent instructions". This costs a few tokens in every section view of a document that has non-goals, which is the point of writing them down.
+
+A non-goals block with no list item gets the hint `non-goals/list`, because an exclusion written as prose is easy to misread as a goal.
+
+### Examples
+
+`:::example{kind=do}` and `:::example{kind=dont}` mark good and bad examples (R58). `kind` has no default. An example without it is neutral and reads as `<example>`.
+
+The agent view writes `kind="dont"` on the tag, so a bad example can never be mistaken for guidance even when it is read alone. The agent rules gain one sentence that says so. HTML shows a "Don't" pill in red and a "Do" pill in green, with the words carrying the meaning and the colour only repeating it. An invalid `kind` is a warning, as every enumerated value added since 4.1 is (`NEW_VALUE_KEYS`).
+
+### Limitations
+
+`:::limitation{status=open affects=R1 owner=@team}` records something that does not work, does not hold or has not been checked. Release notes use it for known issues and research documents for threats to validity (D11).
+
+| Attribute | Values                        | Default |
+| --------- | ----------------------------- | ------- |
+| `status`  | `open` `mitigated` `resolved` | `open`  |
+| `affects` | ids of the blocks it limits   | none    |
+| `owner`   | a person or team              | none    |
+
+`affects` is an id attribute, so `ref/unknown` and `ref/ambiguous` check it and the graph has an edge for it. Its edge kind is `evidence`, so it comes back as a pointer from the block it limits and never expands on its own. A limitation that is not `resolved` is key content in budgets, as an unvalidated assumption is, and it gets an outline note.
+
+### Deprecated content
+
+`:::deprecated{since=2.0 use="smd export"}` marks content that still works but should not be used for new work, with the version that deprecated it and what to use instead (R59). `use` is shown as inline Markdown, so it may hold code spans and links. `smd query deprecated` lists the blocks, and `deprecated[since=2.0]` filters them.
+
+The block is ordinary content in budgets. It gets an outline note, so a reader sees where deprecated material is before reading it.
+
+### Version labels
+
+Inline `:since[1.6]` renders a small "since 1.6" label (R59). It is a directive only in spec v2. In spec v1 it stays text, and `smd migrate --to 2` keeps escaping it, both through the frozen list from D5 (R61, AC17). In spec v2 the text already rendered as an unknown directive with a `directive/unknown` warning, so a v2 document can only gain a label where it already had a warning. The release notes say so.
+
+Filtering on `:since` is left to text search for now. Query selectors match blocks, not inline directives, and adding inline matches is a change to `smd query` that phase 3 does not need.
+
+### Phase 3 token cost
+
+The agent rules gain one sentence about `<example kind="dont">`, `<non-goals>` and `<deprecated>`, within the 40 tokens left under R65 after phases 1 and 2. The reader skill names the new tags in its existing line about tag meanings, within the 17 tokens left under R66. The writer gets the new tags in `references/syntax/requirements.md`, the topic file phase 1 created (R67). Nothing is added to the MCP surface (R68). The PR carries the before and after counts (R69).
+
+### Compatibility
+
+The four containers are additive in both spec versions (R60). A search of every `.smd` file in the repository at ea47525 found no container named `non-goals`, `example`, `limitation` or `deprecated` and no `:since[` outside this RFC, the requirements and their tests. Every document without the new tags renders, exports, validates and outlines as before, which a snapshot of all of them before and after the change confirms (R63, R64, AC18).
 
 ## Rules for implementers
 
 :::agent{title="Rules for building the semantic tags"}
-- Build a phase only after its section here is accepted. Decisions D1 to D9 are accepted (2026-11-07), so phases 1 and 2 may be built. Phase 3 waits for Q3.
+- Build a phase only after its section here is accepted. Decisions D1 to D9 are accepted (2026-11-07), so phases 1 and 2 may be built. D10 and D11 (2026-11-08) accept phase 3, with `limitation`.
 - Phase 1 order is the v1 directive list (D5), then `:ref` and id attributes, then requirement, constraint and acceptance, then the templates.
 - Don't change how documents without the new tags render, export or validate (R63, R64). Run `smd export --to md` over `docs/gallery` before and after, and keep `extension/test/researchContract.test.ts` passing unchanged.
 - Never add a block type, attribute or example to MCP tool descriptions or server instructions. The MCP surface is at 496 of 500 tokens.

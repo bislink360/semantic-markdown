@@ -42,6 +42,17 @@ export function checkSemanticTags(text: string, lines: readonly string[], push: 
   checkEvidence(blocks, at, push);
   checkQuestions(blocks, at, push, options.today);
   checkSupersedes(blocks, at, push);
+  checkNonGoals(blocks, lines, at, push);
+}
+
+const LIST_ITEM = /^\s*(?:[-*+]|\d{1,9}[.)])\s+\S/;
+
+/** A `:::non-goals` block is a list of exclusions: one with no list item gets `non-goals/list` (RFC phase 3). */
+function checkNonGoals(blocks: readonly TagBlock[], lines: readonly string[], at: Place, push: Push): void {
+  for (const b of blocks) {
+    if (b.name !== 'non-goals' || lines.slice(b.line + 1, b.endLine).some((l) => LIST_ITEM.test(l))) continue;
+    push(b.line, ...at.line(b), 'hint', 'non-goals/list', 'Write the non-goals as a list, one exclusion per item, so none reads as a goal.');
+  }
 }
 
 /** Columns on a container's opening line: the whole line, an attribute, an id in an attribute, where an id goes. */
