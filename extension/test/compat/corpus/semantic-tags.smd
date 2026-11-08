@@ -1,0 +1,74 @@
+---
+smd: 2
+title: Semantic tags
+summary: Requirements, constraints, acceptance criteria, assumptions and evidence, with ids and the links between them.
+status: draft
+---
+
+## Requirements
+
+:::constraint{#C1 scope=document} Included files stay inside the workspace
+No reader follows a path or link outside the allowed roots.
+:::
+
+:::requirement{#R1 priority=P0 status=accepted owner=@api-team} Section reads keep applicable instructions
+Selecting a nested section returns every agent block and every constraint that applies to it.
+
+:::acceptance{#AC1 test="../../samples/spec.smd"}
+Given a document with an agent block in section 2
+When an agent reads only section 3.1
+Then the view holds the agent block
+:::
+:::
+
+:::requirement{#R2 priority=P1 depends-on=R1} Budgets report what does not fit
+:::
+
+:::acceptance{#AC2 verifies=R2}
+Given a budget below the required content
+When the view is built
+Then it ends with the overflow line
+:::
+
+:::constraint{#C2 applies-to=R2 level=should} Keep views under 2,000 tokens
+:::
+
+## Premises and evidence
+
+:::assumption{#A1 owner=@maya review-by=2026-01-01} Most documents stay under 4,000 tokens
+:::
+
+:::evidence{#E1 supports=R1 method=test result=pass commit=1a2b3c4 date=2026-11-07 by=@ci}
+The section-read tests pass.
+:::
+
+:::evidence{#E2 supports=R1 method=acceptance result=pass by=@maya date=2026-11-07}
+Accepted after a review of the agent view.
+:::
+
+## Decisions
+
+:::decision{#D1 status=superseded date=2026-10-01} Keep one cache for every reader
+:::
+
+:::decision{#D2 status=accepted date=2026-11-01 supersedes=D1 depends-on=R1} Give each reader its own cache
+:::
+
+## Questions
+
+:::question{#Q1 status=open owner=@maya due=2026-12-01} Should constraints cost more than 500 tokens?
+The budget pays for every document-scoped constraint.
+:::
+
+:::question{#Q2 status=answered between=C2,R2} Do C2 and R2 disagree?
+:::
+
+:::comment{for=Q2 kind=answer author=@maya date=2026-11-07} No
+C2 is a should, so R2's overflow line still applies.
+:::
+
+## Tasks
+
+- [x] Write the requirement blocks {#t1}
+- [ ] Build the overflow line :depends[R2] {#t2}
+- [ ] Measure the token cost :progress{basis=tasks}

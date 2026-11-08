@@ -309,6 +309,8 @@ const READ_DIFFERENTLY_IN_V2: Record<string, string> = {
   'extension/test/compat/corpus/v2-variables.smd': 'proposal 10: values keep their YAML spelling',
   'extension/test/compat/corpus/v2-math.smd': 'proposal 2: $ delimiters',
   'extension/test/compat/corpus/v2-fences.smd': 'proposal 3: closing fences',
+  'extension/test/compat/corpus/semantic-tags.smd': 'semantic tags D5: `:depends[R2]` is a directive in spec v2 only',
+  'extension/test/compat/corpus/task-views.smd': 'proposal 10: `budget: 1500` keeps its YAML spelling',
 };
 const posix = (file: string) => file.split(path.sep).join('/');
 

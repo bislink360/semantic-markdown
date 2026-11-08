@@ -164,7 +164,8 @@ const parser = () => (md ??= recordingInlineItems(recordingInlineMath(recordingD
 /** Container titles render as inline Markdown with raw HTML off (see renderContainer). */
 let titleMd: MarkdownIt | undefined;
 const titleParser = () => (titleMd ??= createMarkdownIt({ allowHtml: false }));
-const TITLED = new Set<string>([...CALLOUT_TYPES, 'details', 'card', 'tab', 'agent', 'human', 'decision', 'risk', 'api', 'figure', 'glossary']);
+const TITLED = new Set<string>([...CALLOUT_TYPES, 'details', 'card', 'tab', 'agent', 'human', 'decision', 'risk', 'api', 'figure', 'glossary',
+  'requirement', 'constraint', 'acceptance', 'assumption', 'evidence', 'comment', 'suggestion']);
 /** Whether a container renders its title: the ones above, and unknown containers (spec §3). */
 const rendersTitle = (name: string): boolean => TITLED.has(name) || !isKnownContainer(name);
 
