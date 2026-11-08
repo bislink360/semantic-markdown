@@ -84,6 +84,25 @@ export interface AgentViewOptions {
    * map and every omission with its reason (see provenance.ts). It never changes `text`. Off by default.
    */
   provenance?: boolean;
+  /** How evidence records of the blocks shown appear: one-line pointers (default) or in full. */
+  evidence?: 'full' | 'pointers';
+  /** Lines an author task view adds to the selection (see taskViews.ts). Internal; leave it out otherwise. */
+  pinned?: PinnedSelection;
+}
+
+/**
+ * What an author task view adds to a view: line ranges shown with the selected sections (never omitted for a budget),
+ * the ranges kept whole when the view is condensed (mandatory content), the header's excerpt line, and text that ends
+ * the view (pointers, unsatisfied requirements), counted in the budget.
+ */
+export interface PinnedSelection {
+  /** Zero-based first and last lines, inclusive. */
+  ranges: ReadonlyArray<readonly [number, number]>;
+  whole: ReadonlyArray<readonly [number, number]>;
+  /** The view selects content (sections, a query or mandatory ids); false shows the whole document. */
+  selects: boolean;
+  label: string;
+  appendix: string;
 }
 
 export interface AgentViewResult {
@@ -213,6 +232,7 @@ interface ViewScope {
   missingSections: string[];
   resolved: ResolvedSection[];
   inScope: (line: number) => boolean;
+  pinned?: PinnedSelection;
 }
 
 /** Which lines of the document are in the view. */
@@ -221,13 +241,19 @@ function viewScope(text: string, options: AgentViewOptions): ViewScope {
   const lines = text.split(/\r?\n/);
   const sections = sectionsOf(parseSmd(text).headings, lines.length);
   const skipped = sections.filter((s) => s.heading.agent === 'skip');
-  const { selected, missingSections, resolved } = selectSections(sections, options.sections, options.exactSections);
-  const inScope = (line: number) =>
+  const chosen = selectSections(sections, options.sections, options.exactSections);
+  const { missingSections, resolved } = chosen;
+  const pinned = options.pinned;
+  // A task view with no sections still selects: only its pinned lines.
+  const selected = chosen.selected ?? (pinned?.selects ? [] : null);
+  const isPinned = (line: number) => !!pinned?.ranges.some(([a, b]) => line >= a && line <= b);
+  const inScope = (line: number) => isPinned(line) || (
     (!selected || selected.some((s) => line >= s.start && line <= s.end)) &&
-    !skipped.some((s) => line >= s.start && line <= s.end && !(selected?.some((sel) => sel.heading === s.heading)));
+    !skipped.some((s) => line >= s.start && line <= s.end && !(selected?.some((sel) => sel.heading === s.heading))));
   const shown = shownValues(fm.data, text, specVersion(fm.data));
   return {
     data: fm.data, shown, unread: unreadFrontMatter(text, fm), bodyStart: fm.bodyStartLine, lines, sections, selected, skipped, missingSections, resolved, inScope,
+    pinned,
   };
 }
 
@@ -256,6 +282,8 @@ interface ViewHead {
   constraints: string;
   constraintView?: ConstraintView;
   footnotes: string;
+  /** A task view's closing text (see PinnedSelection). */
+  appendix: string;
 }
 
 /** Where a view's head comes from, for provenance: the traces of its document-wide parts. */
@@ -281,8 +309,9 @@ function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTrace
     if (options.constraints) ({ text: constraints, view: constraintView } = constraintsOutside(scope, { ...options, trace: traces.constraints }));
     else dangers = outsideDangers(scope, { ...options, trace: traces.dangers });
   }
-  const head = [header(scope.data, scope.shown, selected ? selected.map((s) => s.heading.text) : null), unreadBlock(scope.unread)].filter(Boolean).join('\n');
-  return { header: head, external, dangers, constraints, constraintView, footnotes };
+  const excerpt = options.pinned ? options.pinned.label : selected && `(excerpt — sections: ${selected.map((s) => s.heading.text).join(', ')})`;
+  const head = [header(scope.data, scope.shown, excerpt), unreadBlock(scope.unread)].filter(Boolean).join('\n');
+  return { header: head, external, dangers, constraints, constraintView, footnotes, appendix: options.pinned?.appendix ?? '' };
 }
 
 /**
@@ -339,7 +368,7 @@ function outsideFootnotes(scope: ViewScope, options: TransformOptions): string {
 }
 
 function assemble(head: ViewHead, body: string): string {
-  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes]
+  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes, head.appendix]
     .filter((s) => s.trim())
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -405,7 +434,7 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
     entries: [...traces.external!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
     headerLines: head.header ? head.header.split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
-    sections: scope.sections, selected: scope.selected, skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
+    sections: scope.sections, selected: selectedWithPinned(scope), skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
     missing: scope.missingSections,
     settings: {
       specVersion: specVersion(scope.data),
@@ -415,6 +444,17 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
       constraints: !!options.constraints,
     },
   });
+}
+
+/** The selected sections, and a task view's pinned lines as sections of their own, so a section they show part of is not "not selected". */
+function selectedWithPinned(scope: ViewScope): Section[] | null {
+  if (!scope.pinned || !scope.selected) return scope.selected;
+  const holder = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1);
+  const pinned = scope.pinned.ranges.flatMap(([start, end]) => {
+    const s = holder(start);
+    return s ? [{ ...s, start, end }] : [];
+  });
+  return [...scope.selected, ...pinned];
 }
 
 function viewResult(
@@ -665,8 +705,10 @@ function omitToFit(draft: Draft, scope: ViewScope, maxTokens: number): BudgetSec
   // A section that shows a danger (its own, a CAUTION alert or one from an include) is mandatory content too
   // (research contract, "Mandatory content is never a budget candidate").
   const holdsAgentText = (s: BudgetSection) => [...draft.agentLines].some((l) => l >= s.start && l <= s.end);
+  // A task view's pinned lines are selected content, as requested sections are.
+  const holdsPinned = (s: BudgetSection) => !!scope.pinned?.ranges.some(([a, b]) => a <= s.end && s.start <= b);
   const candidates = omittableSections(scope.sections, scope.lines, scope.selected).filter((s) => {
-    if (holdsAgentText(s)) return false;
+    if (holdsAgentText(s) || holdsPinned(s)) return false;
     const pointer = pointerOf(draft, s);
     return !pointer.cues.includes('danger') && cost(s) > draft.count(pointer.text);
   });
@@ -690,20 +732,23 @@ function unreadBlock(unread: string[] | undefined): string {
 }
 
 /** The view's header. `data` decides which facts are shown, `shown` how they are spelled (as written in spec v2). */
-function header(data: Record<string, unknown>, shown: Variables, sections: string[] | null): string {
+function header(data: Record<string, unknown>, shown: Variables, excerpt: string | null): string {
   const out: string[] = [];
   if (typeof data.title === 'string') out.push(`# ${data.title}`);
   const facts: string[] = [];
   for (const [key, value] of Object.entries(data)) {
     if (AGENT_HEADER_HIDDEN.has(key) || value === null || value === undefined || value === '') continue;
-    const v = factText(Object.hasOwn(shown, key) ? shown[key] : value);
+    // Task views: their names, not their policy as JSON.
+    const v = key === 'views' && isMapping(value) ? Object.keys(value).join(', ') : factText(Object.hasOwn(shown, key) ? shown[key] : value);
     if (v) facts.push(`${key}: ${v}`);
   }
   if (facts.length) out.push(facts.join(' · '));
   if (typeof data.summary === 'string') out.push(`summary: ${data.summary}`);
-  if (sections) out.push(`(excerpt — sections: ${sections.join(', ')})`);
+  if (excerpt) out.push(excerpt);
   return out.join('\n');
 }
+
+const isMapping = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** A front matter value as one header fact: a list joined with ", ", a mapping as JSON. */
 function factText(value: unknown): string {
@@ -767,6 +812,8 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const variables = options.variables ?? documentVariables(lines);
   // The document's spec version, from its front matter: an included document's is the including one's, as in rendering.
   const spec = specVersion(variables);
+  // Condensed as brief, except a task view's mandatory lines, which are kept whole (AF15).
+  const briefAt = (at: number) => !!options.brief && !options.pinned?.whole.some(([a, b]) => at >= a && at <= b);
   const text = (s: string, openTask = false, math?: ReadonlyArray<[number, number]>, parts?: ReadonlyArray<InlinePart>) => {
     const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec };
     // An item that runs over several lines is read whole, as rendering reads it; each line shows its part.
@@ -842,7 +889,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     // ---- fenced code ----
     if (fence) {
       if (new RegExp(`^\\s{0,3}${fence.marker[0] === '`' ? '`' : '~'}{${fence.marker.length},}\\s*$`).test(raw)) {
-        const rendered = renderFence(fence, i, options);
+        const rendered = renderFence(fence, i, { ...options, brief: briefAt(fence.start) });
         if (rendered.omission && visibleAt(fence.start)) omit(rendered.omission, fence.start, i);
         for (const l of rendered.lines) emit(l, fence.start, true, i);
         fence = null;
@@ -902,7 +949,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       stack.push(frame);
       if (info.name === 'human' && !options.includeHuman) { frame.drop = true; continue; }
       // Condensed in brief views, but not inside :::agent: there it is part of the instructions.
-      if (info.name === 'details' && options.brief && !inAgent()) {
+      if (info.name === 'details' && briefAt(i) && !inAgent()) {
         emit(`[details: ${title || 'Details'} — omitted, see L${i + 1}]`, i);
         frame.condensed = true;
         continue;
@@ -911,7 +958,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         // Traced inside: its lines are the included file's (see includeView).
         const shown = visibleAt(i);
         if (shown) {
-          includeView(info, lines, i, { ...options, figures, trace }).forEach((l) => emit(l, i, false));
+          includeView(info, lines, i, { ...options, brief: briefAt(i), figures, trace }).forEach((l) => emit(l, i, false));
         } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
           // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
           // blocks still apply, as the document's own do (C01).
@@ -944,7 +991,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     // A task-shaped line that rendering shows as text (in a paragraph it continues) is not a task.
     const shape = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]\s+(.*)$/.exec(line);
     const task = shape && taskLines.has(i) ? shape : null;
-    if (task && task[2] !== ' ' && options.brief) {
+    if (task && task[2] !== ' ' && briefAt(i)) {
       if (inScope(i) && !dropping()) {
         if (!doneTasks) doneFrom = i;
         doneTasks++;
@@ -1091,7 +1138,7 @@ function includeView(info: ContainerInfo, lines: string[], line: number, options
   const inc = result.include;
   // Included text uses this document's front matter variables, as the rendered HTML does.
   const inner = {
-    ...options, collect: undefined, includeScope: innerScope(scope, inc), variables: options.variables ?? documentVariables(lines), literalLines: includedLiteralLines(inc),
+    ...options, collect: undefined, pinned: undefined, includeScope: innerScope(scope, inc), variables: options.variables ?? documentVariables(lines), literalLines: includedLiteralLines(inc),
     inlineMath: includedInlineMath(inc), alerts: includedAlerts(inc), inlineItems: includedInlineItems(inc), taskLines: includedTaskLines(inc),
     // Its figures are numbered with the including document's, and `:ref` resolves across both, as in rendered output.
     figureKey: includeKey(options.figureKey ?? '', line),

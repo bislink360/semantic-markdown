@@ -26,7 +26,7 @@ export { tasksToCsv, tasksToGantt, ganttDocument, ganttDate, TASK_CSV_COLUMNS } 
 export type { TaskExportRow, GanttOptions } from './taskExport';
 export { markdownToSmd, fillTemplate } from './fromMarkdown';
 export { agentView, outline, estimateTokens, inlineText } from './agentView';
-export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection } from './agentView';
+export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection, PinnedSelection } from './agentView';
 export type { BudgetResult, OmittedSection, Tokenizer } from './budget';
 export { outlineProvenance, PROVENANCE_SCHEMA } from './provenance';
 export type { Dependency, Omission, OmissionKind, Provenance, ProvenanceSettings, SourceSpan } from './provenance';
@@ -43,6 +43,10 @@ export type {
 } from './graph';
 export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints, constraintNote, pointerLine } from './graphQuery';
 export type { QueryDocumentsOptions, QueryDocumentsResult, FileMatch, ConstraintBlock, DocumentConstraints, MatchGraph, FormatOptions } from './graphQuery';
+export {
+  taskViews, findTaskView, taskView, taskViewProblems, formatTaskViewInspection, formatTaskViewList, TaskViewError, VIEW_KEYS, VIEW_EVIDENCE,
+} from './taskViews';
+export type { TaskViewSpec, TaskViewOptions, TaskViewResult, TaskViewReport, ViewBlock, ViewUnsatisfied, TaskViewProblem } from './taskViews';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';
 export type { RelatedDoc, RelatedOptions, SmdSummary } from './related';
 export { indexEntry, smdIndex, INDEX_FORMAT, INDEX_VERSION } from './catalog';

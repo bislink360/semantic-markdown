@@ -78,6 +78,10 @@ export const RULE_CODES: Record<string, string> = {
   'variable/not-text': '`{{name}}` names a front matter mapping or empty value, which has no text',
   'task/overdue': 'Open task past its `:due[…]` date',
   'table/pipe-in-code': 'A `|` inside a code span in a table row still splits the cell, as on GitHub; write `\\|`',
+  'views/key': 'A task view in the front matter `views:` has a key it does not know',
+  'views/section': 'A task view lists a section that names no heading',
+  'views/query': 'A task view\'s `query` is not a valid selector',
+  'views/value': 'A task view, or its `sections`, `mandatory`, `optional`, `budget`, `evidence` or `description`, has the wrong type or value',
   'rules/unknown': 'Suppression comment or rule setting names an unknown rule code',
 };
 

@@ -67,7 +67,8 @@ const PROPERTIES: Record<string, FrontMatterProperty> = {
         query: { type: 'string' },
         mandatory: { anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }] },
         optional: { anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }] },
-        budget: { type: 'integer', minimum: 1 },
+        // Spec v2 keeps a value's YAML spelling, so a number may come as a string of digits.
+        budget: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', pattern: '^0*[1-9][0-9]*$' }] },
         evidence: { type: 'string', enum: ['pointers', 'full'] },
         description: { type: 'string' },
       },

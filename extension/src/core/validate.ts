@@ -18,6 +18,7 @@ import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
 import { duplicateIds } from './ids';
 import { dependencyProblems } from './graph';
+import { taskViewProblems } from './taskViews';
 import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
 import { checkTablePipes } from './tableCheck';
@@ -97,7 +98,10 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   let code: Set<number> | undefined;
   const inCode = (line: number) => (code ??= codeLines(text)).has(line);
   if (fm.error) wholeLine(fm.error.line, 'error', 'frontmatter/invalid', fm.error.message);
-  if (fm.present && !fm.error) checkFrontMatter(fm.data, lines, fm.bodyStartLine, push, options, inCode);
+  if (fm.present && !fm.error) {
+    checkFrontMatter(fm.data, lines, fm.bodyStartLine, push, options, inCode);
+    for (const p of taskViewProblems(text)) push(p.line, p.column, p.endColumn, p.severity, p.code, p.message);
+  }
   // For the checks of text: nothing in code or math is syntax, so what they find there is not reported.
   const pushText = outsideLiteral(push, literalText(text, lines, fm.bodyStartLine));
   // The rules the body is read with: display math, closing fences, headings, directives and attribute escapes differ in spec v2.
@@ -342,6 +346,8 @@ function checkFrontMatter(
       if (typeof value !== 'boolean') markKey(key, 'warning', 'frontmatter/type', `"${key}" should be true or false.`, fixBooleanValue);
     } else if (prop.format === 'date') {
       if (!/^\d{4}-\d{2}-\d{2}/.test(String(value))) markKey(key, 'warning', 'frontmatter/date', `"${key}" should be a date like 2026-09-26.`, fixDateValue);
+    } else if (prop.type === 'object') {
+      // A mapping (views), checked on its own (see taskViewProblems).
     } else if (typeof value === 'object') {
       markKey(key, 'warning', 'frontmatter/type', `"${key}" should be a single value, not a list or a mapping.`);
     }

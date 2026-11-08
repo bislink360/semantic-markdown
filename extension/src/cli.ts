@@ -12,6 +12,7 @@ import {
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
 import { runQuery, type QueryFlags } from './queryCommand';
+import { runTaskView } from './taskViewCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -30,7 +31,7 @@ import {
   isGenerated, parseTargets, rulesBody, SHARED_CLI_COMMAND, SHARED_CLI_PATH, TARGET_FILES, type AgentTarget, type RulesTarget, type TargetFile,
 } from './agentTargets';
 import {
-  collect, decisionLine, decisionSummary, deletedSince, diagnose, existsFrom, git, gitPath, read, readerFor,
+  collect, decisionLine, decisionSummary, deletedSince, diagnose, existsFrom, git, gitPath, graphReader, read, readerFor,
   reportSummary, taskLine, taskRows, taskSummary, workingPath, type TaskRow,
 } from './workspace';
 import {
@@ -74,6 +75,12 @@ Reading (token-efficient, for agents):
                    :::danger blocks in full; warnings, accepted decisions and open questions as pointers
       --provenance write a JSON manifest of the view to a file: source hashes, settings, resolved
                    sections, a source map and every omission with its reason. The text doesn't change.
+  smd agent <file.smd> --view <name> [--inspect] [--section …] [--max-tokens <n>] [--brief] [--provenance <file.json>]
+  smd agent <file.smd> --views
+      A task view the author declared in the front matter (views:): its sections and query, its mandatory
+      blocks in full with what they depend on, its optional blocks as pointers, within its budget. Flags
+      on top are recorded as the agent's choice. --inspect explains the view for people instead of
+      printing it. --views lists the views. smd read --view does the same.
   smd tasks <files|dirs...> [--all] [--mine @name] [--json | --csv | --gantt [--smd] [--title "…"]] [-o <file>]
       Open tasks across documents with owner, priority and due date (overdue first).
       --csv     CSV for spreadsheets (1-based lines, owners joined with ";", formula-like cells prefixed with ')
@@ -226,7 +233,7 @@ const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
-  '--follow', '--direction', '--depth',
+  '--follow', '--direction', '--depth', '--view',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -613,6 +620,10 @@ function readCommand(file: string, args: Args, today?: string): number {
   const sections = args.values.get('--section');
   const manifest = provenanceTarget(args);
   if (manifest === null) return fail(PROVENANCE_USAGE);
+  // A task view is read as smd agent reads it: its own budget, or --max-tokens as the agent's.
+  if (args.values.has('--view') || flags.has('--views')) {
+    return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => printTaskView(file, args, { maxTokens, tokenizer, today }, manifest));
+  }
   return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => {
     const result = readDocument(read(file), {
       mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
@@ -647,6 +658,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   const sections = args.values.get('--section');
   const manifest = provenanceTarget(args);
   if (manifest === null) return fail(PROVENANCE_USAGE);
+  if (args.values.has('--view') || args.flags.has('--views')) return printTaskView(file, args, extra, manifest);
   const result = agentView(read(file), {
     sections,
     exactSections: args.flags.has('--exact'),
@@ -670,6 +682,31 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   console.error(sizeLine(result));
   if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer, !!result.resolvedSections)) console.error(line);
   return 0;
+}
+
+/** `smd agent <file> --view <name> [--inspect]` and `--views`: an author task view, with the agent's flags on top. */
+function printTaskView(file: string, args: Args, extra: Pick<AgentViewOptions, 'maxTokens' | 'tokenizer' | 'today'>, manifest: string | undefined): number {
+  const out = runTaskView(read(file), file, {
+    view: args.values.get('--view')?.[0],
+    list: args.flags.has('--views'),
+    inspect: args.flags.has('--inspect'),
+    sections: args.values.get('--section'),
+    exactSections: args.flags.has('--exact'),
+    brief: args.flags.has('--brief'),
+    includeHuman: args.flags.has('--include-human'),
+    embed: args.flags.has('--embed'),
+    includes: !args.flags.has('--no-includes'),
+    lineRefs: !args.flags.has('--no-lines'),
+    constraints: args.flags.has('--constraints'),
+    provenance: manifest !== undefined,
+    readFile: readerFor(file),
+    readDocument: graphReader([path.dirname(file)]),
+    ...extra,
+  });
+  if (manifest && out.provenance) writeProvenance(manifest, out.provenance);
+  process.stdout.write(out.stdout);
+  process.stderr.write(out.stderr);
+  return out.code;
 }
 
 /** `[smd] ≈1531 tokens (file ≈2430, 37% smaller)`, with a tokenizer `[smd] ≈1531 est · 1402 o200k_base tokens (…)` */
