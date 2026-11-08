@@ -22,6 +22,7 @@ A document with `smd: 2` in its front matter follows the spec v2 rules (no `smd`
 - `smd tasks DIR` lists open tasks with priority, owner and due date, overdue first (`--mine @name` filters by owner).
 - `smd risks DIR` is the risk register: every `:::risk` with its score (impact × likelihood, 1–16; `medium?` marks a level that was not set), owner, status, location and one-line mitigation, highest first, then an impact × likelihood matrix. Closed risks are left out unless `--all`; filter with `--status open,accepted` or `--owner @name`; `--json` for structured output.
 - `smd query "SELECTOR" DIR` prints only the matching blocks in the agent view: `decision[status=accepted]`, `risk[impact>=high][status!=closed]`, `api[method=POST]`, `question`, `task[owner=@me][done=false]`, `heading[level=2]`. Commas combine selectors. `--titles` gives one line per block, `--json` structured output. Exit code 1 means no match.
+- Tree selectors: `heading[title=Rollout] task` (anywhere under it), `heading[level=2] > decision` (directly in it), `risk:not([status=closed])`. `--follow "*"` lists linked blocks as pointers and includes what a match depends on. `--constraints` adds the agent blocks and document-wide constraints.
 - `smd decisions DIR --status accepted` lists the binding decisions, one line each (date, title, owner, file:line, document › section), newest first; superseded and rejected ones are labelled. `--status open` lists decisions still to make, `--json` gives structured output.
 
 ## Catching up on a changed document
@@ -47,6 +48,14 @@ If the `smd` MCP server is registered, use its tools instead of the shell. Paths
 | `<question>` | Unresolved. Don't pick an answer yourself; use the fallback in the agent instructions, or ask. |
 | `<decision status="accepted">` | Binding. `proposed` isn't decided yet; `rejected`/`superseded` means don't do it. |
 | `<risk impact=… likelihood=…>` | Design around it or test for it |
+| `<requirement id="R1" status="accepted">` | A required behavior. `proposed` isn't settled. `verified` is what a person wrote, and `smd trace` shows whether evidence supports it |
+| `<constraint scope="document" level="must">` | Binds like agent instructions, within the user's task. `should` is strong advice. Section views list the ones that apply under "Constraints that apply here" |
+| `<acceptance verifies="R1">` | How to check R1. It is not proof that R1 passed |
+| `<assumption status="unvalidated">` | A premise nobody has checked yet. Don't treat it as fact |
+| `<evidence supports="R1" result="pass">` | A recorded check of R1. `method="acceptance"` is a person accepting it. Outdated evidence was recorded before R1 last changed |
+| `<question id="Q1" status="answered">` | Answered by the `<comment kind="answer">` with it. `open` still needs a person |
+| `<comment for="R1">`, `<suggestion for="R1">` | Open review remarks and proposed replacements. `stale="true"` means R1 changed since. Apply a suggestion only through `smd review accept`, which a person runs |
+| `(depends on R1; BLOCKED by R1)` | The task waits for R1 |
 | `[risk matrix: …]` | A grid of the document's risks for people; the risks themselves are the `<risk>` blocks |
 | `API POST /v1/x — …` | Endpoint definition; the following lines describe it |
 | `<glossary>` … `</glossary>` | The document's defined terms and abbreviations, listed once; the text uses them as written (not expanded) |
