@@ -15,6 +15,7 @@ import { runQuery, type QueryFlags } from './queryCommand';
 import { REVIEW_HELP, runReview } from './reviewCommand';
 import { runTaskView } from './taskViewCommand';
 import { runUpdates } from './updatesCommand';
+import { runRev } from './revCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -137,6 +138,9 @@ Reading (token-efficient, for agents):
       the blocks that point at it. Other changed lines are only counted. rev: is the revision an
       earlier read gave, looked for in the file's Git history. An unknown checkpoint exits with 2.
       Reading the updates records nothing: it is not incorporation.
+  smd rev <file.smd> <id>… [--json]
+      The current revision of each block, as id@revision, to record in rev= on a comment, a suggestion
+      or an evidence record. A block's revision changes when its text changes, not its attributes.
   smd meta <file.smd> [--no-diagnostics]
       Full JSON summary: front matter, outline, tasks, decisions, risks, agent blocks.
   smd decisions <files|dirs...> [--status <list>] [--owner @name] [--json] [--md] [-o <file>] [--title "…"]
@@ -312,6 +316,12 @@ function main(argv: string[]): number | Promise<number> {
         json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
         constraints: flags.has('--constraints'), follow: value('--follow'), direction: value('--direction'), depth: value('--depth'),
       });
+    case 'rev': {
+      const out = runRev(positional[0], positional.slice(1), flags.has('--json'));
+      process.stdout.write(out.stdout);
+      process.stderr.write(out.stderr);
+      return out.code;
+    }
     case 'updates': {
       const out = runUpdates(positional[0], value('--since'), { json: flags.has('--json'), today });
       process.stdout.write(out.stdout);
