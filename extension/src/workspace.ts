@@ -121,16 +121,21 @@ export function taskLine(r: TaskRow): string {
     r.text,
     r.assignees.length ? r.assignees.join(' ') : '',
     r.due ? `(due ${r.due}${r.overdue ? ', OVERDUE' : ''})` : '',
+    r.depends ? `(depends on ${r.depends.join(', ')}${isBlocked(r) ? `; BLOCKED by ${r.blocked!.join(', ')}` : ''})` : '',
     r.id ? `{#${r.id}}` : '',
   ].filter(Boolean);
   return `${r.file}:${r.line + 1}  ${bits.join(' ')}${r.section ? `  — ${r.section}` : ''}`;
 }
 
-/** `N task(s) open, M overdue.` */
+/** An open task waiting for a block it depends on (`:depends[…]`). */
+const isBlocked = (r: TaskRow) => !r.done && Boolean(r.blocked?.length);
+
+/** `N task(s) open, M overdue.`, and `, K blocked` when a task waits for another block. */
 export function taskSummary(rows: TaskRow[], all: boolean): string {
   const overdue = rows.filter((r) => r.overdue).length;
+  const blocked = rows.filter(isBlocked).length;
   const open = all ? '' : ' open';
-  return `${rows.length} task(s)${open}${overdue ? `, ${overdue} overdue` : ''}.`;
+  return `${rows.length} task(s)${open}${overdue ? `, ${overdue} overdue` : ''}${blocked ? `, ${blocked} blocked` : ''}.`;
 }
 
 /** Blocks in `files` that match `selectors`. `name` labels each file. */

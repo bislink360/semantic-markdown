@@ -1,6 +1,7 @@
 import { agentView, sectionCosts, type SectionCost } from './agentView';
 import { asStringList, parseFrontMatter } from './frontmatter';
 import { getDocumentInfo, type SmdDocumentInfo } from './meta';
+import { SEMANTIC_TAGS } from './semanticTags';
 import { LATEST_SPEC, specVersion, type SpecVersion } from './specVersion';
 
 /**
@@ -49,6 +50,8 @@ export interface SmdIndexCounts {
   diagrams: number;
   /** `:::agent` instruction blocks. */
   agentInstructions: number;
+  /** Requirements, constraints, acceptance criteria, assumptions and evidence by tag, only those the document has (semantic tags R7). */
+  tags?: Record<string, number>;
 }
 
 export interface SmdIndexEntry {
@@ -130,7 +133,14 @@ function countsOf(info: SmdDocumentInfo): SmdIndexCounts {
     apis: info.containers.api ?? 0,
     diagrams: info.diagrams.length,
     agentInstructions: info.agentBlocks.length,
+    ...semanticCounts(info),
   };
+}
+
+/** `{ tags: { requirement: 3 } }` for the semantic tags the document has; nothing when it has none. */
+function semanticCounts(info: SmdDocumentInfo): { tags?: Record<string, number> } {
+  const tags = Object.fromEntries(SEMANTIC_TAGS.flatMap((t) => (info.containers[t] ? [[t, info.containers[t]]] : [])));
+  return Object.keys(tags).length ? { tags } : {};
 }
 
 function indexSection(s: SectionCost): SmdIndexSection {

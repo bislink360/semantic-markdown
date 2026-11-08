@@ -4,10 +4,11 @@ import { parseFrontMatter } from './frontmatter';
 import { aliasedHeading } from './headingAliases';
 import { anchorLine } from './links';
 import { renderSmd, type Heading } from './render';
+import { SEMANTIC_TAGS } from './semanticTags';
 
 /** Something worth jumping to from anywhere in a workspace. */
 export interface SmdSymbol {
-  kind: 'heading' | 'decision' | 'risk' | 'api';
+  kind: 'heading' | 'decision' | 'risk' | 'api' | 'requirement' | 'constraint' | 'acceptance' | 'assumption' | 'evidence';
   /** What the symbol search matches: the heading text, a decision or risk title, `POST /v1/orders — Title`. */
   name: string;
   /** Short context: `H2`, `accepted · 2026-09-12`, `impact high`. */
@@ -16,7 +17,7 @@ export interface SmdSymbol {
   line: number;
 }
 
-/** Headings, decisions, risks and API endpoints, in document order. */
+/** Headings, decisions, risks, API endpoints and the semantic tags, in document order. */
 export function documentSymbols(text: string): SmdSymbol[] {
   const symbols: SmdSymbol[] = renderSmd(text).headings.map((h) => ({
     kind: 'heading' as const, name: h.text || '(untitled)', detail: `H${h.level}`, line: h.line,
@@ -40,12 +41,27 @@ export function documentSymbols(text: string): SmdSymbol[] {
       symbols.push({ kind: 'decision', name: info.title || 'Decision', detail: [v.status, v.date].filter(Boolean).join(' · '), line: i });
     } else if (info.name === 'risk') {
       symbols.push({ kind: 'risk', name: info.title || 'Risk', detail: v.impact ? `impact ${v.impact}` : '', line: i });
+    } else if (SEMANTIC_TAGS.includes(info.name)) {
+      // `R1 — Title`, with the state as the detail: `accepted`, `must`, `verifies R1`.
+      const name = [info.attrs.id, info.title].filter(Boolean).join(' — ') || info.name;
+      symbols.push({ kind: info.name as SmdSymbol['kind'], name, detail: tagDetail(info.name, v), line: i });
     } else if (info.name === 'api') {
       const endpoint = `${(v.method ?? '').toUpperCase()} ${v.path ?? ''}`.trim();
       symbols.push({ kind: 'api', name: [endpoint, info.title].filter(Boolean).join(' — ') || 'API', detail: v.auth ? `auth ${v.auth}` : '', line: i });
     }
   }
   return symbols.sort((a, b) => a.line - b.line);
+}
+
+/** A tag's state in a few words, for the symbol's detail. */
+function tagDetail(name: string, v: Record<string, string>): string {
+  switch (name) {
+    case 'requirement': return [v.priority, v.status ?? 'proposed'].filter(Boolean).join(' · ');
+    case 'constraint': return v.level ?? 'must';
+    case 'acceptance': return v.verifies ? `verifies ${v.verifies}` : '';
+    case 'assumption': return v.status ?? 'unvalidated';
+    default: return [v.result, v.supports && `supports ${v.supports}`].filter(Boolean).join(' · ');
+  }
 }
 
 /** A few lines of a section, for hover previews. */

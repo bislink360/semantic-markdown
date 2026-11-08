@@ -84,6 +84,42 @@ export const EN = {
   'footnote.backref': 'Back to reference {ref}',
   'code.cannotRead': 'Cannot read {file}',
 
+  // Semantic tags and question lifecycle
+  'requirement.label': 'Requirement',
+  'constraint.label': 'Constraint',
+  'acceptance.label': 'Acceptance',
+  'assumption.label': 'Assumption',
+  'evidence.label': 'Evidence',
+  'requirementStatus.proposed': 'proposed',
+  'requirementStatus.accepted': 'accepted',
+  'requirementStatus.implemented': 'implemented',
+  'requirementStatus.verified': 'verified',
+  'requirementStatus.deprecated': 'deprecated',
+  'constraintLevel.must': 'must',
+  'constraintLevel.should': 'should',
+  'assumptionStatus.unvalidated': 'unvalidated',
+  'assumptionStatus.validated': 'validated',
+  'assumptionStatus.invalid': 'invalid',
+  'evidenceResult.pass': 'pass',
+  'evidenceResult.fail': 'fail',
+  'evidenceResult.inconclusive': 'inconclusive',
+  'questionStatus.open': 'open',
+  'questionStatus.answered': 'answered',
+  'questionStatus.incorporated': 'incorporated',
+  'questionStatus.withdrawn': 'withdrawn',
+  'tag.wholeDocument': 'applies to the whole document',
+  'tag.appliesTo': 'applies to {ids}',
+  'tag.verifies': 'verifies {ids}',
+  'tag.test': 'test {file}',
+  'tag.supports': 'supports {ids}',
+  'tag.contradicts': 'contradicts {ids}',
+  'tag.dependsOn': 'depends on {ids}',
+  'tag.reviewBy': 'review by {date}',
+  'tag.supersedes': 'supersedes {ids}',
+  'tag.supersededBy': 'superseded by {ids}',
+  'question.between': 'conflict between {a} and {b}',
+  'question.reason': 'reason: {reason}',
+
   // Inline directives
   'progress.label': 'Progress',
   'priority.critical': 'critical',
@@ -170,7 +206,8 @@ export type Messages = Readonly<Record<MessageKey, string>>;
  * English each word is the value itself, so `term` changes nothing there.
  */
 export type TermGroup =
-  'audience' | 'docStatus' | 'decisionStatus' | 'impact' | 'likelihood' | 'riskStatus' | 'priority' | 'trend' | 'tone' | 'color';
+  'audience' | 'docStatus' | 'decisionStatus' | 'impact' | 'likelihood' | 'riskStatus' | 'priority' | 'trend' | 'tone' | 'color'
+  | 'requirementStatus' | 'constraintLevel' | 'assumptionStatus' | 'evidenceResult' | 'questionStatus';
 
 /** The language when a document names none. */
 export const DEFAULT_LANG = 'en';

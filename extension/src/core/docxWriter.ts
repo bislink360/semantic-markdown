@@ -105,6 +105,7 @@ const CALLOUT_COLOURS = new Map([
 
 const PANEL_COLOURS: Record<PanelType, string> = {
   card: 'gray', agent: 'indigo', human: 'teal', decision: 'blue', risk: 'red', api: 'purple',
+  requirement: 'blue', constraint: 'red', acceptance: 'teal', assumption: 'amber', evidence: 'gray',
 };
 
 /** `#0ea5e9`, `#abc` or `rgb(14, 165, 233)` as Word's `0EA5E9`; else undefined. */
