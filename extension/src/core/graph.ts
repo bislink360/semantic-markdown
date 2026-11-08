@@ -420,6 +420,8 @@ export function followEdges(graph: DocumentGraph, start: GraphNode, options: Fol
   const limit = options.limit ?? 100;
   const seen = new Set([nodeKey(start)]);
   const listed = new Set<string>();
+  // The depth a node was first listed at: deeper paths to it are not listed again.
+  const firstDepth = new Map<string, number>();
   const neighbors: Neighbor[] = [];
   let cut = 0;
   let frontier = [start];
@@ -431,11 +433,14 @@ export function followEdges(graph: DocumentGraph, start: GraphNode, options: Fol
         for (const edge of edges) {
           if (!types.has(edge.type) || (d === 1 && needs(edge, direction))) continue;
           const node = direction === 'out' ? edge.to : edge.from;
-          // A link inside the node to a place inside it is not a neighbor.
-          if (direction === 'out' && node && contains(via, node)) continue;
-          const id = `${direction}|${edge.from.file}:${edge.line}|${edge.type}|${edge.target}|${node ? nodeKey(node) : ''}`;
-          if (listed.has(id)) continue;
+          // An edge between places inside the node, or back into the start, is not a neighbor.
+          if (node && (contains(start, node) || (direction === 'out' && contains(via, node)))) continue;
+          // Each neighbor once per relation, however many paths reach it.
+          const what = node ? nodeKey(node) : `${edge.status}|${edge.file}|${edge.file === edge.from.file ? edge.target : edge.target.split('#')[1] ?? ''}`;
+          const id = `${direction}|${edge.type}|${what}`;
+          if (listed.has(id) || d > (firstDepth.get(what) ?? d)) continue;
           listed.add(id);
+          if (!firstDepth.has(what)) firstDepth.set(what, d);
           if (neighbors.length >= limit) { cut++; continue; }
           const shown = !!node && (options.shown?.has(nodeKey(node)) ?? false);
           neighbors.push({ edge, direction, depth: d, via, ...(node ? { node } : {}), shown, tokens: node && !shown ? graph.tokens(node) : 0 });

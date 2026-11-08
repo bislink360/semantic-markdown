@@ -190,7 +190,7 @@ function constraintCount(blocks: readonly ConstraintBlock[]): string {
 
 /** Pointers, then the dependencies in full, then what is unsatisfied. */
 function graphLines(g: MatchGraph, match: FileMatch): string[] {
-  const out = g.neighbors.map((n) => pointerLine(n, match.file));
+  const out = treeOrder(g.neighbors).map((n) => pointerLine(n, match.file));
   if (g.cut) out.push(`  … ${g.cut} more neighbor${g.cut === 1 ? '' : 's'} not listed`);
   if (g.dependencies.length) {
     out.push('Dependencies (mandatory edges, included in full):');
@@ -205,7 +205,22 @@ function graphLines(g: MatchGraph, match: FileMatch): string[] {
   return out;
 }
 
-const edgePlace = (e: GraphEdge, file: string) => `${e.from.file === normalizePath(file) ? '' : `${e.from.file} `}L${e.line + 1}`;
+/** Neighbors with each one's own neighbors right after it, so an indented pointer is reached from the line above. */
+function treeOrder(neighbors: readonly Neighbor[]): Neighbor[] {
+  const children = new Map<string, Neighbor[]>();
+  for (const n of neighbors) if (n.depth > 1) children.set(nodeKey(n.via), [...(children.get(nodeKey(n.via)) ?? []), n]);
+  const out: Neighbor[] = [];
+  const placed = new Set<Neighbor>();
+  const add = (n: Neighbor) => {
+    out.push(n);
+    placed.add(n);
+    for (const c of (n.node ? children.get(nodeKey(n.node)) : undefined) ?? []) if (c.depth === n.depth + 1 && !placed.has(c)) add(c);
+  };
+  neighbors.filter((n) => n.depth === 1).forEach(add);
+  return [...out, ...neighbors.filter((n) => !placed.has(n))];
+}
+
+const edgePlace =(e: GraphEdge, file: string) => `${e.from.file === normalizePath(file) ? '' : `${e.from.file} `}L${e.line + 1}`;
 
 function unsatisfiedReason(u: Unsatisfied): string {
   switch (u.kind) {
