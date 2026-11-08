@@ -14,6 +14,7 @@ import {
   variablesAsText,
 } from './markdownItRules';
 import { glossaryTerms } from './markdownItGlossary';
+import { progressTasks } from './markdownItProgress';
 import { documentLanguage, languageTag, messagesFor, type Messages } from './i18n';
 import type { MarkdownItSmdOptions } from './markdownIt';
 import { specOf } from './specVersion';
@@ -152,6 +153,8 @@ export function applySmd(md: MarkdownIt, features: SmdFeatures, ctx: SmdContext)
   addCorePasses(md, features);
   // After heading ids, task ids, included blocks and glossary terms, so `:ref[id]` can name any block (D4).
   if (features.directives) md.core.ruler.push('smd_block_ids', indexBlockIds);
+  // After task lists, so a `basis=tasks` bar can count its section's checkboxes.
+  if (features.directives) md.core.ruler.push('smd_progress_tasks', (state) => progressTasks(state, ctx));
   if (features.fences) {
     const previous: RenderRule = md.renderer.rules.fence ?? ((tokens, idx, opts, _env, self) => self.renderToken(tokens, idx, opts));
     md.renderer.rules.fence = fenceRule(previous, ctx, features.codeFrames);

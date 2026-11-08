@@ -86,6 +86,10 @@ export const EN = {
 
   // Inline directives
   'progress.label': 'Progress',
+  'progress.tasks': '{checked} of {total} tasks checked',
+  'progress.unknown': 'unknown',
+  'progress.measured': '{value} (measured)',
+  'progress.estimated': '{value} (estimated)',
   'priority.critical': 'critical',
   'priority.high': 'high',
   'priority.medium': 'medium',

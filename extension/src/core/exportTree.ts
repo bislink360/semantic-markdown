@@ -6,7 +6,8 @@ import { langFromPath, parseFenceInfo, sliceLines } from './fence';
 import { FigureCounter } from './figures';
 import { label, term, type MessageKey, type Messages } from './i18n';
 import { includeHref, includeLabel, includeProblemText, includeRequest } from './include';
-import { figureLabel, PRIORITY_COLORS } from './markdownItHtml';
+import { figureLabel, PRIORITY_COLORS, progressLabel } from './markdownItHtml';
+import { progressState } from './progress';
 import {
   envBlockIds, envFigures, type ContainerMeta, type DirectiveMeta, type FootnoteMeta, type SpanMeta, type TaskBoxMeta,
 } from './markdownItRules';
@@ -674,7 +675,7 @@ const DIRECTIVES = new Map<string, DirectiveExport>([
   ['due', (d, _b, marks) => [dateOrText(d.content.trim(), marks)]],
   ['kbd', (d, _b, marks) => [text(d.content.trim(), { ...marks, code: true })]],
   ['mention', (d, _b, marks) => [text(d.content, marks)]],
-  ['progress', (d, _b, marks) => [text(progressText(d), marks)]],
+  ['progress', (d, b, marks) => [text(progressText(d, b.m), marks)]],
   ['metric', metric],
 ]);
 
@@ -682,7 +683,10 @@ function directive(d: DirectiveMeta, b: TreeBuilder, marks: Marks): Inline[] {
   return (DIRECTIVES.get(d.directive) ?? ((x: DirectiveMeta) => [text(x.content, marks)]))(d, b, marks);
 }
 
-function progressText(d: DirectiveMeta): string {
+function progressText(d: DirectiveMeta, m: Messages): string {
+  // A bar with a basis says it in words: "8 of 10 tasks checked", "unknown", "40% (estimated)".
+  const state = progressState(d.values, d.content, d.progress);
+  if (state.kind !== 'plain') return progressLabel(state, m);
   const raw = Number.parseFloat(d.values.value ?? d.content ?? '0');
   const value = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
   return d.values.label ?? `${Math.round(value)}%`;

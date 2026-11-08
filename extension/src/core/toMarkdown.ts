@@ -9,6 +9,7 @@ import { githubIds, markdownHeadings, type MarkdownHeading } from './githubSlug'
 import { expandedFigures, figuresOf, includedLines, includeKey, includeSource, type ExpandedFigures } from './includeText';
 import { aroundInlineMath, convertedParts, inlineItemLines, inlineMathLines, literalLines, parseSmd, renderedTaskLines, type InlinePart } from './parse';
 import { splitTaskId } from './taskId';
+import { countsTasks, progressState, progressWords, sectionTaskCounts, type TaskCount } from './progress';
 import { quoteCite } from './quote';
 import { renderSmd } from './render';
 import { riskMatrixMarkdown } from './risks';
@@ -58,6 +59,10 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
 
   let fence: string | null = null;
   let i = 0;
+  // The tasks of each line's section, for `:progress{basis=tasks}`, counted on the first ask.
+  let current = 0;
+  let sectionCounts: ((line: number) => TaskCount) | undefined;
+  const counts = () => (sectionCounts ??= sectionTaskCounts(text, undefined, spec))(current);
 
   // Keep front matter verbatim.
   if (lines[0]?.trimEnd() === '---') {
@@ -118,14 +123,16 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
         i = includeMarkdown(info, { lines, open: i, from: bodyStart, spec, options, numbering, emit, keepBody: () => stack.push({ len, prefix: '' }) });
         continue;
       }
-      const title = info.title ? convertInline(substituteLine(info.title, variables, spec), figures.byId, spec, figures.blocks) : '';
+      current = i;
+      const title = info.title ? convertInline(substituteLine(info.title, variables, spec), figures.byId, spec, figures.blocks, counts) : '';
       const head = containerMarkdown({ name: info.name, title, values: info.attrs.values, id: info.attrs.id, figure: figures.own.get(i + numbering.offset), text, spec });
       for (const l of head.before ?? []) emit(l);
       stack.push({ len: open[2].length, prefix: head.prefix, ...(head.close === undefined ? {} : { close: head.close }), ...(head.end ? { end: head.end } : {}) });
       for (const l of head.inside ?? []) emit(l);
       continue;
     }
-    const converted = lineMarkdown(line, literal.has(i), { variables, figures: figures.byId, blocks: figures.blocks, spec }, inlineMath.get(i), inlineItems.get(i));
+    current = i;
+    const converted = lineMarkdown(line, literal.has(i), { variables, figures: figures.byId, blocks: figures.blocks, spec, counts }, inlineMath.get(i), inlineItems.get(i));
     emit(tasks.has(i) ? taskAnchor(converted) : converted);
   }
   return headingAnchors(text, out.join('\n').replace(/\n{3,}/g, '\n\n'), options);
@@ -220,14 +227,16 @@ const figureNumbering = (options: ToMarkdownOptions, text: string): FigureNumber
  * inline items that run over several lines (see inlineItemLines): each item converts as a whole.
  */
 function lineMarkdown(
-  line: string, literal: boolean, document: { variables: Variables; figures: ReadonlyMap<string, FigureNumber>; blocks?: ReadonlySet<string>; spec: SpecVersion }, math?: ReadonlyArray<[number, number]>,
+  line: string, literal: boolean,
+  document: { variables: Variables; figures: ReadonlyMap<string, FigureNumber>; blocks?: ReadonlySet<string>; spec: SpecVersion; counts?: () => TaskCount },
+  math?: ReadonlyArray<[number, number]>,
   parts?: ReadonlyArray<InlinePart>,
 ): string {
   if (literal) return line;
   // In spec v2 a trailing `{}` or `{word}` is heading text, which GitHub shows too.
   const content = /^\s{0,3}#{1,6}\s/.test(line) ? withoutHeadingAttrs(line, document.spec) : line;
   // Math is set aside before `{{name}}` is replaced, as rendering reads it.
-  const convert = (text: string) => convertInline(substituteLine(text, document.variables, document.spec), document.figures, document.spec, document.blocks);
+  const convert = (text: string) => convertInline(substituteLine(text, document.variables, document.spec), document.figures, document.spec, document.blocks, document.counts);
   const asWritten = content === line;
   return aroundInlineMath(content, convert, asWritten ? math : undefined, asWritten ? convertedParts(parts, (whole) => aroundInlineMath(whole, convert)) : []);
 }
@@ -401,10 +410,12 @@ const STATUS_EMOJI: Record<string, string> = {
 };
 
 /** Convert inline SMD syntax on one line, leaving code spans and `$inline math$` untouched. */
-export function convertInline(line: string, figures?: ReadonlyMap<string, FigureNumber>, spec: SpecVersion = 1, blocks?: ReadonlySet<string>): string {
+export function convertInline(
+  line: string, figures?: ReadonlyMap<string, FigureNumber>, spec: SpecVersion = 1, blocks?: ReadonlySet<string>, counts?: () => TaskCount,
+): string {
   return aroundInlineMath(line, (text) => text
     .split(/(`+[^`]*`+)/)
-    .map((part, idx) => (idx % 2 === 1 ? part : convertText(part, figures, spec, blocks)))
+    .map((part, idx) => (idx % 2 === 1 ? part : convertText(part, figures, spec, blocks, counts)))
     .join(''));
 }
 
@@ -430,10 +441,12 @@ function refLinks(s: string, figures: ReadonlyMap<string, FigureNumber> | undefi
 const DIRECTIVE_TEXT_V1 = /(^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 const DIRECTIVE_TEXT_V2 = /(^|[\s([{>*_~"'-]):([A-Za-z][A-Za-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 
-function convertText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
+function convertText(
+  s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>, counts?: () => TaskCount,
+): string {
   return refLinks(s, figures, spec, blocks)
     .replace(spec >= 2 ? DIRECTIVE_TEXT_V2 : DIRECTIVE_TEXT_V1, (m, pre: string, name: string, content?: string, rawAttrs?: string) =>
-      (content === undefined && rawAttrs === undefined ? m : directiveText(m, { pre, name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, spec)))
+      (content === undefined && rawAttrs === undefined ? m : directiveText(m, { pre, name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, spec, counts)))
     .replace(/(!?)\[([^\]]*)\]\{([^{}\n]*)\}/g, (m, bang, content, rawAttrs) => {
       if (bang) return m;
       const attrs = parseAttrs(rawAttrs, spec);
@@ -457,7 +470,7 @@ function spanMarkdown(content: string, values: Record<string, string>): string {
  * 7b): its content converts as a styled span's does, unless its attribute list can't be read, when rendering shows it
  * as text too. In spec v1 it is text.
  */
-function directiveText(m: string, d: { pre: string; name: string; content: string; rawAttrs: string }, spec: SpecVersion): string {
+function directiveText(m: string, d: { pre: string; name: string; content: string; rawAttrs: string }, spec: SpecVersion, counts?: () => TaskCount): string {
   const name = spec >= 2 ? d.name.toLowerCase() : d.name;
   const attrs = parseAttrs(d.rawAttrs, spec);
   if (spec >= 2) {
@@ -467,11 +480,11 @@ function directiveText(m: string, d: { pre: string; name: string; content: strin
   }
   // Spec v1 reads only its own frozen names (D5): a directive added later is text there.
   if (!isKnownDirective(name, spec)) return m;
-  return directiveMarkdown(m, d.pre, name, d.content, attrs?.values ?? {});
+  return directiveMarkdown(m, d.pre, name, d.content, attrs?.values ?? {}, counts);
 }
 
 /** One `:name[content]{attrs}` in plain Markdown (`m` as written), or `m` for a name kept as written. */
-function directiveMarkdown(m: string, pre: string, name: string, content: string, v: Record<string, string>): string {
+function directiveMarkdown(m: string, pre: string, name: string, content: string, v: Record<string, string>, counts?: () => TaskCount): string {
   switch (name) {
     case 'badge': return `${pre}\`${content}\``;
     case 'kbd': return `${pre}${content.split('+').map((k: string) => `<kbd>${k.trim()}</kbd>`).join('+')}`;
@@ -481,10 +494,25 @@ function directiveMarkdown(m: string, pre: string, name: string, content: string
     case 'metric': return `${pre}**${content}**${v.label ? ` ${v.label}` : ''}${v.delta ? ` (${v.delta})` : ''}`;
     case 'status': return `${pre}${own(STATUS_EMOJI, v.color ?? '') ?? '⚪'} ${content}`;
     case 'progress': {
+      const based = progressMarkdown(v, content, counts);
+      if (based !== undefined) return `${pre}${based}`;
       const n = Math.max(0, Math.min(100, Number(v.value ?? content) || 0));
       const filled = Math.round(n / 10);
       return `${pre}${'▰'.repeat(filled)}${'▱'.repeat(10 - filled)} ${v.label ?? `${Math.round(n)}%`}`;
     }
     default: return m;
   }
+}
+
+/**
+ * A bar with a basis: `▰▰▰▰▰▰▰▰▱▱ 8 of 10 tasks checked`, `▰▰▰▰▱▱▱▱▱▱ 40% (estimated)`, or `progress unknown` with no
+ * bar, after its label when it has one. Undefined for a bar without one, which converts as before.
+ */
+function progressMarkdown(v: Record<string, string>, content: string, counts?: () => TaskCount): string | undefined {
+  const state = progressState(v, content, countsTasks(v) ? counts?.() : undefined);
+  if (state.kind === 'plain') return undefined;
+  const label = v.label ? `${v.label}: ` : '';
+  if (state.kind === 'unknown') return `${label}progress unknown`;
+  const filled = Math.round((state.percent ?? 0) / 10);
+  return `${'▰'.repeat(filled)}${'▱'.repeat(10 - filled)} ${label}${progressWords(state)}`;
 }

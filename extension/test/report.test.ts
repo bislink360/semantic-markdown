@@ -103,7 +103,7 @@ test('statusReport: a formatted, valid draft in the shape of the status-report t
   assert.match(md, /^---\nsmd: 2\ntitle: "Checkout — status 2026-09-30"\nsummary: "Draft: 2 tasks done and 3 added since HEAD~1; 4 open tasks, 1 overdue\. /);
   assert.match(md, /\nstatus: draft\ntags: \[status\]\nupdated: 2026-09-30\nrelated: \["plan\.smd"\]\n---\n/);
   assert.match(md, /compared with their version at HEAD\\~1 \(abc1234\)/);
-  assert.match(md, /\*\*Overall:\*\* :status\[At risk\]\{color=orange\} · \*\*Progress:\*\* :progress\{value=43\}/);
+  assert.match(md, /\*\*Overall:\*\* :status\[At risk\]\{color=orange\} · \*\*Progress:\*\* :progress\{value=43 basis=measured\}/);
   assert.match(md, /## Done since HEAD\\~1\n\n- Quote endpoint · :priority\[P1\] · @api · due 2026-09-20 — \[Checkout plan › Build\]\(plan\.smd#build\)\n- Fix the flaky test :badge\[new\]\{color=blue\} · @li/);
   assert.match(md, /## New since HEAD\\~1\n\n- Write the RUNBOOK and alerts · :priority\[P0\] — /);
   assert.match(md, /## Removed since HEAD\\~1\n\n.*reworded task.*\n\n- ~~Write the runbook~~ — Checkout plan › Build\n/);
@@ -126,7 +126,7 @@ test('statusReportMarkdown: without an earlier version, says so; empty lists say
   assert.equal(formatSmd(md), md);
   assert.match(md, /\n:::warning No earlier version to compare with\n/);
   assert.match(md, /## Done this period\n\nUnknown: there was no earlier version to compare with\.\n\n## New this period\n\nUnknown/);
-  assert.match(md, /:status\[On track\]\{color=green\} · \*\*Progress:\*\* :progress\{value=0\}\n\n:metric\[0\]\{label="Open"\} :metric\[0\]\{label="Overdue"\}/);
+  assert.match(md, /:status\[On track\]\{color=green\} · \*\*Progress:\*\* :progress\{value=0 basis=measured\}\n\n:metric\[0\]\{label="Open"\} :metric\[0\]\{label="Overdue"\}/);
   assert.match(md, /### Overdue\n\nNone\.\n/);
   assert.doesNotMatch(md, /## Removed/);
   assert.match(md, /- \[Notes\]\(notes\.smd\) — 0 open tasks\n$/);
