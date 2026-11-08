@@ -63,7 +63,7 @@ What a feature or a study must achieve, before its RFC.
 |---|---|
 | [maintainers/publishing.md](maintainers/publishing.md) | Listings outside the Release workflow: the Claude Code plugin marketplace and the MCP Registry |
 
-The research plan, the study protocols and the corpus are in [research/](../research/). The pages in [gallery/](gallery/) are the sources of the screenshots in [images/](images/), and CI checks that they validate.
+The pages in [gallery/](gallery/) are the sources of the screenshots in [images/](images/), and CI checks that they validate.
 
 ## Naming and placing documents
 
