@@ -210,3 +210,22 @@ test('AF14: the validator checks the views key', () => {
   // The sample's only problem is the id the missing-dep view names on purpose.
   assert.deepEqual(validateSmd(doc).filter((d) => d.code.startsWith('views/') || d.code.startsWith('ref/')).map((d) => `${d.line}:${d.code}`), ['13:ref/unknown']);
 });
+
+test('AC-C: a nested section that depends on a constraint from an include keeps it under a budget below the required bodies', () => {
+  const main = [
+    '---', 'smd: 2', 'title: Rollout', 'views:', '  canary:', '    sections: [Canary]', '    mandatory: [R1]', '    budget: 40', '---', '',
+    '## Rollout', '', '### Canary', '', ':::requirement{#R1 depends-on=C9} Start with 1% of traffic', 'Route one percent of requests to the new build.', ':::', '',
+    ':::include{file=rules.smd}', ':::', '', '### Full', '', ...Array.from({ length: 20 }, (_, i) => `Full rollout step ${i + 1}.`), '',
+  ].join('\n');
+  const rules = '---\nsmd: 2\n---\n\n:::constraint{#C2 scope=section} Keep the old build warm\nThe old build serves traffic until the canary passes.\n:::\n';
+  const read = (p: string) => (p === 'rules.smd' ? rules : undefined);
+  const r = taskView(main, 'canary', { file: 'rollout.smd', readFile: read, today: '2026-11-07' });
+  // The included constraint and the requirement's body survive; the budget failure and the missing dependency are reported.
+  assert.match(r.text, /The old build serves traffic until the canary passes\./);
+  assert.match(r.text, /Route one percent of requests to the new build\./);
+  assert.match(r.text, /\[budget: ≈\d+ of 40 tokens, required content does not fit\]\n$/);
+  assert.match(r.text, /^- depends-on "C9" \(L15\) names nothing that exists$/m);
+  assert.doesNotMatch(r.text, /Full rollout step/);
+  assert.equal(r.view.complete, false);
+  assert.ok(r.budget && !r.budget.fits);
+});

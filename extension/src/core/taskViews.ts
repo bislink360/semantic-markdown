@@ -257,7 +257,7 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
     whole: merged(whole),
     selects: appliedSections.length > 0 || !!spec.query || spec.mandatory.length > 0,
     label: viewLabel(spec, agentSections),
-    appendix: appendix(optional, elsewhere, unsatisfied, file, lineRefs),
+    appendix: appendix(optional, elsewhere, unsatisfied, lineRefs),
   };
   const { readDocument: _, ...viewOptions } = options;
   const result = agentView(text, { ...viewOptions, sections: appliedSections.length ? appliedSections : undefined, maxTokens, evidence, pinned });
@@ -335,7 +335,7 @@ function viewLabel(spec: TaskViewSpec, agentSections: readonly string[]): string
 }
 
 function appendix(
-  optional: TaskViewReport['optional'], elsewhere: readonly ClosureBlock[], unsatisfied: readonly ViewUnsatisfied[], file: string, lineRefs: boolean,
+  optional: TaskViewReport['optional'], elsewhere: readonly ClosureBlock[], unsatisfied: readonly ViewUnsatisfied[], lineRefs: boolean,
 ): string {
   const out: string[] = [];
   if (elsewhere.length) {
