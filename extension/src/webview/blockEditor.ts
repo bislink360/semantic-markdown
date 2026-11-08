@@ -7,12 +7,12 @@
 // forms, the source editor, notices, problem badges) live in closed shadow roots and are built with createElement
 // and textContent only.
 import type {
-  BlockProblems, BlockView, FixesMessage, FixView, FocusRequest, FormField, FrontMatterView, HostMessage, InlineView, RenderMessage, TableView,
+  BlockProblems, BlockView, FixesMessage, FixView, FocusRequest, FormField, FrontMatterView, HostMessage, InlineView, RenderMessage, ReviewAction, TableView,
 } from '../blockEditorSession';
 import {
   FROZEN, blockLabel, cellLabel, childNaming, cellSource, clampCell, desiredOrder, editLabel, findView, followEdit, formRequest, gridActionEnabled,
   gridAnnouncement, gridKeyTarget, gridLabel, gridRequest, inlineAnnouncement, inlineItemLabel, inlineRequest, isUndoRedo, itemAnnouncement,
-  itemForLine, listKeyTarget, mergeProblems, fixLabel, fixesAnnouncement, frontMatterValue, boundaryY, dropAnnouncement, dropIndex, dropMoves, dropTo, imageProblem, toBase64, orderMoves, problemsLabel, refreshedValue, shiftLine, textareaRows, toolbarKeyTarget, topRange, typeAhead, withoutLines,
+  itemForLine, listKeyTarget, mergeProblems, REVIEW_LABELS, reviewAnnouncement, fixLabel, fixesAnnouncement, frontMatterValue, boundaryY, dropAnnouncement, dropIndex, dropMoves, dropTo, imageProblem, toBase64, orderMoves, problemsLabel, refreshedValue, shiftLine, textareaRows, toolbarKeyTarget, topRange, typeAhead, withoutLines,
   type GridAction, type GridCell, type GridRequest, type GridSize, type LineRange,
 } from './blockEditorModel';
 
@@ -82,14 +82,16 @@ interface Grid {
   timer?: ReturnType<typeof setTimeout>;
 }
 
-/** An item's controls: the shadow host and the problem badge. */
+/** An item's controls: the shadow host, the problem badge and a review block's buttons. */
 interface Chrome {
   host: HTMLElement;
   badge: HTMLButtonElement;
+  review: HTMLElement;
 }
 
-type ItemView = Pick<BlockView, 'key' | 'type' | 'container' | 'start' | 'end' | 'source' | 'problems' | 'form' | 'children' | 'inline' | 'table'>;
-type Action = 'insert' | 'edit' | 'grid' | 'props' | 'problems' | 'up' | 'down' | 'del' | 'reveal' | 'fm';
+type ItemView = Pick<BlockView, 'key' | 'type' | 'container' | 'start' | 'end' | 'source' | 'problems' | 'form' | 'children' | 'inline' | 'table' | 'review'>;
+type Action = 'insert' | 'edit' | 'grid' | 'props' | 'problems' | 'up' | 'down' | 'del' | 'reveal' | 'fm' | ReviewAction;
+const REVIEW_ACTIONS: readonly ReviewAction[] = ['accept', 'rebase', 'reject', 'resolve'];
 
 const AUTOSAVE_DELAY = 800;
 const DIV = 'div';
@@ -254,8 +256,11 @@ function start(rt: Runtime): void {
       setCurrent(el, false);
       openProblems(el);
     });
-    chromeRoot(host).append(h(DIV, { className: child ? 'chrome child' : 'chrome' }, [badge]));
-    const chrome: Chrome = { host, badge };
+    // A review block's buttons, for the mouse; the toolbar has the same ones for the keyboard.
+    const review = h(DIV, { className: 'review', attrs: { 'aria-hidden': TRUE } });
+    review.hidden = true;
+    chromeRoot(host).append(h(DIV, { className: child ? 'chrome child' : 'chrome' }, [badge, review]));
+    const chrome: Chrome = { host, badge, review };
     chromes.set(el, chrome);
     if (!child) el.prepend(host);
     else if (OUTSIDE_CHROME.has(el.tagName) || el.parentElement?.classList.contains('smd-table-wrap')) el.before(host);
@@ -275,6 +280,29 @@ function start(rt: Runtime): void {
     chrome.badge.title = `${problems.messages.join('\n')}\n\nClick, or press Ctrl+. on the block, for quick fixes.`;
   }
 
+  /** Accept and Reject on an open suggestion (Rebase instead of Accept when stale), Resolve on an open comment. */
+  function updateReview(el: HTMLElement, view: ItemView, child: boolean): void {
+    const actions = view.review?.actions ?? [];
+    const chrome = actions.length || chromes.has(el) ? chromeFor(el, child) : undefined;
+    if (!chrome) return;
+    chrome.review.hidden = !actions.length;
+    chrome.review.replaceChildren(...actions.map((action) => button(REVIEW_LABELS[action].text, () => {
+      setCurrent(el, false);
+      reviewAction(action, view);
+    }, { [TABINDEX]: '-1', title: REVIEW_LABELS[action].title })));
+  }
+
+  /** Review edits sent and not answered yet, by editId: what to announce once they are made. */
+  const reviewEdits = new Map<string, ReviewAction>();
+
+  function reviewAction(action: ReviewAction, view: ItemView | undefined): void {
+    if (!view?.review?.actions.includes(action)) return;
+    if (editing) finishEdit(false);
+    const editId = nextId();
+    reviewEdits.set(editId, action);
+    post({ type: 'review', key: view.key, action, editId });
+  }
+
   function decorateTop(node: HTMLElement, view: ItemView, lost?: BlockProblems): void {
     markItem(node, view);
     node.setAttribute('role', 'group');
@@ -285,6 +313,7 @@ function start(rt: Runtime): void {
     if (shown) node.setAttribute('aria-description', shown.messages.join('; '));
     else node.removeAttribute('aria-description');
     updateChrome(node, shown, false);
+    updateReview(node, view, false);
   }
 
   /**
@@ -321,6 +350,7 @@ function start(rt: Runtime): void {
         const shown = mergeProblems(child.problems, annotateChildren(el, child.children));
         nameChild(el, child, shown);
         updateChrome(el, shown, true);
+        updateReview(el, child, true);
       } else {
         lost = mergeProblems(lost, child.problems, annotateChildren(el ?? scope, child.children));
       }
@@ -766,6 +796,11 @@ function start(rt: Runtime): void {
 
   function onAck(editId: string, version: number, focus: FocusRequest | undefined): void {
     acked = Math.max(acked, version);
+    const review = reviewEdits.get(editId);
+    if (review) {
+      reviewEdits.delete(editId);
+      rt.announce(reviewAnnouncement(review));
+    }
     fixApplied(editId);
     dropped(editId);
     closedDrafts.delete(editId);
@@ -834,6 +869,7 @@ function start(rt: Runtime): void {
       case 'notice':
         showNotice(msg.text);
         if (msg.editId) {
+          reviewEdits.delete(msg.editId);
           gridRefused(msg.editId);
           fixRefused(msg.editId);
           drops.delete(msg.editId);
@@ -999,6 +1035,12 @@ function start(rt: Runtime): void {
         if (item) openProblems(item);
         return;
       }
+      case 'accept':
+      case 'reject':
+      case 'resolve':
+      case 'rebase':
+        reviewAction(action, currentView());
+        return;
       default:
         blockAction(action);
     }
@@ -1213,6 +1255,10 @@ function start(rt: Runtime): void {
     del: button('Delete', () => act('del'), { title: 'Delete this block (Ctrl+Z undoes it)' }),
     reveal: button('Edit in text editor', () => act('reveal'), { title: 'Show this block in the text editor' }),
     fm: button('Add front matter', () => act('fm'), { title: 'Add a front matter block with a title' }),
+    accept: button(REVIEW_LABELS.accept.text, () => act('accept'), { title: REVIEW_LABELS.accept.title }),
+    rebase: button(REVIEW_LABELS.rebase.text, () => act('rebase'), { title: REVIEW_LABELS.rebase.title }),
+    reject: button(REVIEW_LABELS.reject.text, () => act('reject'), { title: REVIEW_LABELS.reject.title }),
+    resolve: button(REVIEW_LABELS.resolve.text, () => act('resolve'), { title: REVIEW_LABELS.resolve.title }),
   };
   const toolbar = h(DIV, { className: 'toolbar', attrs: { role: 'toolbar', [ARIA_LABEL]: 'Block editor' } }, Object.values(buttons));
   const status = h('span', { className: 'status', attrs: { id: 'status' } });
@@ -1265,6 +1311,7 @@ function start(rt: Runtime): void {
     setDisabled(buttons.problems, !item || !shownProblems.get(item));
     updateGridButton(view?.table);
     buttons.fm.hidden = !model || model.frontMatter !== null;
+    for (const action of REVIEW_ACTIONS) buttons[action].hidden = !view?.review?.actions.includes(action);
     rovingBar();
     if (!props.hidden) fillProps();
     updateInlineStops();

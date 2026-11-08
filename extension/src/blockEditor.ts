@@ -13,6 +13,7 @@ import { freeName, targetFolder } from './editorFeatures';
 import { renderBlocks, segmentSmd } from './core/blocks';
 import { scanInline } from './core/inlineEdit';
 import { readTable } from './core/tableEdit';
+import { normalizeActor } from './core/review';
 import { blockTemplates, type Snippet } from './core/templates';
 import { renderOptions, themePreference } from './preview';
 import { openLink, revealLine, toggleTask } from './webviewActions';
@@ -33,6 +34,25 @@ const SEVERITIES: ReadonlyMap<vscode.DiagnosticSeverity, DiagnosticSeverity> = n
 
 /** How long a quick fix request waits for diagnostics of the document's current version. */
 const DIAGNOSTICS_WAIT = 1000;
+
+/**
+ * The name review transitions record (`by=`): the smd.review.author setting, else asked once with an input box and
+ * kept in that setting. Undefined when the user gives none.
+ */
+async function reviewAuthor(): Promise<string | undefined> {
+  const config = vscode.workspace.getConfiguration('smd.review');
+  const set = normalizeActor(config.get<string>('author', ''));
+  if (set) return set;
+  const typed = await vscode.window.showInputBox({
+    title: 'Your name for review records',
+    prompt: 'Accept, Reject and Resolve record who did it (by=…). It is kept in the setting smd.review.author.',
+    placeHolder: '@name',
+    validateInput: (value) => (normalizeActor(value) ? undefined : 'One word, like @maya.'),
+  });
+  const name = normalizeActor(typed);
+  if (name) await config.update('author', name, vscode.ConfigurationTarget.Global);
+  return name;
+}
 
 /** A code action the editor offers: a quick fix with an edit, no command, not disabled. */
 function isEditFix(action: vscode.CodeAction | vscode.Command): action is vscode.CodeAction & { edit: vscode.WorkspaceEdit } {
@@ -108,6 +128,8 @@ class BlockEditorPanel implements vscode.Disposable {
       diagnostics: () => this.diagnostics(),
       themePref: themePreference,
       title: path.basename(document.fileName, path.extname(document.fileName)),
+      // Accept, Reject, Resolve and Rebase record who did it: smd.review.author, else asked once.
+      reviewer: () => reviewAuthor(),
     });
     const webview = panel.webview;
     const docDir = vscode.Uri.file(path.dirname(document.uri.fsPath));
