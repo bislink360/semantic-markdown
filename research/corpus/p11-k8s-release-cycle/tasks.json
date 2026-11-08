@@ -1,0 +1,173 @@
+{
+  "tasks": [
+    {
+      "id": "p11-01",
+      "type": "constraint-check",
+      "prompt": "A SIG wants to opt a brand-new KEP into the v1.35 milestone on Monday 13th October 2025. Is that allowed without an exception?",
+      "items": ["no-new-keps-after-readiness", "kep-readiness-one-week", "enhancements-freeze-date", "prr-freeze-renamed"],
+      "expected": { "verdict": ["no"], "constraint": "no-new-keps-after-readiness" },
+      "author": "ai-task-writer-g",
+      "notes": "cross-section: the deadline is one week before Enhancements Freeze (Thursday 16th October AoE), so it fell on Thursday 9th October AoE (the schedule's Production Readiness Freeze)."
+    },
+    {
+      "id": "p11-02",
+      "type": "constraint-check",
+      "prompt": "A KEP for v1.35 only deprecates and removes an old API. May it reach Enhancements Freeze with its kep.yaml status set to withdrawn rather than implementable?",
+      "items": ["enh-freeze-implementable", "deprecation-status-withdrawn"],
+      "expected": { "verdict": ["yes"], "constraint": "enh-freeze-implementable" },
+      "author": "ai-task-writer-g",
+      "notes": "Falls under the deprecation/removal exception to the implementable rule."
+    },
+    {
+      "id": "p11-03",
+      "type": "constraint-check",
+      "prompt": "At Code Freeze, an enhancement's code and test PRs carry the approved and lgtm labels. Its docs PR is open with a clear topic and a named writer, but is not yet ready to merge. Does the enhancement meet the Code Freeze requirements?",
+      "items": ["code-freeze-merge-ready", "docs-prs-not-merge-ready"],
+      "expected": { "verdict": ["yes"], "constraint": "code-freeze-merge-ready" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-04",
+      "type": "constraint-check",
+      "prompt": "During v1.35 Code Freeze, may a contributor keep pushing changes to a milestone PR that refactors logging code and is not related to any release-blocking issue?",
+      "items": ["code-freeze-release-blocking-only"],
+      "expected": { "verdict": ["no"], "constraint": "code-freeze-release-blocking-only" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-05",
+      "type": "constraint-check",
+      "prompt": "After Test Freeze, a test in the v1.35 milestone is failing and is blocking the release. May a contributor change that test to fix it?",
+      "items": ["test-freeze-no-changes", "test-freeze-exception"],
+      "expected": { "verdict": ["yes"], "constraint": "test-freeze-no-changes" },
+      "author": "ai-task-writer-g",
+      "notes": "Release-blocking reasons are the stated exception, and fixing failing tests is the goal after Test Freeze."
+    },
+    {
+      "id": "p11-06",
+      "type": "constraint-check",
+      "prompt": "The SIG labeled on a PR has approved its Code Freeze exception request. The release team judges that merging it could push back the overall v1.35 timeline. May the release team deny the request?",
+      "items": ["exception-deny-only-if-risk"],
+      "expected": { "verdict": ["yes"], "constraint": "exception-deny-only-if-risk" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-07",
+      "type": "constraint-check",
+      "prompt": "The release team plans to prune a partially implemented v1.35 enhancement by moving its new API behind an alpha gate a few days after 1.35.0-beta.1 has been cut. Is that timing in line with the pruning process?",
+      "items": ["pruning-before-beta1"],
+      "expected": { "verdict": ["no"], "constraint": "pruning-before-beta1" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-08",
+      "type": "constraint-check",
+      "prompt": "A contributor opens the documentation PR for their v1.35 enhancement in kubernetes/website against the dev-1.35 branch and adds it to the v1.35 milestone. Is that the right branch to target?",
+      "items": ["docs-pr-against-release-branch"],
+      "expected": { "verdict": ["yes"], "constraint": "docs-pr-against-release-branch" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-09",
+      "type": "constraint-check",
+      "prompt": "At v1.35 Docs Freeze, a docs PR has the lgtm and approve labels and no outstanding SIG Docs comments, but nobody has done a technical review. Does it count as ready to merge?",
+      "items": ["docs-freeze-ready-to-merge"],
+      "expected": { "verdict": ["no"], "constraint": "docs-freeze-ready-to-merge" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-10",
+      "type": "constraint-check",
+      "prompt": "On Monday 10th November 2025, a contributor wants to merge a PR for v1.35 into kubernetes/kubernetes. It has /sig node, /kind feature, /lgtm and /approved, and no milestone. Does it meet the label and milestone requirements that apply on that date?",
+      "items": ["code-freeze-required-labels", "code-freeze-week-8", "code-freeze-date"],
+      "expected": { "verdict": ["no"], "constraint": "code-freeze-required-labels" },
+      "author": "ai-task-writer-g",
+      "notes": "cross-section: Code Freeze began Friday 7th November 12:00 UTC (week 8), so the Code Freeze labels apply (milestone, kind bug or failing-test). The TL;DR headings still say Normal Dev is weeks 1-11 and Code Freeze weeks 12-14."
+    },
+    {
+      "id": "p11-11",
+      "type": "constraint-check",
+      "prompt": "A triage bot sees that a bug-fix PR in kubernetes/kubernetes targeting v1.35 has no milestone. May the bot add /milestone v1.35 to it itself?",
+      "items": ["bots-no-milestone-changes"],
+      "expected": { "verdict": ["no"], "constraint": "bots-no-milestone-changes" },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-12",
+      "type": "constraint-check",
+      "prompt": "During Code Freeze, may an automated assistant post a comment on a PR suggesting the labels /sig storage and /kind bug?",
+      "items": ["bots-no-lgtm-approve"],
+      "expected": { "verdict": ["yes"], "constraint": "bots-no-lgtm-approve" },
+      "author": "ai-task-writer-g",
+      "notes": "Suggesting /sig and /kind is allowed; adding /lgtm or /approve is not."
+    },
+    {
+      "id": "p11-13",
+      "type": "decision-status",
+      "prompt": "In which week of the v1.35 release cycle do Code Freeze and Test Freeze begin?",
+      "items": ["code-freeze-week-8"],
+      "expected": { "option": ["week 8", "8", "eight", "week eight", "the eighth week"], "superseded": ["week 7", "7", "seven", "week seven", "the seventh week"] },
+      "author": "ai-task-writer-g",
+      "notes": "The superseded week 7 decision is stated authoritatively under Release cycle decisions; the TL;DR also says weeks 12-14 and the Release Cycle section week ~12."
+    },
+    {
+      "id": "p11-14",
+      "type": "open-question",
+      "prompt": "Will Kubernetes v1.35 have a v1.35.0-rc.2? What should contributors plan on until that is settled?",
+      "items": ["rc2-undecided"],
+      "expected": { "fallback": ["v1.35.0-rc.1 is the last planned release candidate", "rc.1 is the last planned release candidate", "v1.35.0-rc.1 on Tuesday 9th December 2025 is the last planned release candidate", "rc.1 is the last release candidate", "treat rc.1 as the last release candidate", "only fixes for release-blocking issues are cherry-picked into the release-1.35 branch", "only release-blocking fixes are cherry-picked", "only release-blocking fixes"] },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-15",
+      "type": "fact-lookup",
+      "prompt": "What is the UTC cutoff for the start of v1.35 Code Freeze?",
+      "items": ["code-freeze-date", "code-freeze-week-8"],
+      "expected": { "accepted": ["Friday 7th November 2025, 12:00 UTC", "Friday 7th November 2025 12:00 UTC", "Friday 7 November 2025, 12:00 UTC", "Friday 7 November 2025 12:00 UTC", "7th November 2025, 12:00 UTC", "7 November 2025, 12:00 UTC", "7 November 2025 12:00 UTC", "November 7, 2025, 12:00 UTC", "November 7, 2025 12:00 UTC", "November 7 2025 12:00 UTC", "2025-11-07 12:00 UTC", "2025-11-07T12:00Z", "12:00 UTC on Friday 7th November 2025"] },
+      "author": "ai-task-writer-g",
+      "notes": "cross-section: the Release cycle decisions section still gives Friday 31st October 2025, 12:00 UTC (superseded)."
+    },
+    {
+      "id": "p11-16",
+      "type": "fact-lookup",
+      "prompt": "As of which Kubernetes release is the PRR Freeze called the KEP Readiness Deadline?",
+      "items": ["prr-freeze-renamed"],
+      "expected": { "accepted": ["v1.38", "1.38", "Kubernetes v1.38", "Kubernetes 1.38"] },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-17",
+      "type": "fact-lookup",
+      "prompt": "Within how many days of the relevant freeze deadline must an exception request be received to be considered?",
+      "items": ["exception-three-days"],
+      "expected": { "accepted": ["3", "three", "3 days", "three days", "within three days", "within 3 days"] },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-18",
+      "type": "fact-lookup",
+      "prompt": "At Code Freeze, after what grace period is an issue labeled priority/important-soon automatically moved out of the release milestone?",
+      "items": ["important-soon-grace-period"],
+      "expected": { "accepted": ["4 days", "4", "four days", "four", "4 day grace period", "4-day grace period", "a 4 day grace period"] },
+      "author": "ai-task-writer-g"
+    },
+    {
+      "id": "p11-19",
+      "type": "qualification",
+      "prompt": "Summarise for a v1.35 contributor what Code Freeze means: when it starts, what must be ready by then, what can still merge, and which labels a PR needs.",
+      "items": ["code-freeze-week-8", "code-freeze-date", "code-freeze-merge-ready", "docs-prs-not-merge-ready", "code-freeze-release-blocking-only", "code-freeze-required-labels", "important-soon-grace-period"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Code Freeze (with Test Freeze) starts in week 8: Thursday 6th November 2025 AoE, i.e. Friday 7th November 2025 12:00 UTC (not the earlier week 7 date).", "items": ["code-freeze-week-8", "code-freeze-date"] }, { "id": "r2", "text": "Enhancement PRs, including tests, must be merge-ready with approved and lgtm labels; docs PRs must be opened but need not be ready to merge.", "items": ["code-freeze-merge-ready", "docs-prs-not-merge-ready"] }, { "id": "r3", "text": "After that, only PRs related to release-blocking issues in the milestone may proceed.", "items": ["code-freeze-release-blocking-only"] }, { "id": "r4", "text": "PRs need /milestone v1.35, /sig, /kind bug or failing-test, /lgtm and /approved.", "items": ["code-freeze-required-labels"] }, { "id": "r5", "text": "priority/important-soon issues are moved out of the milestone at Code Freeze after a 4-day grace period.", "items": ["important-soon-grace-period"] }] },
+      "author": "ai-task-writer-g",
+      "notes": "cross-section: Schedule changes, Release Phases, TL;DR and Priority Label sections."
+    },
+    {
+      "id": "p11-20",
+      "type": "edit-plan",
+      "prompt": "Which lines must change to move v1.35 Docs Freeze one week later, to Tuesday 9th December 2025 (AoE) / Wednesday 10th December 2025, 12:00 UTC?",
+      "items": ["docs-freeze-date"],
+      "expected": { "md": [[40, 40], [62, 62], [101, 101]], "smd": [[47, 47], [71, 71], [110, 110]] },
+      "author": "ai-task-writer-g",
+      "notes": "Summary bullet, the Docs PRs bar in the gantt chart, and the Timeline row."
+    }
+  ]
+}

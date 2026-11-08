@@ -1,0 +1,172 @@
+{
+  "tasks": [
+    {
+      "id": "p12-01",
+      "type": "constraint-check",
+      "prompt": "A first-time contributor with no track record in the project wants to land a nightly language feature that has no RFC yet, using a lang team experiment. May they use a lang team experiment for this?",
+      "items": ["lang-experiments-trusted-only"],
+      "expected": { "verdict": ["no"], "constraint": "lang-experiments-trusted-only" },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-02",
+      "type": "constraint-check",
+      "prompt": "Two designs for an async feature are equally ergonomic, but one adds a small runtime overhead to every call. The team is unsure which to pick. Under the async goal's design axioms, should it adopt the design with the overhead?",
+      "items": ["zero-cost-axiom"],
+      "expected": { "verdict": ["no"], "constraint": "zero-cost-axiom" },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-03",
+      "type": "constraint-check",
+      "prompt": "The build-std MVP RFC has been accepted by the responsible teams. May the build-std goal owners now go ahead with implementing it?",
+      "items": ["build-std-impl-conditional"],
+      "expected": { "verdict": ["yes"], "constraint": "build-std-impl-conditional" },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-04",
+      "type": "constraint-check",
+      "prompt": "A user enables build-std but changes no compilation options or configuration. Must the standard library it produces be equivalent to the one the project distributes?",
+      "items": ["build-std-equivalent-library"],
+      "expected": { "verdict": ["yes"], "constraint": "build-std-equivalent-library" },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-05",
+      "type": "constraint-check",
+      "prompt": "A goal was accepted for 2025H1. Its owner argues that this lets them accept their own stabilization proposal for the goal without a further decision by the responsible team. Is that right?",
+      "items": ["owners-propose-teams-decide", "goal-not-promise-of-decision"],
+      "expected": { "verdict": ["no"], "constraint": "owners-propose-teams-decide" },
+      "author": "ai-task-writer-j",
+      "notes": "cross-section: the goal process (Motivation) says accepting a goal promises no future decision; the goal-program design axioms say teams decide."
+    },
+    {
+      "id": "p12-06",
+      "type": "decision-status",
+      "prompt": "Of the Rust for Linux work item on extracting dependency information and configuring no-std externally, which part is still in scope for the goal?",
+      "items": ["dep-info-dropped", "crate-attr-in-scope"],
+      "expected": { "option": ["configuring no-std externally", "configure no-std externally", "configuring no-std externally through -Zcrate-attr", "-Zcrate-attr", "--crate-attr", "crate-attr", "only -Zcrate-attr", "only configuring no-std externally"], "superseded": ["extracting dependency information", "extract dependency information", "-Zbinary-dep-depinfo", "-Zbinary_dep_depinfo=y", "-Zbinary-dep-depinfo=y", "both", "both parts"] },
+      "author": "ai-task-writer-j",
+      "notes": "The Summary, the Rust for Linux next-six-months list and the team asks section still plan to stabilize dependency-info extraction; the March 26 update drops it."
+    },
+    {
+      "id": "p12-07",
+      "type": "decision-status",
+      "prompt": "How does the project currently propose to handle casts from a pointer like *mut dyn Foo + '_ to *mut dyn Foo + 'static, which raised a soundness concern?",
+      "items": ["cast-hard-error-proposal"],
+      "expected": { "option": ["hard error", "make it a hard error", "a hard error", "hard error outside unsafe blocks", "a hard error at least outside of an unsafe block", "hard error outside of an unsafe block"], "superseded": ["future-compatibility warning", "future compatibility warning", "a future-compatibility-warning", "warning"] },
+      "author": "ai-task-writer-j",
+      "notes": "Discussion on the exact rules continues; the hard error is the current proposal."
+    },
+    {
+      "id": "p12-08",
+      "type": "decision-status",
+      "prompt": "What will the Rust Vision Doc lay out about Rust's future direction?",
+      "items": ["vision-shiny-future-rejected", "vision-no-specific-features"],
+      "expected": { "option": ["opportunities and requirements", "specific opportunities and recommendations", "specific opportunities", "opportunities", "identify specific opportunities", "opportunities with recommendations on problems to solve"], "superseded": ["shiny future", "a shiny future", "a shiny future narrative", "specific features"] },
+      "author": "ai-task-writer-j",
+      "notes": "cross-section: the Summary rules out specific features; the Motivation drops the shiny-future approach used by the Async Vision Doc."
+    },
+    {
+      "id": "p12-09",
+      "type": "open-question",
+      "prompt": "Will build-std support patching or modifying the standard library?",
+      "items": ["build-std-patching-open"],
+      "expected": { "fallback": ["the MVP RFC will decide", "the RFC will decide", "to be decided by the RFC", "to be decided by the MVP RFC", "the build-std RFC will decide"] },
+      "author": "ai-task-writer-j",
+      "notes": "No interim fallback is stated; the accepted answers use the document's position that the MVP RFC will decide it."
+    },
+    {
+      "id": "p12-10",
+      "type": "open-question",
+      "prompt": "Will the Rust Vision Doc have a long-term team that maintains it? What happens to the support team that authors it?",
+      "items": ["vision-maintenance-team-open"],
+      "expected": { "fallback": ["time-limited team disbanded after the RFC", "disbanded after the RFC", "it is disbanded after the RFC", "a time-limited team", "time-limited and disbanded after authoring the RFC", "disbanded"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-11",
+      "type": "open-question",
+      "prompt": "In the pin ergonomics experiment, which syntax do pinned mutable references use, and can it be used on stable Rust?",
+      "items": ["pin-syntax-undecided"],
+      "expected": { "fallback": ["&pin mut T", "&pin mut T, nightly-only", "&pin mut T on nightly only", "&pin mut T, nightly only", "keep &pin mut T", "&pin mut T and nightly-only"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-12",
+      "type": "fact-lookup",
+      "prompt": "How much of his time can the owner of the 2025H1 project goal program commit to running it?",
+      "items": ["goals-owner-20-percent"],
+      "expected": { "accepted": ["20%", "20 %", "20 percent", "20% time", "1 day per week", "one day per week", "20% (1 day per week)", "20%, about 1 day per week", "20%, 1 day per week"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-13",
+      "type": "fact-lookup",
+      "prompt": "How many people make up the planning team that coordinates the overall process for the Rust All-Hands 2025?",
+      "items": ["planning-team-size"],
+      "expected": { "accepted": ["2-3", "2–3", "2 to 3", "two to three", "2-3 people", "2 to 3 people", "two to three people", "2 or 3", "two or three", "2 or 3 people", "two or three people"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-14",
+      "type": "fact-lookup",
+      "prompt": "How many lang team design meetings are expected for the trait for synchronous generators?",
+      "items": ["generator-design-meetings"],
+      "expected": { "accepted": ["2", "two", "2 meetings", "two meetings"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-15",
+      "type": "fact-lookup",
+      "prompt": "In the March 2025 update, what progress did the Rust for Linux tooling flagship goal show?",
+      "items": ["progress-rfl"],
+      "expected": { "accepted": ["11 of 26", "11/26", "11 out of 26"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-16",
+      "type": "fact-lookup",
+      "prompt": "Of the guests invited to the Rust All-Hands 2025 so far, how many needed funding for their travel?",
+      "items": ["guests-invited"],
+      "expected": { "accepted": ["2", "two", "2 guests", "two guests", "only 2", "only two"] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-17",
+      "type": "qualification",
+      "prompt": "Summarise where the 2025H1 work on async fn in traits stands: what was planned and what has happened since.",
+      "items": ["afit-h1-deliverables", "dyn-trait-stretch", "rtn-type-position-deferred-h2", "rtn-stabilization-blocked", "dynosaur-0-3-candidate"],
+      "expected": { "rubric": [{ "id": "r1", "text": "The plan was to stabilize RTN and implementable trait aliases and ship dynosaur 1.0.", "items": ["afit-h1-deliverables"] }, { "id": "r2", "text": "Async fn in dyn Trait on nightly was only a stretch goal, and RTN in type position is left for H2.", "items": ["dyn-trait-stretch", "rtn-type-position-deferred-h2"] }, { "id": "r3", "text": "The FCP to stabilize RTN is blocked on concerns that it would make shipping the next-generation trait solver harder.", "items": ["rtn-stabilization-blocked"] }, { "id": "r4", "text": "dynosaur is at 0.2 with more breaking changes for a 0.3 line meant as the 1.0 candidate, so 1.0 has not shipped.", "items": ["dynosaur-0-3-candidate"] }] },
+      "author": "ai-task-writer-j",
+      "notes": "cross-section: the Async goal plan and the March and April progress updates."
+    },
+    {
+      "id": "p12-18",
+      "type": "qualification",
+      "prompt": "Explain what accepting a Rust project goal commits the Rust teams to, and what it does not.",
+      "items": ["goal-not-promise-of-decision", "goals-not-a-solution", "owners-propose-teams-decide", "flagship-chosen-by-roadmap-owner"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Teams commit to support the owner and prioritize feedback, but accepting a goal is never a promise of any future decision such as accepting an RFC.", "items": ["goal-not-promise-of-decision"] }, { "id": "r2", "text": "Acceptance commits that the problem is a priority, not to any particular solution.", "items": ["goals-not-a-solution"] }, { "id": "r3", "text": "Owners make proposals; teams decide whether to accept them.", "items": ["owners-propose-teams-decide"] }, { "id": "r4", "text": "Flagship goals are a subset selected by the roadmap owner, not by the teams' acceptance alone.", "items": ["flagship-chosen-by-roadmap-owner"] }] },
+      "author": "ai-task-writer-j",
+      "notes": "cross-section: Motivation of the slate and the goal-program design axioms."
+    },
+    {
+      "id": "p12-19",
+      "type": "qualification",
+      "prompt": "Summarise the plan for the compiler flags Rust for Linux needs, using the arm64 flags as an example.",
+      "items": ["rfl-arm64-flags", "abi-flags-z-to-c", "flag-decisions-independent", "std-rebuild-not-supported"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Names the arm64 flags: -Zbranch-protection, -Zfixed-x18 and -Zuse-sync-unwind.", "items": ["rfl-arm64-flags"] }, { "id": "r2", "text": "Implementing RFC 3716 means moving each flag from -Z to -C.", "items": ["abi-flags-z-to-c"] }, { "id": "r3", "text": "Stabilization decisions are made independently for each flag.", "items": ["flag-decisions-independent"] }, { "id": "r4", "text": "Full use of ABI-modifying flags also needs a blessed way to rebuild std, which rustc does not support today.", "items": ["std-rebuild-not-supported"] }] },
+      "author": "ai-task-writer-j"
+    },
+    {
+      "id": "p12-20",
+      "type": "edit-plan",
+      "prompt": "One more goal is added to the 2025H1 slate. Which lines must change so the document states the new total of 41 project goals?",
+      "items": ["goal-count-40"],
+      "expected": { "md": [[3, 3], [7, 7], [25, 25], [832, 832]], "smd": [[8, 8], [12, 12], [30, 30], [843, 843]] },
+      "author": "ai-task-writer-j",
+      "notes": "The total appears in the status line, the Summary, the Motivation and the March update."
+    }
+  ]
+}

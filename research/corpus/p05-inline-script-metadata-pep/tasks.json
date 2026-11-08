@@ -1,0 +1,285 @@
+{
+  "tasks": [
+    {
+      "id": "p05-01",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "A tool author is adding support for inline script metadata. Which block type should the tool read a script's dependencies from, and where in that block do `dependencies` and `requires-python` live?",
+      "items": ["script-type-replaces-pyproject", "script-fields"],
+      "expected": { "option": ["script", "the script type", "script type", "# /// script", "a script block", "the script block", "script block with top-level dependencies and requires-python", "script type with top-level fields", "top-level fields of the script block"], "superseded": ["pyproject", "the pyproject type", "pyproject type", "# /// pyproject", "pyproject block", "[run] table", "the [run] table", "pyproject type with a [run] table", "the [run] table of a pyproject block"] },
+      "notes": "The provisional pyproject/[run] specification is reproduced with MAY/MUST wording and an example; the Specification's script type section supersedes it. Cross-section."
+    },
+    {
+      "id": "p05-02",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "Should a script's embedded dependencies be written as a requirements.txt-like comment block or in a TOML-based format?",
+      "items": ["requirements-style-block-rejected"],
+      "expected": { "option": ["TOML-based format", "TOML", "TOML-based", "a TOML-based format", "TOML-based metadata format", "TOML-based block", "the TOML-based metadata format"], "superseded": ["requirements.txt-like comment block", "requirements.txt-like block", "requirements-like block comment", "requirements.txt", "a requirements.txt-like comment block"] }
+    },
+    {
+      "id": "p05-03",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "Should script metadata be stored in a `__pyproject__` multi-line string or in a comment block?",
+      "items": ["multiline-string-rejected"],
+      "expected": { "option": ["comment block", "a comment block", "in a comment block", "metadata comment block", "# /// script comment block", "comment block starting with # /// script"], "superseded": ["__pyproject__ multi-line string", "multi-line string", "a multi-line string", "__pyproject__", "in a __pyproject__ multi-line string"] }
+    },
+    {
+      "id": "p05-04",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "Should embedded script metadata reuse the existing project metadata standard, with its `name` and `version` fields, or define its own fields?",
+      "items": ["core-metadata-reuse-rejected", "script-fields"],
+      "expected": { "option": ["define its own fields", "its own fields", "own fields", "dependencies and requires-python", "its own top-level fields", "define its own fields (dependencies and requires-python)"], "superseded": ["reuse the existing project metadata standard", "reuse core metadata fields", "reuse the project metadata standard", "core metadata", "core metadata fields", "project metadata standard", "reuse it"] },
+      "notes": "Cross-section: rejection is in Rejected Ideas; the current fields are in Specification."
+    },
+    {
+      "id": "p05-05",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "A linter is run on a directory that contains some scripts with embedded metadata. Must the linter behave as if none of the files had embedded metadata, or is that up to the linter?",
+      "items": ["tool-behavior-limit-rejected"],
+      "expected": { "option": ["up to the linter", "it is up to the linter", "up to the tool", "it is up to individual tools", "up to individual tools", "the tool decides", "the linter decides"], "superseded": ["behave as if none of the files had embedded metadata", "it must behave as if none of the files had embedded metadata", "behave as if zero files had embedded metadata", "must ignore embedded metadata", "it must"] },
+      "notes": "The rejected SHOULD NOT rule reads authoritative in Rejected Ideas; the current position is in How to Teach This."
+    },
+    {
+      "id": "p05-06",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "Should a script runner work out a script's dependencies by inferring them from its import statements, or read them from the declared `dependencies` field?",
+      "items": ["infer-from-imports-rejected", "script-fields"],
+      "expected": { "option": ["read them from the declared dependencies field", "the declared dependencies field", "declared dependencies field", "the dependencies field", "dependencies field", "declared dependencies", "read the dependencies field"], "superseded": ["infer them from import statements", "inferring them from import statements", "import statements", "infer from imports", "from import statements"] },
+      "notes": "Cross-section."
+    },
+    {
+      "id": "p05-07",
+      "type": "decision-status",
+      "author": "ai-task-writer-f",
+      "prompt": "Should script metadata be stored as special Python variables such as `__requires_python__` and `__dependencies__`, or in a TOML comment block?",
+      "items": ["python-syntax-variables-rejected"],
+      "expected": { "option": ["TOML comment block", "a TOML comment block", "in a TOML comment block", "comment block", "a comment block", "TOML in a comment block"], "superseded": ["special Python variables", "Python variables", "as special Python variables", "__requires_python__ and __dependencies__", "Python syntax"] }
+    },
+    {
+      "id": "p05-08",
+      "type": "open-question",
+      "author": "ai-task-writer-f",
+      "prompt": "A script's dependencies come from a private package index. Can the script block name that index, and if not, how should the user tell the runner about it?",
+      "items": ["package-index-undecided"],
+      "expected": { "fallback": ["pass the index to the tool through the tool's own interface", "through the tool's own interface", "the tool's own interface", "via the tool's own interface", "pass it to the tool through its own interface", "use the tool's own interface", "pass the index through the tool's interface", "through the tool's interface"] }
+    },
+    {
+      "id": "p05-09",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A script begins its metadata with the line `#/// script` (no space between `#` and the slashes). Must a tool treat this as the start of a metadata block?",
+      "items": ["start-line-format"],
+      "expected": { "verdict": ["no"], "constraint": "start-line-format" }
+    },
+    {
+      "id": "p05-10",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "May a script close its metadata block with the line `## ///`?",
+      "items": ["end-line-format"],
+      "expected": { "verdict": ["no"], "constraint": "end-line-format" }
+    },
+    {
+      "id": "p05-11",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "Is `lock-v2` syntactically valid as a metadata block TYPE?",
+      "items": ["type-charset"],
+      "expected": { "verdict": ["yes"], "constraint": "type-charset" },
+      "notes": "ASCII letters, numbers and hyphens only."
+    },
+    {
+      "id": "p05-12",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "Inside a `# /// script` block, may a line consist of just `#` with nothing after it?",
+      "items": ["content-lines-comments"],
+      "expected": { "verdict": ["yes"], "constraint": "content-lines-comments" },
+      "notes": "The space rule applies only if there are characters after the #."
+    },
+    {
+      "id": "p05-13",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "Inside a `# /// some-toml` block, the embedded content contains the line `# /// <summary>`, and the block later ends with `# ///`. Is this a single valid block?",
+      "items": ["no-nested-start-line", "type-charset", "ending-line-precedence"],
+      "expected": { "verdict": ["yes"], "constraint": "no-nested-start-line" },
+      "notes": "`<summary>` is not a valid TYPE, so the line is not a starting line; the document shows this as a fully valid block."
+    },
+    {
+      "id": "p05-14",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A script has a `# /// script` line followed by dependency lines, but the closing `# ///` line was deleted. Should a runner still install the listed dependencies?",
+      "items": ["unclosed-blocks-ignored"],
+      "expected": { "verdict": ["no"], "constraint": "unclosed-blocks-ignored" }
+    },
+    {
+      "id": "p05-15",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A script contains two `# /// script` blocks. May a runner merge their dependencies and run the script?",
+      "items": ["duplicate-type-error"],
+      "expected": { "verdict": ["no"], "constraint": "duplicate-type-error" }
+    },
+    {
+      "id": "p05-16",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "May a tool that reads embedded metadata ignore a script's `# -*- coding: latin-1 -*-` declaration?",
+      "items": ["utf8-default-encoding"],
+      "expected": { "verdict": ["yes"], "constraint": "utf8-default-encoding" },
+      "notes": "Yes, provided it then processes the file as UTF-8."
+    },
+    {
+      "id": "p05-17",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A parser rejects a block that the canonical regular expression would accept, because the written text rules say the block is invalid. Is the parser right to reject it?",
+      "items": ["text-spec-over-regex"],
+      "expected": { "verdict": ["yes"], "constraint": "text-spec-over-regex" }
+    },
+    {
+      "id": "p05-18",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "May a `dependencies` entry carry an environment marker, such as `pywin32 ; sys_platform == 'win32'`?",
+      "items": ["dependencies-pep508"],
+      "expected": { "verdict": ["yes"], "constraint": "dependencies-pep508" },
+      "notes": "A valid PEP 508 dependency; the document itself gives this form as the correct way to express a Windows-only requirement."
+    },
+    {
+      "id": "p05-19",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "May `requires-python` be written as a TOML list of versions, such as `[\"3.11\", \"3.12\"]`?",
+      "items": ["requires-python-specifier"],
+      "expected": { "verdict": ["no"], "constraint": "requires-python-specifier" }
+    },
+    {
+      "id": "p05-20",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A script runner cannot obtain one of the packages listed in a script's `dependencies`. May it run the script anyway with the other packages installed?",
+      "items": ["runner-error-dependencies"],
+      "expected": { "verdict": ["no"], "constraint": "runner-error-dependencies" }
+    },
+    {
+      "id": "p05-21",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A script runner has no Python version that satisfies a script's `requires-python`. It runs the script with the interpreter it has and prints a warning instead of failing. Does this comply with the specification?",
+      "items": ["runner-error-python"],
+      "expected": { "verdict": ["yes"], "constraint": "runner-error-python" },
+      "notes": "SHOULD error, not MUST, so not erroring is permitted though not recommended."
+    },
+    {
+      "id": "p05-22",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A runner that installs dependencies automatically is given a URL to a script. May it download the script and install its declared dependencies straight away, before showing them to the user?",
+      "items": ["no-unseen-install-from-url"],
+      "expected": { "verdict": ["no"], "constraint": "no-unseen-install-from-url" }
+    },
+    {
+      "id": "p05-23",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A tool that manages Python versions has 3.11, 3.12 and 3.13 available, and a script declares `requires-python = \">=3.11\"`. Should the tool try to use 3.13?",
+      "items": ["prefer-highest-python"],
+      "expected": { "verdict": ["yes"], "constraint": "prefer-highest-python" }
+    },
+    {
+      "id": "p05-24",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "A coding assistant needs to add `httpx` to a script that already has a `# /// script` block. May it append a second `# /// script` block that lists only `httpx`?",
+      "items": ["agent-add-to-existing-block", "duplicate-type-error"],
+      "expected": { "verdict": ["no"], "constraint": "agent-add-to-existing-block" },
+      "notes": "Cross-section: the automated-tools note and the duplicate-block error rule in Specification."
+    },
+    {
+      "id": "p05-25",
+      "type": "constraint-check",
+      "author": "ai-task-writer-f",
+      "prompt": "May a dependency update bot move a script's dependencies out of its `script` block into a `requirements.txt` file next to the script?",
+      "items": ["agent-no-requirements-file"],
+      "expected": { "verdict": ["no"], "constraint": "agent-no-requirements-file" }
+    },
+    {
+      "id": "p05-26",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-f",
+      "prompt": "Which top-level fields may a `script` metadata block include?",
+      "items": ["script-fields"],
+      "expected": { "accepted": ["dependencies and requires-python", "requires-python and dependencies", "dependencies, requires-python", "requires-python, dependencies", "dependencies and requires-python, plus a [tool] table", "dependencies, requires-python and a [tool] table"] },
+      "notes": "A reader trusting the provisional specification would answer with the [run] table."
+    },
+    {
+      "id": "p05-27",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-f",
+      "prompt": "Inside a metadata block, a `# ///` line is followed by another valid comment line. Does that `# ///` line end the block?",
+      "items": ["ending-line-precedence"],
+      "expected": { "accepted": ["no", "no, the block continues"] }
+    },
+    {
+      "id": "p05-28",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-f",
+      "prompt": "May a tool read its configuration from a metadata block of type `mytool`, a type no PEP has standardized?",
+      "items": ["no-unstandardized-types"],
+      "expected": { "accepted": ["no"] },
+      "violations": [{ "item": "no-unstandardized-types", "answers": ["yes"] }]
+    },
+    {
+      "id": "p05-29",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-f",
+      "prompt": "Must a tool that edits a script's embedded metadata preserve the existing TOML formatting?",
+      "items": ["format-preserving-not-required"],
+      "expected": { "accepted": ["no", "no, it is a nice to have", "no, it is only nice to have"] },
+      "violations": [{ "item": "format-preserving-not-required", "answers": ["yes"] }]
+    },
+    {
+      "id": "p05-30",
+      "type": "qualification",
+      "author": "ai-task-writer-f",
+      "prompt": "Summarise what a script runner must and should do when it reads a script's embedded dependencies and Python requirement, including edge cases.",
+      "items": ["runner-error-dependencies", "runner-error-python", "prefer-highest-python", "no-unseen-install-from-url", "unclosed-blocks-ignored", "duplicate-type-error"],
+      "expected": { "rubric": [{ "id": "r1", "text": "It must error if the declared dependencies cannot be provided.", "items": ["runner-error-dependencies"] }, { "id": "r2", "text": "It should (not must) error if no Python version satisfying requires-python can be provided.", "items": ["runner-error-python"] }, { "id": "r3", "text": "If it manages Python versions, it should try the highest available version compatible with requires-python.", "items": ["prefer-highest-python"] }, { "id": "r4", "text": "For a script fetched from a URL, it must not install dependencies until the user has seen the declared dependencies.", "items": ["no-unseen-install-from-url"] }, { "id": "r5", "text": "Unclosed blocks are ignored, and multiple blocks of the same type are an error.", "items": ["unclosed-blocks-ignored", "duplicate-type-error"] }] },
+      "notes": "Cross-section: Specification, Recommendations, Security Implications."
+    },
+    {
+      "id": "p05-31",
+      "type": "qualification",
+      "author": "ai-task-writer-f",
+      "prompt": "Explain the rules an automated tool must follow when it adds a dependency to a script's embedded metadata.",
+      "items": ["agent-add-to-existing-block", "duplicate-type-error", "end-line-format", "content-lines-comments", "agent-no-requirements-file", "dependencies-pep508", "format-preserving-not-required"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Add to the existing script block rather than starting a second block of the same type, which would be an error.", "items": ["agent-add-to-existing-block", "duplicate-type-error"] }, { "id": "r2", "text": "Keep the closing # /// line and keep every line of the block a comment (a # followed by a space, or a bare #).", "items": ["end-line-format", "content-lines-comments"] }, { "id": "r3", "text": "Do not move the dependencies into a separate requirements file.", "items": ["agent-no-requirements-file"] }, { "id": "r4", "text": "Each added entry must be a valid PEP 508 dependency.", "items": ["dependencies-pep508"] }, { "id": "r5", "text": "Preserving TOML formatting is nice to have, not required.", "items": ["format-preserving-not-required"] }] },
+      "notes": "Cross-section: Notes for automated tools, Specification, Reference Implementation."
+    },
+    {
+      "id": "p05-32",
+      "type": "edit-plan",
+      "author": "ai-task-writer-f",
+      "prompt": "Which lines must change to make it mandatory (MUST rather than SHOULD) for script runners to error when no Python version satisfying `requires-python` can be provided?",
+      "items": ["runner-error-python"],
+      "expected": { "md": [[194, 195], [345, 345]], "smd": [[202, 203], [356, 356]] },
+      "notes": "The rule is stated in Specification and softened again in the How to Teach This table row."
+    },
+    {
+      "id": "p05-33",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-f",
+      "prompt": "May a linter that does not run scripts read its settings from the `[tool]` table of a script block?",
+      "items": ["tool-table-any-tool"],
+      "expected": { "accepted": ["yes", "yes, any tool may use it"] }
+    }
+  ]
+}

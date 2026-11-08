@@ -1,0 +1,196 @@
+{
+  "tasks": [
+    {
+      "id": "s07-01",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "An expiry ticket was opened on Monday for api.cargomint.example.com, which has 19 days left. No key has leaked. May the platform engineer on rotation duty do the routine rotation on Thursday at 10:30 Rotterdam time?",
+      "items": ["rotation-weekday-window", "rotate-at-21-days"],
+      "expected": { "verdict": ["yes"], "constraint": "rotation-weekday-window" },
+      "notes": "Yes: Thursday 10:30 is inside the Tuesday to Thursday, 09:00 to 15:00 window."
+    },
+    {
+      "id": "s07-02",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "At 03:00 on a Sunday the platform engineer learns that the private key for tracking.cargomint.example.com may have leaked. They have just told the security on-call. May they begin the emergency rotation now rather than wait for the weekday window?",
+      "items": ["leak-tell-security-first", "leak-rotate-any-time"],
+      "expected": { "verdict": ["yes"], "constraint": "leak-tell-security-first" },
+      "notes": "Yes: a leaked key is rotated at once, any day and hour, once security on-call has been told."
+    },
+    {
+      "id": "s07-03",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "To keep the vault path tidy, may the engineer store the new certificate and key for partners.cargomint.example.com by overwriting the current version at that hostname's vault path?",
+      "items": ["vault-no-overwrite"],
+      "expected": { "verdict": ["no"], "constraint": "vault-no-overwrite" }
+    },
+    {
+      "id": "s07-04",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "The key for api.cargomint.example.com may have leaked. To avoid an outage, may the engineer issue and roll out the new certificate first and have the old one revoked only once all nodes are reloaded?",
+      "items": ["leak-revoke-first"],
+      "expected": { "verdict": ["no"], "constraint": "leak-revoke-first" }
+    },
+    {
+      "id": "s07-05",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "After an emergency rotation following a key leak, the engineer writes in the ticket the time the old certificate was revoked and the time the last node was reloaded. Is that record complete?",
+      "items": ["leak-record-three-times"],
+      "expected": { "verdict": ["no"], "constraint": "leak-record-three-times" },
+      "notes": "No: the time the engineer learned of the leak is also required."
+    },
+    {
+      "id": "s07-06",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "Thirty hours after the partners hostname was rotated, a carrier partner reports TLS handshake failures. The carrier integrations team looks into it and asks the platform engineer to roll back. May the engineer roll back?",
+      "items": ["partner-failures-no-rollback"],
+      "expected": { "verdict": ["yes"], "constraint": "partner-failures-no-rollback" },
+      "notes": "Yes: rollback is not done unless the carrier integrations team asks, and here they ask."
+    },
+    {
+      "id": "s07-07",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "The rotation bot picks up an expiry ticket for tracking.cargomint.example.com on a Wednesday at 10:00 Rotterdam time. May it issue the new certificate, store it in the vault and reload the gateway nodes on its own?",
+      "items": ["automation-inventory-only", "rotation-weekday-window"],
+      "expected": { "verdict": ["yes"], "constraint": "automation-inventory-only" },
+      "notes": "Yes: the hostname is in the inventory table and is not internal-api."
+    },
+    {
+      "id": "s07-08",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "The rotation bot reloads gw-03 and gw-04, the handshake error rate on gw-03 goes over the threshold, and the bot rolls the pair back. The error rate stays high. May the bot try a second rollback on its own?",
+      "items": ["automation-stop-and-page", "handshake-error-rollback"],
+      "expected": { "verdict": ["no"], "constraint": "automation-stop-and-page" }
+    },
+    {
+      "id": "s07-09",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "Ten days after a successful rotation of api.cargomint.example.com, the rotation bot wants to clean up by running gwctl cert purge on the old certificate versions. May it?",
+      "items": ["automation-never-purge", "keep-previous-7-days"],
+      "expected": { "verdict": ["no"], "constraint": "automation-never-purge" },
+      "notes": "Cross-section: the 7 day hold in the Procedure warning has passed, but the notes for automation forbid the bot from ever running purge."
+    },
+    {
+      "id": "s07-10",
+      "type": "constraint-check",
+      "author": "ai-task-writer-d",
+      "prompt": "The expiry check flags internal-api.cargomint.example.net with 20 days left, on a Tuesday morning. It is listed in the certificate inventory. May the rotation bot carry out the rotation itself?",
+      "items": ["automation-no-internal-api", "automation-inventory-only", "internal-api-on-internal-ca"],
+      "expected": { "verdict": ["no"], "constraint": "automation-no-internal-api" },
+      "notes": "Cross-section: being in the inventory table (Certificate inventory) is not enough; the notes for automation exclude internal-api."
+    },
+    {
+      "id": "s07-11",
+      "type": "decision-status",
+      "author": "ai-task-writer-d",
+      "prompt": "The change board is planning next year's certificate work for the gateway. How are the certificates for the public hostnames such as api and tracking issued and rotated?",
+      "items": ["acme-90-day-replaces-yearly"],
+      "expected": { "option": ["90-day certificates from the public ACME CA, rotated one hostname at a time when the expiry check flags them", "90-day ACME certificates rotated one hostname at a time", "public ACME CA, 90 days, one hostname at a time", "90-day certificates from the public ACME CA", "one hostname at a time when the expiry check flags them", "ACME, one hostname at a time"], "superseded": ["yearly rotation", "rotated by hand once a year in the first week of March", "once a year in March as a single change", "internal CA, one-year certificates, all hostnames together", "one year validity from the internal CA"] },
+      "notes": "The superseded February 2024 decision is stated first and reads as authoritative on its own."
+    },
+    {
+      "id": "s07-12",
+      "type": "open-question",
+      "author": "ai-task-writer-d",
+      "prompt": "A carrier partner's mutual TLS client certificate, which it presents to the partners hostname, expires next week. Should the platform engineer on rotation duty rotate it as part of this runbook?",
+      "items": ["partner-client-certs-open"],
+      "expected": { "fallback": ["the carrier integrations team rotates it with their own checklist", "carrier integrations team with their own checklist", "leave it to the carrier integrations team", "do not touch it, carrier integrations rotates it", "the platform engineer does not touch them"] },
+      "notes": "To be settled at the planning meeting in January."
+    },
+    {
+      "id": "s07-13",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-d",
+      "prompt": "When a gateway node is reloaded during a rotation, for how long does it drain open connections before switching certificates?",
+      "items": ["drain-30-seconds"],
+      "expected": { "accepted": ["30 seconds", "up to 30 seconds", "30", "30 s", "30s", "thirty seconds"] },
+      "violations": [{ "item": "drain-30-seconds", "answers": ["120 seconds", "120", "up to 120 seconds", "2 minutes"] }]
+    },
+    {
+      "id": "s07-14",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-d",
+      "prompt": "After a rotation, how long must the previous certificate version be kept in the vault before it may be deleted or disabled?",
+      "items": ["keep-previous-7-days"],
+      "expected": { "accepted": ["7 days", "seven days", "7", "a week", "one week", "1 week"] }
+    },
+    {
+      "id": "s07-15",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-d",
+      "prompt": "Above what TLS handshake error rate on a node must a pair of reloaded nodes be rolled back?",
+      "items": ["handshake-error-rollback"],
+      "expected": { "accepted": ["0.5%", "0.5", "0.5 percent", "0.5 per cent", "half a percent"] }
+    },
+    {
+      "id": "s07-16",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-d",
+      "prompt": "During an emergency rotation after a key leak at 23:30 Rotterdam time, what is the largest number of public gateway nodes that may be reloaded at the same time?",
+      "items": ["emergency-three-nodes-at-night", "max-two-nodes-out"],
+      "expected": { "accepted": ["3", "three", "3 nodes", "three nodes"] },
+      "violations": [{ "item": "max-two-nodes-out", "answers": ["4", "four", "6", "six", "all"] }],
+      "notes": "Cross-section: the two-node limit in Procedure and the night-time exception in Emergency rotation."
+    },
+    {
+      "id": "s07-17",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-d",
+      "prompt": "Which certificate authority issues the certificate for internal-api.cargomint.example.net?",
+      "items": ["internal-api-on-internal-ca", "acme-90-day-replaces-yearly"],
+      "expected": { "accepted": ["Cargomint internal CA", "internal CA", "the Cargomint internal CA", "Cargomint's internal CA"] },
+      "notes": "Cross-section: inventory table and the 2025 decision both keep internal-api on the internal CA."
+    },
+    {
+      "id": "s07-18",
+      "type": "qualification",
+      "author": "ai-task-writer-d",
+      "prompt": "Summarise how an emergency rotation after a suspected key leak differs from a routine rotation.",
+      "items": ["leak-rotate-any-time", "leak-tell-security-first", "leak-revoke-first", "leak-change-board-after", "emergency-three-nodes-at-night", "max-two-nodes-out", "leak-record-three-times"],
+      "expected": { "rubric": [{ "id": "r1", "text": "It happens at once, any day and any hour, and the security on-call is told before starting.", "items": ["leak-rotate-any-time", "leak-tell-security-first"] }, { "id": "r2", "text": "The old certificate is revoked first, then the new one is issued and rolled out; the short outage (usually 10 to 20 minutes) is accepted.", "items": ["leak-revoke-first"] }, { "id": "r3", "text": "The change board is told afterwards, not asked before.", "items": ["leak-change-board-after"] }, { "id": "r4", "text": "Three nodes may be reloaded at a time instead of two, but only between 22:00 and 06:00 Rotterdam time; during the day the two node limit still applies.", "items": ["emergency-three-nodes-at-night", "max-two-nodes-out"] }, { "id": "r5", "text": "The ticket records the time the leak was learned of, the time of revocation and the time the last node was reloaded.", "items": ["leak-record-three-times"] }] },
+      "notes": "Cross-section: When to rotate, Procedure and Emergency rotation."
+    },
+    {
+      "id": "s07-19",
+      "type": "qualification",
+      "author": "ai-task-writer-d",
+      "prompt": "Explain what the rotation bot may do on its own when running this runbook, and where it must stop or hand over to a person.",
+      "items": ["automation-inventory-only", "automation-stop-and-page", "automation-never-purge", "automation-no-internal-api", "handshake-error-rollback"],
+      "expected": { "rubric": [{ "id": "r1", "text": "It runs issuing, storing and reloading (steps 1 to 3) only for hostnames in the inventory table.", "items": ["automation-inventory-only"] }, { "id": "r2", "text": "It never rotates internal-api, which always needs a person to request the certificate.", "items": ["automation-no-internal-api"] }, { "id": "r3", "text": "If the health check fails on any node (handshake errors over 0.5%), it stops and pages the platform engineer on rotation duty and does not try a second rollback on its own.", "items": ["automation-stop-and-page", "handshake-error-rollback"] }, { "id": "r4", "text": "It never runs gwctl cert purge.", "items": ["automation-never-purge"] }] }
+    },
+    {
+      "id": "s07-20",
+      "type": "edit-plan",
+      "author": "ai-task-writer-d",
+      "prompt": "The team wants to shorten the connection drain on each node reload to 20 seconds. Which lines of the runbook must change?",
+      "items": ["drain-30-seconds"],
+      "expected": { "md": [[47, 47], [53, 53]], "smd": [[56, 56], [62, 62]] },
+      "notes": "Procedure step 3 and the example command flag. Line 85 is background history of the drain value."
+    },
+    {
+      "id": "s07-21",
+      "type": "edit-plan",
+      "author": "ai-task-writer-d",
+      "prompt": "Both carrier partners that needed RSA can now handle ECDSA, so the partners hostname will move to an ECDSA P-256 certificate like the other public hostnames. Which lines of the runbook must change?",
+      "items": ["partners-stays-rsa"],
+      "expected": { "md": [[20, 20], [22, 22]], "smd": [[25, 25], [27, 27]] },
+      "notes": "Inventory table row and the prose explaining why partners stays on RSA 2048. Line 83 is background history."
+    },
+    {
+      "id": "s07-22",
+      "type": "edit-plan",
+      "author": "ai-task-writer-d",
+      "prompt": "Which lines must change to start rotating certificates when they have 30 days left before expiry?",
+      "items": ["rotate-at-21-days"],
+      "expected": { "md": [[9, 9]], "smd": [[14, 14]] }
+    }
+  ]
+}

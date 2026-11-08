@@ -1,0 +1,114 @@
+{
+  "tasks": [
+    {
+      "id": "s01-01",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "A customer voided an invoice before it had ever been included in a ledger export. Will the customer's next ledger export contain a reversal entry for that invoice?",
+      "items": ["voided-reversal-only-if-exported"],
+      "expected": { "verdict": ["no"], "constraint": "voided-reversal-only-if-exported" }
+    },
+    {
+      "id": "s01-02",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "A bookkeeper fixes a wrong sales account code in the export mapping today. Will the ledger export file built last Tuesday, which is still available for download, now contain the corrected code?",
+      "items": ["mapping-change-future-only"],
+      "expected": { "verdict": ["no"], "constraint": "mapping-change-future-only" }
+    },
+    {
+      "id": "s01-03",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "On one invoice with many lines, the per-line rounded amounts add up to 0.03 less than the invoice total. Does the ledger export still complete for that invoice?",
+      "items": ["rounding-over-limit-fails", "rounding-line-threshold"],
+      "expected": { "verdict": ["yes"], "constraint": "rounding-over-limit-fails" },
+      "notes": "Outside the constraint: 0.03 is within the rounding-line band, so a rounding line on 8990 is added instead of an error."
+    },
+    {
+      "id": "s01-04",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "An account based in France, where spreadsheets normally expect semicolon-separated files, downloads a Generic CSV ledger export. Will the file use a comma as its separator?",
+      "items": ["csv-comma-separator"],
+      "expected": { "verdict": ["yes"], "constraint": "csv-comma-separator" }
+    },
+    {
+      "id": "s01-05",
+      "type": "constraint-check",
+      "author": "ai-task-writer-a",
+      "prompt": "A customer asks for payment lines in their ledger export to carry the full bank account number each payment came from, so their accounting tool can match bank statements. May the export include it?",
+      "items": ["no-full-card-numbers"],
+      "expected": { "verdict": ["no"], "constraint": "no-full-card-numbers" },
+      "violations": [{ "item": "no-full-card-numbers", "answers": ["include the full bank account number", "full bank account number"] }]
+    },
+    {
+      "id": "s01-06",
+      "type": "decision-status",
+      "author": "ai-task-writer-a",
+      "prompt": "Should the ledger export build let users start an export whenever they want, or run exports on a fixed monthly schedule?",
+      "items": ["on-demand-replaces-monthly"],
+      "expected": { "option": ["on-demand exports", "on-demand", "on demand", "on-demand export", "let users start an export whenever they want", "users start an export whenever they want", "whenever they want", "at any time"], "superseded": ["monthly scheduled exports", "monthly schedule", "fixed monthly schedule", "on a fixed monthly schedule", "fixed schedule", "scheduled exports", "monthly"] },
+      "notes": "The superseded monthly schedule is still stated under Decisions as if current ('There is no on-demand export')."
+    },
+    {
+      "id": "s01-07",
+      "type": "open-question",
+      "author": "ai-task-writer-a",
+      "prompt": "Should ledger exports include the invoice PDFs, and what should the first version do about PDFs?",
+      "items": ["invoice-pdfs-open"],
+      "expected": { "fallback": ["ledger data only", "exports contain ledger data only", "export ledger data only", "users download PDFs separately from the invoice list", "download PDFs separately from the invoice list", "PDFs are downloaded separately from the invoice list", "download PDFs separately"] }
+    },
+    {
+      "id": "s01-08",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "How many account mapping rules can one account have for ledger exports?",
+      "items": ["mapping-rules-max"],
+      "expected": { "accepted": ["200", "200 rules", "200 mapping rules", "up to 200", "up to 200 rules", "up to 200 mapping rules", "at most 200", "two hundred"] }
+    },
+    {
+      "id": "s01-09",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "Which account do ledger export lines go to when no mapping rule matches them?",
+      "items": ["unmapped-to-suspense"],
+      "expected": { "accepted": ["9999", "account 9999", "suspense account 9999", "9999 Unmapped", "9999 \"Unmapped\"", "suspense account 9999 \"Unmapped\"", "suspense account 9999 Unmapped", "the suspense account 9999"] }
+    },
+    {
+      "id": "s01-10",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "What is the longest date range a user can cover in a single ledger export?",
+      "items": ["export-size-limits", "on-demand-replaces-monthly"],
+      "expected": { "accepted": ["12 months", "twelve months", "12", "at most 12 months", "up to 12 months", "1 year", "one year"] },
+      "notes": "cross-section: the limit (Limits) applies to on-demand exports (How an export runs); a reader trusting the superseded monthly schedule answers 'one calendar month'."
+    },
+    {
+      "id": "s01-11",
+      "type": "qualification",
+      "author": "ai-task-writer-a",
+      "prompt": "Summarise for a new support engineer who can start a ledger export, what a single export can cover, and what happens when an export takes too long or fails.",
+      "items": ["support-impersonation-exception", "one-entity-per-export", "export-size-limits", "export-rate-limit", "job-timeout", "no-auto-retry", "file-retention"],
+      "expected": { "rubric": [{ "id": "r1", "text": "Only account owners and Bookkeeper-role users can start an export; support staff can start one for any account from the admin console while impersonating it.", "items": ["support-impersonation-exception"] }, { "id": "r2", "text": "A multi-entity account exports one entity at a time; there is no combined export across entities.", "items": ["one-entity-per-export"] }, { "id": "r3", "text": "One export covers at most 12 months and 50,000 ledger lines, and an account can start at most 5 exports per hour.", "items": ["export-size-limits", "export-rate-limit"] }, { "id": "r4", "text": "A job not finished after 15 minutes is cancelled, and failed jobs are not retried automatically.", "items": ["job-timeout", "no-auto-retry"] }, { "id": "r5", "text": "Finished files stay downloadable for 7 days and are then deleted.", "items": ["file-retention"] }] },
+      "notes": "cross-section: Scope, Limits and How an export runs."
+    },
+    {
+      "id": "s01-12",
+      "type": "edit-plan",
+      "author": "ai-task-writer-a",
+      "prompt": "Which lines must change to raise the longest date range of a single ledger export from 12 months to 24 months?",
+      "items": ["export-size-limits"],
+      "expected": { "md": [[67, 67], [91, 91]], "smd": [[72, 72], [98, 98]] },
+      "notes": "The limit is stated in Limits and repeated in the user-facing error message list."
+    },
+    {
+      "id": "s01-13",
+      "type": "fact-lookup",
+      "author": "ai-task-writer-a",
+      "prompt": "How long can a ledger export job run before it is cancelled?",
+      "items": ["job-timeout"],
+      "expected": { "accepted": ["15 minutes", "15 min", "15 mins", "fifteen minutes", "15", "after 15 minutes", "up to 15 minutes"] }
+    }
+  ]
+}

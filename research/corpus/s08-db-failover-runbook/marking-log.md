@@ -1,0 +1,11 @@
+L1-L6: front matter title, summary, status — "# Keystead runbook: failing over the main database", "This runbook covers how to move Keystead's main database, `kdb-main`, from its primary node to a replica, both when the primary has failed and when we do it on purpose for maintenance.", "Status: in review." (status mapped to `review`: "in review")
+L16: :::agent — "The incident assistant bot in the incident channel and the alert router both read this runbook to suggest next steps. This section is for them. People can skip it."
+L26: {agent=skip} — "## Background (history, for people)"
+L121: :::decision{status=superseded date=2025-06-02} — "Decision (accepted 2025-06-02): Keel's automatic failover is turned off for `kdb-main`.", and at L296 "This replaces the 2025-06-02 decision to keep automatic failover off."
+L168: :::warning — "**Warning:** Check the lag of the target again right before step 5, not only in step 2."
+L172: :::danger — "**Important:** Never start the old primary again as a primary, and never remove its fence by hand" with stated harm "both nodes accept writes and we are back in the August 2024 split brain"
+L202: :::danger — "**Important:** Do not start a planned switchover between 00:00 and 06:00 UTC on the 1st to the 5th of any month." with stated harm "can leave rent runs half posted, which agencies see as tenants charged twice or not at all"
+L289: :::question — "Undecided: whether `kdb-main-report` in north-2 should become a promotion candidate", "Until then, a full north-1 loss is handled by the disaster recovery plan"
+L295: :::decision{status=accepted date=2026-03-11} — "Decision (accepted 2026-03-11): automatic failover is turned on for `kdb-main`"
+L299: :::decision{status=accepted date=2026-08-04} — "Decision (accepted 2026-08-04): the lag limit for promoting `kdb-main-c` by hand is 16 MB of WAL or 5 seconds."
+L303: {agent=skip} — "## Notes from the March 2026 game day (for the team)"

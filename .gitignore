@@ -46,6 +46,8 @@ integrations/tree-sitter-smd/log.html
 # GitHub Pages build output (.github/workflows/pages.yml)
 _site/
 
-# Local output and all research material (not committed)
+# Local output and research material (not committed), except the Study 1 corpus and its annotation guide
 output/
-research/
+research/*
+!research/corpus/
+!research/annotation-guide.smd
