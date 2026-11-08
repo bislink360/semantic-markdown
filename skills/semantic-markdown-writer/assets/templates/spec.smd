@@ -31,23 +31,34 @@ Who has the problem, what they do today, and why that is not good enough. Link t
 
 Each requirement has an ID that the plan, the tasks and the tests refer to.
 
-| ID  | Requirement                                    | Priority      |
-| --- | ---------------------------------------------- | ------------- |
-| R1  | The system must do the essential thing.        | :priority[P0] |
-| R2  | The system should do the next important thing. | :priority[P1] |
-| R3  | The system could do the nice-to-have thing.    | :priority[P2] |
+:::requirement{#R1 priority=P0 status=proposed} The system must do the essential thing
+Detail, rationale and examples.
+:::
+
+:::requirement{#R2 priority=P1 status=proposed} The system should do the next important thing
+:::
+
+:::requirement{#R3 priority=P2 status=proposed} The system could do the nice-to-have thing
+:::
 
 ## Acceptance criteria
 
-| ID  | Requirement | Given            | When            | Then                |
-| --- | ----------- | ---------------- | --------------- | ------------------- |
-| AC1 | R1          | A starting state | The user acts   | The visible outcome |
-| AC2 | R2          | A starting state | Something fails | The safe outcome    |
+:::acceptance{#AC1 verifies=R1}
+Given a starting state
+When the user acts
+Then the visible outcome
+:::
+
+:::acceptance{#AC2 verifies=R2}
+Given a starting state
+When something fails
+Then the safe outcome
+:::
 
 ## Constraints
 
-:::warning Constraint
-A limit the implementation must respect: a performance budget, a compatibility promise, a security rule.
+:::constraint{#C1 scope=document} A limit the implementation must respect
+A performance budget, a compatibility promise, a security rule.
 :::
 
 ## Open questions
