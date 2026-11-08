@@ -14,6 +14,8 @@ Part of the syntax reference (`../syntax.md` lists the topics). Math is in `deve
 | `:due[2026-10-15]` | Due date: amber within 7 days, red when overdue |
 | `:metric[42%]{label="Activation" delta="+3%" trend=up good=up}` | KPI tile. `trend`: up/down/flat; `good`: up/down (default up). `label` is expected. |
 | `:progress{value=60 color=green label="6/10"}` | Progress bar (value 0–100) |
+| `:progress{basis=tasks}` | Counts the checked tasks of its section ("8 of 10 tasks checked") |
+| `:progress{value=40 basis=estimate}`, `basis=measured`, `value=unknown` | Says how the value was found, or that nobody knows it. A value without `basis` gets the hint `progress/basis` |
 | `:kbd[Ctrl+Shift+P]` | Keyboard keys |
 | `:mention[@team]` | Mention |
 | `:ref[fig-checkout]` | "Figure 2", linked to the `:::figure{#fig-checkout}` (see `figures-and-notes.md`) |

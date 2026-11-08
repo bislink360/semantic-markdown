@@ -10,7 +10,7 @@ updated: {{today}}
 
 ## Summary
 
-**Overall:** :status[On track]{color=green} · **Progress:** :progress{value=0}
+**Overall:** :status[On track]{color=green} · **Progress:** :progress{value=0 basis=estimate}
 
 :metric[—]{label="Key metric"} :metric[—]{label="Second metric"}
 
