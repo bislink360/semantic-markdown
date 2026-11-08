@@ -162,14 +162,19 @@ export function formatQueryResult(result: QueryDocumentsResult, options: FormatO
     else parts.push(`${location(m)}\n${m.text}\n${extra.length ? `${extra.join('\n')}\n` : ''}`);
     const last = result.matches[i + 1]?.file !== m.file;
     const c = last ? result.constraints.find((x) => x.file === m.file) : undefined;
-    if (c && !c.included) parts.push(`[smd] ${m.file}: ${constraintCount(c.blocks)} not included. ${hint}`);
+    if (c && !c.included) parts.push(options.titles ? constraintNote(c, hint) : `${constraintNote(c, hint)}\n`);
     if (c && c.included) {
       const head = `Agent blocks and document-wide constraints of ${m.file}, which apply to every match in it:`;
       if (options.titles) parts.push([head, ...c.blocks.map((b) => titleLine({ ...b, file: m.file, attrs: {} }))].join('\n'));
-      else parts.push(`${head}\n\n${c.blocks.map((b) => `${location({ ...b, file: m.file })}\n${b.text}\n`).join('\n')}`);
+      else parts.push(`${head}\n\n${c.blocks.map((b) => `${location({ ...b, file: m.file })}\n${b.text ? `${b.text}\n` : ''}`).join('\n')}`);
     }
   });
   return parts.join('\n').trimEnd() + '\n';
+}
+
+/** `[smd] docs/plan.smd: 1 agent block and 2 document-wide constraints not included. Add --constraints to include them.` */
+export function constraintNote(c: DocumentConstraints, hint = 'Add --constraints to include them.'): string {
+  return `[smd] ${c.file}: ${constraintCount(c.blocks)} not included. ${hint}`;
 }
 
 /** `2 agent blocks and 1 document-wide constraint` */

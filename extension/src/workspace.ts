@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  checkMermaid, extractTasks, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type MermaidParse, type QueryMatch,
+  checkMermaid, extractTasks, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type DocumentRead, type MermaidParse, type QueryMatch,
   type QueryOptions, type RuleSettings, type Selector, type StatusChanges, type TaskInfo,
 } from './core';
 import { compareTasks } from './taskGroups';
@@ -72,6 +72,24 @@ export function readerFor(file: string, roots = embedRoots(file)) {
     try { real = fs.realpathSync.native(target); } catch { return undefined; }
     if (!realRoots.some((r) => isInside(r, real))) return undefined;
     try { return fs.readFileSync(real, 'utf8'); } catch { return undefined; }
+  };
+}
+
+/**
+ * Reader for the files `smd query --follow` reaches outside the files it collected: only those inside `targets` (the
+ * folders and files the command was given), checked as written and with links followed. Others are denied, so their
+ * content and even whether they exist stay unknown.
+ */
+export function graphReader(targets: string[]) {
+  const roots = targets.map((t) => path.resolve(t));
+  const realRoots = roots.map(realPath);
+  return (p: string): DocumentRead => {
+    const target = path.resolve(p);
+    if (!roots.some((r) => isInside(r, target))) return { status: 'denied' };
+    let real: string;
+    try { real = fs.realpathSync.native(target); } catch { return { status: 'missing' }; }
+    if (!realRoots.some((r) => isInside(r, real))) return { status: 'denied' };
+    try { return { text: fs.readFileSync(real, 'utf8') }; } catch { return { status: 'missing' }; }
   };
 }
 

@@ -4,13 +4,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   agentView, applyFixes, DECISION_STATUS_FILTERS, decisionLog, decisionLogMarkdown, diffSmd, formatRelated, formatSmd, ganttDate,
-  ganttDocument, getDocumentInfo, markdownToSmd, outline, parseSelector, relatedDocs, renderRiskPage,
-  RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, SelectorError, LATEST_SPEC, smdIndex,
+  ganttDocument, getDocumentInfo, markdownToSmd, outline, relatedDocs, renderRiskPage,
+  RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, LATEST_SPEC, smdIndex,
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
-  type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Selector, type Tokenizer,
+  type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
 } from './core';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
+import { runQuery, type QueryFlags } from './queryCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -29,7 +30,7 @@ import {
   isGenerated, parseTargets, rulesBody, SHARED_CLI_COMMAND, SHARED_CLI_PATH, TARGET_FILES, type AgentTarget, type RulesTarget, type TargetFile,
 } from './agentTargets';
 import {
-  collect, decisionLine, decisionSummary, deletedSince, diagnose, existsFrom, git, gitPath, queryRows, querySummary, queryText, read, readerFor,
+  collect, decisionLine, decisionSummary, deletedSince, diagnose, existsFrom, git, gitPath, read, readerFor,
   reportSummary, taskLine, taskRows, taskSummary, workingPath, type TaskRow,
 } from './workspace';
 import {
@@ -85,14 +86,24 @@ Reading (token-efficient, for agents):
       a missing level counts as medium and shows as "medium?"), highest score first, then a matrix of
       counts. Closed risks are left out unless --all or --status asks for them.
       --html  a standalone, theme-aware page: a colour-coded matrix that links to the register table
-  smd query "<selector>" <files|dirs...> [--json] [--titles] [--brief] [--no-lines]
+  smd query "<selector>" <files|dirs...> [--json] [--titles] [--brief] [--no-lines] [--constraints]
+            [--follow <types|*> [--direction out|in|both] [--depth 1-3]]
       Blocks selected by type and attributes, each in the agent view. Exit code 1 when nothing matches.
         decision[status=accepted]      risk[impact>=high][status!=closed]      api[method=POST|PUT]
         task[owner=@maya][done=false]  task[due<today]    question, risk       heading[level=2]
+        heading[title=Rollout] task    heading[level=2] > decision             risk:not([status=closed])
       Types: any container (decision, risk, api, note, question, agent…), callout, task, heading, * (any).
       Tests: [key] [key=a|b] [key!=v] [key*=v] [key^=v] [key$=v] [key<v] (also <= > >=: numbers, dates,
-      priorities, risk levels); every block also has title, section and type.
-      --titles  one line per match instead of its content
+      priorities, risk levels); every block also has title, section and type. A space selects blocks
+      inside headings and containers, > direct children, :not(…) leaves matches out.
+      --titles       one line per match instead of its content
+      --constraints  also the documents' :::agent blocks and document-wide :::constraint blocks
+      --follow       neighbors along these edge types (link, ref, related, include, applies-to, depends-on,
+                     verifies, supports, contradicts, supersedes, between, for), kinds (navigation,
+                     mandatory, evidence, lifecycle, review) or *, as one-line pointers with their cost.
+                     include, applies-to and depends-on targets come in full, with what they need in turn.
+                     Other files are read only inside the paths given. --direction (default out) and
+                     --depth (default 1) say which edges and how far.
   smd diff <old.smd> <new.smd> [--json] [--brief] [--no-lines] [--exit-code]
   smd diff <files|dirs...> --since <git-ref> [--json] [--brief] [--no-lines] [--exit-code]
       Only the sections that changed, in the agent view of the new version: front-matter changes,
@@ -215,6 +226,7 @@ const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
+  '--follow', '--direction', '--depth',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -263,7 +275,10 @@ function main(argv: string[]): number | Promise<number> {
     case 'risks':
       return risks(positional, args);
     case 'query':
-      return query(positional[0], positional.slice(1), { json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today });
+      return query(positional[0], positional.slice(1), {
+        json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
+        constraints: flags.has('--constraints'), follow: value('--follow'), direction: value('--direction'), depth: value('--depth'),
+      });
     case 'diff':
       return diff(positional, value('--since'), { json: flags.has('--json'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), exitCode: flags.has('--exit-code'), today });
     case 'meta': {
@@ -528,24 +543,11 @@ function risks(targets: string[], args: Args): number {
   return write(out, args.flags.has('--json') ? JSON.stringify(register, null, 2) + '\n' : riskRegisterText(register));
 }
 
-interface QueryFlags { json: boolean; titles: boolean; brief: boolean; lineRefs: boolean; today?: string }
-
 function query(selector: string | undefined, targets: string[], flags: QueryFlags): number {
-  if (!selector) return fail('Usage: smd query "<selector>" <files|dirs...>, e.g. smd query "decision[status=accepted]" docs/');
-  let selectors: Selector[];
-  try {
-    selectors = parseSelector(selector);
-  } catch (e) {
-    if (e instanceof SelectorError) return fail(e.message);
-    throw e;
-  }
-  const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
-  if (!files.length) return fail('No .smd files found.');
-  const options = { brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today };
-  const rows = queryRows(files, selectors, options);
-  process.stdout.write(flags.json ? JSON.stringify(rows, null, 2) + '\n' : queryText(rows, flags.titles));
-  console.error(`[smd] ${querySummary(rows, files.length)}`);
-  return rows.length ? 0 : 1;
+  const { code, stdout, stderr } = runQuery(selector, targets, flags);
+  process.stdout.write(stdout);
+  process.stderr.write(stderr);
+  return code;
 }
 
 async function mcp(root = '.', options: { allowWrite: boolean; legacyTools: boolean }): Promise<number> {

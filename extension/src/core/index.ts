@@ -41,7 +41,7 @@ export type {
   GraphDocument, GraphNode, GraphEdge, GraphOptions, DocumentRead, EdgeKind, EdgeDirection, TargetStatus, FollowOptions, Neighbor,
   ClosureOptions, ClosureBlock, Closure, Unsatisfied, UnsatisfiedKind, DependencyProblem,
 } from './graph';
-export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints } from './graphQuery';
+export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints, constraintNote, pointerLine } from './graphQuery';
 export type { QueryDocumentsOptions, QueryDocumentsResult, FileMatch, ConstraintBlock, DocumentConstraints, MatchGraph, FormatOptions } from './graphQuery';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';
 export type { RelatedDoc, RelatedOptions, SmdSummary } from './related';
