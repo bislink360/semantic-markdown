@@ -326,6 +326,27 @@ export const EDGE_KINDS: Readonly<Record<string, 'navigation' | 'mandatory' | 'e
   for: 'review',
 };
 
+/**
+ * Enumerated attributes added in 4.1, by block (`:::question`) or directive (`:progress`). Before 4.1 a value written
+ * there was only an unknown attribute, a warning, so an invalid value stays a warning until the next major release
+ * instead of becoming an `attrs/value` error (a valid document must not become invalid in a minor release).
+ */
+export const NEW_VALUE_KEYS: Readonly<Record<string, readonly string[]>> = {
+  ':::question': ['status'],
+  ':::requirement': ['priority', 'status'],
+  ':::constraint': ['scope', 'level'],
+  ':::assumption': ['status'],
+  ':::evidence': ['result'],
+  ':::comment': ['kind', 'status'],
+  ':::suggestion': ['status'],
+  ':progress': ['basis'],
+};
+
+/** The severity of an invalid enumerated value: a warning on the attributes added in 4.1, an error elsewhere. */
+export function valueSeverity(block: string, key: string): 'error' | 'warning' {
+  return (Object.hasOwn(NEW_VALUE_KEYS, block) && NEW_VALUE_KEYS[block].includes(key)) ? 'warning' : 'error';
+}
+
 /** The ids an id attribute's value lists: `R1,R2` and `"R1, R2"` are both `R1` and `R2`. */
 export function idList(value: string): string[] {
   return value.split(',').map((id) => id.trim()).filter(Boolean);
@@ -389,7 +410,7 @@ function deepFreeze(value: unknown, seen = new Set<object>()): void {
 deepFreeze([
   NAMED_COLORS, DECISION_STATUS, RISK_LEVELS, RISK_STATUS, HTTP_METHODS, PRIORITY_VALUES, CALLOUT_TYPES, FIGURE_KINDS, CONTAINERS,
   REQUIREMENT_STATUS, CONSTRAINT_SCOPES, CONSTRAINT_LEVELS, ASSUMPTION_STATUS, EVIDENCE_RESULTS, EVIDENCE_METHODS, QUESTION_STATUS,
-  COMMENT_KINDS, COMMENT_STATUS, SUGGESTION_STATUS, PROGRESS_BASES, EDGE_KINDS,
+  COMMENT_KINDS, COMMENT_STATUS, SUGGESTION_STATUS, PROGRESS_BASES, EDGE_KINDS, NEW_VALUE_KEYS,
   STYLE_KEYS, SIZE_VALUES, WEIGHT_VALUES, FONT_VALUES, ALIGN_VALUES, TEXT_STYLE_VALUES, INLINE_DIRECTIVES, V1_DIRECTIVES, ID_ATTRIBUTES, VARIABLE_SYNTAX,
   FRONTMATTER_KEYS, STATUS_VALUES, AUDIENCE_VALUES, MERMAID_TYPES,
 ]);

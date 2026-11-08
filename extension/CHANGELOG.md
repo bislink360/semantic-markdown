@@ -31,6 +31,7 @@
 - **`smd tasks` prints one more line on stderr** after its summary, `Checked boxes are implementation claims, not verification: smd trace shows the evidence.` Its stdout is unchanged.
 - **A numeric `:progress` value without a basis gets the hint `progress/basis`,** in every spec version, so existing bars now show it. Hints never fail `smd validate`, and the bars render as before.
 - **`--max-tokens` keeps the sections that constraints and dependencies need,** and an omitted section with a constraint says `holds constraint`. Answered, incorporated and withdrawn questions now count as ordinary content. `--constraints` reports policy `constraints/2` in documents with a `:::constraint`.
+- **An invalid value on an attribute added in this release is a warning, not an error,** for example `:::question{status=pending}` or `:progress{basis=guess}`. Before, these were unknown attributes and only warned, so `smd validate` keeps passing on documents that already had them.
 - **Documents without the new syntax render, convert, validate and read as before.**
 - ⚠️ **A container named `requirement`, `constraint`, `acceptance`, `assumption`, `evidence`, `comment` or `suggestion` is now that block.** Before, it was an unknown container shown as a box with its title. Comments and suggestions are now also left out of exports unless `--comments` is given.
 - **`smd query "decision risk"` is a descendant selector** (risks inside a decision). A space between two types used to be an error.

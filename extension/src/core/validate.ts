@@ -39,8 +39,7 @@ import {
 } from './fixes';
 import {
   ALIGN_VALUES, FONT_VALUES, NAMED_COLORS, PRIORITY_VALUES, SIZE_VALUES, STYLE_KEYS, WEIGHT_VALUES,
-  CONTAINERS, ID_ATTRIBUTES, idList, INLINE_DIRECTIVES, isKnownDirective, MERMAID_TYPES, V1_DIRECTIVES, type InlineDirectiveSpec,
-} from './spec';
+  CONTAINERS, ID_ATTRIBUTES, idList, INLINE_DIRECTIVES, isKnownDirective, MERMAID_TYPES, V1_DIRECTIVES, type InlineDirectiveSpec, valueSeverity } from './spec';
 import { FRONTMATTER_SCHEMA, frontMatterProperty } from './frontmatterSchema';
 import { languageTag, matchLanguage, SUPPORTED_LANGUAGES } from './i18n';
 import { hasReviewBlocks, reviewItems } from './review';
@@ -574,7 +573,7 @@ function checkContainer(
     const v = info.attrs.values[key];
     if (v !== undefined && !allowed.some((a) => a.toLowerCase() === v.toLowerCase())) {
       const hint = suggest(v, allowed);
-      push(line, nameStart, nameEnd, 'error', 'attrs/value', `Invalid ${key} "${v}" on ":::${info.name}"${hint ? ` — did you mean "${hint}"?` : '.'} Use one of: ${allowed.join(', ')}.`,
+      push(line, nameStart, nameEnd, valueSeverity(`:::${info.name}`, key), 'attrs/value', `Invalid ${key} "${v}" on ":::${info.name}"${hint ? ` — did you mean "${hint}"?` : '.'} Use one of: ${allowed.join(', ')}.`,
         attrValueFix(line, raw, nameEnd, raw.length, key, v, uniqueSuggestion(v, allowed)));
     }
   }
@@ -741,7 +740,7 @@ function checkDirectiveAttr(
   const allowed = own(spec.values ?? {}, key);
   // Enumerated values are matched in any case, as container values are (`trend=Up` is `up`).
   if (allowed && !allowed.some((a) => a.toLowerCase() === value.toLowerCase())) {
-    push(line, col, end, 'error', 'attrs/value', `Invalid ${key} "${value}" for ":${name}". Use one of: ${allowed.join(', ')}.`,
+    push(line, col, end, valueSeverity(`:${name}`, key), 'attrs/value', `Invalid ${key} "${value}" for ":${name}". Use one of: ${allowed.join(', ')}.`,
       attrValueFix(line, text, col, end, key, value, uniqueSuggestion(value, allowed)));
   } else if (!spec.attrs.includes(key)) {
     push(line, col, end, 'warning', 'attrs/unknown', `":${name}" does not take "${key}". Accepted: ${spec.attrs.join(', ') || 'none'}.`,
