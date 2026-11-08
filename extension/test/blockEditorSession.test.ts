@@ -799,7 +799,7 @@ test('render: a block\'s inline items by number, with forms; marks only when the
   assert.deepEqual(fields(3), ['color:color:red', 'bg:color:', 'border:color:']);
   assert.ok(ship.inline![2].fields![0].options!.includes('P0'));
   const task = block(r, '- [ ]');
-  assert.deepEqual(task.inline!.map((i) => i.fields!.map((f) => f.name)), [['value', 'color', 'label'], ['content', 'label', 'delta', 'trend', 'good']]);
+  assert.deepEqual(task.inline!.map((i) => i.fields!.map((f) => f.name)), [['value', 'color', 'label', 'basis'], ['content', 'label', 'delta', 'trend', 'good']]);
   assert.deepEqual(task.inline![1].fields!.find((f) => f.name === 'trend')!.options, ['', 'up', 'down', 'flat']);
   assert.equal(block(r, 'Last').inline, undefined, 'a block without items has none');
 });
