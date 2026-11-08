@@ -20,7 +20,8 @@ import { specVersion, type SpecVersion } from './specVersion';
  *   heading[level=2]               callout[title*=migration]                *[owner=@maya]
  *
  * A selector is a block type (`*` or none for any, `callout` for any callout) followed by attribute
- * tests; commas list alternatives. Values compare case-insensitively and ignore a leading `@`.
+ * tests and `:not(…)`; commas list alternatives. As in CSS, a space selects a descendant (`heading[title=Rollout] task`)
+ * and `>` a direct child (`tabs > tab`), where headings and containers hold what is in them. Values compare case-insensitively and ignore a leading `@`.
  * `a|b` lists alternative values. `<`, `<=`, `>`, `>=` compare numbers, YYYY-MM-DD dates (and `today`),
  * priorities (P0 < P1 < … and critical < high < medium < low) and risk levels (low < … < critical).
  */
@@ -34,8 +35,26 @@ export interface AttributeTest {
   values: string[];
 }
 
-/** One selector: a block type (`*` for any) and the attribute tests a block must pass. */
-export interface Selector { type: string; tests: AttributeTest[] }
+/**
+ * One selector: a block type (`*` for any) and the attribute tests a block must pass. `not` lists selectors it must
+ * not match (`:not(…)`), and `ancestor` the selector an enclosing block (` `) or the parent (`>`) must match. A
+ * selector without combinators or `:not` has only `type` and `tests`, as before tree selectors.
+ */
+export interface Selector {
+  type: string;
+  tests: AttributeTest[];
+  not?: Selector[];
+  ancestor?: { combinator: ' ' | '>'; selector: Selector };
+}
+
+/** A heading or container that holds a match. */
+export interface QueryAncestor {
+  type: string;
+  /** Zero-based line of the heading or the opening fence. */
+  line: number;
+  title: string;
+  id?: string;
+}
 
 /** A selector that can't be parsed, or names an unknown block type or attribute. */
 export class SelectorError extends Error {
@@ -69,6 +88,8 @@ export interface QueryMatch {
   attrs: Record<string, string | string[]>;
   /** The nearest heading above the block; for a heading, its parent heading. */
   section: string | null;
+  /** The headings and containers that hold the block, outermost first (T4). */
+  ancestors: QueryAncestor[];
   /** The block in the agent view. */
   text: string;
 }
@@ -113,17 +134,46 @@ class SelectorParser {
 
   parse(): Selector[] {
     if (!this.src) throw new SelectorError('Empty selector. Try e.g. "decision[status=accepted]".');
-    const selectors = [this.selector()];
-    while (this.i < this.src.length) {
+    const selectors = this.list();
+    if (this.i < this.src.length) this.fail(`Unexpected "${this.src[this.i]}"`);
+    return selectors;
+  }
+
+  /** Selectors separated by commas, up to the end or a `)`. Keys are checked against `context` in `:not(…)`. */
+  private list(context?: string): Selector[] {
+    const selectors = [this.complex(context)];
+    while (this.i < this.src.length && this.src[this.i] !== ')') {
       if (this.src[this.i] !== ',') this.fail(`Unexpected "${this.src[this.i]}". List several selectors with commas, e.g. "decision, risk"`);
       this.i++;
-      selectors.push(this.selector());
+      selectors.push(this.complex(context));
     }
     return selectors;
   }
 
-  private selector(): Selector {
+  /** Compound selectors joined by a space (descendant) or `>` (child). */
+  private complex(context?: string): Selector {
     this.space();
+    let selector = this.compound(context);
+    for (;;) {
+      const before = this.i;
+      this.space();
+      const next = this.src[this.i];
+      if (next === undefined || next === ',' || next === ')') break;
+      let combinator: ' ' | '>' = ' ';
+      if (next === '>') {
+        combinator = '>';
+        this.i++;
+        this.space();
+      } else if (this.i === before) {
+        this.fail(`Unexpected "${next}". List several selectors with commas, e.g. "decision, risk"`);
+      }
+      selector = { ...this.compound(context), ancestor: { combinator, selector } };
+    }
+    return selector;
+  }
+
+  /** A type, then attribute tests and `:not(…)`. */
+  private compound(context?: string): Selector {
     const start = this.i;
     const name = this.take(/^(?:\*|[A-Za-z][\w-]*)/);
     const type = (name ?? '*').toLowerCase();
@@ -132,14 +182,32 @@ class SelectorParser {
       this.fail(`Unknown block type "${type}".${didYouMean(type, BLOCK_TYPES)} Types: ${BLOCK_TYPES.join(', ')}`);
     }
     const tests: AttributeTest[] = [];
-    while (this.src[this.i] === '[') {
-      this.i++;
-      tests.push(this.test());
+    const not: Selector[] = [];
+    for (;;) {
+      if (this.src[this.i] === '[') {
+        this.i++;
+        tests.push(this.test());
+      } else if (/^:not\(/i.test(this.src.slice(this.i, this.i + 5))) {
+        this.i += 5;
+        this.space();
+        if (this.src[this.i] === ')') this.fail('Empty ":not()". Put a selector in it, e.g. "risk:not([status=closed])"');
+        not.push(...this.list(name ? type : context));
+        if (this.src[this.i] !== ')') this.fail('Missing ")" after ":not("');
+        this.i++;
+      } else if (this.src[this.i] === ':') {
+        this.fail('Unknown pseudo-class. Only ":not(…)" is supported, e.g. "risk:not([status=closed])"');
+      } else break;
     }
-    if (!name && !tests.length) this.fail(this.src[this.i] === undefined ? 'Missing a selector after ","' : `Unexpected "${this.src[this.i]}"`);
-    checkKeys(type, tests);
-    this.space();
-    return { type, tests };
+    if (!name && !tests.length && !not.length) {
+      this.fail(this.src[this.i] === undefined ? `Missing a selector after "${this.previous()}"` : `Unexpected "${this.src[this.i]}"`);
+    }
+    checkKeys(name ? type : context ?? type, tests);
+    return not.length ? { type, tests, not } : { type, tests };
+  }
+
+  /** The last character before the current position that is not a space. */
+  private previous(): string {
+    return this.src.slice(0, this.i).trimEnd().at(-1) ?? '';
   }
 
   /** One `[key op values]`, after its `[`. */
@@ -235,7 +303,9 @@ export function querySmd(text: string, selector: string | Selector[], options: Q
   const selectors = typeof selector === 'string' ? parseSelector(selector) : selector;
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const lines = text.split(/\r?\n/);
-  const matched = blocksOf(text, lines, today).filter((b) => selectors.some((s) => selects(s, b, today)));
+  const blocks = blocksOf(text, lines, today);
+  const parents = ancestorBlocks(blocks);
+  const matched = blocks.filter((b) => selectors.some((s) => matches(s, b, parents, today)));
   return matched.map((b) => ({
     ...b,
     text: agentViewOfRange(lines, b.line, b.endLine, { brief: options.brief, lineRefs: options.lineRefs, today, includeHuman: b.type === 'human' }),
@@ -252,11 +322,21 @@ function blocksOf(text: string, lines: string[], today: string): Block[] {
     }
     return section;
   };
-  return [
+  const blocks = [
     ...headingBlocks(headings, lines.length),
     ...taskBlocks(text, today, sectionAt),
     ...containerBlocks(lines, parseFrontMatter(text).bodyStartLine, sectionAt),
   ].sort((a, b) => a.line - b.line);
+  for (const [block, held] of ancestorBlocks(blocks)) {
+    block.ancestors = held.map((a) => ({ type: a.type, line: a.line, title: a.title, ...(typeof a.attrs.id === 'string' ? { id: a.attrs.id } : {}) }));
+  }
+  return blocks;
+}
+
+/** The headings and containers that hold each block, outermost first: those that start above it and end at or after it. */
+function ancestorBlocks(blocks: Block[]): Map<Block, Block[]> {
+  const holders = blocks.filter((b) => b.type !== 'task');
+  return new Map(blocks.map((b) => [b, holders.filter((h) => h.line < b.line && h.endLine >= b.line)]));
 }
 
 function headingBlocks(headings: Heading[], lineCount: number): Block[] {
@@ -267,6 +347,7 @@ function headingBlocks(headings: Heading[], lineCount: number): Block[] {
       type: 'heading', line: h.line, endLine: (next?.line ?? lineCount) - 1, title: h.text,
       attrs: { level: String(h.level), id: h.slug, ...(h.agent ? { agent: h.agent } : {}) },
       section: parent?.text ?? null,
+      ancestors: [],
     };
   });
 }
@@ -283,6 +364,7 @@ function taskBlocks(text: string, today: string, sectionAt: (line: number) => st
       ...(t.id ? { id: t.id } : {}),
     },
     section: sectionAt(t.line),
+    ancestors: [],
   }));
 }
 
@@ -305,7 +387,7 @@ function containerBlocks(lines: string[], from: number, sectionAt: (line: number
     }
     const info = openingOf(lines[i], spec);
     if (!info) continue;
-    const block: Block = { type: info.name, line: i, endLine: lines.length - 1, title: inlineText(info.title, { variables }), attrs: containerAttrs(info), section: sectionAt(i) };
+    const block: Block = { type: info.name, line: i, endLine: lines.length - 1, title: inlineText(info.title, { variables }), attrs: containerAttrs(info), section: sectionAt(i), ancestors: [] };
     blocks.push(block);
     open.push({ block, colons: openerColons(lines[i]) });
   }
@@ -335,6 +417,17 @@ function containerAttrs(info: ContainerInfo): Record<string, string | string[]> 
   if (info.attrs.id) attrs.id = info.attrs.id;
   if (info.attrs.classes.length) attrs.class = info.attrs.classes;
   return attrs;
+}
+
+/** Whether a block matches a selector, with its `:not(…)` and the selectors of its ancestors. */
+function matches(selector: Selector, block: Block, parents: Map<Block, Block[]>, today: string): boolean {
+  if (!selects(selector, block, today)) return false;
+  if (selector.not?.some((n) => matches(n, block, parents, today))) return false;
+  const up = selector.ancestor;
+  if (!up) return true;
+  const held = parents.get(block) ?? [];
+  if (up.combinator === '>') return held.length > 0 && matches(up.selector, held[held.length - 1], parents, today);
+  return held.some((a) => matches(up.selector, a, parents, today));
 }
 
 function selects(selector: Selector, block: Block, today: string): boolean {

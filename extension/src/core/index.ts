@@ -32,7 +32,7 @@ export { outlineProvenance, PROVENANCE_SCHEMA } from './provenance';
 export type { Dependency, Omission, OmissionKind, Provenance, ProvenanceSettings, SourceSpan } from './provenance';
 export type { ConstraintPointer, ConstraintView } from './constraints';
 export { querySmd, parseSelector, SelectorError } from './query';
-export type { QueryMatch, QueryOptions, Selector, AttributeTest, QueryOperator } from './query';
+export type { QueryMatch, QueryOptions, QueryAncestor, Selector, AttributeTest, QueryOperator } from './query';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';
 export type { RelatedDoc, RelatedOptions, SmdSummary } from './related';
 export { indexEntry, smdIndex, INDEX_FORMAT, INDEX_VERSION } from './catalog';

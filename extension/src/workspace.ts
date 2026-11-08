@@ -10,7 +10,8 @@ import { compareTasks } from './taskGroups';
 /** Reading .smd files from disk, shared by the CLI and the MCP server. */
 
 export type TaskRow = TaskInfo & { file: string };
-export type QueryRow = QueryMatch & { file: string };
+/** A match as `smd query` and MCP `query` print it: without `ancestors`, so their released JSON keeps its shape. */
+export type QueryRow = Omit<QueryMatch, 'ancestors'> & { file: string };
 
 /** The .smd files under `target` (itself when it is a file), skipping node_modules and dot folders. */
 export function collect(target: string): string[] {
@@ -135,7 +136,7 @@ export function taskSummary(rows: TaskRow[], all: boolean): string {
 
 /** Blocks in `files` that match `selectors`. `name` labels each file. */
 export function queryRows(files: string[], selectors: Selector[], options: QueryOptions, name = (file: string) => file): QueryRow[] {
-  return files.flatMap((file) => querySmd(read(file), selectors, options).map((m) => ({ file: name(file), ...m })));
+  return files.flatMap((file) => querySmd(read(file), selectors, options).map(({ ancestors: _, ...m }) => ({ file: name(file), ...m })));
 }
 
 /** Matches as text: each location and its agent view, or (with `titles`) one line per match. Empty when none. */
