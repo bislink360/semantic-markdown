@@ -154,7 +154,7 @@ Checking and converting:
       validate and fmt take any number of files: use them as a pre-commit hook (see docs/guides/install.md).
       After --, every argument is a file, even one that starts with "-".
 ${MIGRATE_HELP}${EXPORT_HELP}
-  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
+  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--today YYYY-MM-DD] [--lang <tag>]
       Static docs site: a page per .smd file in the same folders (links between documents rewritten,
       linked images copied), a sidebar, breadcrumbs, previous/next, backlinks, client-side search and
       a dashboard of open tasks, decisions and open risks. Opens from disk or any static web server.
@@ -167,6 +167,7 @@ ${MIGRATE_HELP}${EXPORT_HELP}
                and the site an llms.txt listing its documents for AI tools.
       --md     also publish .md files; the home page is <dir>/index.smd or README, else a generated index
       --clean  first delete the files of the previous build (only those listed in its .smd-site.json)
+      --comments  keep review comments and suggestions on the pages (left out by default)
       --lang   language of the navigation, search and dashboard, and of documents without "lang:"
                (default: the home document's "lang:", else English)
   smd from-md <file.md> [-o out.smd]       Upgrade Markdown to .smd
@@ -749,6 +750,7 @@ function build(positional: string[], args: Args): number {
     lang,
     md: args.flags.has('--md'),
     clean: args.flags.has('--clean'),
+    comments: args.flags.has('--comments'),
     generator: `smd ${pkg.version}`,
   }, { err: (text) => console.error(text) });
 }

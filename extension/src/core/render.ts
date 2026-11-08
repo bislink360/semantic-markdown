@@ -22,6 +22,11 @@ export interface RenderOptions {
   /** How :::agent blocks are presented to human readers. */
   agentBlocks?: 'collapsed' | 'expanded' | 'hidden';
   /**
+   * `:::comment` and `:::suggestion` blocks: `shown` (the default, as the preview shows them) or `hidden`, left out with
+   * their content, as exports leave them out.
+   */
+  reviewBlocks?: 'shown' | 'hidden';
+  /**
    * Read a file relative to the document, for ```lang file="…"` embeds and `:::include` blocks (nested includes ask
    * for paths relative to this document too). Return undefined when not allowed/missing. Without it nothing is included.
    * The markdown-it plugin's `readFile` is the same function: the second argument is the render's env (see ReadFile).
@@ -191,6 +196,7 @@ function parseTokens(text: string, fm: ParsedDocument, options: RenderOptions): 
   const opts: ResolvedOptions = {
     allowHtml: options.allowHtml ?? true,
     agentBlocks: options.agentBlocks ?? 'collapsed',
+    reviewBlocks: options.reviewBlocks ?? 'shown',
     readFile: options.readFile,
     today: options.today ?? new Date().toISOString().slice(0, 10),
   };

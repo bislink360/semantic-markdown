@@ -316,7 +316,7 @@ function bodyTokens(text: string, typographer = true): { tokens: Token[]; md: Re
   if (!typographer) md.set({ typographer: false });
   const env: Env = {
     lineOffset: fm.bodyStartLine, headings: [], slugs: new Map(), source: text, smdVariables: fm.data, messages: EN, smdSpec: specVersion(fm.data),
-    options: { allowHtml: true, agentBlocks: 'collapsed', readFile: undefined, today: '2000-01-01' },
+    options: { allowHtml: true, agentBlocks: 'collapsed', reviewBlocks: 'shown', readFile: undefined, today: '2000-01-01' },
   };
   // As renderSmd: markdown-it reads a lone \r as a line break, the line scanners don't.
   return { tokens: md.parse(fm.body.replaceAll(/\r(?!\n)/g, ' '), env), md, env, fm };

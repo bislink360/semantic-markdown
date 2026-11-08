@@ -12,6 +12,7 @@ import {
 } from './include';
 import { quoteCite } from './quote';
 import { CALLOUT_TYPES, STATUS_VALUES } from './spec';
+import { CLOSED_STATES, hasReviewBlocks, reviewItems, type ReviewItem, type ReviewType } from './review';
 import type { SpecEnv } from './specVersion';
 import type { SmdContext } from './markdownItSetup';
 import type { ContainerMeta, FootnoteMeta } from './markdownItRules';
@@ -222,6 +223,54 @@ function decisionOpen(c: ContainerView): string {
     `${c.meta.title ? `<div class="smd-decision-title">${c.inline(c.meta.title)}</div>` : ''}<div class="smd-decision-body">\n`;
 }
 
+/** The review items of the last document rendered, by opening line (the env's source is the whole document). */
+let reviewCache: { source: string; items: ReadonlyMap<number, ReviewItem> } | undefined;
+
+function reviewItemAt(source: string | undefined, line: number): ReviewItem | undefined {
+  if (!source || !hasReviewBlocks(source)) return undefined;
+  if (reviewCache?.source !== source) reviewCache = { source, items: new Map(reviewItems(source).map((r) => [r.line, r])) };
+  return reviewCache.items.get(line);
+}
+
+/**
+ * `:::comment` and `:::suggestion` (feedback loop RFC): an open one is a review box with its author, date, kind and a
+ * "stale" pill when its target changed; a closed one is a one-line record that opens to show its body.
+ */
+function reviewOpen(c: ContainerView): string {
+  const type = c.name as ReviewType;
+  const { values } = c.attrs;
+  const { m } = c;
+  const line = Number(/\d+/.exec(c.dataLine)?.[0] ?? -1);
+  const item = reviewItemAt(c.env?.source, line);
+  const status = (item?.status ?? values.status ?? 'open').toLowerCase();
+  const closed = CLOSED_STATES[type].includes(status);
+  const kind = (values.kind ?? 'remark').toLowerCase();
+  const answer = type === 'comment' && kind === 'answer';
+  const name = answer ? m['review.answer'] : m[`review.${type}`];
+  const stale = !closed && item?.stale === true;
+  const cls = ['smd-review', `smd-review-${type}`, ...(closed ? ['smd-review-closed', `smd-review-${status}`] : ['smd-review-open']), ...(answer ? ['smd-review-answer'] : []), ...(stale ? ['smd-review-stale'] : [])];
+  const data = ` data-review="${type}" data-review-status="${escapeHtml(status)}"${values.for ? ` data-review-for="${escapeHtml(values.for)}"` : ''}${stale ? ' data-review-stale="true"' : ''}`;
+  const title = c.meta.title ? c.inline(c.meta.title) : '';
+  if (closed) {
+    c.meta.close = '</div></details>';
+    const facts = [
+      escapeHtml(m[`review.${status}` as MessageKey] ?? status),
+      values.by ? escapeHtml(label(m, 'review.by', { name: values.by })) : '',
+      values.on ? escapeHtml(label(m, 'review.on', { date: values.on })) : '',
+    ].filter(Boolean).join(' ');
+    return `<details${htmlAttrs(c.attrs, cls, c.style)}${c.dataLine}${data}><summary class="smd-review-record"><span class="smd-review-label">${name}</span> <span class="smd-review-status">${facts}</span>${title ? `<span class="smd-review-title">${title}</span>` : ''}</summary><div class="smd-review-body">\n`;
+  }
+  c.meta.close = '</div></aside>';
+  const facts = [
+    values.for ? label(m, 'review.for', { id: values.for }) : '', values.author ?? '', values.date ?? '',
+  ].filter(Boolean).map((f) => `<span>${escapeHtml(f)}</span>`).join('<span class="smd-dot">·</span>');
+  const kindLabel = type === 'comment' && !answer ? `<span class="smd-review-kind">${escapeHtml(m[`review.${kind}` as MessageKey] ?? kind)}</span>` : '';
+  const pill = stale ? `<span class="smd-review-stale-pill" title="${escapeHtml(m['review.staleTitle'])}">${escapeHtml(m['review.stale'])}</span>` : '';
+  return `<aside${htmlAttrs(c.attrs, cls, c.style)}${c.dataLine}${data} aria-label="${escapeHtml(name)}">` +
+    `<div class="smd-review-head"><span class="smd-review-label">${name}</span>${kindLabel}${facts ? `<span class="smd-review-facts">${facts}</span>` : ''}${pill}</div>` +
+    `${title ? `<div class="smd-review-title">${title}</div>` : ''}<div class="smd-review-body">\n`;
+}
+
 function riskOpen(c: ContainerView): string {
   c.meta.close = '</div></div>';
   const { values } = c.attrs;
@@ -369,6 +418,8 @@ const CONTAINERS = new Map<string, ContainerOpen>([
   ['agent', agentOpen],
   ['human', humanOpen],
   ['decision', decisionOpen],
+  ['comment', reviewOpen],
+  ['suggestion', reviewOpen],
   ['risk', riskOpen],
   ['api', apiOpen],
   ['risk-matrix', riskMatrixOpen],

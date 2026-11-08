@@ -449,6 +449,31 @@ pre.smd-has-hl code { position: relative; }
 .smd-decision-superseded .smd-decision-title, .smd-decision-rejected .smd-decision-title { text-decoration: line-through; opacity: .75; }
 .smd-decision-body > :last-child, .smd-risk-body > :last-child, .smd-api-body > :last-child { margin-bottom: 0; }
 
+/* ---------- Review comments and suggestions ---------- */
+.smd-review {
+  --c: var(--smd-purple);
+  margin: 0 0 1.2em; border: 1px dashed var(--smd-border); border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 14px;
+  background: color-mix(in srgb, var(--c) 5%, transparent);
+}
+.smd-review-suggestion { --c: var(--smd-teal); }
+.smd-review-answer { --c: var(--smd-green); }
+.smd-review-stale { --c: var(--smd-amber); }
+.smd-review-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8em; }
+.smd-review-label { font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--smd-fg-muted); }
+.smd-review-kind { font-style: italic; color: var(--smd-fg-muted); }
+.smd-review-facts { color: var(--smd-fg-muted); display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.smd-review-stale-pill {
+  font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 0 .6em; border-radius: 999px;
+  color: color-mix(in srgb, var(--smd-amber) var(--smd-ink), var(--smd-fg)); background: color-mix(in srgb, var(--smd-amber) 18%, transparent);
+}
+.smd-review-title { font-weight: 650; margin: 4px 0; }
+.smd-review-body > :last-child { margin-bottom: 0; }
+.smd-review-closed { --c: var(--smd-gray); border-style: solid; padding: 4px 14px; background: none; }
+.smd-review-record { cursor: pointer; font-size: .85em; color: var(--smd-fg-muted); }
+.smd-review-record .smd-review-label { margin-right: 6px; }
+.smd-review-record .smd-review-title { display: inline; margin: 0 0 0 6px; font-weight: 500; }
+.smd-review-closed > .smd-review-body { margin-top: 6px; }
+
 /* ---------- Risk ---------- */
 .smd-risk { --c: var(--smd-amber); margin: 0 0 1.2em; border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); border-radius: 10px; padding: 12px 16px; background: color-mix(in srgb, var(--c) 6%, transparent); }
 .smd-risk-low { --c: var(--smd-green); }

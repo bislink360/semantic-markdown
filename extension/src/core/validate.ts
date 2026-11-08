@@ -37,6 +37,7 @@ import {
 } from './spec';
 import { FRONTMATTER_SCHEMA, frontMatterProperty } from './frontmatterSchema';
 import { languageTag, matchLanguage, SUPPORTED_LANGUAGES } from './i18n';
+import { hasReviewBlocks, reviewItems } from './review';
 
 export type Severity = 'error' | 'warning' | 'info' | 'hint';
 
@@ -224,6 +225,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkFigures(text, lines, fm.bodyStartLine, pushText, () => includedFigureIds(text, options.readFile));
   checkDuplicateIds(text, lines, pushText);
   checkIdAttributes(text, idAttrBlocks, pushText);
+  if (hasReviewBlocks(text)) checkReview(text, lines, fm.data, push);
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));
@@ -937,6 +939,35 @@ function checkFigures(text: string, lines: string[], bodyStart: number, push: Pu
     }
     fromIncludes ??= included();
     if (!fromIncludes.has(ref.id)) unknownRef(ref, [...new Set([...targets.keys(), ...fromIncludes, ...owners.keys()])], push);
+  }
+}
+
+/**
+ * Review comments and suggestions (feedback loop RFC): each names its target (`review/for`) against a revision
+ * (`review/rev`), an open one whose target changed is stale (`review/stale`), an open one is a hint and an error once
+ * the document is approved (`review/open`), and a closed one says who closed it and when (`review/transition`).
+ * Answers to questions are not review remarks: they are never `review/open` or `review/stale`.
+ */
+function checkReview(text: string, lines: string[], data: Record<string, unknown>, push: Push): void {
+  const approved = String(data.status ?? '').trim().toLowerCase() === 'approved';
+  for (const item of reviewItems(text)) {
+    const raw = lines[item.line];
+    const at = raw.length - raw.trimStart().length;
+    const whole = (severity: Severity, code: string, message: string) => push(item.line, at, raw.length, severity, code, message);
+    const name = `:::${item.type}`;
+    if (item.target === 'none') whole('warning', 'review/for', `"${name}" has no for=…: name the block it is about by its id.`);
+    else if (!item.attrs.rev && item.open) whole('hint', 'review/rev', `"${name}" has no rev=…, so a later change to ${item.for ?? 'its target'} can't be detected (smd review rebase records it).`);
+    if (item.open && !item.answer && item.stale) {
+      whole('warning', 'review/stale', `"${name}" is stale: ${item.for} changed since it was written (rev ${item.attrs.rev}, now ${item.currentRev}). Read it again, then rebase or close the ${item.type}.`);
+    }
+    if (item.open && !item.answer) {
+      whole(approved ? 'error' : 'hint', 'review/open', approved
+        ? `Open ${item.type} in an approved document: resolve it, or set the status back to review.`
+        : `Open ${item.type}${item.for ? ` on ${item.for}` : ''}.`);
+    }
+    if (!item.open && (!item.attrs.by || !item.attrs.on)) {
+      whole('warning', 'review/transition', `"${name}" is ${item.status} without by=… and on=…: say who did it and when.`);
+    }
   }
 }
 

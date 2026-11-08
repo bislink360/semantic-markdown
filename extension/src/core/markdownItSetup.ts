@@ -1,5 +1,5 @@
 import type MarkdownIt from 'markdown-it';
-import type { StateCore } from 'markdown-it';
+import type { StateCore, Token } from 'markdown-it';
 import { alertOf, githubAlerts } from './alerts';
 import { escapeHtml } from './attrs';
 import {
@@ -17,6 +17,7 @@ import { glossaryTerms } from './markdownItGlossary';
 import { documentLanguage, languageTag, messagesFor, type Messages } from './i18n';
 import type { MarkdownItSmdOptions } from './markdownIt';
 import { specOf } from './specVersion';
+import { REVIEW_CONTAINERS } from './revision';
 import { addTextRules } from './typography';
 import { shownValues } from './variables';
 
@@ -34,6 +35,7 @@ export type ReadFile = (relativePath: string, env?: unknown) => string | undefin
 /** Options read while rendering. */
 export interface SmdRenderOptions {
   agentBlocks?: 'collapsed' | 'expanded' | 'hidden';
+  reviewBlocks?: 'shown' | 'hidden';
   today?: string;
   readFile?: ReadFile;
 }
@@ -81,6 +83,26 @@ export function smdFeatures(options: MarkdownItSmdOptions): SmdFeatures {
     glossary: options.glossary ?? true,
     variables: options.variables ?? true,
   };
+}
+
+/** The tokens without `:::comment` and `:::suggestion` containers and what is inside them. */
+function withoutReviewTokens(tokens: Token[]): Token[] {
+  if (!tokens.some((t) => t.type === 'container_smd_open' && REVIEW_CONTAINERS.includes((t.meta as { name?: string } | null)?.name ?? ''))) return tokens;
+  const out: Token[] = [];
+  let depth = 0;
+  for (const t of tokens) {
+    if (depth > 0) {
+      if (t.type === 'container_smd_open') depth++;
+      else if (t.type === 'container_smd_close') depth--;
+      continue;
+    }
+    if (t.type === 'container_smd_open' && REVIEW_CONTAINERS.includes((t.meta as { name?: string } | null)?.name ?? '')) {
+      depth = 1;
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
 }
 
 /** Context for a host: the plugin's options, and titles rendered by the host's own instance. */
@@ -186,6 +208,10 @@ function addContainers(md: MarkdownIt, ctx: SmdContext): void {
   md.core.ruler.push('smd_include_links', includedLinks);
   // Figures are numbered once included blocks are in place, so their figures count too.
   md.core.ruler.after('smd_include', 'smd_figures', numberFigures);
+  // Exports leave review blocks out before figures are numbered, so a figure in a comment takes no number.
+  md.core.ruler.before('smd_figures', 'smd_review', (state) => {
+    if (ctx.options(state.env).reviewBlocks === 'hidden') state.tokens = withoutReviewTokens(state.tokens);
+  });
   // GitHub alerts render as callouts; marked once included blocks are in place, before inline parsing.
   md.core.ruler.after('smd_figures', 'smd_alerts', githubAlerts);
   addAlertRules(md, ctx);

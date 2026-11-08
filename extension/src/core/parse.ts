@@ -158,7 +158,7 @@ function documentVariablesOf(lines: string[], fm: { data: Record<string, unknown
   return { key: uses ? text.split(/\r?\n/, fm.bodyStartLine).join('\n') : '', data: uses ? shownValues(fm.data, text, spec) : {}, spec };
 }
 
-const OPTIONS: ResolvedOptions = { allowHtml: true, agentBlocks: 'collapsed', readFile: undefined, today: '' };
+const OPTIONS: ResolvedOptions = { allowHtml: true, agentBlocks: 'collapsed', reviewBlocks: 'shown', readFile: undefined, today: '' };
 let md: MarkdownIt | undefined;
 const parser = () => (md ??= recordingInlineItems(recordingInlineMath(recordingDefinitions(inPlaceFootnotes(createMarkdownIt(OPTIONS))))));
 /** Container titles render as inline Markdown with raw HTML off (see renderContainer). */

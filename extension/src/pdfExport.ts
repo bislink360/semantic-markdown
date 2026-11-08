@@ -37,7 +37,7 @@ async function exportActiveDocument(context: vscode.ExtensionContext): Promise<v
   const config = vscode.workspace.getConfiguration();
   const options = pdfOptions(config.get<string>(FORMAT_SETTING, 'A4'), config.get<boolean>(LANDSCAPE_SETTING, false));
   const media = (f: string) => fs.readFileSync(path.join(context.extensionPath, 'media', f), 'utf8');
-  const html = renderStandaloneHtml(doc.getText(), media('smd.css'), media('runtime.js'), { ...renderOptions(doc), agentBlocks: 'collapsed' });
+  const html = renderStandaloneHtml(doc.getText(), media('smd.css'), media('runtime.js'), { ...renderOptions(doc), agentBlocks: 'collapsed', reviewBlocks: 'hidden' });
   // The page is printed from beside the document, so relative images resolve; an unsaved one prints from the PDF's folder.
   const source = doc.isUntitled || doc.uri.scheme !== 'file' ? path.join(path.dirname(target.fsPath), 'untitled.smd') : doc.uri.fsPath;
   const warnings: string[] = [];
