@@ -330,6 +330,8 @@ function tagOpen(c: ContainerView, kind: string, pills: string[], facts: string[
   return `<div${htmlAttrs(c.attrs, ['smd-block', `smd-${c.name}`, ...classes], c.style)}${c.dataLine}>${head}${title}<div class="smd-block-body">\n`;
 }
 
+/** ` · overdue` after a date that has passed, in words as well as colour (as `:due` shows it). */
+const overdueNote = (c: ContainerView, date: string) => (dueState(date, c.ctx.options(c.env).today) === 'overdue' ? dueNote('overdue', c.m) : '');
 const ownerFact = (c: ContainerView) => (c.attrs.values.owner ? escapeHtml(c.attrs.values.owner) : '');
 const dependsFact = (c: ContainerView) => {
   const ids = c.attrs.values['depends-on'];
@@ -368,7 +370,8 @@ function acceptanceOpen(c: ContainerView): string {
 function assumptionOpen(c: ContainerView): string {
   const { values } = c.attrs;
   const status = (values.status ?? 'unvalidated').toLowerCase();
-  const review = values['review-by'] ? escapeHtml(label(c.m, 'tag.reviewBy', { date: values['review-by'] })) : '';
+  const late = status === 'unvalidated' && values['review-by'] ? overdueNote(c, values['review-by']) : '';
+  const review = values['review-by'] ? `${escapeHtml(label(c.m, 'tag.reviewBy', { date: values['review-by'] }))}${late}` : '';
   return tagOpen(c, c.m['assumption.label'], [pill('status', status, term(c.m, 'assumptionStatus', status))], [ownerFact(c), review, dependsFact(c)],
     [`smd-assumption-${status.replace(/[^a-z0-9-]/g, '')}`]);
 }
@@ -441,7 +444,7 @@ function questionFacts(c: ContainerView): string {
   const between = idList(values.between ?? '');
   const facts = [
     values.owner ? escapeHtml(values.owner) : '',
-    values.due ? escapeHtml(label(c.m, 'due.title', { date: values.due })) : '',
+    values.due ? `${escapeHtml(label(c.m, 'due.title', { date: values.due }))}${status === 'open' ? overdueNote(c, values.due) : ''}` : '',
     between.length >= 2 ? htmlLabel(c.m, 'question.between', { a: idLinks(c, [between[0]], 'smd-conflict'), b: idLinks(c, between.slice(1), 'smd-conflict') }) : '',
     between.length === 1 ? idLinks(c, between, 'smd-conflict') : '',
     values.reason ? escapeHtml(label(c.m, 'question.reason', { reason: values.reason })) : '',

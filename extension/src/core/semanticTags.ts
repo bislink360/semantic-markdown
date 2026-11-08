@@ -214,7 +214,7 @@ export function blockers(ids: readonly string[], text: string): string[] {
  * ids of containers and tasks otherwise. Empty for any other attribute.
  */
 export function idChoices(text: string, container: string, key: string): string[] {
-  if (!ID_ATTRIBUTES[key]?.includes(container)) return [];
+  if (!own(ID_ATTRIBUTES, key)?.includes(container)) return [];
   const only = key === 'verifies' ? 'requirement' : undefined;
   const ids = tagBlocks(text).filter((b) => b.id && (!only || b.name === only)).map((b) => b.id!);
   if (!only) ids.push(...scanTasks(text).flatMap((t) => (t.kind === 'task' && t.id ? [t.id] : [])));

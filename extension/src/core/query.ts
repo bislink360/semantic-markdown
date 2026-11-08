@@ -379,7 +379,7 @@ function valueOf(block: Block, key: string): string | string[] | undefined {
   // A question is selected by its state, and one without a status is open (research contract, AF21).
   if (key === 'status' && block.type === 'question') return questionState.get(block) ?? value ?? 'open';
   // An id attribute matches when any id it lists does: `acceptance[verifies=R1]` finds `verifies=R1,R2`.
-  if (typeof value === 'string' && ID_ATTRIBUTES[key]?.includes(block.type)) return idList(value);
+  if (typeof value === 'string' && own(ID_ATTRIBUTES, key)?.includes(block.type)) return idList(value);
   return value;
 }
 

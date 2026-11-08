@@ -332,7 +332,7 @@ function containerHover(lineText: string, column: number): AssistHover | undefin
 }
 
 /** `Defaults: \`status=proposed\``, for the containers whose attributes have defaults; empty for the others. */
-export function defaultsText(defaults: Readonly<Record<string, string>> | undefined): string {
+function defaultsText(defaults: Readonly<Record<string, string>> | undefined): string {
   return defaults ? `\n\nDefaults: ${Object.entries(defaults).map(([k, v]) => `\`${k}=${v}\``).join(', ')}` : '';
 }
 

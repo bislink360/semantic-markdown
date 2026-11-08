@@ -1,7 +1,7 @@
 import { agentView, sectionCosts, type SectionCost } from './agentView';
 import { asStringList, parseFrontMatter } from './frontmatter';
 import { getDocumentInfo, type SmdDocumentInfo } from './meta';
-import { SEMANTIC_TAGS } from './semanticTags';
+import { hasAnswer, isLifecycleQuestion, questionStatus, SEMANTIC_TAGS, tagContext } from './semanticTags';
 import { LATEST_SPEC, specVersion, type SpecVersion } from './specVersion';
 
 /**
@@ -43,7 +43,7 @@ export interface SmdIndexCounts {
   risks: number;
   /** Risks whose status is not `mitigated` or `closed`. */
   openRisks: number;
-  /** `:::question` blocks. */
+  /** Open `:::question` blocks: one answered, incorporated or withdrawn is not counted (semantic tags R50). */
   questions: number;
   /** `:::api` endpoints. */
   apis: number;
@@ -103,7 +103,7 @@ export function indexEntry(text: string, path: string, options: IndexOptions = {
     updated: scalar(data.updated),
     related: asStringList(data.related),
     tokens: { file: view.originalTokens, agent: view.tokens },
-    counts: countsOf(info),
+    counts: countsOf(info, text),
     sections: sectionCosts(text, { today: options.today }).map(indexSection),
   };
 }
@@ -120,7 +120,7 @@ export function smdIndex(documents: Array<{ path: string; text: string }>, optio
   };
 }
 
-function countsOf(info: SmdDocumentInfo): SmdIndexCounts {
+function countsOf(info: SmdDocumentInfo, text: string): SmdIndexCounts {
   const open = info.tasks.open;
   return {
     openTasks: open.length,
@@ -129,12 +129,25 @@ function countsOf(info: SmdDocumentInfo): SmdIndexCounts {
     decisions: tally(info.decisions.map((d) => d.status.toLowerCase())),
     risks: info.risks.length,
     openRisks: info.risks.filter((r) => !CLOSED_RISK.has((r.status ?? '').toLowerCase())).length,
-    questions: info.containers.question ?? 0,
+    questions: openQuestions(info, text),
     apis: info.containers.api ?? 0,
     diagrams: info.diagrams.length,
     agentInstructions: info.agentBlocks.length,
     ...semanticCounts(info),
   };
+}
+
+/**
+ * The open questions: every `:::question`, unless one uses the lifecycle, when those answered (with an answer),
+ * incorporated or withdrawn are left out.
+ */
+function openQuestions(info: SmdDocumentInfo, text: string): number {
+  const all = info.containers.question ?? 0;
+  const context = all ? tagContext(text) : undefined;
+  if (!context) return all;
+  const questions = context.blocks.filter((b) => b.name === 'question').map((q) => ({ q, answer: hasAnswer(q, context.blocks, context.answered) }));
+  if (!questions.some(({ q, answer }) => isLifecycleQuestion(q, answer))) return all;
+  return questions.filter(({ q, answer }) => questionStatus(q, answer) === 'open').length;
 }
 
 /** `{ tags: { requirement: 3 } }` for the semantic tags the document has; nothing when it has none. */

@@ -1465,6 +1465,9 @@ const SECTION_MARKS: SectionMark[] = [
   { note: 'API', line: /^\s*:{3,}\s*api\b/ },
   { note: 'decision', line: /^\s*:{3,}\s*decision\b/ },
   { note: 'risk', line: /^\s*:{3,}\s*risk(?![\w-])/ },
+  { note: 'requirement', line: /^\s*:{3,}\s*requirement(?![\w-])/ },
+  { note: 'constraint', line: /^\s*:{3,}\s*constraint(?![\w-])/ },
+  { note: 'assumption', line: /^\s*:{3,}\s*assumption(?![\w-])/ },
   { note: 'open question', line: /^\s*:{3,}\s*question\b/ },
 ];
 
