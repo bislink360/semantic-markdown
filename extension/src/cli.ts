@@ -11,6 +11,7 @@ import {
 } from './core';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
+import { REVIEW_HELP, runReview } from './reviewCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -153,7 +154,7 @@ Checking and converting:
       --stdout  print the formatted file instead of writing it (one file)
       validate and fmt take any number of files: use them as a pre-commit hook (see docs/guides/install.md).
       After --, every argument is a file, even one that starts with "-".
-${MIGRATE_HELP}${EXPORT_HELP}
+${MIGRATE_HELP}${REVIEW_HELP}${EXPORT_HELP}
   smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--today YYYY-MM-DD] [--lang <tag>]
       Static docs site: a page per .smd file in the same folders (links between documents rewritten,
       linked images copied), a sidebar, breadcrumbs, previous/next, backlinks, client-side search and
@@ -216,6 +217,7 @@ const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
+  '--text', '--by', '--reason', '--kind',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -289,6 +291,8 @@ function main(argv: string[]): number | Promise<number> {
       return fmt(positional.length ? positional : ['.'], flags.has('--check'), flags.has('--stdout'));
     case 'merge':
       return runMerge(positional, args);
+    case 'review':
+      return runReview(args);
     case 'migrate':
       return runMigrate(positional.length ? positional : ['.'], args);
     case 'build':
