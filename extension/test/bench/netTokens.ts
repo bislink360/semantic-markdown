@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { agentView, estimateTokens, outline, type Tokenizer } from '../../src/core';
+import { agentView, estimateTokens, formatQueryResult, outline, queryDocuments, querySmd, queryResultSummary, type Tokenizer } from '../../src/core';
 import { agentViewRanges, sectionCosts, type SectionCost } from '../../src/core/agentView';
 import { rulesBody } from '../../src/agentTargets';
 import { Sandbox, smdTools } from '../../src/mcp';
@@ -217,6 +217,59 @@ export interface DocResult {
   section: { raw: Strategy; outlineSection: Strategy; read: Strategy };
   /** (b) Understand the whole document. */
   whole: { raw: Strategy; agent: Strategy; brief: Strategy; read: Strategy };
+  /** (c) A question whose answer is in several sections; absent when no block type spans two sections. */
+  cross?: CrossSection;
+}
+
+/**
+ * (c) Every block of one type across the document (the type found in the most sections), as a question that needs
+ * several sections: outline, then one `smd agent --section` call per section (or one call naming them all), against
+ * one `smd query "<type>" --constraints` call.
+ */
+export interface CrossSection {
+  type: string;
+  matches: number;
+  sections: number;
+  outlineSections: Strategy;
+  outlineSectionsOneCall: Strategy;
+  query: Strategy;
+}
+
+const CROSS_TYPES = ['decision', 'risk', 'question', 'api', 'requirement', 'constraint', 'warning', 'danger', 'task[done=false]'];
+
+/** The block type of `doc` found in the most sections (at least two), with the section of each match. */
+function crossTarget(doc: Doc): { type: string; sections: string[]; ranges: Array<[number, number]> } | undefined {
+  let best: { type: string; sections: string[]; ranges: Array<[number, number]> } | undefined;
+  for (const type of CROSS_TYPES) {
+    const matches = querySmd(doc.text, type, { today: TODAY, lineRefs: false });
+    const sections = [...new Set(matches.map((m) => [...m.ancestors].reverse().find((a) => a.type === 'heading')?.id).filter((id): id is string => !!id))];
+    if (sections.length < 2) continue;
+    if (!best || sections.length > best.sections.length || (sections.length === best.sections.length && matches.length > best.ranges.length)) {
+      best = { type, sections, ranges: matches.map((m) => [m.line, m.endLine]) };
+    }
+  }
+  return best;
+}
+
+export function measureCross(doc: Doc, count: (t: string) => number): CrossSection | undefined {
+  const target = crossTarget(doc);
+  if (!target) return undefined;
+  const opts = options(doc);
+  const range = agentViewRanges(doc.text, { ...opts, lineRefs: false });
+  const keys = keyPhrases(target.ranges.map(([a, b]) => range(a, b)).join('\n'));
+  const outlineText = outline(doc.text, opts);
+  const views = target.sections.map((id) => agentView(doc.text, { ...opts, sections: [id], exactSections: true }).text);
+  const all = agentView(doc.text, { ...opts, sections: target.sections, exactSections: true }).text;
+  const result = queryDocuments([{ path: doc.name, text: doc.text }], target.type, { today: TODAY, constraints: true });
+  const answer = `${formatQueryResult(result)}[smd] ${queryResultSummary(result, 1)}\n`;
+  return {
+    type: target.type,
+    matches: target.ranges.length,
+    sections: target.sections.length,
+    outlineSections: strategy(count(outlineText) + views.reduce((n, v) => n + count(v), 0), 1 + views.length, coverage(keys, views.join('\n'))),
+    outlineSectionsOneCall: strategy(count(outlineText) + count(all), 2, coverage(keys, all)),
+    query: strategy(count(answer), 1, coverage(keys, answer)),
+  };
 }
 
 const median = (xs: number[]) => {
@@ -259,6 +312,7 @@ export function measure(doc: Doc, reader: Reader, count: (t: string) => number):
     };
   });
   const wholeKeys = keyPhrases(agentView(doc.text, { ...opts, lineRefs: false }).text);
+  const cross = measureCross(doc, count);
   return {
     name: doc.name,
     raw,
@@ -274,6 +328,7 @@ export function measure(doc: Doc, reader: Reader, count: (t: string) => number):
       brief: strategy(count(brief), 1, coverage(wholeKeys, brief)),
       read: strategy(count(readText), 1, coverage(wholeKeys, readText)),
     },
+    ...(cross ? { cross } : {}),
   };
 }
 
@@ -383,6 +438,16 @@ function report(results: DocResult[], sized: DocResult[], fixed: FixedCosts, rea
   for (const r of results) {
     const w = r.whole;
     out.push(`| ${r.name} | ${n(w.raw.tokens)} | ${n(w.agent.tokens)} | ${n(w.brief.tokens)} | ${n(w.read.tokens)} | ${saving(w.agent.tokens, w.raw.tokens)} | ${saving(w.brief.tokens, w.raw.tokens)} | ${pct(w.raw.coverage)} / ${pct(w.agent.coverage)} / ${pct(w.brief.coverage)} / ${pct(w.read.coverage)} |`);
+  }
+
+  out.push('', '### (c) Answer a question that needs several sections', '');
+  out.push('Every block of the type found in the most sections: outline, then each section (one call each, or one call naming them all), against one `smd query "<type>" --constraints`. Documents where no type spans two sections are left out.', '');
+  out.push('| Document | raw | type | matches | sections | outline + sections (calls) | outline + sections, one call | `smd query` | saving vs per-section | coverage per-section / one call / query |');
+  out.push('|---|---:|---|---:|---:|---:|---:|---:|---:|---|');
+  for (const r of [...results, ...sized]) {
+    const c = r.cross;
+    if (!c) continue;
+    out.push(`| ${r.name} | ${n(r.raw)} | \`${c.type}\` | ${c.matches} | ${c.sections} | ${n(c.outlineSections.tokens)} (${c.outlineSections.calls}) | ${n(c.outlineSectionsOneCall.tokens)} | ${n(c.query.tokens)} | ${saving(c.query.tokens, c.outlineSections.tokens)} | ${pct(c.outlineSections.coverage)} / ${pct(c.outlineSectionsOneCall.coverage)} / ${pct(c.query.coverage)} |`);
   }
 
   const all = [...results, ...sized].sort((x, y) => x.raw - y.raw);
