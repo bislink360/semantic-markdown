@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DocumentGraph, edgeTypes, EdgeTypeError, formatQueryResult, mandatoryClosure, queryDocuments, queryResultJson, queryResultSummary,
-  type DocumentRead, type GraphDocument,
+  validateSmd, type DocumentRead, type GraphDocument,
 } from '../src/core';
 
 const TODAY = '2026-11-07';
@@ -194,4 +194,50 @@ test('mandatoryClosure is reusable on its own, and the same source gives the sam
   assert.deepEqual(mandatoryClosure(graph, [r3], { types: ['depends-on'], maxDepth: 2 }).unsatisfied.map((u) => `${u.kind}:${u.edge.target}`), ['depth:R6']);
   const again = () => JSON.stringify(queryResultJson(queryDocuments(docs, '*', { follow: '*', direction: 'both', depth: 3, today: TODAY, readDocument: reader })));
   assert.equal(again(), again());
+});
+
+// ---------------------------------------------------------------------------
+// G7: the validator rules
+// ---------------------------------------------------------------------------
+
+const codes = (text: string) => validateSmd(text, { today: TODAY })
+  .filter((d) => d.code === 'depends/cycle' || d.code === 'decision/depends-superseded')
+  .map((d) => `${d.line}:${d.column}-${d.endColumn}:${d.code}:${d.severity}`);
+
+test('G7: depends/cycle warns once per depends-on or supersedes cycle, at its first block', () => {
+  const doc = [
+    '---', 'smd: 2', '---',
+    ':::requirement{#R1 depends-on=R2} One', ':::',
+    ':::requirement{#R2 depends-on=R3} Two', ':::',
+    ':::requirement{#R3 depends-on=R1} Three', ':::',
+    ':::decision{#D1 supersedes=D2} New', ':::',
+    ':::decision{#D2 supersedes=D1} Old', ':::',
+    ':::requirement{#R4 depends-on=R4} Self', ':::',
+    '- [ ] Task A :depends[TB] {#TA}',
+    '- [ ] Task B :depends[TA] {#TB}',
+    ':::requirement{#R5 depends-on=R1} Fine', ':::',
+  ].join('\n');
+  // R1 → R2 → R3 → R1 at R1, D1 ⇄ D2 at D1, R4 on itself, and the two tasks at the first.
+  assert.deepEqual(codes(doc), ['3:30-32:depends/cycle:warning', '9:27-29:depends/cycle:warning', '13:30-32:depends/cycle:warning', '15:22-24:depends/cycle:warning']);
+  const messages = validateSmd(doc, { today: TODAY }).filter((d) => d.code === 'depends/cycle').map((d) => d.message);
+  assert.ok(messages.some((m) => m.includes('R1 → R2 → R3 → R1')));
+  assert.ok(messages.some((m) => m.includes('This supersedes chain') && m.includes('D1 → D2 → D1')));
+  // No cycle, no warning; the rule can be turned off.
+  assert.deepEqual(codes(doc.replace('depends-on=R1} Three', 'depends-on=R5} Three').replace('depends-on=R1} Fine', '} Fine')
+    .replace('supersedes=D1} Old', '} Old').replace('depends-on=R4} Self', '} Self').replace(':depends[TA]', '')), []);
+  assert.equal(validateSmd(doc, { today: TODAY, rules: { 'depends/*': 'off' } }).filter((d) => d.code === 'depends/cycle').length, 0);
+});
+
+test('G7: decision/depends-superseded warns on an accepted decision that depends on a superseded one', () => {
+  const doc = [
+    '---', 'smd: 2', '---',
+    ':::decision{#D1 status=superseded} Old way', ':::',
+    ':::decision{#D2 status=accepted depends-on=D1} Builds on the old way', ':::',
+    ':::decision{#D3 status=proposed} Replaced without its status', ':::',
+    ':::decision{#D4 status=accepted supersedes=D3} Replaces D3', ':::',
+    ':::decision{#D5 status=accepted depends-on=D3,D4} Builds on both', ':::',
+    ':::decision{#D6 status=proposed depends-on=D1} Only proposed', ':::',
+  ].join('\n');
+  assert.deepEqual(codes(doc), ['5:43-45:decision/depends-superseded:warning', '11:43-45:decision/depends-superseded:warning']);
+  assert.match(validateSmd(doc, { today: TODAY }).find((d) => d.code === 'decision/depends-superseded')!.message, /depends on "D1", which is superseded/);
 });

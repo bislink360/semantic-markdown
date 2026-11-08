@@ -17,6 +17,7 @@ import { compareVersions, findChangelogs, isIsoDate, parseVersion, versionKey, v
 import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
 import { duplicateIds } from './ids';
+import { dependencyProblems } from './graph';
 import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
 import { checkTablePipes } from './tableCheck';
@@ -224,6 +225,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkFigures(text, lines, fm.bodyStartLine, pushText, () => includedFigureIds(text, options.readFile));
   checkDuplicateIds(text, lines, pushText);
   checkIdAttributes(text, idAttrBlocks, pushText);
+  checkDependencies(text, lines, idAttrBlocks, pushText, options.today);
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));
@@ -964,6 +966,29 @@ function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: P
       }
     }
   }
+}
+
+/**
+ * `depends-on` and `supersedes` chains that return to their start (`depends/cycle`), and accepted decisions that depend
+ * on a superseded one (`decision/depends-superseded`), from the graph (filtering G7). Only read when the document
+ * has such an edge.
+ */
+function checkDependencies(text: string, lines: string[], blocks: readonly IdAttrBlock[], push: Push, today?: string): void {
+  const typed = blocks.some((b) => b.info.attrs.values['depends-on'] !== undefined || b.info.attrs.values.supersedes !== undefined);
+  if (!typed && !/:depends\[/i.test(text)) return;
+  for (const p of dependencyProblems(text, today)) {
+    const raw = lines[p.line] ?? '';
+    const [column, end] = p.key === ':depends' ? dependsColumns(raw, p.id) : idColumns(raw, p.key, p.id);
+    push(p.line, column, end, 'warning', p.code, p.message);
+  }
+}
+
+/** Where `id` is written in a task's `:depends[…]`; the whole line when it can't be found. */
+function dependsColumns(raw: string, id: string): [number, number] {
+  const at = raw.search(/:depends\[/i);
+  const found = at < 0 ? null : new RegExp(`(?<![\\w.-])${escapeRegExp(id)}(?![\\w.-])`).exec(raw.slice(at));
+  if (!found) return [raw.length - raw.trimStart().length, raw.length];
+  return [at + found.index, at + found.index + id.length];
 }
 
 /** Where `id` is written in the value of `key` on a container's opening line; the whole line when it can't be found. */
