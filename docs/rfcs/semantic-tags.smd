@@ -2,7 +2,7 @@
 smd: 2
 title: Semantic tags RFC
 summary: The syntax, rendering, agent view, budget treatment, plain-Markdown fallback, query selectors, validator rules, compatibility and token cost of the semantic tags, starting with shared block ids and the phase 1 tags requirement, constraint and acceptance. It turns the semantic tags requirements into a design the maintainer accepts section by section before each phase is built.
-status: review
+status: approved
 owners: ["@roshanmadhushanka"]
 tags: [rfc, spec, semantic-tags]
 created: 2026-11-07
@@ -11,6 +11,7 @@ toc: true
 related:
   - ../requirements/semantic-tags.smd
   - research-contract.smd
+  - feedback-loop.smd
   - ../requirements/research-interaction.smd
   - ../requirements/tree-and-graph-filtering.smd
   - ../reference/spec.md
@@ -23,7 +24,7 @@ This RFC answers the [semantic tags requirements](../requirements/semantic-tags.
 
 Each phase has its own section, and the maintainer accepts each one separately. Nothing in a phase is built before its section is accepted. Phase 1 is written out in full. Phases 2 and 3 are outlined so the phase 1 choices don't block them, and each gets a full section before it starts.
 
-The maintainer accepted decisions D1 to D6 on 2026-11-07, and with them the block id groundwork and the v1 directive list. Q1 and Q2 stay open with their fallbacks, and Q1 must be answered before the phase 1 tags are accepted.
+The maintainer accepted decisions D1 to D6 on 2026-11-07, and with them the block id groundwork and the v1 directive list. Later that day Q1 and Q2 were answered with their fallbacks (D7, D8), phase 1 was accepted, and phase 2 was accepted to be built from its outline, with the details in the [feedback loop RFC](feedback-loop.smd).
 
 Recorded behavior was checked at f48e706 (the 3.1.0 release train, unreleased) by reading the source and running the CLI.
 
@@ -335,15 +336,21 @@ Spec v1 parsing and the migrate escape read a frozen list of the nine v1 directi
 Applying constraints from outside the selected sections appear under "Constraints that apply here", after the agent instructions and before the dangers. The dangers block stays as the research contract locked it, and an agent sees the author's explicit rules before the inferred ones.
 :::
 
+:::decision{#D7 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Acceptance blocks may nest or stand alone
+The question was Q1, whether acceptance blocks must sit inside a requirement. Answer: both forms are valid, as the fallback said. A nested block verifies its parent and any ids it lists, and a standalone block needs `verifies`.
+:::
+
+:::decision{#D8 status=accepted date=2026-11-07 owner=@roshanmadhushanka} No requirement kind for now
+The question was Q2, whether requirements get a `kind` attribute. Answer: not now, as the fallback said. It can be added later without changing any written requirement.
+:::
+
+:::decision{#D9 status=accepted date=2026-11-07 owner=@roshanmadhushanka} Phase 2 is built from its outline
+`assumption`, `evidence`, `depends-on`, the question lifecycle and `supersedes` are built with phase 1, from the outline below and the details in the feedback loop RFC. References to other documents (R19) and rename across the workspace (R18) wait.
+:::
+
 ## Open questions
 
-:::question{#Q1 title="Must acceptance blocks sit inside a requirement?"}
-Requiring nesting would make `verifies` unnecessary, but one criterion could then cover only one requirement. The maintainer decides before this RFC is accepted. Until then, both forms are allowed (R33).
-:::
-
-:::question{#Q2 title="Should requirements have a kind?"}
-A `kind` attribute (`functional`, `quality`, `story`) would let user stories and quality requirements share one tag. The maintainer decides before phase 1 ships. Until then, there is no `kind` attribute.
-:::
+Q1 and Q2 are answered by D7 and D8.
 
 :::question{#Q3 title="Is phase 3 worth building?"}
 `non-goals`, `example` and `deprecated` have weaker evidence than the core set. Decide after phase 2 ships, using adoption numbers. Until then, phase 3 stays on the roadmap as P2 and P3, and only the v1 directive list from D5 is built early.
@@ -351,7 +358,7 @@ A `kind` attribute (`functional`, `quality`, `story`) would let user stories and
 
 ## Phase 2 outline
 
-Phase 2 gets its own section before it starts. These are the choices phase 1 must leave room for.
+Accepted to be built from this outline (D9). The [feedback loop RFC](feedback-loop.smd) gives the details: diagnostics, defaults, the agent view and the commands.
 
 - `:::assumption{#A1 status=unvalidated owner=… review-by=YYYY-MM-DD}` with `assumption/overdue` (info) and `assumption/invalid`. Unvalidated assumptions are key content, as open questions are.
 - `:::evidence{#E1 supports=… contradicts=… method=… source=… commit=… date=…}`. `source` goes through the `:::quote{cite}` URL check. Evidence priority waits for G3.
@@ -368,7 +375,7 @@ Phase 2 gets its own section before it starts. These are the choices phase 1 mus
 ## Rules for implementers
 
 :::agent{title="Rules for building the semantic tags"}
-- Build a phase only after its section here is accepted. Decisions D1 to D6 are accepted (2026-11-07). The block id groundwork and the v1 directive list may be built now. The requirement, constraint and acceptance tags wait for Q1.
+- Build a phase only after its section here is accepted. Decisions D1 to D9 are accepted (2026-11-07), so phases 1 and 2 may be built. Phase 3 waits for Q3.
 - Phase 1 order is the v1 directive list (D5), then `:ref` and id attributes, then requirement, constraint and acceptance, then the templates.
 - Don't change how documents without the new tags render, export or validate (R63, R64). Run `smd export --to md` over `docs/gallery` before and after, and keep `extension/test/researchContract.test.ts` passing unchanged.
 - Never add a block type, attribute or example to MCP tool descriptions or server instructions. The MCP surface is at 496 of 500 tokens.
