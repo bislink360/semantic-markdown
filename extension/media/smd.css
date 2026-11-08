@@ -210,6 +210,7 @@ body.smd-body {
 .smd-progress-track { display: inline-block; width: 120px; height: 8px; border-radius: 999px; background: var(--smd-gray-soft); overflow: hidden; }
 .smd-progress-bar { display: block; height: 100%; border-radius: 999px; background: var(--smd-accent); }
 .smd-progress-label { font-size: .82em; color: var(--smd-fg-muted); font-variant-numeric: tabular-nums; }
+.smd-progress-unknown .smd-progress-track { background: repeating-linear-gradient(-45deg, var(--smd-gray-soft) 0 4px, transparent 4px 8px); }
 
 /* ---------- Callouts ---------- */
 .smd-callout {

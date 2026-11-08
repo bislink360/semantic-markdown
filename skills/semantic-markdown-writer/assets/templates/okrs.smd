@@ -8,7 +8,7 @@ tags: [okrs, planning]
 updated: {{today}}
 ---
 
-**Period:** YYYY-QN · **Overall:** :status[On track]{color=green} · **Progress:** :progress{value=0 label="0%"}
+**Period:** YYYY-QN · **Overall:** :status[On track]{color=green} · **Progress:** :progress{value=0 basis=estimate label="0%"}
 
 ## Objective 1: A qualitative, inspiring outcome
 
@@ -18,8 +18,8 @@ updated: {{today}}
 
 | Key result                   | Owner  | Baseline | Target | Progress           | Confidence                     |
 | ---------------------------- | ------ | -------- | ------ | ------------------ | ------------------------------ |
-| **KR 1.1** Measurable result | @owner | —        | —      | :progress{value=0} | :status[On track]{color=green} |
-| **KR 1.2** Measurable result | @owner | —        | —      | :progress{value=0} | :status[At risk]{color=amber}  |
+| **KR 1.1** Measurable result | @owner | —        | —      | :progress{value=0 basis=measured} | :status[On track]{color=green} |
+| **KR 1.2** Measurable result | @owner | —        | —      | :progress{value=0 basis=measured} | :status[At risk]{color=amber}  |
 
 ## Objective 2: A second outcome
 
@@ -27,7 +27,7 @@ updated: {{today}}
 
 | Key result                   | Owner  | Baseline | Target | Progress           | Confidence                     |
 | ---------------------------- | ------ | -------- | ------ | ------------------ | ------------------------------ |
-| **KR 2.1** Measurable result | @owner | —        | —      | :progress{value=0} | :status[On track]{color=green} |
+| **KR 2.1** Measurable result | @owner | —        | —      | :progress{value=0 basis=measured} | :status[On track]{color=green} |
 
 ## Initiatives
 
