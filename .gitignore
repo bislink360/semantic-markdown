@@ -45,3 +45,7 @@ integrations/tree-sitter-smd/log.html
 
 # GitHub Pages build output (.github/workflows/pages.yml)
 _site/
+
+# Local output and all research material (not committed)
+output/
+research/

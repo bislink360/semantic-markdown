@@ -1,6 +1,0 @@
-L1-L6: front matter (title, summary, status=approved) — "Ledger export to accounting tools", "Tallyhook customers can send their invoices, payments and credit notes to their accounting tool as a ledger export, so their bookkeeper stops retyping them.", "Status: approved for build"
-L12: {agent=skip} — "## Background" and "It is here so that people joining the project know why the feature exists"
-L74: :::danger — "**Important:** An export must never contain a customer's full card number or bank account number" with stated harm "could cost us the processing agreement"
-L80: :::decision{status=accepted date=2026-08-03} — "On-demand exports (decided 2026-08-03)", "This replaces the monthly schedule decided in May"
-L107: :::decision{status=superseded date=2026-05-12} — "Monthly scheduled exports (decided 2026-05-12)", and at L81 "This replaces the monthly schedule decided in May"
-L113: :::question — "Should exports include the invoice PDFs?", "Undecided.", "Until then, exports contain ledger data only"

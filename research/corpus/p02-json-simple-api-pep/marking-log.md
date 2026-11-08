@@ -1,6 +1,0 @@
-L1-L6: front matter (title, summary, status=approved) — "# PEP 691: JSON-based Simple API for Python Package Indexes", "The "Simple Repository API" that was defined in PEP 503 (and was in use much longer than that) has served us reasonably well for a very long time.", "Status: Final." (PEP status Final mapped to `approved`)
-L125: :::decision{status=superseded} — "`dist-info-metadata`: An **optional** key that indicates that metadata for this file is available", replaced later by "This PEP renames the metadata provided by PEP 658 in both HTML and JSON formats" and "**MUST** be emitted using the key `core-metadata`" (L394, L401)
-L224: :::warning — "> **Important:** This PEP **does** require that if the meta version `latest` is being used, the server **MUST** respond with the content type for the actual version" (called out, no stated harm)
-L331: :::question — "this PEP defers making a decision about how exactly to represent this inside of PEP 458 metadata. Until that decision is made, TUF target paths should name an explicit version and format"
-L393: :::decision{status=accepted} — "Later change: PEP 714", "Status: Accepted.", "This PEP renames the metadata provided by PEP 658"
-L411: {agent=skip} — "## History" (creation, discussion and resolution dates)

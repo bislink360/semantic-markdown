@@ -1,5 +1,0 @@
-L1-L6: front matter (title, summary, status=approved) — "ADR002: Default Software Catalog File Format", "This ADR describes the default format of these descriptor files." The ADR has no status line of its own. It is a numbered record in the Backstage decision log, whose index says records "can be marked as superseded by new decisions or deprecated", and ADR002 carries neither mark, so it is mapped to approved.
-L8: {agent=skip} — "## Background" (the section the source labels background, with its "Inspiration" subsection)
-L54: :::decision{status=superseded} — "An early draft of this ADR settled how many entities a file holds as follows." and, under Format, "This replaces the one-entity-per-file rule of the early draft, which is superseded."
-L161: :::danger — "> **Warning:** Do not rename an entity by editing its `name` while other entities still reference it." with stated harm "every entity that pointed at the old name is left with a broken reference"
-L175: :::question — "Whether namespaces will also be used to control who may change an entity is undecided. Until then, leave `namespace` unset"
