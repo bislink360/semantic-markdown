@@ -194,6 +194,19 @@ test('AF15: a dependency the view already shows is not repeated, and a whole vie
   assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: 1 mandatory dependency is not satisfied\]/);
 });
 
+test('AF15: an applying constraint brings its own dependencies, and a constraint whose applies-to names a dependency applies', () => {
+  const doc = DEPS.replace('## Unrelated', [
+    '## Rules', '',
+    ':::constraint{#C1 scope=document depends-on=R5} Needs R5', 'C1_BODY', ':::', '',
+    ':::constraint{#C2 applies-to=R2} About the ledger', 'C2_BODY', ':::', '',
+    '## Unrelated',
+  ].join('\n'));
+  const r = agentView(doc, { sections: ['Work'] });
+  assert.match(r.text, /Constraints that apply here:\n<constraint id="C1"[^\n]*\nC1_BODY[\s\S]*<constraint id="C2"[^\n]*\nC2_BODY/);
+  assert.match(r.text, /Dependencies of the selected content:[\s\S]*R5_BODY/);
+  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies]), [['C1', 'document'], ['C2', 'applies-to']]);
+});
+
 test('AF15: a dependency in an {agent=skip} section is not shown and is unsatisfied', () => {
   const doc = DEPS.replace('## Basis', '## Basis {agent=skip}');
   const r = agentView(doc, { sections: ['Work'] });
