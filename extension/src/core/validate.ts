@@ -20,6 +20,9 @@ import { duplicateIds } from './ids';
 import { dependencyProblems } from './graph';
 import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
+import { isUnknownValue, progressBasis } from './progress';
+import { evidenceRecords, isAcceptance, recordName, supportFor, verifies, type EvidenceRecord } from './evidence';
+import { documentBlocks } from './query';
 import { checkTablePipes } from './tableCheck';
 import { hasAccTitle, mermaidTitle } from './mermaid';
 import { headingAttrList, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
@@ -226,6 +229,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkDuplicateIds(text, lines, pushText);
   checkIdAttributes(text, idAttrBlocks, pushText);
   checkDependencies(text, lines, idAttrBlocks, pushText, options.today);
+  checkEvidence(text, lines, pushText, options.today);
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));
@@ -698,6 +702,26 @@ function checkDirectiveContent({ line, text, push }: InlineAt, { name, col, end 
 function checkDirectiveAttrs(at: InlineAt, d: DirectiveUse, spec: InlineDirectiveSpec, attrs: Attrs): void {
   const keys = Object.keys(attrs.values);
   for (const [key, value] of Object.entries(attrs.values)) checkDirectiveAttr(at, d, spec, { key, value, keys });
+  if (d.name === 'progress') checkProgressBasis(at, d, attrs.values);
+}
+
+/**
+ * A bar's basis (research AF25): a value next to `basis=tasks` is ignored (`progress/basis-value`), and a written
+ * percentage should say how it was found (`progress/basis`, a hint, in every spec version so a document validates
+ * the same in both).
+ */
+function checkProgressBasis({ line, push }: InlineAt, { col, end }: DirectiveUse, values: Record<string, string>): void {
+  const basis = progressBasis(values);
+  const value = values.value;
+  if (value === undefined) return;
+  const n = Number(value);
+  if (basis === 'tasks') {
+    push(line, col, end, 'warning', 'progress/basis-value',
+      `This bar counts the checked tasks of its section (basis=tasks), so value="${value}" is ignored. Remove the value, or the basis to show the value.`);
+  } else if (basis === undefined && Number.isFinite(n) && n >= 0 && n <= 100) {
+    push(line, col, end, 'hint', 'progress/basis',
+      `Say how ${value}% was found: basis=measured or basis=estimate. Or count the section's checked tasks with basis=tasks, or write value=unknown.`);
+  }
 }
 
 /** One attribute of a directive: an allowed value, an accepted key, a color, a progress value. */
@@ -714,9 +738,9 @@ function checkDirectiveAttr(
       attrKeyFix(line, text, col, end, key, spec.attrs, keys));
   } else if (key === 'color' && !resolveColor(value)) {
     push(line, col, end, 'error', 'attrs/value', `Invalid color "${value}".`, attrValueFix(line, text, col, end, key, value, namedColor(value)));
-  } else if (key === 'value') {
+  } else if (key === 'value' && !(name === 'progress' && isUnknownValue(value))) {
     const n = Number(value);
-    if (!Number.isFinite(n) || n < 0 || n > 100) push(line, col, end, 'error', 'attrs/value', `Progress value must be a number from 0 to 100, got "${value}".`);
+    if (!Number.isFinite(n) || n < 0 || n > 100) push(line, col, end, 'error', 'attrs/value', `Progress value must be a number from 0 to 100 or unknown, got "${value}".`);
   }
 }
 
@@ -981,6 +1005,49 @@ function checkDependencies(text: string, lines: string[], blocks: readonly IdAtt
     const [column, end] = p.key === ':depends' ? dependsColumns(raw, p.id) : idColumns(raw, p.key, p.id);
     push(p.line, column, end, 'warning', p.code, p.message);
   }
+}
+
+/**
+ * Evidence that a change made outdated (`evidence/stale`, AF28), and requirements that say `status=verified` with no
+ * current passing verification to support it (`requirement/verified`, AF26). A person rechecks: neither has a fix.
+ */
+function checkEvidence(text: string, lines: string[], push: Push, today?: string): void {
+  if (!/:{3,}\s*evidence\b/i.test(text) && !/\bstatus\s*=\s*["']?verified\b/i.test(text)) return;
+  const blocks = documentBlocks(text, today);
+  const records = evidenceRecords(text, blocks);
+  for (const r of records) {
+    for (const t of r.supports.filter((s) => s.freshness === 'outdated')) {
+      const [column, end] = idColumns(lines[r.line] ?? '', 'rev', t.id);
+      push(r.line, column, end, 'warning', 'evidence/stale',
+        `${t.id} changed after ${recordName(r)} was recorded: it was at revision ${t.recorded} and is now at ${t.current}. ` +
+        `Recheck ${t.id} before treating this evidence as current, then record the new revision in rev.`);
+    }
+  }
+  for (const b of blocks) {
+    if (b.type !== 'requirement' || typeof b.attrs.status !== 'string' || b.attrs.status.trim().toLowerCase() !== 'verified') continue;
+    const id = typeof b.attrs.id === 'string' ? b.attrs.id : undefined;
+    const [column, end] = idColumns(lines[b.line] ?? '', 'status', 'verified');
+    if (!id) {
+      push(b.line, column, end, 'warning', 'requirement/verified',
+        'This requirement says status=verified, but it has no id, so no evidence can support it. Give it an {#id} and record passing evidence, or change the status.');
+    } else if (!records.some((r) => verifies(r, id))) {
+      push(b.line, column, end, 'warning', 'requirement/verified',
+        `${id} says status=verified, but no current passing evidence supports it (${unverifiedReason(records, id)}). ` +
+        'A checked task or an acceptance criterion is not evidence: record an :::evidence block with supports, method, result=pass and rev, or change the status.');
+    }
+  }
+}
+
+/** Why the records that support `id` don't verify it, in a few words. */
+function unverifiedReason(records: readonly EvidenceRecord[], id: string): string {
+  const mine = records.filter((r) => supportFor(r, id));
+  if (!mine.length) return `no evidence supports ${id}`;
+  return mine.map((r) => {
+    const name = recordName(r);
+    if (supportFor(r, id)?.freshness === 'outdated') return `${name} is outdated`;
+    if (isAcceptance(r)) return `${name} is a person's acceptance, not verification`;
+    return r.result ? `${name} says result=${r.result}` : `${name} records no result`;
+  }).join('; ');
 }
 
 /** Where `id` is written in a task's `:depends[…]`; the whole line when it can't be found. */

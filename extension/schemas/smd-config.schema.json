@@ -170,6 +170,36 @@
           ],
           "description": "Every decision/… rule. Exact codes win."
         },
+        "evidence/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every evidence/… rule. Exact codes win."
+        },
+        "requirement/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every requirement/… rule. Exact codes win."
+        },
+        "progress/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every progress/… rule. Exact codes win."
+        },
         "footnote/*": {
           "enum": [
             "off",
@@ -819,6 +849,46 @@
             "hint"
           ],
           "description": "An accepted decision depends on a superseded decision"
+        },
+        "evidence/stale": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A block an :::evidence record supports changed after the revision its rev records, so the record needs a recheck before it counts as current"
+        },
+        "requirement/verified": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A requirement says status=verified and no current passing evidence supports it (result=pass, a method other than acceptance, not outdated)"
+        },
+        "progress/basis": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :progress value without a basis that says how it was found (measured, estimate)"
+        },
+        "progress/basis-value": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :progress{basis=tasks} also has a value, which is ignored"
         },
         "footnote/undefined": {
           "enum": [

@@ -123,7 +123,7 @@ test('inline items across line breaks: the validator checks a directive\'s attri
   assert.match(diags[0].message, /":badge" does not take "colr"/);
   assert.deepEqual(diags[0].fix && { line: diags[0].fix.line, column: diags[0].fix.column, replacement: diags[0].fix.replacement }, { line: 1, column: 5, replacement: 'color' });
   // The attribute list ends a directive, not a styled span.
-  assert.deepEqual(validateSmd('A :progress[half\nway]{value=50} done.\n'), []);
+  assert.deepEqual(validateSmd('A :progress[half\nway]{value=50} done.\n').map((d) => d.code), ['progress/basis']);
   assert.deepEqual(validateSmd('A :badge[x\ny]{color=gren}.\n').map((d) => d.message), ['Invalid color "gren".']);
 });
 
