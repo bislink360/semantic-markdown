@@ -83,7 +83,7 @@ export const CONTAINERS: Readonly<Record<string, ContainerSpec>> = {
   danger: callout('Danger / breaking'),
   question: {
     ...callout('Open question'),
-    attrs: ['title', 'collapsible', 'status', 'owner', 'due', 'between', 'reason'],
+    attrs: ['title', 'collapsible', 'status', 'owner', 'due', 'between', 'reason', 'by', 'on'],
     values: { status: QUESTION_STATUS },
   },
   details: { description: 'Collapsible section. Title after the name is the summary.', title: true, attrs: ['title', 'open'] },
