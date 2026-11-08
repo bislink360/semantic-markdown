@@ -8,6 +8,7 @@ import { specVersion, type SpecVersion } from './specVersion';
 import { scanTasks } from './taskLines';
 import { shownValues, substituteLine } from './variables';
 import { priorityRank } from './util';
+import { blockers, dependsIds } from './semanticTags';
 
 export interface TaskInfo {
   text: string;
@@ -22,6 +23,10 @@ export interface TaskInfo {
   priority?: string;
   due?: string;
   overdue?: boolean;
+  /** The ids `:depends[…]` lists on the task (spec v2), when it has any. */
+  depends?: string[];
+  /** The ids in `depends` whose block isn't done yet: an unchecked task, a requirement not implemented, an open question. */
+  blocked?: string[];
 }
 
 export interface DecisionInfo { title: string; status: string; date?: string; owner?: string; line: number }
@@ -54,6 +59,8 @@ export function extractTasks(text: string, today?: string): TaskInfo[] {
     if (item.kind === 'heading') section = plainInlineText(item.text, spec, shown);
     else tasks.push(taskInfo(item, section, { data: shown, spec }, today));
   }
+  // A task that depends on blocks is blocked while one of them isn't done.
+  for (const t of tasks) if (t.depends) t.blocked = blockers(t.depends, text);
   return tasks;
 }
 
@@ -76,10 +83,12 @@ function taskInfo(
     ...[...body.replace(/`[^`]*`/g, '').matchAll(/(?:^|\s)(@[\w.-]+)/g)].map((x) => x[1]),
   ];
   const done = item.mark !== ' ';
+  const depends = dependsIds(body, spec);
   return {
-    // Owner, priority and due date live in their own fields, so strip them from the text.
+    // Owner, priority, due date and dependencies live in their own fields, so strip them from the text.
     text: plainInlineText(body, spec)
       .replace(/\s*\(due [^)]*\)/, '')
+      .replace(/\s*\(depends on [^)]*\)/g, (m) => (depends.length ? '' : m))
       .replace(/\s*\[(?:P\d|critical|high|medium|low)\]/i, '')
       .replace(/(^|\s)@[\w.-]+(?=\s|$)/g, '')
       .replace(/\s{2,}/g, ' ')
@@ -91,6 +100,7 @@ function taskInfo(
     assignees: [...new Set(assignees)],
     ...(priority ? { priority } : {}),
     ...(due ? { due, overdue: !done && dueState(due, today) === 'overdue' } : {}),
+    ...(depends.length ? { depends } : {}),
   };
 }
 

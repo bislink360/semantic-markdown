@@ -17,6 +17,8 @@ export interface FrontMatterProperty {
   items?: { type: string };
   anyOf?: Array<Omit<FrontMatterProperty, 'description'>>;
   examples?: unknown[];
+  /** For an object: the schema each value must match. */
+  additionalProperties?: unknown;
 }
 
 const DATE = '^\\d{4}-\\d{2}-\\d{2}$';
@@ -55,6 +57,25 @@ const PROPERTIES: Record<string, FrontMatterProperty> = {
   related: listOf(FRONTMATTER_KEYS.related, [['adr-0007-event-bus.smd', 'https://example.com/spec']]),
   lang: { description: FRONTMATTER_KEYS.lang, type: 'string', examples: ['de', 'pt-BR'] },
   typography: { description: FRONTMATTER_KEYS.typography, type: 'boolean' },
+  views: {
+    description: FRONTMATTER_KEYS.views,
+    type: 'object',
+    additionalProperties: {
+      type: 'object',
+      properties: {
+        sections: { anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }] },
+        query: { type: 'string' },
+        mandatory: { anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }] },
+        optional: { anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }] },
+        // Spec v2 keeps a value's YAML spelling, so a number may come as a string of digits.
+        budget: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', pattern: '^0*[1-9][0-9]*$' }] },
+        evidence: { type: 'string', enum: ['pointers', 'full'] },
+        description: { type: 'string' },
+      },
+      additionalProperties: false,
+    },
+    examples: [{ 'implement-r1': { sections: ['Requirements'], mandatory: ['C1'], optional: ['AC1'], budget: 1500 } }],
+  },
 };
 
 export const FRONTMATTER_SCHEMA = {

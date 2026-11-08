@@ -1,3 +1,4 @@
+import { keepsTies, mandatoryPlan, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan } from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
 import {
@@ -25,8 +26,15 @@ import {
 } from './provenance';
 import { dueState, type Heading } from './render';
 import { matchesExactly, matchesHeading, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
+import { countsTasks, progressState, progressTag, type TaskCount } from './progress';
+import { sectionTaskCounts } from './progressCounts';
+import { evidenceRecords, type EvidenceRecord } from './evidence';
+import { documentBlocks, type DocumentBlock } from './query';
 import { quoteCite } from './quote';
-import { CALLOUT_TYPES, INLINE_DIRECTIVES, isKnownDirective } from './spec';
+import { hasReviewBlocks, reviewItems, type ReviewItem } from './review';
+import { REVIEW_CONTAINERS } from './revision';
+import { CALLOUT_TYPES, idList, INLINE_DIRECTIVES, isKnownDirective } from './spec';
+import { hasAnswer, isLifecycleQuestion, questionStatus, tagContext, type TagBlock, type TagContext } from './semanticTags';
 import { specVersion, type SpecVersion } from './specVersion';
 import { openTaskLines } from './taskLines';
 import { own } from './util';
@@ -53,6 +61,11 @@ export interface AgentViewOptions {
   brief?: boolean;
   /** Keep :::human blocks (dropped by default). */
   includeHuman?: boolean;
+  /**
+   * Keep resolved, accepted, rejected and withdrawn comments and suggestions (left out by default, with one line
+   * that counts them). Open ones and answers are always shown.
+   */
+  includeReview?: boolean;
   /** Append [L12] source line references to headings (default true) so agents can edit precisely. */
   lineRefs?: boolean;
   /** Inline `file="…"` code embeds instead of referencing the path (default false). */
@@ -84,6 +97,25 @@ export interface AgentViewOptions {
    * map and every omission with its reason (see provenance.ts). It never changes `text`. Off by default.
    */
   provenance?: boolean;
+  /** How evidence records of the blocks shown appear: one-line pointers (default) or in full. */
+  evidence?: 'full' | 'pointers';
+  /** Lines an author task view adds to the selection (see taskViews.ts). Internal; leave it out otherwise. */
+  pinned?: PinnedSelection;
+}
+
+/**
+ * What an author task view adds to a view: line ranges shown with the selected sections (never omitted for a budget),
+ * the ranges kept whole when the view is condensed (mandatory content), the header's excerpt line, and text that ends
+ * the view (pointers, unsatisfied requirements), counted in the budget.
+ */
+export interface PinnedSelection {
+  /** Zero-based first and last lines, inclusive. */
+  ranges: ReadonlyArray<readonly [number, number]>;
+  whole: ReadonlyArray<readonly [number, number]>;
+  /** The view selects content (sections, a query or mandatory ids); false shows the whole document. */
+  selects: boolean;
+  label: string;
+  appendix: string;
 }
 
 export interface AgentViewResult {
@@ -105,6 +137,11 @@ export interface AgentViewResult {
   constraints?: ConstraintView;
   /** With `provenance`: where each part of `text` came from and what was left out. */
   provenance?: Provenance;
+  /**
+   * Only for a document with `:::constraint` blocks or dependencies: the constraints from outside the selected
+   * sections, the dependencies the view adds, and what it could not satisfy (see applicability.ts).
+   */
+  mandatory?: MandatoryContext;
 }
 
 /** One `sections` query and the headings it selected, each with its id and zero-based line. */
@@ -133,6 +170,10 @@ interface HeadSource {
   id?: string;
   /** The `:::figure` that opens on this line. */
   figure?: Figure;
+  /** The id of the requirement this container sits in (a nested acceptance verifies it). */
+  requirement?: string;
+  /** What the document's other blocks say about this one: its answer, what supersedes it. */
+  tags?: { block?: TagBlock; context: TagContext };
 }
 
 const titleAttr = (title: string) => (title ? ` title="${title}"` : '');
@@ -141,6 +182,44 @@ const attrList = (values: Record<string, string>, keys: string[]) => keys.filter
 
 /** `<tag title="…">` … `</tag>` */
 const tagged = (tag: string) => ({ title }: HeadSource): ContainerHead => ({ line: `<${tag}${titleAttr(title)}>`, close: `</${tag}>` });
+
+/** ` id="…" key="…"`: the id, then the attributes in `keys` that have a value. */
+const tagAttrs = (id: string | undefined, values: Record<string, string>, keys: string[]) => `${id ? ` id="${id}"` : ''}${attrList(values, keys)}`;
+
+/** A semantic tag: `<requirement id="R1" status="accepted">` Title … `</requirement>`. `shown` are defaults the view states. */
+const semanticTag = (tag: string, keys: string[], shown: Record<string, string> = {}) => ({ title, values, id }: HeadSource): ContainerHead => ({
+  line: `<${tag}${tagAttrs(id, { ...shown, ...values }, keys)}>${titleAfter(title)}`, close: `</${tag}>`,
+});
+
+/** An acceptance block lists the requirement it sits in first in `verifies`. */
+function acceptanceHead(source: HeadSource): ContainerHead {
+  const verifies = [...new Set([...(source.requirement ? [source.requirement] : []), ...idList(source.values.verifies ?? '')])].join(',');
+  return semanticTag('acceptance', ['verifies', 'test'])({ ...source, values: { ...source.values, ...(verifies ? { verifies } : {}) } });
+}
+
+/**
+ * A question: as before, unless it uses the lifecycle. Then its id and state come first, and `answered` or
+ * `incorporated` show only when an answer exists (research contract, "Questions", GAP-8).
+ */
+function questionHead(source: HeadSource): ContainerHead {
+  const plain = tagged('question')(source);
+  const block = source.tags?.block;
+  if (!block || block.name !== 'question') return plain;
+  const { blocks, answered } = source.tags!.context;
+  const answer = hasAnswer(block, blocks, answered);
+  if (!isLifecycleQuestion(block, answer)) return plain;
+  const values = { ...source.values, status: questionStatus(block, answer) };
+  return { line: `<question${tagAttrs(source.id, values, ['status', 'owner', 'due', 'between', 'reason'])}${titleAttr(source.title)}>`, close: '</question>' };
+}
+
+/** A decision, with `superseded-by` when a decision of the document supersedes it. */
+function decisionHead({ title, values, id, tags }: HeadSource): ContainerHead {
+  const by = id ? tags?.context.supersededBy.get(id) : undefined;
+  const shown = by ? { ...values, 'superseded-by': by.join(',') } : values;
+  // Its id only with a link, so decisions without one read as before.
+  const linked = id && (by || shown.supersedes || shown['depends-on']) ? id : undefined;
+  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
+}
 
 function apiHead({ title, values: v }: HeadSource): ContainerHead {
   return { line: `API ${(v.method ?? 'GET').toUpperCase()} ${v.path ?? ''}${titleAfter(title, ' — ')}${v.auth ? ` (auth: ${v.auth})` : ''}` };
@@ -161,6 +240,9 @@ function quoteHead({ values }: HeadSource): ContainerHead {
 /** `Title:`, or nothing without a title. */
 const titleLine = ({ title }: HeadSource): ContainerHead => (title ? { line: `${title}:` } : {});
 
+/** Containers whose head reads what other blocks say about them (see tagContext). */
+const TAG_HEADS: ReadonlySet<string> = new Set(['question', 'decision']);
+
 /**
  * The agent view of each container's opening line. `:::human` (unless included) and `:::details` in brief
  * views are dropped before this. tabs, columns, column, box, steps and timeline: content only. Unknown containers:
@@ -169,8 +251,15 @@ const titleLine = ({ title }: HeadSource): ContainerHead => (title ? { line: `${
 const CONTAINER_HEADS = new Map<string, (c: HeadSource) => ContainerHead>([
   ['agent', tagged('agent-instructions')],
   ...CALLOUT_TYPES.map((c) => [c, tagged(c)] as const),
-  ['decision', ({ title, values }) => ({ line: `<decision${attrList(values, ['status', 'date', 'owner'])}>${titleAfter(title)}`, close: '</decision>' })],
-  ['risk', ({ title, values }) => ({ line: `<risk${attrList(values, ['impact', 'likelihood', 'owner', 'status'])}>${titleAfter(title)}`, close: '</risk>' })],
+  ['question', questionHead],
+  ['decision', decisionHead],
+  ['risk', ({ title, values, id }) => ({ line: `<risk${tagAttrs(values['depends-on'] ? id : undefined, values, ['impact', 'likelihood', 'owner', 'status', 'depends-on'])}>${titleAfter(title)}`, close: '</risk>' })],
+  // A status or level is shown when not written: an agent must know a requirement is only proposed (semantic tags R4).
+  ['requirement', semanticTag('requirement', ['priority', 'status', 'owner', 'depends-on'], { status: 'proposed' })],
+  ['constraint', semanticTag('constraint', ['scope', 'applies-to', 'level', 'owner', 'depends-on'], { level: 'must' })],
+  ['acceptance', acceptanceHead],
+  ['assumption', semanticTag('assumption', ['status', 'owner', 'review-by', 'depends-on'], { status: 'unvalidated' })],
+  ['evidence', semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])],
   ['risk-matrix', ({ title }) => ({ line: riskMatrixPointer(title) })],
   ['api', apiHead],
   ['details', tagged('details')],
@@ -213,6 +302,9 @@ interface ViewScope {
   missingSections: string[];
   resolved: ResolvedSection[];
   inScope: (line: number) => boolean;
+  pinned?: PinnedSelection;
+  /** The constraints and dependencies the view must carry, when the document has any (see applicability.ts). */
+  mandatory?: MandatoryPlan;
 }
 
 /** Which lines of the document are in the view. */
@@ -221,13 +313,19 @@ function viewScope(text: string, options: AgentViewOptions): ViewScope {
   const lines = text.split(/\r?\n/);
   const sections = sectionsOf(parseSmd(text).headings, lines.length);
   const skipped = sections.filter((s) => s.heading.agent === 'skip');
-  const { selected, missingSections, resolved } = selectSections(sections, options.sections, options.exactSections);
-  const inScope = (line: number) =>
+  const chosen = selectSections(sections, options.sections, options.exactSections);
+  const { missingSections, resolved } = chosen;
+  const pinned = options.pinned;
+  // A task view with no sections still selects: only its pinned lines.
+  const selected = chosen.selected ?? (pinned?.selects ? [] : null);
+  const isPinned = (line: number) => !!pinned?.ranges.some(([a, b]) => line >= a && line <= b);
+  const inScope = (line: number) => isPinned(line) || (
     (!selected || selected.some((s) => line >= s.start && line <= s.end)) &&
-    !skipped.some((s) => line >= s.start && line <= s.end && !(selected?.some((sel) => sel.heading === s.heading)));
+    !skipped.some((s) => line >= s.start && line <= s.end && !(selected?.some((sel) => sel.heading === s.heading))));
   const shown = shownValues(fm.data, text, specVersion(fm.data));
   return {
     data: fm.data, shown, unread: unreadFrontMatter(text, fm), bodyStart: fm.bodyStartLine, lines, sections, selected, skipped, missingSections, resolved, inScope,
+    pinned,
   };
 }
 
@@ -250,16 +348,23 @@ function selectSections(
 interface ViewHead {
   header: string;
   external: string;
+  /** "Constraints that apply here" and "Dependencies of the selected content" (see applyingHead, dependencyHead). */
+  applying?: string;
+  dependencies?: string;
   /** The `:::danger` blocks and CAUTION alerts outside the selected sections (see outsideDangers). */
   dangers: string;
   /** With `constraints`: the constraints outside the selected sections (see constraintsOutside). */
   constraints: string;
   constraintView?: ConstraintView;
   footnotes: string;
+  /** The line that counts the closed review blocks left out, last in the view (see reviewCountLine). */
+  review?: string;
+  /** A task view's closing text (see PinnedSelection). */
+  appendix: string;
 }
 
 /** Where a view's head comes from, for provenance: the traces of its document-wide parts. */
-interface HeadTraces { external?: Trace; dangers?: Trace; constraints?: Trace; footnotes?: Trace }
+interface HeadTraces { external?: Trace; applying?: Trace; dependencies?: Trace; dangers?: Trace; constraints?: Trace; footnotes?: Trace }
 
 /**
  * The header, plus what applies to the whole document outside the selected sections: its :::agent blocks and its
@@ -281,8 +386,45 @@ function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTrace
     if (options.constraints) ({ text: constraints, view: constraintView } = constraintsOutside(scope, { ...options, trace: traces.constraints }));
     else dangers = outsideDangers(scope, { ...options, trace: traces.dangers });
   }
-  const head = [header(scope.data, scope.shown, selected ? selected.map((s) => s.heading.text) : null), unreadBlock(scope.unread)].filter(Boolean).join('\n');
-  return { header: head, external, dangers, constraints, constraintView, footnotes };
+  const excerpt = options.pinned ? options.pinned.label : selected && `(excerpt — sections: ${selected.map((s) => s.heading.text).join(', ')})`;
+  const head = [header(scope.data, scope.shown, excerpt), unreadBlock(scope.unread)].filter(Boolean).join('\n');
+  const mandatory = scope.mandatory
+    ? { applying: applyingHead(scope, options, traces.applying), dependencies: dependencyHead(scope, options, traces.dependencies) } : {};
+  return { header: head, external, ...mandatory, dangers, constraints, constraintView, footnotes, appendix: options.pinned?.appendix ?? '' };
+}
+
+/** A head pass that shows only the picked lines, of the document and its includes, in full (see applicability.ts). */
+function pickedText(scope: ViewScope, options: TransformOptions, picks: MandatoryPlan['applying'], trace?: Trace): string {
+  if (!picks.ranges.size) return '';
+  const hidden = (line: number) => scope.skipped.some((s) => line >= s.start && line <= s.end);
+  return transform(scope.lines, scope.bodyStart, (l) => !scope.inScope(l) && !hidden(l), {
+    ...options, brief: false, onlyConstraints: false, constraintSink: undefined, pick: pickTest(picks), trace,
+  }).trim();
+}
+
+/**
+ * The constraints that apply to a section view from outside its sections, in full, after the agent instructions and
+ * before the dangers (semantic tags D6). A whole-document view shows them in place.
+ */
+function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace): string {
+  const text = pickedText(scope, options, scope.mandatory!.applying, trace);
+  return text ? `Constraints that apply here:\n${text}\n\n` : '';
+}
+
+/**
+ * The dependencies of what the view shows that it does not show, in full, then what could not be satisfied (feedback
+ * loop RFC, "Dependencies"). Empty when there is nothing to add or report.
+ */
+function dependencyHead(scope: ViewScope, options: TransformOptions, trace?: Trace): string {
+  const plan = scope.mandatory!;
+  const parts = [pickedText(scope, options, plan.dependencies, trace)];
+  for (const extra of plan.extra) parts.push(`<included file="${extra.file}">\n${extra.text.trim()}\n</included>`);
+  if (plan.unsatisfied.length) {
+    const n = plan.unsatisfied.length;
+    parts.push(['Not satisfied:', ...plan.unsatisfied, `[incomplete: ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied]`].join('\n'));
+  }
+  const text = parts.filter(Boolean).join('\n');
+  return text ? `Dependencies of the selected content:\n${text}\n\n` : '';
 }
 
 /**
@@ -298,8 +440,9 @@ function outsideDangers(scope: ViewScope, options: TransformOptions): string {
 }
 
 /**
- * The constraints outside the selected sections (policy `constraints/1`, see constraints.ts): `:::danger` blocks in
- * full, then pointers to warnings, accepted decisions, open questions, and to includes that were not checked.
+ * The constraints outside the selected sections (policy `constraints/1`, or `constraints/2` with constraint blocks, see
+ * constraints.ts): `:::danger` blocks in full, then pointers to warnings, accepted decisions, open questions, constraints
+ * that apply nowhere in the view, and to includes that were not checked.
  * Sections marked {agent=skip}, `:::human` blocks and what `:::agent` blocks already show are left out.
  */
 function constraintsOutside(scope: ViewScope, options: TransformOptions): { text: string; view: ConstraintView } {
@@ -310,9 +453,11 @@ function constraintsOutside(scope: ViewScope, options: TransformOptions): { text
     ...options, brief: false, onlyConstraints: true, constraintSink: found,
   }).trim();
   const sectionAt = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1)?.heading.text ?? null;
-  const pointers = found.map((p) => ({ ...p, section: sectionAt(p.line) }));
+  // A constraint that applies is shown in full above; one that applies nowhere in the view is a pointer (constraints/2).
+  const applying = scope.mandatory?.applyingLines;
+  const pointers = found.filter((p) => p.type !== 'constraint' || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
   const view: ConstraintView = {
-    policy: 'constraints/1',
+    policy: scope.mandatory?.hasConstraints ? 'constraints/2' : 'constraints/1',
     complete: !pointers.some((p) => p.type === 'include'),
     shown: pointers.filter((p) => p.type === 'danger').length,
     pointers,
@@ -339,7 +484,7 @@ function outsideFootnotes(scope: ViewScope, options: TransformOptions): string {
 }
 
 function assemble(head: ViewHead, body: string): string {
-  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes]
+  return [head.header, head.external + (head.applying ?? '') + (head.dependencies ?? '') + head.dangers + head.constraints + body, head.footnotes, head.appendix, head.review ?? '']
     .filter((s) => s.trim())
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -351,9 +496,19 @@ export function agentView(text: string, viewOptions: AgentViewOptions = {}): Age
     // Figures are numbered once, for every pass over the document.
     const options: TransformOptions = { ...viewOptions, figures: expandedFigures(text, viewReader(viewOptions)) };
     const scope = viewScope(text, options);
+    scope.mandatory = mandatoryOf(text, scope, options);
     const result = options.maxTokens !== undefined ? budgetedView(text, scope, options) : wholeView(text, scope, options);
     if (options.provenance) result.provenance = provenanceOf(text, scope, options, result);
     return result;
+  });
+}
+
+/** The constraints and dependencies a view must carry (see applicability.ts); undefined for a document with none. */
+function mandatoryOf(text: string, scope: ViewScope, options: AgentViewOptions): MandatoryPlan | undefined {
+  return mandatoryPlan({
+    text, lines: scope.lines, bodyStart: scope.bodyStart, sections: scope.sections, selected: scope.selected, skipped: scope.skipped,
+    inScope: scope.inScope, includeHuman: !!options.includeHuman, includes: options.includes !== false, readFile: options.readFile,
+    file: options.file ?? '<file>',
   });
 }
 
@@ -374,8 +529,10 @@ function oneView<O extends AgentViewOptions, T>(options: O, make: (options: O) =
 }
 
 function wholeView(text: string, scope: ViewScope, options: TransformOptions): AgentViewResult {
-  const body = transform(scope.lines, scope.bodyStart, scope.inScope, options);
+  const closed = { count: 0 };
+  const body = transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, closedReview: closed });
   const head = viewHead(scope, options);
+  head.review = reviewCountLine(closed.count, options.file);
   return viewResult(text, scope, assemble(head, body), options, undefined, head.constraintView);
 }
 
@@ -393,19 +550,27 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   });
   const traced = { ...options, readFile, brief: options.brief || result.budget?.condensed };
   const omissions: Omission[] = [];
-  const traces: HeadTraces = { external: { file, entries: [] }, dangers: { file, entries: [] }, constraints: { file, entries: [] }, footnotes: { file, entries: [] } };
+  const traces: HeadTraces = {
+    external: { file, entries: [] }, applying: { file, entries: [] }, dependencies: { file, entries: [] }, dangers: { file, entries: [] },
+    constraints: { file, entries: [] }, footnotes: { file, entries: [] },
+  };
   const body: Trace = { file, entries: [], omissions };
-  transform(scope.lines, scope.bodyStart, scope.inScope, { ...traced, trace: body });
+  const closed = { count: 0 };
+  transform(scope.lines, scope.bodyStart, scope.inScope, { ...traced, trace: body, closedReview: closed });
   const head = viewHead(scope, traced, traces);
+  head.review = reviewCountLine(closed.count, options.file);
   // Lines of sections the budget omitted are not in the text: leave them out before matching.
   const cut = result.budget?.omitted ?? [];
   const bodyEntries = body.entries.filter((e) => !cut.some((o) => e.root >= o.line && e.root <= o.endLine));
+  for (const u of scope.mandatory?.context.unsatisfied ?? []) {
+    omissions.push({ kind: 'dependency', file: u.file, lines: [u.line, u.line], reason: `a mandatory dependency is not satisfied: ${u.reason}` });
+  }
   return provenanceManifest({
     text, file, result, omissions, dependencies,
-    entries: [...traces.external!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
+    entries: [...traces.external!.entries, ...traces.applying!.entries, ...traces.dependencies!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
     headerLines: head.header ? head.header.split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
-    sections: scope.sections, selected: scope.selected, skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
+    sections: scope.sections, selected: selectedWithPinned(scope), skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
     missing: scope.missingSections,
     settings: {
       specVersion: specVersion(scope.data),
@@ -415,6 +580,17 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
       constraints: !!options.constraints,
     },
   });
+}
+
+/** The selected sections, and a task view's pinned lines as sections of their own, so a section they show part of is not "not selected". */
+function selectedWithPinned(scope: ViewScope): Section[] | null {
+  if (!scope.pinned || !scope.selected) return scope.selected;
+  const holder = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1);
+  const pinned = scope.pinned.ranges.flatMap(([start, end]) => {
+    const s = holder(start);
+    return s ? [{ ...s, start, end }] : [];
+  });
+  return [...scope.selected, ...pinned];
 }
 
 function viewResult(
@@ -432,6 +608,7 @@ function viewResult(
   if (tokenizer) result.counted = { tokenizer: tokenizer.name, tokens: tokenizer.count(out), originalTokens: tokenizer.count(text) };
   if (budget) result.budget = budget;
   if (constraints) result.constraints = constraints;
+  if (scope.mandatory) result.mandatory = scope.mandatory.context;
   return result;
 }
 
@@ -461,6 +638,8 @@ interface Draft {
   /** Each section's tokens and pointer, worked out once. */
   costs: Map<BudgetSection, number>;
   pointers: Map<BudgetSection, Pointer>;
+  /** Where the document's constraints sit, so a pointer says `holds constraint` (see applicability.ts). */
+  constraintAt: readonly number[];
 }
 
 /** A section's pointer, and the cues its view text holds (see keyCues). */
@@ -469,11 +648,13 @@ interface Pointer { text: string; kind: number; cues: string[] }
 function draftOf(scope: ViewScope, options: AgentViewOptions): Draft {
   const lines: Array<[number, string]> = [];
   const agentLines = new Set<number>();
-  transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines, onAgentLine: (l) => agentLines.add(l) });
+  const closed = { count: 0 };
+  transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines, onAgentLine: (l) => agentLines.add(l), closedReview: closed });
   const byLine = lines.map((_, k) => k).sort((a, b) => lines[a][0] - lines[b][0] || a - b);
   return {
-    head: viewHead(scope, options), lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
+    head: { ...viewHead(scope, options), review: reviewCountLine(closed.count, options.file) }, lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
     file: options.file, count: options.tokenizer?.count ?? estimateTokens, estimated: !options.tokenizer, agentLines, costs: new Map(), pointers: new Map(),
+    constraintAt: scope.mandatory?.constraintAt ?? [],
   };
 }
 
@@ -506,6 +687,7 @@ function pointerOf(draft: Draft, s: BudgetSection): Pointer {
   let pointer = draft.pointers.get(s);
   if (!pointer) {
     const cues = keyCues(draftSection(draft, s));
+    if (draft.constraintAt.some((l) => l >= s.start && l <= s.end)) cues.splice(cues[0] === 'danger' ? 1 : 0, 0, 'constraint');
     const text = omissionPointer(s, sectionTokens(draft, s), draft.file, cues);
     draft.pointers.set(s, (pointer = { text, kind: pieceKind(text), cues }));
   }
@@ -650,11 +832,32 @@ function withOverflowLine(view: string, maxTokens: number, count: (text: string)
   return { text, tokens: count(text) };
 }
 
-/** The cues a section's view text holds that its pointer names, so a hidden danger or question is never silent. */
+/**
+ * The cues a section's view text holds that its pointer names, so a hidden danger or question is never silent. A
+ * question the lifecycle settled (answered, incorporated, withdrawn) is ordinary content.
+ */
 function keyCues(view: string): string[] {
   const cues: string[] = [];
-  for (const cue of ['danger', 'warning', 'question']) if (new RegExp(`^<${cue}[ >]`, 'm').test(view)) cues.push(cue);
+  for (const cue of ['danger', 'warning']) if (new RegExp(`^<${cue}[ >]`, 'm').test(view)) cues.push(cue);
+  if (/^<question[ >]/m.test(view)) {
+    const open = !SETTLED_QUESTION_HEAD.test(view) || view.split('\n').some((l) => /^<question[ >]/.test(l) && !SETTLED_QUESTION_HEAD.test(l));
+    if (open) cues.push('question');
+  }
   return cues;
+}
+
+const SETTLED_QUESTION_HEAD = /^<question(?: id="[^"]*")? status="(?:answered|incorporated|withdrawn)"/m;
+
+/** The lines of the questions the lifecycle settled: ordinary content under a budget, not key content. */
+function settledQuestions(text: string): Set<number> {
+  const tags = tagContext(text);
+  const out = new Set<number>();
+  for (const b of tags?.blocks ?? []) {
+    if (b.name !== 'question') continue;
+    const answer = hasAnswer(b, tags!.blocks, tags!.answered);
+    if (isLifecycleQuestion(b, answer) && questionStatus(b, answer) !== 'open') out.add(b.line);
+  }
+  return out;
 }
 
 /** Omit sections, least important first, until the view fits or nothing more may be omitted. */
@@ -665,15 +868,35 @@ function omitToFit(draft: Draft, scope: ViewScope, maxTokens: number): BudgetSec
   // A section that shows a danger (its own, a CAUTION alert or one from an include) is mandatory content too
   // (research contract, "Mandatory content is never a budget candidate").
   const holdsAgentText = (s: BudgetSection) => [...draft.agentLines].some((l) => l >= s.start && l <= s.end);
+  // A task view's pinned lines are selected content, as requested sections are.
+  const holdsPinned = (s: BudgetSection) => !!scope.pinned?.ranges.some(([a, b]) => a <= s.end && s.start <= b);
   const candidates = omittableSections(scope.sections, scope.lines, scope.selected).filter((s) => {
-    if (holdsAgentText(s)) return false;
+    if (holdsAgentText(s) || holdsPinned(s)) return false;
     const pointer = pointerOf(draft, s);
     return !pointer.cues.includes('danger') && cost(s) > draft.count(pointer.text);
   });
   let omitted: BudgetSection[] = [];
-  for (const s of omissionOrder(candidates, scope.lines, cost)) {
-    if (draftCount(draft, omitted) <= maxTokens) break;
-    omitted = withOmitted(omitted, s);
+  const order = omissionOrder(candidates, scope.lines, cost, settledQuestions(scope.lines.join('\n')));
+  const ties = scope.mandatory?.ties ?? [];
+  if (!ties.length) {
+    for (const s of order) {
+      if (draftCount(draft, omitted) <= maxTokens) break;
+      omitted = withOmitted(omitted, s);
+    }
+    return omitted;
+  }
+  // What applies or is depended on keeps its section while what needs it is kept (semantic tags R29, AF15). A section
+  // refused once may go later, after what needs it went.
+  for (let more = true; more;) {
+    more = false;
+    for (const s of order) {
+      if (draftCount(draft, omitted) <= maxTokens) return omitted;
+      if (omitted.some((o) => s.start >= o.start && s.end <= o.end)) continue;
+      const next = withOmitted(omitted, s);
+      if (!keepsTies(ties, next)) continue;
+      omitted = next;
+      more = true;
+    }
   }
   return omitted;
 }
@@ -690,20 +913,23 @@ function unreadBlock(unread: string[] | undefined): string {
 }
 
 /** The view's header. `data` decides which facts are shown, `shown` how they are spelled (as written in spec v2). */
-function header(data: Record<string, unknown>, shown: Variables, sections: string[] | null): string {
+function header(data: Record<string, unknown>, shown: Variables, excerpt: string | null): string {
   const out: string[] = [];
   if (typeof data.title === 'string') out.push(`# ${data.title}`);
   const facts: string[] = [];
   for (const [key, value] of Object.entries(data)) {
     if (AGENT_HEADER_HIDDEN.has(key) || value === null || value === undefined || value === '') continue;
-    const v = factText(Object.hasOwn(shown, key) ? shown[key] : value);
+    // Task views: their names, not their policy as JSON.
+    const v = key === 'views' && isMapping(value) ? Object.keys(value).join(', ') : factText(Object.hasOwn(shown, key) ? shown[key] : value);
     if (v) facts.push(`${key}: ${v}`);
   }
   if (facts.length) out.push(facts.join(' · '));
   if (typeof data.summary === 'string') out.push(`summary: ${data.summary}`);
-  if (sections) out.push(`(excerpt — sections: ${sections.join(', ')})`);
+  if (excerpt) out.push(excerpt);
   return out.join('\n');
 }
+
+const isMapping = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** A front matter value as one header fact: a list joined with ", ", a mapping as JSON. */
 function factText(value: unknown): string {
@@ -747,6 +973,52 @@ interface TransformOptions extends AgentViewOptions {
   trace?: Trace;
   /** Called with the line of every emitted line of an `:::agent` block; inside an include, with the include's line. */
   onAgentLine?: (line: number) => void;
+  /** The review blocks of the whole document by opening line; found from `lines` when left out. */
+  review?: ReadonlyMap<number, ReviewItem>;
+  /** Counts the closed review blocks in scope that are left out. */
+  closedReview?: { count: number };
+  /** Which document `lines` are: an included file's path, the root's when left out (see applicability.ts). */
+  docPath?: string;
+  /** Only the picked lines of each document, with `[L12]` on the picked opening lines (see pickedText). */
+  pick?: { lines: (doc: string, line: number) => boolean; refs: (doc: string, line: number) => boolean };
+}
+
+/** The review blocks of a document by opening line, found once per array of lines. */
+const reviewCache = new WeakMap<string[], ReadonlyMap<number, ReviewItem>>();
+const NO_REVIEW: ReadonlyMap<number, ReviewItem> = new Map();
+
+function reviewOf(lines: string[]): ReadonlyMap<number, ReviewItem> {
+  let found = reviewCache.get(lines);
+  if (!found) {
+    const text = lines.join('\n');
+    found = hasReviewBlocks(text) ? new Map(reviewItems(text).map((r) => [r.line, r])) : NO_REVIEW;
+    reviewCache.set(lines, found);
+  }
+  return found;
+}
+
+/**
+ * A review block's opening line in the view (feedback loop RFC): `<comment for="R1" author="@maya" kind="remark">`
+ * or `<suggestion for="R1" author="@agent">` with its title, and `stale="true"` with the target's current revision
+ * when its target changed. Null for a closed one (resolved, accepted, rejected, withdrawn), which the view leaves out
+ * unless `includeReview`; an answer is shown whatever its status.
+ */
+function reviewHead(name: string, item: ReviewItem | undefined, values: Record<string, string>, title: string, includeClosed: boolean): ContainerHead | null {
+  const open = item?.open ?? true;
+  if (!open && !item?.answer && !includeClosed) return null;
+  const shown: Record<string, string> = {
+    for: values.for ?? '', author: values.author ?? '', kind: name === 'comment' ? (item?.kind ?? values.kind ?? 'remark') : '',
+    status: open ? '' : item?.status ?? '', by: open ? '' : values.by ?? '', on: open ? '' : values.on ?? '',
+    stale: open && item?.stale ? 'true' : '', 'current-rev': open && item?.stale ? item.currentRev ?? '' : '',
+  };
+  return { line: `<${name}${attrList(shown, Object.keys(shown))}>${titleAfter(title)}`, close: `</${name}>` };
+}
+
+/** One line for the closed review blocks a view leaves out, pointing at the query that lists them; empty for none. */
+function reviewCountLine(count: number, file = '<file>'): string {
+  if (!count) return '';
+  const items = count === 1 ? '1 closed review item' : `${count} closed review items`;
+  return `[${items} (resolved, accepted, rejected or withdrawn) left out: smd query "comment[status=resolved], suggestion[status!=open]" ${file} lists them]`;
 }
 
 /**
@@ -767,16 +1039,27 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const variables = options.variables ?? documentVariables(lines);
   // The document's spec version, from its front matter: an included document's is the including one's, as in rendering.
   const spec = specVersion(variables);
+  // Condensed as brief, except a task view's mandatory lines, which are kept whole (AF15).
+  const briefAt = (at: number) => !!options.brief && !options.pinned?.whole.some(([a, b]) => at >= a && at <= b);
+  // The line being read, and the tasks of each line's section (for `:progress{basis=tasks}`), counted on the first ask.
+  let current = from;
+  let sectionCounts: ((line: number) => TaskCount) | undefined;
+  const counts = () => (sectionCounts ??= sectionTaskCounts(lines.join('\n'), from, spec))(current);
   const text = (s: string, openTask = false, math?: ReadonlyArray<[number, number]>, parts?: ReadonlyArray<InlinePart>) => {
-    const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec };
+    const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec, counts };
     // An item that runs over several lines is read whole, as rendering reads it; each line shows its part.
     return styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read)));
   };
   const changelogs = options.changelogs ?? changelogEntries(lines, 0, spec);
   // `condensed`: a :::details in a brief view. Its content is left out, except :::agent blocks inside it, which every view keeps.
   // `visible`: its opening line was in the view (for provenance).
-  interface Frame { name: string; colons: number; close?: string; drop: boolean; condensed?: boolean; start: number; visible?: boolean }
+  interface Frame {
+    name: string; colons: number; close?: string; drop: boolean; condensed?: 'details' | 'deprecated'; start: number; visible?: boolean; id?: string;
+  }
   const stack: Frame[] = [];
+  // What the document's blocks say about each other (answers, supersedes), read on the first question or decision.
+  let tags: TagContext | undefined | null = null;
+  const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'))) : tags);
   const inAgent = () => stack.some((f) => f.name === 'agent');
   // Inside a danger block or a GitHub alert shown as one (the constraints pass).
   const inDanger = () => stack.some((f) => f.name === 'danger') || alertView.callout() === 'danger';
@@ -795,11 +1078,19 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     && (!options.onlyAgentBlocks || inAgent())
     && (!options.onlyDangers || (inDanger() && !inAgent()))
     && (!options.onlyMandatory || inAgent() || inDanger())
-    && (!options.onlyConstraints || (inDanger() && !inAgent()));
+    && (!options.onlyConstraints || (inDanger() && !inAgent()))
+    && (!options.pick || options.pick.lines(options.docPath ?? ROOT_DOC, at));
   const trace = options.trace;
+  const referenced = new Set<number>();
   // `end`: the last source line the emitted line stands for, when it is more than `at` (a fence's lines).
-  const emit = (line: string, at: number, traced = true, end = at) => {
+  const emit = (shownLine: string, at: number, traced = true, end = at) => {
     if (!visibleAt(at)) return;
+    let line = shownLine;
+    // A picked block's opening line says where it is, as a heading does.
+    if (options.pick && lineRefs && !referenced.has(at) && options.pick.refs(options.docPath ?? ROOT_DOC, at)) {
+      referenced.add(at);
+      if (!/\[L\d+\]$/.test(line)) line = `${line} [L${at + 1}]`;
+    }
     out.push(line);
     options.collect?.push([at, line]);
     if (inAgent()) options.onAgentLine?.(at);
@@ -809,11 +1100,14 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const omit = (o: Omit<Omission, 'file' | 'lines'>, start: number, end: number) => {
     if (trace?.omissions) addOmission(trace.omissions, { ...o, file: trace.file, lines: [start + 1, end + 1] });
   };
+  const evidenceAfter = options.evidence === 'full' ? evidenceFollower(lines, options) : undefined;
   const closeFrame = (frame: Frame, at: number) => {
     if (frame.close) emit(frame.close, at);
+    if (evidenceAfter && frame.visible) for (const l of evidenceAfter(frame.name, frame.start, at)) emit(l, at, false);
     if (!frame.visible) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
-    if (frame.condensed) omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
+    if (frame.condensed === 'details') omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
+    if (frame.condensed === 'deprecated') omit({ kind: 'deprecated', reason: 'a deprecated requirement is condensed in brief views' }, frame.start, at);
   };
 
   let fence: { marker: string; start: number; body: string[]; info: string } | null = null;
@@ -835,6 +1129,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   });
 
   for (let i = from; i < lines.length; i++) {
+    current = i;
     // Inside a GitHub alert, the line without its quote marker; nothing for the alert's own marker line.
     const raw = alertView.line(i, lines[i]);
     if (raw === undefined) continue;
@@ -842,7 +1137,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     // ---- fenced code ----
     if (fence) {
       if (new RegExp(`^\\s{0,3}${fence.marker[0] === '`' ? '`' : '~'}{${fence.marker.length},}\\s*$`).test(raw)) {
-        const rendered = renderFence(fence, i, options);
+        const rendered = renderFence(fence, i, { ...options, brief: briefAt(fence.start) });
         if (rendered.omission && visibleAt(fence.start)) omit(rendered.omission, fence.start, i);
         for (const l of rendered.lines) emit(l, fence.start, true, i);
         fence = null;
@@ -896,22 +1191,39 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       const title = info.title ? text(info.title) : '';
       // A constraint here, for the constraints pass: one inside a danger block or :::agent is already shown.
       if (sink && inScope(i) && !dropping() && !inAgent() && !inDanger()) {
-        recordConstraint(sink, info.name, info.name === 'include' ? info.attrs.values.file ?? '' : title, i, info.attrs.values.status);
+        recordConstraint(sink, info.name, info.name === 'include' ? info.attrs.values.file ?? '' : title, i, info.attrs.values.status, info.attrs.id);
       }
       const frame: Frame = { name: info.name, colons: open[2].length, drop: false, start: i, visible: inScope(i) && !dropping() };
       stack.push(frame);
       if (info.name === 'human' && !options.includeHuman) { frame.drop = true; continue; }
+      if (REVIEW_CONTAINERS.includes(info.name)) {
+        const review = reviewHead(info.name, (options.review ?? reviewOf(lines)).get(i), info.attrs.values, title, !!options.includeReview);
+        if (!review) {
+          if (frame.visible) options.closedReview && options.closedReview.count++;
+          frame.drop = true;
+          continue;
+        }
+        emit(review.line!, i);
+        frame.close = review.close;
+        continue;
+      }
       // Condensed in brief views, but not inside :::agent: there it is part of the instructions.
-      if (info.name === 'details' && options.brief && !inAgent()) {
+      if (info.name === 'details' && briefAt(i) && !inAgent()) {
         emit(`[details: ${title || 'Details'} — omitted, see L${i + 1}]`, i);
-        frame.condensed = true;
+        frame.condensed = 'details';
         continue;
       }
       if (info.name === 'include') {
         // Traced inside: its lines are the included file's (see includeView).
         const shown = visibleAt(i);
         if (shown) {
-          includeView(info, lines, i, { ...options, figures, trace }).forEach((l) => emit(l, i, false));
+          includeView(info, lines, i, { ...options, brief: briefAt(i), figures, trace, pick: undefined }).forEach((l) => emit(l, i, false));
+        } else if (options.pick) {
+          // A picked block may be inside the included file: its lines are picked there.
+          if (inScope(i) && !stack.some((f) => f.drop) && options.includes !== false) {
+            const picked = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined } });
+            if (picked.length > 2) out.push(...picked);
+          }
         } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
           // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
           // blocks still apply, as the document's own do (C01).
@@ -926,7 +1238,19 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         frame.drop = true; // the body is fallback text for renderers that can't include
         continue;
       }
-      const head = containerHead(info.name, { title, values: info.attrs.values, id: info.attrs.id, figure: ownFigures.get(i) });
+      frame.id = info.attrs.id;
+      // A deprecated requirement is condensed to its opening line in brief views (semantic tags R23).
+      if (info.name === 'requirement' && options.brief && !inAgent() && info.attrs.values.status?.toLowerCase() === 'deprecated') {
+        emit(`[requirement${info.attrs.id ? ` ${info.attrs.id}` : ''} (deprecated): ${title || 'Requirement'} — omitted, see L${i + 1}]`, i);
+        frame.condensed = 'deprecated';
+        continue;
+      }
+      const requirement = info.name === 'acceptance' ? [...stack].reverse().find((f) => f !== frame && f.name === 'requirement')?.id : undefined;
+      const tags = TAG_HEADS.has(info.name) ? tagsHere() : undefined;
+      const head = containerHead(info.name, {
+        title, values: info.attrs.values, id: info.attrs.id, figure: ownFigures.get(i), requirement,
+        ...(tags ? { tags: { block: tags.byLine.get(i), context: tags } } : {}),
+      });
       if (head.line !== undefined) emit(head.line, i);
       frame.close = head.close;
       continue;
@@ -944,7 +1268,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     // A task-shaped line that rendering shows as text (in a paragraph it continues) is not a task.
     const shape = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]\s+(.*)$/.exec(line);
     const task = shape && taskLines.has(i) ? shape : null;
-    if (task && task[2] !== ' ' && options.brief) {
+    if (task && task[2] !== ' ' && briefAt(i)) {
       if (inScope(i) && !dropping()) {
         if (!doneTasks) doneFrom = i;
         doneTasks++;
@@ -979,11 +1303,14 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
 
 const COMMENT = { kind: 'comment', reason: 'HTML comments are not part of the view' } as const;
 
-/** A container that the constraints pass reports: a danger, warning or question, an accepted decision, an include. */
-function recordConstraint(sink: ConstraintPointer[], name: string, title: string, line: number, status?: string): void {
+/**
+ * A container that the constraints pass reports: a danger, warning or question, an accepted decision, an include, a
+ * constraint (kept only when it applies nowhere in the view, see constraintsOutside).
+ */
+function recordConstraint(sink: ConstraintPointer[], name: string, title: string, line: number, status?: string, id?: string): void {
   if (name === 'decision' && status?.trim().toLowerCase() !== 'accepted') return;
-  if (!['danger', 'warning', 'question', 'decision', 'include'].includes(name)) return;
-  sink.push({ type: name as ConstraintPointer['type'], title, line, section: null });
+  if (!['danger', 'warning', 'question', 'decision', 'include', 'constraint'].includes(name)) return;
+  sink.push({ type: name as ConstraintPointer['type'], title, line, section: null, ...(name === 'constraint' && id ? { id } : {}) });
 }
 
 interface DocumentContext {
@@ -1053,7 +1380,7 @@ export function agentViewOfRange(lines: string[], start: number, end: number, op
   const text = lines.join('\n');
   const variables = documentVariables(lines);
   const whole = { figures: expandedFigures(text, viewReader(options)), changelogs: changelogEntries(lines, 0, specVersion(variables)), variables, literalLines: literalLines(text), inlineMath: inlineMathLines(text),
-    alerts: alertLines(text), inlineItems: inlineItemLines(text), taskLines: renderedTaskLines(text) };
+    alerts: alertLines(text), inlineItems: inlineItemLines(text), taskLines: renderedTaskLines(text), review: reviewOf(lines) };
   return transform(lines.slice(0, end + 1), start, () => true, { ...options, ...whole }).trim();
 }
 
@@ -1091,7 +1418,7 @@ function includeView(info: ContainerInfo, lines: string[], line: number, options
   const inc = result.include;
   // Included text uses this document's front matter variables, as the rendered HTML does.
   const inner = {
-    ...options, collect: undefined, includeScope: innerScope(scope, inc), variables: options.variables ?? documentVariables(lines), literalLines: includedLiteralLines(inc),
+    ...options, collect: undefined, pinned: undefined, docPath: inc.path, includeScope: innerScope(scope, inc), variables: options.variables ?? documentVariables(lines), literalLines: includedLiteralLines(inc),
     inlineMath: includedInlineMath(inc), alerts: includedAlerts(inc), inlineItems: includedInlineItems(inc), taskLines: includedTaskLines(inc),
     // Its figures are numbered with the including document's, and `:ref` resolves across both, as in rendered output.
     figureKey: includeKey(options.figureKey ?? '', line),
@@ -1212,6 +1539,8 @@ interface TextContext {
   /** The ids exactly one block gives, which `:ref[id]` shows as written when no figure has them (D4). */
   blocks?: ReadonlySet<string>;
   variables?: Variables; spec: SpecVersion;
+  /** The tasks of the line's section, for `:progress{basis=tasks}`; unknown without it. */
+  counts?: () => TaskCount;
 }
 
 /**
@@ -1247,15 +1576,25 @@ function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefin
 const DIRECTIVE_TEXT_V1 = /(^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 const DIRECTIVE_TEXT_V2 = /(^|[\s([{>*_~"'-]):([A-Za-z][A-Za-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 
-function plain(s: string, { today, openTask, figures, blocks, spec }: TextContext): string {
+function plain(s: string, { today, openTask, figures, blocks, spec, counts }: TextContext): string {
   return refText(s, figures, spec, blocks)
     .replace(/!\[([^\]\n]*)\]\([^)\n]*\)/g, (_m, alt) => (alt ? `[image: ${alt}]` : ''))
     .replace(spec >= 2 ? DIRECTIVE_TEXT_V2 : DIRECTIVE_TEXT_V1, (m, pre: string, name: string, content?: string, rawAttrs?: string) =>
       (content === undefined && rawAttrs === undefined
         ? m
-        : directiveText(m, { pre, name: spec >= 2 ? name.toLowerCase() : name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, { today, openTask, spec })))
+        : directiveText(m, { pre, name: spec >= 2 ? name.toLowerCase() : name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, { today, openTask, spec, counts })))
     .replace(/(!?)\[([^\]]*)\]\{([^{}\n]*)\}/g, (m, bang, content, rawAttrs) => (bang || !parseAttrs(rawAttrs, spec) ? m : content))
     .replace(/==(?=\S)([^=]+?)(?<=\S)==/g, '$1');
+}
+
+/**
+ * A bar with a basis in the view, after its label when it has one: `[progress 80%: 8 of 10 tasks checked]`,
+ * `[progress unknown]`, `[progress 40% (estimated)]`. Undefined for a bar without one, which reads as before.
+ */
+function progressBasisText(v: Record<string, string>, content: string, counts?: () => TaskCount): string | undefined {
+  if (countsTasks(v) && !counts) return `${v.label ? `${v.label} ` : ''}[progress: the checked tasks of its section]`;
+  const state = progressState(v, content, countsTasks(v) ? counts?.() : undefined);
+  return state.kind === 'plain' ? undefined : `${v.label ? `${v.label} ` : ''}${progressTag(state)}`;
 }
 
 const METRIC_TRENDS = new Set(['up', 'down', 'flat']);
@@ -1283,7 +1622,7 @@ function metricMeaning(v: Record<string, string>): string[] {
  */
 function directiveText(
   m: string, { pre, name, content, rawAttrs }: { pre: string; name: string; content: string; rawAttrs: string },
-  { today, openTask, spec }: { today: string | undefined; openTask: boolean; spec: SpecVersion },
+  { today, openTask, spec, counts }: { today: string | undefined; openTask: boolean; spec: SpecVersion; counts?: () => TaskCount },
 ): string {
   const attrs = parseAttrs(rawAttrs, spec);
   // In spec v2 a list that can't be read leaves the whole item as text, as rendering does.
@@ -1297,9 +1636,11 @@ function directiveText(
     case 'badge': return `${pre}[${content}]`;
     case 'priority': return `${pre}[${content}]`;
     case 'kbd': return `${pre}${content}`;
+    // The ids stay as written, so an agent can look each one up.
+    case 'depends': return `${pre}(depends on ${idList(content).join(', ')})`;
     case 'mention': return `${pre}${content}`;
     case 'status': return `${pre}[status: ${content}${status ? ` (${status})` : ''}]`;
-    case 'progress': return `${pre}${v.label ?? `${Math.round(Number(v.value ?? content) || 0)}%`}`;
+    case 'progress': return `${pre}${progressBasisText(v, content, counts) ?? v.label ?? `${Math.round(Number(v.value ?? content) || 0)}%`}`;
     case 'due': {
       const late = openTask && dueState(content.trim(), today) === 'overdue';
       return `${pre}(due ${content}${late ? ', OVERDUE' : ''})`;
@@ -1392,6 +1733,9 @@ const SECTION_MARKS: SectionMark[] = [
   { note: 'API', line: /^\s*:{3,}\s*api\b/ },
   { note: 'decision', line: /^\s*:{3,}\s*decision\b/ },
   { note: 'risk', line: /^\s*:{3,}\s*risk(?![\w-])/ },
+  { note: 'requirement', line: /^\s*:{3,}\s*requirement(?![\w-])/ },
+  { note: 'constraint', line: /^\s*:{3,}\s*constraint(?![\w-])/ },
+  { note: 'assumption', line: /^\s*:{3,}\s*assumption(?![\w-])/ },
   { note: 'open question', line: /^\s*:{3,}\s*question\b/ },
 ];
 
@@ -1463,4 +1807,51 @@ function sectionCost(s: SectionCost): string {
 
 function costWidth(costs: string[], tokenizer?: Tokenizer): number {
   return tokenizer ? Math.max(...costs.map((c) => c.length), 6) : 6;
+}
+
+// ---------------------------------------------------------------------------
+// Evidence in review views (`evidence: 'full'`, research AF27)
+// ---------------------------------------------------------------------------
+
+/**
+ * The lines that follow a requirement or acceptance block in a view with `evidence: 'full'`: for each record that
+ * supports or contradicts it, a line that says how and whether it is outdated, then the record's own view unless the
+ * block already holds it. A requirement with no record gets `[evidence: none for R1]`. Records are read on the first ask.
+ */
+function evidenceFollower(lines: string[], options: TransformOptions): (name: string, start: number, end: number) => string[] {
+  let known: { blocks: DocumentBlock[]; records: EvidenceRecord[] } | undefined;
+  const read = () => {
+    if (!known) {
+      const text = lines.join('\n');
+      const blocks = documentBlocks(text, options.today);
+      known = { blocks, records: evidenceRecords(text, blocks) };
+    }
+    return known;
+  };
+  return (name, start, end) => {
+    if (name !== 'requirement' && name !== 'acceptance') return [];
+    const { blocks, records } = read();
+    const block = blocks.find((b) => b.line === start && b.type === name);
+    const id = typeof block?.attrs.id === 'string' ? block.attrs.id : undefined;
+    if (!id) return name === 'requirement' ? ['[evidence: none for this requirement, which has no id]'] : [];
+    const mine = records.filter((r) => r.supports.some((t) => t.id === id) || r.contradicts.some((t) => t.id === id));
+    if (!mine.length) return name === 'requirement' ? [`[evidence: none for ${id}]`] : [];
+    return mine.flatMap((r) => {
+      const inside = r.line > start && r.line <= end;
+      const view = inside ? [] : agentViewOfRange(lines, r.line, r.endLine, { today: options.today, lineRefs: options.lineRefs, includeHuman: options.includeHuman }).split('\n');
+      return [evidenceLine(r, id, inside), ...view];
+    });
+  };
+}
+
+/** `[evidence for R1: E1 supports it · test · pass · by @ci · L40]`, with OUTDATED and what to do when R1 changed since. */
+function evidenceLine(r: EvidenceRecord, id: string, above: boolean): string {
+  const support = r.supports.find((t) => t.id === id);
+  const how = support ? 'supports it' : 'contradicts it';
+  const facts = [r.method ?? 'method not stated', r.result ?? 'no result', ...(r.by ? [`by ${r.by}`] : []), ...(r.date ? [r.date] : [])];
+  const target = support ?? r.contradicts.find((t) => t.id === id);
+  const outdated = target?.freshness === 'outdated'
+    ? [`OUTDATED: ${id} changed after revision ${target.recorded}, recheck before treating it as current`]
+    : [];
+  return `[evidence for ${id}: ${r.id ?? 'a record'} ${how} · ${[...facts, ...outdated].join(' · ')} · L${r.line + 1}${above ? ', shown above' : ''}]`;
 }

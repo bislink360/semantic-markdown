@@ -17,8 +17,14 @@ import { compareVersions, findChangelogs, isIsoDate, parseVersion, versionKey, v
 import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
 import { duplicateIds } from './ids';
+import { dependencyProblems } from './graph';
+import { checkSemanticTags } from './semanticCheck';
+import { taskViewProblems } from './taskViews';
 import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
+import { isUnknownValue, progressBasis } from './progress';
+import { evidenceRecords, isAcceptance, recordName, supportFor, verifies, type EvidenceRecord } from './evidence';
+import { documentBlocks } from './query';
 import { checkTablePipes } from './tableCheck';
 import { hasAccTitle, mermaidTitle } from './mermaid';
 import { headingAttrList, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
@@ -33,10 +39,10 @@ import {
 } from './fixes';
 import {
   ALIGN_VALUES, FONT_VALUES, NAMED_COLORS, PRIORITY_VALUES, SIZE_VALUES, STYLE_KEYS, WEIGHT_VALUES,
-  CONTAINERS, ID_ATTRIBUTES, idList, INLINE_DIRECTIVES, isKnownDirective, MERMAID_TYPES, V1_DIRECTIVES, type InlineDirectiveSpec,
-} from './spec';
+  CONTAINERS, ID_ATTRIBUTES, idList, INLINE_DIRECTIVES, isKnownDirective, MERMAID_TYPES, V1_DIRECTIVES, type InlineDirectiveSpec, valueSeverity } from './spec';
 import { FRONTMATTER_SCHEMA, frontMatterProperty } from './frontmatterSchema';
 import { languageTag, matchLanguage, SUPPORTED_LANGUAGES } from './i18n';
+import { hasReviewBlocks, reviewItems } from './review';
 
 export type Severity = 'error' | 'warning' | 'info' | 'hint';
 
@@ -96,7 +102,10 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   let code: Set<number> | undefined;
   const inCode = (line: number) => (code ??= codeLines(text)).has(line);
   if (fm.error) wholeLine(fm.error.line, 'error', 'frontmatter/invalid', fm.error.message);
-  if (fm.present && !fm.error) checkFrontMatter(fm.data, lines, fm.bodyStartLine, push, options, inCode);
+  if (fm.present && !fm.error) {
+    checkFrontMatter(fm.data, lines, fm.bodyStartLine, push, options, inCode);
+    for (const p of taskViewProblems(text)) push(p.line, p.column, p.endColumn, p.severity, p.code, p.message);
+  }
   // For the checks of text: nothing in code or math is syntax, so what they find there is not reported.
   const pushText = outsideLiteral(push, literalText(text, lines, fm.bodyStartLine));
   // The rules the body is read with: display math, closing fences, headings, directives and attribute escapes differ in spec v2.
@@ -224,6 +233,10 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkFigures(text, lines, fm.bodyStartLine, pushText, () => includedFigureIds(text, options.readFile));
   checkDuplicateIds(text, lines, pushText);
   checkIdAttributes(text, idAttrBlocks, pushText);
+  checkDependencies(text, lines, idAttrBlocks, pushText, options.today);
+  if (hasReviewBlocks(text)) checkReview(text, lines, fm.data, push);
+  checkSemanticTags(text, lines, pushText, { today: options.today, fileExists: options.fileExists, spec });
+  checkEvidence(text, lines, pushText, options.today);
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));
@@ -340,6 +353,8 @@ function checkFrontMatter(
       if (typeof value !== 'boolean') markKey(key, 'warning', 'frontmatter/type', `"${key}" should be true or false.`, fixBooleanValue);
     } else if (prop.format === 'date') {
       if (!/^\d{4}-\d{2}-\d{2}/.test(String(value))) markKey(key, 'warning', 'frontmatter/date', `"${key}" should be a date like 2026-09-26.`, fixDateValue);
+    } else if (prop.type === 'object') {
+      // A mapping (views), checked on its own (see taskViewProblems).
     } else if (typeof value === 'object') {
       markKey(key, 'warning', 'frontmatter/type', `"${key}" should be a single value, not a list or a mapping.`);
     }
@@ -558,7 +573,7 @@ function checkContainer(
     const v = info.attrs.values[key];
     if (v !== undefined && !allowed.some((a) => a.toLowerCase() === v.toLowerCase())) {
       const hint = suggest(v, allowed);
-      push(line, nameStart, nameEnd, 'error', 'attrs/value', `Invalid ${key} "${v}" on ":::${info.name}"${hint ? ` — did you mean "${hint}"?` : '.'} Use one of: ${allowed.join(', ')}.`,
+      push(line, nameStart, nameEnd, valueSeverity(`:::${info.name}`, key), 'attrs/value', `Invalid ${key} "${v}" on ":::${info.name}"${hint ? ` — did you mean "${hint}"?` : '.'} Use one of: ${allowed.join(', ')}.`,
         attrValueFix(line, raw, nameEnd, raw.length, key, v, uniqueSuggestion(v, allowed)));
     }
   }
@@ -696,6 +711,26 @@ function checkDirectiveContent({ line, text, push }: InlineAt, { name, col, end 
 function checkDirectiveAttrs(at: InlineAt, d: DirectiveUse, spec: InlineDirectiveSpec, attrs: Attrs): void {
   const keys = Object.keys(attrs.values);
   for (const [key, value] of Object.entries(attrs.values)) checkDirectiveAttr(at, d, spec, { key, value, keys });
+  if (d.name === 'progress') checkProgressBasis(at, d, attrs.values);
+}
+
+/**
+ * A bar's basis (research AF25): a value next to `basis=tasks` is ignored (`progress/basis-value`), and a written
+ * percentage should say how it was found (`progress/basis`, a hint, in every spec version so a document validates
+ * the same in both).
+ */
+function checkProgressBasis({ line, push }: InlineAt, { col, end }: DirectiveUse, values: Record<string, string>): void {
+  const basis = progressBasis(values);
+  const value = values.value;
+  if (value === undefined) return;
+  const n = Number(value);
+  if (basis === 'tasks') {
+    push(line, col, end, 'warning', 'progress/basis-value',
+      `This bar counts the checked tasks of its section (basis=tasks), so value="${value}" is ignored. Remove the value, or the basis to show the value.`);
+  } else if (basis === undefined && Number.isFinite(n) && n >= 0 && n <= 100) {
+    push(line, col, end, 'hint', 'progress/basis',
+      `Say how ${value}% was found: basis=measured or basis=estimate. Or count the section's checked tasks with basis=tasks, or write value=unknown.`);
+  }
 }
 
 /** One attribute of a directive: an allowed value, an accepted key, a color, a progress value. */
@@ -705,16 +740,16 @@ function checkDirectiveAttr(
   const allowed = own(spec.values ?? {}, key);
   // Enumerated values are matched in any case, as container values are (`trend=Up` is `up`).
   if (allowed && !allowed.some((a) => a.toLowerCase() === value.toLowerCase())) {
-    push(line, col, end, 'error', 'attrs/value', `Invalid ${key} "${value}" for ":${name}". Use one of: ${allowed.join(', ')}.`,
+    push(line, col, end, valueSeverity(`:${name}`, key), 'attrs/value', `Invalid ${key} "${value}" for ":${name}". Use one of: ${allowed.join(', ')}.`,
       attrValueFix(line, text, col, end, key, value, uniqueSuggestion(value, allowed)));
   } else if (!spec.attrs.includes(key)) {
     push(line, col, end, 'warning', 'attrs/unknown', `":${name}" does not take "${key}". Accepted: ${spec.attrs.join(', ') || 'none'}.`,
       attrKeyFix(line, text, col, end, key, spec.attrs, keys));
   } else if (key === 'color' && !resolveColor(value)) {
     push(line, col, end, 'error', 'attrs/value', `Invalid color "${value}".`, attrValueFix(line, text, col, end, key, value, namedColor(value)));
-  } else if (key === 'value') {
+  } else if (key === 'value' && !(name === 'progress' && isUnknownValue(value))) {
     const n = Number(value);
-    if (!Number.isFinite(n) || n < 0 || n > 100) push(line, col, end, 'error', 'attrs/value', `Progress value must be a number from 0 to 100, got "${value}".`);
+    if (!Number.isFinite(n) || n < 0 || n > 100) push(line, col, end, 'error', 'attrs/value', `Progress value must be a number from 0 to 100 or unknown, got "${value}".`);
   }
 }
 
@@ -940,6 +975,35 @@ function checkFigures(text: string, lines: string[], bodyStart: number, push: Pu
   }
 }
 
+/**
+ * Review comments and suggestions (feedback loop RFC): each names its target (`review/for`) against a revision
+ * (`review/rev`), an open one whose target changed is stale (`review/stale`), an open one is a hint and an error once
+ * the document is approved (`review/open`), and a closed one says who closed it and when (`review/transition`).
+ * Answers to questions are not review remarks: they are never `review/open` or `review/stale`.
+ */
+function checkReview(text: string, lines: string[], data: Record<string, unknown>, push: Push): void {
+  const approved = String(data.status ?? '').trim().toLowerCase() === 'approved';
+  for (const item of reviewItems(text)) {
+    const raw = lines[item.line];
+    const at = raw.length - raw.trimStart().length;
+    const whole = (severity: Severity, code: string, message: string) => push(item.line, at, raw.length, severity, code, message);
+    const name = `:::${item.type}`;
+    if (item.target === 'none') whole('warning', 'review/for', `"${name}" has no for=…: name the block it is about by its id.`);
+    else if (!item.attrs.rev && item.open) whole('hint', 'review/rev', `"${name}" has no rev=…, so a later change to ${item.for ?? 'its target'} can't be detected (smd review rebase records it).`);
+    if (item.open && !item.answer && item.stale) {
+      whole('warning', 'review/stale', `"${name}" is stale: ${item.for} changed since it was written (rev ${item.attrs.rev}, now ${item.currentRev}). Read it again, then rebase or close the ${item.type}.`);
+    }
+    if (item.open && !item.answer) {
+      whole(approved ? 'error' : 'hint', 'review/open', approved
+        ? `Open ${item.type} in an approved document: resolve it, or set the status back to review.`
+        : `Open ${item.type}${item.for ? ` on ${item.for}` : ''}.`);
+    }
+    if (!item.open && (!item.attrs.by || !item.attrs.on)) {
+      whole('warning', 'review/transition', `"${name}" is ${item.status} without by=… and on=…: say who did it and when.`);
+    }
+  }
+}
+
 /** A container whose attributes name blocks by id (see ID_ATTRIBUTES). */
 interface IdAttrBlock { line: number; raw: string; info: ContainerInfo }
 
@@ -964,6 +1028,72 @@ function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: P
       }
     }
   }
+}
+
+/**
+ * `depends-on` and `supersedes` chains that return to their start (`depends/cycle`), and accepted decisions that depend
+ * on a superseded one (`decision/depends-superseded`), from the graph (filtering G7). Only read when the document
+ * has such an edge.
+ */
+function checkDependencies(text: string, lines: string[], blocks: readonly IdAttrBlock[], push: Push, today?: string): void {
+  const typed = blocks.some((b) => b.info.attrs.values['depends-on'] !== undefined || b.info.attrs.values.supersedes !== undefined);
+  if (!typed && !/:depends\[/i.test(text)) return;
+  for (const p of dependencyProblems(text, today)) {
+    const raw = lines[p.line] ?? '';
+    const [column, end] = p.key === ':depends' ? dependsColumns(raw, p.id) : idColumns(raw, p.key, p.id);
+    push(p.line, column, end, 'warning', p.code, p.message);
+  }
+}
+
+/**
+ * Evidence that a change made outdated (`evidence/stale`, AF28), and requirements that say `status=verified` with no
+ * current passing verification to support it (`requirement/verified`, AF26). A person rechecks: neither has a fix.
+ */
+function checkEvidence(text: string, lines: string[], push: Push, today?: string): void {
+  if (!/:{3,}\s*evidence\b/i.test(text) && !/\bstatus\s*=\s*["']?verified\b/i.test(text)) return;
+  const blocks = documentBlocks(text, today);
+  const records = evidenceRecords(text, blocks);
+  for (const r of records) {
+    for (const t of r.supports.filter((s) => s.freshness === 'outdated')) {
+      const [column, end] = idColumns(lines[r.line] ?? '', 'rev', t.id);
+      push(r.line, column, end, 'warning', 'evidence/stale',
+        `${t.id} changed after ${recordName(r)} was recorded: it was at revision ${t.recorded} and is now at ${t.current}. ` +
+        `Recheck ${t.id} before treating this evidence as current, then record the new revision in rev.`);
+    }
+  }
+  for (const b of blocks) {
+    if (b.type !== 'requirement' || typeof b.attrs.status !== 'string' || b.attrs.status.trim().toLowerCase() !== 'verified') continue;
+    const id = typeof b.attrs.id === 'string' ? b.attrs.id : undefined;
+    const [column, end] = idColumns(lines[b.line] ?? '', 'status', 'verified');
+    if (!id) {
+      push(b.line, column, end, 'warning', 'requirement/verified',
+        'This requirement says status=verified, but it has no id, so no evidence can support it. Give it an {#id} and record passing evidence, or change the status.');
+    } else if (!records.some((r) => verifies(r, id))) {
+      push(b.line, column, end, 'warning', 'requirement/verified',
+        `${id} says status=verified, but no current passing evidence supports it (${unverifiedReason(records, id)}). ` +
+        'A checked task or an acceptance criterion is not evidence: record an :::evidence block with supports, method, result=pass and rev, or change the status.');
+    }
+  }
+}
+
+/** Why the records that support `id` don't verify it, in a few words. */
+function unverifiedReason(records: readonly EvidenceRecord[], id: string): string {
+  const mine = records.filter((r) => supportFor(r, id));
+  if (!mine.length) return `no evidence supports ${id}`;
+  return mine.map((r) => {
+    const name = recordName(r);
+    if (supportFor(r, id)?.freshness === 'outdated') return `${name} is outdated`;
+    if (isAcceptance(r)) return `${name} is a person's acceptance, not verification`;
+    return r.result ? `${name} says result=${r.result}` : `${name} records no result`;
+  }).join('; ');
+}
+
+/** Where `id` is written in a task's `:depends[…]`; the whole line when it can't be found. */
+function dependsColumns(raw: string, id: string): [number, number] {
+  const at = raw.search(/:depends\[/i);
+  const found = at < 0 ? null : new RegExp(`(?<![\\w.-])${escapeRegExp(id)}(?![\\w.-])`).exec(raw.slice(at));
+  if (!found) return [raw.length - raw.trimStart().length, raw.length];
+  return [at + found.index, at + found.index + id.length];
 }
 
 /** Where `id` is written in the value of `key` on a container's opening line; the whole line when it can't be found. */

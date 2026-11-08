@@ -1,6 +1,7 @@
 import type { Token } from 'markdown-it';
 import { CONTAINER_CLOSE } from './containers';
 import { numberedInlineTokens, SPAN, type RenderedInline } from './inlineEdit';
+import { partOfDocument } from './markdownItHtml';
 import type { ContainerMeta, DirectiveMeta, SpanMeta } from './markdownItRules';
 import { documentFrame, parseSmdTokens, type Heading, type ParsedTokens, type RenderOptions } from './render';
 import type { SpecVersion } from './specVersion';
@@ -257,6 +258,7 @@ export function renderBlocks(text: string, options: BlockRenderOptions = {}): Bl
   const inline = options.inlineIndex ? numberInline(groups, owner, segments.length) : undefined;
   let pending = '';
   groups.forEach((group, i) => {
+    partOfDocument(group, parsed.tokens);
     const out = pending + md.renderer.render(group, md.options, env);
     if (owner[i] < 0) {
       pending = out;

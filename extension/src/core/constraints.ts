@@ -13,20 +13,26 @@
  *
  * Nothing is resolved or ranked: two blocks that disagree are both listed as written. The policy name is recorded in
  * the result so a reader knows which rules were applied. It changes no default.
+ *
+ * Policy `constraints/2`, for a document with `:::constraint` blocks (semantic tags R28): the same, and a pointer to
+ * each `:::constraint` outside the sections that applies nowhere in the view. The ones that apply are shown in full
+ * under "Constraints that apply here". A document without constraint blocks keeps `constraints/1`.
  */
 
 export interface ConstraintPointer {
-  type: 'danger' | 'warning' | 'decision' | 'question' | 'include';
+  type: 'danger' | 'warning' | 'decision' | 'question' | 'include' | 'constraint';
   /** The block's title as plain words; an include's file. */
   title: string;
   /** Zero-based line of the block's opening line. */
   line: number;
   /** The innermost heading above it. */
   section: string | null;
+  /** A constraint's id, when it has one. */
+  id?: string;
 }
 
 export interface ConstraintView {
-  policy: 'constraints/1';
+  policy: 'constraints/1' | 'constraints/2';
   /** False when an include outside the sections was not checked, so a constraint could be missing. */
   complete: boolean;
   /** How many danger blocks are shown in full. */
@@ -40,6 +46,7 @@ const LABELS: Record<Exclude<ConstraintPointer['type'], 'danger'>, string> = {
   decision: 'accepted decision',
   question: 'open question',
   include: 'included file',
+  constraint: 'constraint',
 };
 
 /** The constraints part of a view: the danger blocks' agent view, then a pointer per other constraint. */
@@ -59,5 +66,6 @@ function pointerText(p: ConstraintPointer, lineRefs: boolean): string {
   const ref = lineRefs ? ` [L${p.line + 1}]` : '';
   const where = p.section ? ` in "${p.section}"` : '';
   if (p.type === 'include') return `${LABELS.include} ${p.title || '(no file)'}${ref}${where}: not checked for constraints`;
-  return `${LABELS[p.type as keyof typeof LABELS]}${p.title ? ` "${p.title}"` : ''}${ref}${where}`;
+  const id = p.id ? ` ${p.id}` : '';
+  return `${LABELS[p.type as keyof typeof LABELS]}${id}${p.title ? ` "${p.title}"` : ''}${ref}${where}`;
 }

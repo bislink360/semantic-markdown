@@ -103,7 +103,7 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
       const doc = activeSmd();
       if (!doc) return;
       const media = (f: string) => fs.readFileSync(path.join(context.extensionPath, 'media', f), 'utf8');
-      const html = renderStandaloneHtml(doc.getText(), media('smd.css'), media('runtime.js'), { ...renderOptions(doc), agentBlocks: 'collapsed' });
+      const html = renderStandaloneHtml(doc.getText(), media('smd.css'), media('runtime.js'), { ...renderOptions(doc), agentBlocks: 'collapsed', reviewBlocks: 'hidden' });
       const target = await vscode.window.showSaveDialog({
         defaultUri: siblingUri(doc.uri, '.html'),
         filters: { HTML: ['html'] },

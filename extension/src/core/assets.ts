@@ -26,8 +26,9 @@ export const SMD_SITE_JS: string = typeof __SMD_SITE_JS__ === 'string' ? __SMD_S
  * stylesheet and runtime. Mermaid and KaTeX styles load from a CDN. The page's theme is the front
  * matter's `theme`, else `fallbackTheme` (`auto`: the reader's system).
  */
-export function renderPage(text: string, options: RenderOptions = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto'): string {
-  return renderStandaloneHtml(text, SMD_CSS, SMD_RUNTIME_JS, options, fallbackTheme);
+export function renderPage(text: string, options: RenderOptions & { comments?: boolean } = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto'): string {
+  const reviewBlocks = options.reviewBlocks ?? (options.comments ? 'shown' : 'hidden');
+  return renderStandaloneHtml(text, SMD_CSS, SMD_RUNTIME_JS, { ...options, reviewBlocks }, fallbackTheme);
 }
 
 /**

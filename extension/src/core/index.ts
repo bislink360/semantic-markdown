@@ -26,13 +26,36 @@ export { tasksToCsv, tasksToGantt, ganttDocument, ganttDate, TASK_CSV_COLUMNS } 
 export type { TaskExportRow, GanttOptions } from './taskExport';
 export { markdownToSmd, fillTemplate } from './fromMarkdown';
 export { agentView, outline, estimateTokens, inlineText } from './agentView';
-export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection } from './agentView';
+export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection, PinnedSelection } from './agentView';
 export type { BudgetResult, OmittedSection, Tokenizer } from './budget';
 export { outlineProvenance, PROVENANCE_SCHEMA } from './provenance';
 export type { Dependency, Omission, OmissionKind, Provenance, ProvenanceSettings, SourceSpan } from './provenance';
 export type { ConstraintPointer, ConstraintView } from './constraints';
+export type { AppliedConstraint, IncludedDependency, MandatoryContext, MandatoryProblem, UnsatisfiedDependency } from './applicability';
 export { querySmd, parseSelector, SelectorError } from './query';
-export type { QueryMatch, QueryOptions, Selector, AttributeTest, QueryOperator } from './query';
+export type { QueryMatch, QueryOptions, QueryAncestor, Selector, AttributeTest, QueryOperator } from './query';
+export {
+  DocumentGraph, edgeTypes, EdgeTypeError, followEdges, mandatoryClosure, dependencyProblems, needs as edgeNeeds, MANDATORY_EDGES, CLOSURE_LIMITS,
+  MAX_FOLLOW_DEPTH,
+} from './graph';
+export type {
+  GraphDocument, GraphNode, GraphEdge, GraphOptions, DocumentRead, EdgeKind, EdgeDirection, TargetStatus, FollowOptions, Neighbor,
+  ClosureOptions, ClosureBlock, Closure, Unsatisfied, UnsatisfiedKind, DependencyProblem,
+} from './graph';
+export { traceRequirements, formatTrace, traceSummary } from './trace';
+export type { TraceRequirement, TraceResult, TraceSummary, TraceOptions, TraceCriterion, TraceTask, TraceRecord } from './trace';
+export { evidenceRecords } from './evidence';
+export type { EvidenceRecord, EvidenceTarget, EvidenceFreshness } from './evidence';
+export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints, constraintNote, pointerLine } from './graphQuery';
+export type { QueryDocumentsOptions, QueryDocumentsResult, FileMatch, ConstraintBlock, DocumentConstraints, MatchGraph, FormatOptions } from './graphQuery';
+export {
+  taskViews, findTaskView, taskView, taskViewProblems, formatTaskViewInspection, formatTaskViewList, TaskViewError, VIEW_KEYS, VIEW_EVIDENCE,
+} from './taskViews';
+export type { TaskViewSpec, TaskViewOptions, TaskViewResult, TaskViewReport, ViewBlock, ViewUnsatisfied, TaskViewProblem } from './taskViews';
+export { feedbackUpdates, formatFeedbackUpdates, UPDATES_NOTE } from './updates';
+export type { FeedbackUpdates, FeedbackChange, FeedbackKind, ChangeType, AffectedBlock, UpdatesOptions, UpdatesFormat } from './updates';
+export { blockRevision, revisionOfText } from './revision';
+export type { BlockRevision } from './revision';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';
 export type { RelatedDoc, RelatedOptions, SmdSummary } from './related';
 export { indexEntry, smdIndex, INDEX_FORMAT, INDEX_VERSION } from './catalog';
@@ -71,3 +94,8 @@ export { smdToConfluence } from './confluence';
 export { smdToNotion, notionRequests, NOTION_LIMITS } from './notion';
 export type { NotionAnnotations, NotionBlock, NotionRequest, NotionRichText } from './notion';
 export type { ExportOptions } from './exportTree';
+export {
+  reviewItems, withoutReviewBlocks, addComment, addSuggestion, answerQuestion, incorporateQuestion, acceptSuggestion, rejectSuggestion, withdrawItem,
+  resolveComment, reopenItem, rebaseItem, CLOSED_STATES,
+} from './review';
+export type { ReviewItem, ReviewResult, ReviewActor, ReviewWrite, ReviewType } from './review';

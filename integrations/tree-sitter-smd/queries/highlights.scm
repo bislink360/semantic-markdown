@@ -22,14 +22,16 @@
     "note" "info" "tip" "success" "warning" "danger" "question"
     "details" "card" "box" "tabs" "tab" "columns" "column" "steps"
     "agent" "human" "include" "decision" "risk" "risk-matrix" "timeline"
-    "changelog" "figure" "quote" "glossary" "api"))
+    "changelog" "figure" "quote" "glossary" "requirement" "constraint"
+    "acceptance" "assumption" "evidence" "comment" "suggestion" "api"))
 
 ((container_name) @tag
   (#not-any-of? @tag
     "note" "info" "tip" "success" "warning" "danger" "question"
     "details" "card" "box" "tabs" "tab" "columns" "column" "steps"
     "agent" "human" "include" "decision" "risk" "risk-matrix" "timeline"
-    "changelog" "figure" "quote" "glossary" "api"))
+    "changelog" "figure" "quote" "glossary" "requirement" "constraint"
+    "acceptance" "assumption" "evidence" "comment" "suggestion" "api"))
 
 (container_title) @markup.heading
 
@@ -59,11 +61,13 @@
 
 ((directive_name) @function.builtin
   (#any-of? @function.builtin
-    "badge" "kbd" "progress" "mention" "status" "priority" "due" "metric" "ref"))
+    "badge" "kbd" "progress" "mention" "status" "priority" "due" "metric" "ref"
+    "depends"))
 
 ((directive_name) @function
   (#not-any-of? @function
-    "badge" "kbd" "progress" "mention" "status" "priority" "due" "metric" "ref"))
+    "badge" "kbd" "progress" "mention" "status" "priority" "due" "metric" "ref"
+    "depends"))
 
 (directive
   [

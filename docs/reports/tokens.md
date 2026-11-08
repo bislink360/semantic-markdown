@@ -7,6 +7,7 @@ Short answer, measured in 3.0.0 (the [2.5.0 results](#earlier-results-250-as-sty
 - On one read of a short document (under ≈1,500 tokens, ≈6 KB), the tools don't pay for their own instructions. The reader skill therefore tells agents to read such files directly.
 - Answering a question about one section pays off from ≈1,600 tokens with the reader skill, ≈1,000 with agent rules, ≈700 with no fixed cost. On 6k–8k-token documents a section read costs about 80% less than the raw file.
 - Reading a whole document through the agent view saves 5–37% on the sample documents in `extension/test/samples/` (`--brief` 14–43%), so it needs larger documents or several reads per session before it beats the fixed cost.
+- A question whose answer is spread over several sections costs 45–85% fewer tokens with one `smd query` call than with the outline and a read of each section, with the same coverage ([table (c)](#c-answer-a-question-that-needs-several-sections), measured after 4.0.0).
 
 ## How the savings arise
 
@@ -49,6 +50,7 @@ The benchmark is `extension/test/bench/netTokens.ts` (`npm run bench:tokens`). F
 |---|---|---|
 | (a) Answer a question about one section | Read the whole raw file | `smd outline` + `smd agent --section`; or `smd read`, plus `--section` when `smd read` returned the outline |
 | (b) Understand the whole document | Read the whole raw file | `smd agent` (full agent view); `smd agent --brief`; `smd read` |
+| (c) Answer a question that needs several sections | `smd outline`, then `smd agent --section` for each section, or one call naming them all | One `smd query "<type>" --constraints` |
 
 For (a), every section an agent sees (no `{agent=skip}`, no subsections of its own) is asked about once, and the table shows the median. `smd read` prints the whole agent view when it fits 2,000 tokens, else the outline; until that command is in the built CLI, the benchmark applies the same rule in process.
 
@@ -121,6 +123,21 @@ Median over each document's sections. Coverage: share of the section's key lines
 | samples/status-report-2026-09.smd | 390 | 371 | 335 | 371 | 5% | 14% | 100% / 100% / 77% / 100% |
 | docs/rfcs/collaboration.smd | 8,333 | 6,376 | 6,276 | 697 | 23% | 25% | 99% / 99% / 95% / 10% |
 | docs/rfcs/spec-v2.smd | 5,996 | 5,487 | 5,487 | 708 | 8% | 8% | 100% / 100% / 100% / 19% |
+
+### (c) Answer a question that needs several sections
+
+Measured on 2026-11-08 with `npm run bench:tokens` (the samples and documents built from them, `smd read` from the built CLI), on the unreleased branch after 4.0.0 at commit 685e5bf, with Node v24.13.0 on Windows 11. Tables (a) and (b) above are the 3.0.0 run. The question is "every block of one type", for the type found in the most sections of the document. The tools either read the outline and then each section that holds a match (one call each, or one call naming them all), or make one `smd query "<type>" --constraints` call. Documents where no type spans two sections are left out. Coverage is the share of the matches' key lines present in what was read.
+
+| Document | raw | type | matches | sections | outline + sections (calls) | outline + sections, one call | `smd query` | saving vs per-section | coverage per-section / one call / query |
+|---|---:|---|---:|---:|---:|---:|---:|---:|---|
+| samples/checkout-redesign.smd | 2,471 | `task[done=false]` | 11 | 2 | 1,281 (3) | 970 | 708 | 45% | 100% / 100% / 100% |
+| samples/showcase.smd | 1,589 | `task[done=false]` | 5 | 2 | 1,026 (3) | 846 | 304 | 70% | 100% / 100% / 100% |
+| composite ≈4k | 4,108 | `task[done=false]` | 15 | 3 | 1,396 (4) | 1,080 | 608 | 56% | 100% / 100% / 100% |
+| composite ≈8k | 9,799 | `task[done=false]` | 34 | 8 | 4,427 (9) | 2,831 | 1,179 | 73% | 100% / 100% / 100% |
+| composite ≈16k | 16,075 | `task[done=false]` | 57 | 14 | 8,499 (15) | 4,740 | 1,848 | 78% | 100% / 100% / 100% |
+| composite ≈32k | 32,069 | `task[done=false]` | 115 | 30 | 23,308 (31) | 9,614 | 3,464 | 85% | 100% / 100% / 100% |
+
+The saving grows with the number of sections the answer is spread over, because the query reads only the matching blocks and the rules that bind the whole document, while a section read pays for each section's other content. Even one section call that names all the sections costs 1.4 to 2.8 times the query. In the current samples the type found in the most sections is open tasks. The other samples have no type in two sections. The sample `showcase.smd` and the composites changed since the 3.0.0 run, which is why their raw sizes differ from the tables above.
 
 ### By document size
 

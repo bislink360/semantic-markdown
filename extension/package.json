@@ -576,6 +576,11 @@
           "default": true,
           "description": "When the document status is changed from the status bar (Set Document Status), also set the front matter \"updated\" date to today. Only documents that already have an \"updated\" key are changed."
         },
+        "smd.review.author": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Your name, like `@maya`, which the Block Editor records as `by=` when you accept, reject or resolve a review comment or suggestion. When it is empty, the Block Editor asks once and keeps the answer here."
+        },
         "smd.export.pandocPath": {
           "type": "string",
           "default": "",

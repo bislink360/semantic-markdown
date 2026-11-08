@@ -5,7 +5,7 @@ summary: An exploratory look at how people and AI agents could edit the same .sm
 status: approved
 owners: ["@roshanmadhushanka"]
 tags: [rfc, collaboration, exploratory]
-updated: 2026-11-06
+updated: 2026-11-07
 toc: true
 ---
 
@@ -13,7 +13,7 @@ toc: true
 
 The roadmap's last open item is "Real-time collaborative editing" (P3, exploratory). This RFC explores it; 2.1 shipped no code for it. Each section ends with a recommendation written as a `:::decision`, reviewed by the maintainer as was done for the spec v2 RFC ([rfcs/spec-v2.smd](spec-v2.smd)).
 
-On 2026-10-31 the maintainer accepted the overall plan, "Async first, live later" (see the recommendation), and answered three of the open questions. Phase 1, the `smd merge` driver, is built in 2.6. Phases 2 and 3 are accepted but not built yet, and phase 4 (live sync) stays deferred.
+On 2026-10-31 the maintainer accepted the overall plan, "Async first, live later" (see the recommendation), and answered three of the open questions. Phase 1, the `smd merge` driver, is built in 2.6. Phase 3, the review and suggestion containers, is built on the G1–G3 train as the [feedback loop RFC](feedback-loop.smd) specifies, with one change to the sketch below: accepting, rejecting and resolving record the state on the block instead of deleting it (decision F5 there). Phase 2 is accepted but not built yet, and phase 4 (live sync) stays deferred.
 
 Effort is sized :badge[S]{color=green} (up to a week), :badge[M]{color=amber} (two to four weeks) or :badge[L]{color=red} (more than a month, or open-ended). Claims about third-party tools that could not be checked from this repository or their documentation are marked **to verify**.
 

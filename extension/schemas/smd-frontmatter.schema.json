@@ -187,6 +187,96 @@
     "typography": {
       "description": "Spec v2: true turns on typographic quotes, dashes and ellipses (v1 always has them)",
       "type": "boolean"
+    },
+    "views": {
+      "description": "Named task views for agents: each selects sections or a query and lists mandatory and optional block ids (smd agent --view name)",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "sections": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "mandatory": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "optional": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^0*[1-9][0-9]*$"
+              }
+            ]
+          },
+          "evidence": {
+            "type": "string",
+            "enum": [
+              "pointers",
+              "full"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "examples": [
+        {
+          "implement-r1": {
+            "sections": [
+              "Requirements"
+            ],
+            "mandatory": [
+              "C1"
+            ],
+            "optional": [
+              "AC1"
+            ],
+            "budget": 1500
+          }
+        }
+      ]
     }
   },
   "additionalProperties": true

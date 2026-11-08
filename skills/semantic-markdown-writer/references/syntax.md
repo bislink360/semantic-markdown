@@ -11,6 +11,8 @@ Everything in CommonMark + GitHub-Flavored Markdown is valid. The `.smd` additio
 | `syntax/layout.md` | `tabs`/`tab`, `columns`/`column`, `card`, `box`, `steps`, `timeline` |
 | `syntax/figures-and-notes.md` | `:::figure` and `:ref`, `:::glossary`, `:::quote`, footnotes |
 | `syntax/inline.md` | Inline directives (`:badge`, `:status`, `:priority`, `:due`, `:metric`, `:progress`, `:kbd`, `:mention`), `[text]{color=…}`, `{{variables}}`, attribute lists and named colors |
+| `syntax/requirements.md` | `:::requirement`, `:::constraint`, `:::acceptance`, `:::assumption`, `:::evidence`, question lifecycle, `supersedes`, `depends-on` and `:depends` |
+| `syntax/review.md` | `:::comment` and `:::suggestion`, revisions, stale targets and `smd review` |
 | `syntax/spec-v2.md` | What `smd: 2` changes from v1, errors in every document, silencing validation rules |
 
 New syntax goes in the topic file it belongs to, and in this table if it adds a construct.

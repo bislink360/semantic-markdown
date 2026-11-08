@@ -9,11 +9,15 @@ import { githubIds, markdownHeadings, type MarkdownHeading } from './githubSlug'
 import { expandedFigures, figuresOf, includedLines, includeKey, includeSource, type ExpandedFigures } from './includeText';
 import { aroundInlineMath, convertedParts, inlineItemLines, inlineMathLines, literalLines, parseSmd, renderedTaskLines, type InlinePart } from './parse';
 import { splitTaskId } from './taskId';
+import { countsTasks, progressState, progressWords, type TaskCount } from './progress';
+import { sectionTaskCounts } from './progressCounts';
 import { quoteCite } from './quote';
 import { renderSmd } from './render';
 import { riskMatrixMarkdown } from './risks';
+import { REVIEW_CONTAINERS } from './revision';
 import { withoutHeadingAttrs } from './sections';
-import { INLINE_DIRECTIVES, isKnownDirective } from './spec';
+import { idList, INLINE_DIRECTIVES, isKnownDirective } from './spec';
+import { hasAnswer, isLifecycleQuestion, questionStatus, tagContext, type TagContext } from './semanticTags';
 import { specVersion, type SpecVersion } from './specVersion';
 import { own } from './util';
 import { documentVariables, substituteLine, type Variables } from './variables';
@@ -24,6 +28,8 @@ export interface ToMarkdownOptions {
    * and an include its fallback body (or a link when it has none).
    */
   readFile?: (relativePath: string) => string | undefined;
+  /** Keep `:::comment` and `:::suggestion` blocks (as quotes). Left out by default, as every export leaves them out. */
+  comments?: boolean;
 }
 
 const TICK = '`';
@@ -50,6 +56,9 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
   const inlineItems = inlineItemLines(text);
   const tasks = renderedTaskLines(text);
   const stack: Frame[] = [];
+  // What the document's blocks say about each other (answers, supersedes), read on the first ask.
+  let tags: TagContext | undefined | null = null;
+  const tagsHere = () => (tags === null ? (tags = tagContext(text)) : tags);
   const prefix = () => stack.map((f) => f.prefix).join('');
   const emit = (line: string) => {
     const p = prefix();
@@ -58,6 +67,10 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
 
   let fence: string | null = null;
   let i = 0;
+  // The tasks of each line's section, for `:progress{basis=tasks}`, counted on the first ask.
+  let current = 0;
+  let sectionCounts: ((line: number) => TaskCount) | undefined;
+  const counts = () => (sectionCounts ??= sectionTaskCounts(text, undefined, spec))(current);
 
   // Keep front matter verbatim.
   if (lines[0]?.trimEnd() === '---') {
@@ -113,19 +126,32 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
     const open = notLiteral && CONTAINER_OPEN.exec(line);
     const info = open ? parseContainerInfo(open[3] + open[4], spec) : null;
     if (open && info) {
+      if (REVIEW_CONTAINERS.includes(info.name) && !options.comments) {
+        i = containerEnd(lines, i, spec, bodyStart);
+        continue;
+      }
       if (info.name === 'include') {
         const len = open[2].length;
         i = includeMarkdown(info, { lines, open: i, from: bodyStart, spec, options, numbering, emit, keepBody: () => stack.push({ len, prefix: '' }) });
         continue;
       }
-      const title = info.title ? convertInline(substituteLine(info.title, variables, spec), figures.byId, spec, figures.blocks) : '';
-      const head = containerMarkdown({ name: info.name, title, values: info.attrs.values, id: info.attrs.id, figure: figures.own.get(i + numbering.offset), text, spec });
+      current = i;
+      const title = info.title ? convertInline(substituteLine(info.title, variables, spec), figures.byId, spec, figures.blocks, counts) : '';
+      const requirement = info.name === 'acceptance' ? [...stack].reverse().find((f) => f.name === 'requirement')?.id : undefined;
+      const head = containerMarkdown({
+        name: info.name, title, values: info.attrs.values, id: info.attrs.id, figure: figures.own.get(i + numbering.offset), text, spec,
+        line: i, requirement, tags: tagsHere,
+      });
       for (const l of head.before ?? []) emit(l);
-      stack.push({ len: open[2].length, prefix: head.prefix, ...(head.close === undefined ? {} : { close: head.close }), ...(head.end ? { end: head.end } : {}) });
+      stack.push({
+        len: open[2].length, prefix: head.prefix, ...(head.close === undefined ? {} : { close: head.close }), ...(head.end ? { end: head.end } : {}),
+        name: info.name, ...(info.attrs.id ? { id: info.attrs.id } : {}),
+      });
       for (const l of head.inside ?? []) emit(l);
       continue;
     }
-    const converted = lineMarkdown(line, literal.has(i), { variables, figures: figures.byId, blocks: figures.blocks, spec }, inlineMath.get(i), inlineItems.get(i));
+    current = i;
+    const converted = lineMarkdown(line, literal.has(i), { variables, figures: figures.byId, blocks: figures.blocks, spec, counts }, inlineMath.get(i), inlineItems.get(i));
     emit(tasks.has(i) ? taskAnchor(converted) : converted);
   }
   return headingAnchors(text, out.join('\n').replace(/\n{3,}/g, '\n\n'), options);
@@ -220,14 +246,16 @@ const figureNumbering = (options: ToMarkdownOptions, text: string): FigureNumber
  * inline items that run over several lines (see inlineItemLines): each item converts as a whole.
  */
 function lineMarkdown(
-  line: string, literal: boolean, document: { variables: Variables; figures: ReadonlyMap<string, FigureNumber>; blocks?: ReadonlySet<string>; spec: SpecVersion }, math?: ReadonlyArray<[number, number]>,
+  line: string, literal: boolean,
+  document: { variables: Variables; figures: ReadonlyMap<string, FigureNumber>; blocks?: ReadonlySet<string>; spec: SpecVersion; counts?: () => TaskCount },
+  math?: ReadonlyArray<[number, number]>,
   parts?: ReadonlyArray<InlinePart>,
 ): string {
   if (literal) return line;
   // In spec v2 a trailing `{}` or `{word}` is heading text, which GitHub shows too.
   const content = /^\s{0,3}#{1,6}\s/.test(line) ? withoutHeadingAttrs(line, document.spec) : line;
   // Math is set aside before `{{name}}` is replaced, as rendering reads it.
-  const convert = (text: string) => convertInline(substituteLine(text, document.variables, document.spec), document.figures, document.spec, document.blocks);
+  const convert = (text: string) => convertInline(substituteLine(text, document.variables, document.spec), document.figures, document.spec, document.blocks, document.counts);
   const asWritten = content === line;
   return aroundInlineMath(content, convert, asWritten ? math : undefined, asWritten ? convertedParts(parts, (whole) => aroundInlineMath(whole, convert)) : []);
 }
@@ -239,7 +267,7 @@ function taskAnchor(line: string): string {
 }
 
 /** A container being converted: its colon count, the prefix of its lines, and what closes it. */
-interface Frame { len: number; prefix: string; close?: string; end?: string[] }
+interface Frame { len: number; prefix: string; close?: string; end?: string[]; name?: string; id?: string }
 
 /** A closing fence closes the frames from index `at` on (see closedBy), innermost first. */
 function closeFrames(stack: Frame[], at: number, emit: (line: string) => void): void {
@@ -278,7 +306,7 @@ function includeMarkdown(info: ContainerInfo, at: IncludeAt): number {
   const result = request && loadInclude(request, scope, includeSource(options.readFile));
   if (result?.ok) {
     const inc = result.include;
-    const child: ToMarkdownOptions = { readFile: options.readFile };
+    const child: ToMarkdownOptions = { readFile: options.readFile, comments: options.comments };
     includeScopes.set(child, innerScope(scope, inc));
     // Included text uses this document's front matter variables, as the rendered HTML does.
     includeVariables.set(child, variablesOf(options, lines));
@@ -312,6 +340,12 @@ interface ContainerSource {
   text: string;
   /** The document's spec version, for inline text in attribute values. */
   spec: SpecVersion;
+  /** The zero-based line it opens on. */
+  line?: number;
+  /** The id of the requirement it sits in (a nested acceptance verifies it). */
+  requirement?: string;
+  /** What the document's blocks say about each other, read on the first ask. */
+  tags?: () => TagContext | undefined;
 }
 
 /**
@@ -328,13 +362,98 @@ const titledContent = (title: string): ContainerMarkdown => ({ before: title ? [
 /** A GitHub alert (`> [!NOTE]`) with a bold first line. */
 const alert = (kind: string, first: string): ContainerMarkdown => ({ before: [`> [!${kind}]`], prefix: '> ', inside: first ? [first, ''] : [] });
 
-function decisionMarkdown({ title, values: v }: ContainerSource): ContainerMarkdown {
-  const facts = [v.status ?? 'proposed', v.date, v.owner].filter(Boolean).join(' · ');
-  return alert('NOTE', withTitle(`Decision (${facts})`, title));
+/** What supersedes a decision (by id), from the document's other decisions. */
+const supersededBy = (c: ContainerSource) => (c.id ? c.tags?.()?.supersededBy.get(c.id) : undefined);
+
+function decisionMarkdown(c: ContainerSource): ContainerMarkdown {
+  const { title, values: v } = c;
+  const by = supersededBy(c);
+  const links = [v.supersedes ? `supersedes ${idList(v.supersedes).join(', ')}` : '', by ? `superseded by ${by.join(', ')}` : '',
+    v['depends-on'] ? `depends on ${idList(v['depends-on']).join(', ')}` : ''];
+  const facts = [v.status ?? 'proposed', v.date, v.owner, ...links].filter(Boolean).join(' · ');
+  // Its id only with a link, so decisions without one convert as before.
+  const name = c.id && links.some(Boolean) ? `Decision ${c.id}` : 'Decision';
+  return alert('NOTE', withTitle(`${name} (${facts})`, title));
+}
+
+/**
+ * A semantic tag as a GitHub alert: a facts line (`**Requirement R1** · P0 · accepted`), the title, then the body
+ * (semantic tags R5). The tag's name never appears as `:::` syntax.
+ */
+function tagAlert(kind: string, label: string, c: ContainerSource, facts: Array<string | undefined>): ContainerMarkdown {
+  const first = [`**${label}${c.id ? ` ${c.id}` : ''}**`, ...facts.filter(Boolean)].join(' · ');
+  return { before: [`> [!${kind}]`], prefix: '> ', inside: [first, '', ...(c.title ? [c.title, ''] : [])] };
+}
+
+const ids = (value: string | undefined) => (value ? idList(value).join(', ') : '');
+const dependsOn = (v: Record<string, string>) => (v['depends-on'] ? `depends on ${ids(v['depends-on'])}` : '');
+
+function requirementMarkdown(c: ContainerSource): ContainerMarkdown {
+  const v = c.values;
+  return tagAlert('IMPORTANT', 'Requirement', c, [v.priority, v.status ?? 'proposed', v.owner, dependsOn(v)]);
+}
+
+function constraintMarkdown(c: ContainerSource): ContainerMarkdown {
+  const v = c.values;
+  const level = v.level ?? 'must';
+  let scope = '';
+  if (v['applies-to']) scope = `applies to ${ids(v['applies-to'])}`;
+  else if (v.scope?.toLowerCase() === 'document') scope = 'whole document';
+  return tagAlert(level.toLowerCase() === 'should' ? 'WARNING' : 'CAUTION', 'Constraint', c, [level, scope, v.owner, dependsOn(v)]);
+}
+
+function acceptanceMarkdown(c: ContainerSource): ContainerMarkdown {
+  const verifies = [...new Set([...(c.requirement ? [c.requirement] : []), ...idList(c.values.verifies ?? '')])];
+  return tagAlert('NOTE', 'Acceptance', c, [verifies.length ? `verifies ${verifies.join(', ')}` : '', c.values.test ? `test ${c.values.test}` : '']);
+}
+
+/** An unvalidated or invalid assumption is a WARNING, a validated one a NOTE. */
+function assumptionMarkdown(c: ContainerSource): ContainerMarkdown {
+  const v = c.values;
+  const status = v.status ?? 'unvalidated';
+  return tagAlert(status.toLowerCase() === 'validated' ? 'NOTE' : 'WARNING', 'Assumption', c,
+    [status, v.owner, v['review-by'] ? `review by ${v['review-by']}` : '', dependsOn(v)]);
+}
+
+/** Passing evidence is a TIP, failing evidence a CAUTION, any other a NOTE. */
+function evidenceMarkdown(c: ContainerSource): ContainerMarkdown {
+  const v = c.values;
+  const result = v.result?.toLowerCase();
+  let kind = 'NOTE';
+  if (result === 'pass') kind = 'TIP';
+  else if (result === 'fail') kind = 'CAUTION';
+  return tagAlert(kind, 'Evidence', c, [
+    v.supports ? `supports ${ids(v.supports)}` : '', v.contradicts ? `contradicts ${ids(v.contradicts)}` : '', v.method, v.result, v.commit, v.date, v.by, v.source,
+  ]);
+}
+
+/** A question as before, unless it uses the lifecycle: then a facts line with its id and state comes first. */
+function questionMarkdown(c: ContainerSource): ContainerMarkdown {
+  const plain = alert('IMPORTANT', c.title ? `**${c.title}**` : '');
+  const context = c.tags?.();
+  const block = c.line === undefined ? undefined : context?.byLine.get(c.line);
+  if (!context || block?.name !== 'question') return plain;
+  const answer = hasAnswer(block, context.blocks, context.answered);
+  if (!isLifecycleQuestion(block, answer)) return plain;
+  const v = c.values;
+  const between = idList(v.between ?? '');
+  const facts = [questionStatus(block, answer), v.owner, v.due ? `due ${v.due}` : '',
+    between.length ? `conflict between ${between.join(' and ')}` : '', v.reason ? `reason: ${v.reason}` : ''];
+  const first = [`**Question${c.id ? ` ${c.id}` : ''}**`, ...facts.filter(Boolean)].join(' · ');
+  return { ...plain, inside: [first, '', ...(c.title ? [`**${c.title}**`, ''] : [])] };
+}
+
+/** A review block, kept with `comments`: a quote with who wrote it, when and for what. */
+function reviewMarkdown(label: string) {
+  return ({ title, values: v }: ContainerSource): ContainerMarkdown => {
+    const facts = [v.for ? `for ${v.for}` : '', v.author, v.date, v.status && v.status !== 'open' ? v.status : ''].filter(Boolean).join(' · ');
+    const name = label === 'Comment' && v.kind === 'answer' ? 'Answer' : label;
+    return { prefix: '> ', inside: [withTitle(`${name}${facts ? ` (${facts})` : ''}`, title), ''] };
+  };
 }
 
 function riskMarkdown({ title, values: v }: ContainerSource): ContainerMarkdown {
-  const facts = [`impact ${v.impact ?? 'medium'}`, v.likelihood ? `likelihood ${v.likelihood}` : '', v.owner ? `owner ${v.owner}` : '', v.status ?? '']
+  const facts = [`impact ${v.impact ?? 'medium'}`, v.likelihood ? `likelihood ${v.likelihood}` : '', v.owner ? `owner ${v.owner}` : '', v.status ?? '', dependsOn(v)]
     .filter(Boolean).join(', ');
   return alert(v.impact === 'high' || v.impact === 'critical' ? 'CAUTION' : 'WARNING', withTitle(`Risk (${facts})`, title));
 }
@@ -365,6 +484,13 @@ const CONTAINER_MARKDOWN = new Map<string, (c: ContainerSource) => ContainerMark
   ['agent', ({ title }) => alert('NOTE', withTitle('For agents', title))],
   ['human', ({ title }) => alert('NOTE', withTitle('For humans', title))],
   ['decision', decisionMarkdown],
+  ['comment', reviewMarkdown('Comment')],
+  ['suggestion', reviewMarkdown('Suggestion')],
+  ['requirement', requirementMarkdown],
+  ['constraint', constraintMarkdown],
+  ['acceptance', acceptanceMarkdown],
+  ['assumption', assumptionMarkdown],
+  ['evidence', evidenceMarkdown],
   ['risk', riskMarkdown],
   ['api', apiMarkdown],
   ['details', ({ title, values }) => ({
@@ -386,6 +512,7 @@ const CONTAINER_MARKDOWN = new Map<string, (c: ContainerSource) => ContainerMark
  * containers keep their title as a `**Title**` paragraph before it (spec §3).
  */
 function containerMarkdown(c: ContainerSource): ContainerMarkdown {
+  if (c.name === 'question') return questionMarkdown(c);
   const kind = own(ALERTS, c.name);
   if (kind) return alert(kind, c.title ? `**${c.title}**` : '');
   return CONTAINER_MARKDOWN.get(c.name)?.(c) ?? titledContent(unknownContainerTitle(c.name, c.title));
@@ -401,10 +528,12 @@ const STATUS_EMOJI: Record<string, string> = {
 };
 
 /** Convert inline SMD syntax on one line, leaving code spans and `$inline math$` untouched. */
-export function convertInline(line: string, figures?: ReadonlyMap<string, FigureNumber>, spec: SpecVersion = 1, blocks?: ReadonlySet<string>): string {
+export function convertInline(
+  line: string, figures?: ReadonlyMap<string, FigureNumber>, spec: SpecVersion = 1, blocks?: ReadonlySet<string>, counts?: () => TaskCount,
+): string {
   return aroundInlineMath(line, (text) => text
     .split(/(`+[^`]*`+)/)
-    .map((part, idx) => (idx % 2 === 1 ? part : convertText(part, figures, spec, blocks)))
+    .map((part, idx) => (idx % 2 === 1 ? part : convertText(part, figures, spec, blocks, counts)))
     .join(''));
 }
 
@@ -430,10 +559,12 @@ function refLinks(s: string, figures: ReadonlyMap<string, FigureNumber> | undefi
 const DIRECTIVE_TEXT_V1 = /(^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 const DIRECTIVE_TEXT_V2 = /(^|[\s([{>*_~"'-]):([A-Za-z][A-Za-z0-9-]*)(?:\[([^\]]*)\])?(?:\{([^{}\n]*)\})?/g;
 
-function convertText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
+function convertText(
+  s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>, counts?: () => TaskCount,
+): string {
   return refLinks(s, figures, spec, blocks)
     .replace(spec >= 2 ? DIRECTIVE_TEXT_V2 : DIRECTIVE_TEXT_V1, (m, pre: string, name: string, content?: string, rawAttrs?: string) =>
-      (content === undefined && rawAttrs === undefined ? m : directiveText(m, { pre, name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, spec)))
+      (content === undefined && rawAttrs === undefined ? m : directiveText(m, { pre, name, content: content ?? '', rawAttrs: rawAttrs ?? '' }, spec, counts)))
     .replace(/(!?)\[([^\]]*)\]\{([^{}\n]*)\}/g, (m, bang, content, rawAttrs) => {
       if (bang) return m;
       const attrs = parseAttrs(rawAttrs, spec);
@@ -457,7 +588,7 @@ function spanMarkdown(content: string, values: Record<string, string>): string {
  * 7b): its content converts as a styled span's does, unless its attribute list can't be read, when rendering shows it
  * as text too. In spec v1 it is text.
  */
-function directiveText(m: string, d: { pre: string; name: string; content: string; rawAttrs: string }, spec: SpecVersion): string {
+function directiveText(m: string, d: { pre: string; name: string; content: string; rawAttrs: string }, spec: SpecVersion, counts?: () => TaskCount): string {
   const name = spec >= 2 ? d.name.toLowerCase() : d.name;
   const attrs = parseAttrs(d.rawAttrs, spec);
   if (spec >= 2) {
@@ -467,24 +598,40 @@ function directiveText(m: string, d: { pre: string; name: string; content: strin
   }
   // Spec v1 reads only its own frozen names (D5): a directive added later is text there.
   if (!isKnownDirective(name, spec)) return m;
-  return directiveMarkdown(m, d.pre, name, d.content, attrs?.values ?? {});
+  return directiveMarkdown(m, d.pre, name, d.content, attrs?.values ?? {}, counts);
 }
 
 /** One `:name[content]{attrs}` in plain Markdown (`m` as written), or `m` for a name kept as written. */
-function directiveMarkdown(m: string, pre: string, name: string, content: string, v: Record<string, string>): string {
+function directiveMarkdown(m: string, pre: string, name: string, content: string, v: Record<string, string>, counts?: () => TaskCount): string {
   switch (name) {
     case 'badge': return `${pre}\`${content}\``;
     case 'kbd': return `${pre}${content.split('+').map((k: string) => `<kbd>${k.trim()}</kbd>`).join('+')}`;
     case 'mention': return `${pre}${content}`;
+    case 'depends': return `${pre}(depends on ${idList(content).join(', ')})`;
     case 'priority': return `${pre}**${content}**`;
     case 'due': return `${pre}📅 ${content}`;
     case 'metric': return `${pre}**${content}**${v.label ? ` ${v.label}` : ''}${v.delta ? ` (${v.delta})` : ''}`;
     case 'status': return `${pre}${own(STATUS_EMOJI, v.color ?? '') ?? '⚪'} ${content}`;
     case 'progress': {
+      const based = progressMarkdown(v, content, counts);
+      if (based !== undefined) return `${pre}${based}`;
       const n = Math.max(0, Math.min(100, Number(v.value ?? content) || 0));
       const filled = Math.round(n / 10);
       return `${pre}${'▰'.repeat(filled)}${'▱'.repeat(10 - filled)} ${v.label ?? `${Math.round(n)}%`}`;
     }
     default: return m;
   }
+}
+
+/**
+ * A bar with a basis: `▰▰▰▰▰▰▰▰▱▱ 8 of 10 tasks checked`, `▰▰▰▰▱▱▱▱▱▱ 40% (estimated)`, or `progress unknown` with no
+ * bar, after its label when it has one. Undefined for a bar without one, which converts as before.
+ */
+function progressMarkdown(v: Record<string, string>, content: string, counts?: () => TaskCount): string | undefined {
+  const state = progressState(v, content, countsTasks(v) ? counts?.() : undefined);
+  if (state.kind === 'plain') return undefined;
+  const label = v.label ? `${v.label}: ` : '';
+  if (state.kind === 'unknown') return `${label}progress unknown`;
+  const filled = Math.round((state.percent ?? 0) / 10);
+  return `${'▰'.repeat(filled)}${'▱'.repeat(10 - filled)} ${label}${progressWords(state)}`;
 }

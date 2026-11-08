@@ -1,0 +1,34 @@
+---
+smd: 2
+title: Review comments and suggestions
+summary: Open, stale and closed comments and suggestions on blocks with ids.
+status: review
+---
+
+## Cache {#cache}
+
+:::requirement{#R1 status=accepted} The cache keeps results for 10 minutes
+Pricing pages use the same cache.
+:::
+
+:::comment{for=R1 author=@maya date=2026-11-06 rev=000000000000} Too long?
+Pricing changes hourly, so 10 minutes may show stale prices.
+:::
+
+:::suggestion{for=R1 author=@agent date=2026-11-06} Shorter cache
+The cache keeps results for 5 minutes, and pricing pages bypass it.
+:::
+
+:::suggestion{for=R1 author=@agent date=2026-11-05 status=rejected by=@maya on=2026-11-06 reason="Too aggressive"} No cache
+Remove the cache.
+:::
+
+:::comment{for=cache author=@sam date=2026-11-04 status=resolved by=@sam on=2026-11-05} Typo in the heading
+:::
+
+## Progress
+
+- [x] Draft the cache section {#t1}
+- [ ] Review the cache section {#t2}
+
+Done so far: :progress{basis=tasks}. Overall: :progress{value=unknown}. Estimate: :progress{value=40 basis=estimate}.

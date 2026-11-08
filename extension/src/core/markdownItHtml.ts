@@ -10,8 +10,11 @@ import { EN, label, term, type MessageKey, type Messages } from './i18n';
 import {
   includeHref, includeLabel, includeProblemText, includeRequest, type IncludeRequest, type IncludeResult,
 } from './include';
+import { progressState, type ProgressState, type TaskCount } from './progress';
 import { quoteCite } from './quote';
-import { CALLOUT_TYPES, STATUS_VALUES } from './spec';
+import { CALLOUT_TYPES, idList, STATUS_VALUES } from './spec';
+import type { ReviewItem } from './review';
+import { CLOSED_STATES, hasReviewBlocks, readReviewItems, type ReviewType } from './reviewKinds';
 import type { SpecEnv } from './specVersion';
 import type { SmdContext } from './markdownItSetup';
 import type { ContainerMeta, FootnoteMeta } from './markdownItRules';
@@ -100,6 +103,9 @@ interface ContainerView {
   md?: MarkdownIt;
   /** The labels in the document's language. */
   m: Messages;
+  /** The document's tokens and this container's index in them, for what its tags say about other blocks. */
+  tokens: Token[];
+  idx: number;
 }
 
 /** Opening HTML of a container; sets meta.close to the matching closing tags. */
@@ -123,6 +129,8 @@ export function renderContainer(tokens: Token[], idx: number, env: unknown, ctx:
     ctx,
     md,
     m: ctx.messages(env),
+    tokens,
+    idx,
   };
   if ((CALLOUT_TYPES as readonly string[]).includes(meta.name)) return calloutOpen(view);
   return (CONTAINERS.get(meta.name) ?? boxOpen)(view);
@@ -135,13 +143,15 @@ function calloutOpen(c: ContainerView): string {
   const typeText = meta.title ? `<span class="smd-sr-only">${type}: </span>` : '';
   const head = `<span class="smd-callout-icon" aria-hidden="true">${CALLOUT_ICONS[name]}</span><span>${typeText}${c.inline(meta.title || type)}</span>`;
   const cls = htmlAttrs(attrs, ['smd-callout', `smd-callout-${name}`], c.style);
+  // A question with lifecycle attributes shows its state and facts first; any other callout is as before.
+  const facts = name === 'question' ? questionFacts(c) : '';
   if (attrs.values.collapsible !== undefined) {
     meta.close = '</div></details>';
     const open = attrs.values.collapsible === 'open' ? ' open' : '';
-    return `<details${cls}${c.dataLine}${open}><summary class="smd-callout-title">${head}</summary><div class="smd-callout-body">\n`;
+    return `<details${cls}${c.dataLine}${open}><summary class="smd-callout-title">${head}</summary><div class="smd-callout-body">${facts}\n`;
   }
   meta.close = '</div></div>';
-  return `<div${cls}${c.dataLine}><div class="smd-callout-title">${head}</div><div class="smd-callout-body">\n`;
+  return `<div${cls}${c.dataLine}><div class="smd-callout-title">${head}</div><div class="smd-callout-body">${facts}\n`;
 }
 
 /** A plain `<div class="…">` container (tabs, columns, steps, timeline). */
@@ -216,10 +226,59 @@ function decisionOpen(c: ContainerView): string {
   c.meta.close = '</div></div>';
   const values = c.attrs.values;
   const status = (values.status ?? 'proposed').toLowerCase();
-  const facts = [values.date, values.owner].filter(Boolean).map((f) => `<span>${escapeHtml(f!)}</span>`).join('<span class="smd-dot">·</span>');
+  const links = decisionLinks(c).map((f) => `<span>${f}</span>`);
+  const facts = [...[values.date, values.owner].filter(Boolean).map((f) => `<span>${escapeHtml(f!)}</span>`), ...links].join('<span class="smd-dot">·</span>');
   return `<div${htmlAttrs(c.attrs, ['smd-decision', `smd-decision-${status}`], c.style)}${c.dataLine}>` +
     `<div class="smd-decision-head"><span class="smd-decision-label">${c.m['decision.label']}</span><span class="smd-decision-status">${escapeHtml(term(c.m, 'decisionStatus', status))}</span>${facts ? `<span class="smd-decision-facts">${facts}</span>` : ''}</div>` +
     `${c.meta.title ? `<div class="smd-decision-title">${c.inline(c.meta.title)}</div>` : ''}<div class="smd-decision-body">\n`;
+}
+
+/** The review items of the last document rendered, by opening line (the env's source is the whole document). */
+let reviewCache: { source: string; items: ReadonlyMap<number, ReviewItem> } | undefined;
+
+function reviewItemAt(source: string | undefined, line: number): ReviewItem | undefined {
+  if (!source || !hasReviewBlocks(source)) return undefined;
+  if (reviewCache?.source !== source) reviewCache = { source, items: new Map(readReviewItems(source).map((r) => [r.line, r])) };
+  return reviewCache.items.get(line);
+}
+
+/**
+ * `:::comment` and `:::suggestion` (feedback loop RFC): an open one is a review box with its author, date, kind and a
+ * "stale" pill when its target changed; a closed one is a one-line record that opens to show its body.
+ */
+function reviewOpen(c: ContainerView): string {
+  const type = c.name as ReviewType;
+  const { values } = c.attrs;
+  const { m } = c;
+  const line = Number(/\d+/.exec(c.dataLine)?.[0] ?? -1);
+  const item = reviewItemAt(c.env?.source, line);
+  const status = (item?.status ?? values.status ?? 'open').toLowerCase();
+  const closed = CLOSED_STATES[type].includes(status);
+  const kind = (values.kind ?? 'remark').toLowerCase();
+  const answer = type === 'comment' && kind === 'answer';
+  const name = answer ? m['review.answer'] : m[`review.${type}`];
+  const stale = !closed && item?.stale === true;
+  const cls = ['smd-review', `smd-review-${type}`, ...(closed ? ['smd-review-closed', `smd-review-${status}`] : ['smd-review-open']), ...(answer ? ['smd-review-answer'] : []), ...(stale ? ['smd-review-stale'] : [])];
+  const data = ` data-review="${type}" data-review-status="${escapeHtml(status)}"${values.for ? ` data-review-for="${escapeHtml(values.for)}"` : ''}${stale ? ' data-review-stale="true"' : ''}`;
+  const title = c.meta.title ? c.inline(c.meta.title) : '';
+  if (closed) {
+    c.meta.close = '</div></details>';
+    const facts = [
+      escapeHtml(m[`review.${status}` as MessageKey] ?? status),
+      values.by ? escapeHtml(label(m, 'review.by', { name: values.by })) : '',
+      values.on ? escapeHtml(label(m, 'review.on', { date: values.on })) : '',
+    ].filter(Boolean).join(' ');
+    return `<details${htmlAttrs(c.attrs, cls, c.style)}${c.dataLine}${data}><summary class="smd-review-record"><span class="smd-review-label">${name}</span> <span class="smd-review-status">${facts}</span>${title ? `<span class="smd-review-title">${title}</span>` : ''}</summary><div class="smd-review-body">\n`;
+  }
+  c.meta.close = '</div></aside>';
+  const facts = [
+    values.for ? label(m, 'review.for', { id: values.for }) : '', values.author ?? '', values.date ?? '',
+  ].filter(Boolean).map((f) => `<span>${escapeHtml(f)}</span>`).join('<span class="smd-dot">·</span>');
+  const kindLabel = type === 'comment' && !answer ? `<span class="smd-review-kind">${escapeHtml(m[`review.${kind}` as MessageKey] ?? kind)}</span>` : '';
+  const pill = stale ? `<span class="smd-review-stale-pill" title="${escapeHtml(m['review.staleTitle'])}">${escapeHtml(m['review.stale'])}</span>` : '';
+  return `<aside${htmlAttrs(c.attrs, cls, c.style)}${c.dataLine}${data} aria-label="${escapeHtml(name)}">` +
+    `<div class="smd-review-head"><span class="smd-review-label">${name}</span>${kindLabel}${facts ? `<span class="smd-review-facts">${facts}</span>` : ''}${pill}</div>` +
+    `${title ? `<div class="smd-review-title">${title}</div>` : ''}<div class="smd-review-body">\n`;
 }
 
 function riskOpen(c: ContainerView): string {
@@ -233,10 +292,224 @@ function riskOpen(c: ContainerView): string {
     likelihood ? `${m['label.likelihood']} <b>${escapeHtml(term(m, 'likelihood', likelihood))}</b>` : '',
     values.owner ? `${m['label.owner']} ${escapeHtml(values.owner)}` : '',
     values.status ? `<span class="smd-risk-status">${escapeHtml(term(m, 'riskStatus', values.status))}</span>` : '',
+    values['depends-on'] ? htmlLabel(m, 'tag.dependsOn', { ids: idLinks(c, values['depends-on']) }) : '',
   ].filter(Boolean).join('<span class="smd-dot">·</span>');
   return `<div${htmlAttrs(c.attrs, ['smd-risk', `smd-risk-${impact}`], c.style)}${c.dataLine}>` +
     `<div class="smd-risk-head"><span class="smd-risk-icon" aria-hidden="true">⚑</span><span class="smd-risk-title">${c.inline(c.meta.title || m['risk.title'])}</span></div>` +
     `<div class="smd-risk-facts">${facts}</div><div class="smd-risk-body">\n`;
+}
+
+// ---------------------------------------------------------------------------
+// Semantic tags (requirement, constraint, acceptance, assumption, evidence) and the question lifecycle
+// ---------------------------------------------------------------------------
+
+/** What the containers of a document's tokens say about each other: parents, answers, superseded decisions. */
+interface TokenTags {
+  parent: Map<Token, Token | undefined>;
+  /** Question ids with an answer, and the question tokens an answer sits in. */
+  answered: Set<string>;
+  answeredTokens: Set<Token>;
+  supersededBy: Map<string, string[]>;
+}
+
+const tokenTags = new WeakMap<Token[], TokenTags>();
+/** For a part of a document's tokens rendered on its own (the Block Editor's blocks): the whole document's tokens. */
+const documentTokens = new WeakMap<Token[], Token[]>();
+
+/** Say that `part` comes from `all`, so the links between tags (answers, superseded decisions) are read from the whole document. */
+export function partOfDocument(part: Token[], all: Token[]): void {
+  if (part !== all) documentTokens.set(part, all);
+}
+
+function tagsOf(part: Token[]): TokenTags {
+  const tokens = documentTokens.get(part) ?? part;
+  let tags = tokenTags.get(tokens);
+  if (tags) return tags;
+  tags = { parent: new Map(), answered: new Set(), answeredTokens: new Set(), supersededBy: new Map() };
+  const stack: Token[] = [];
+  for (const t of tokens) {
+    if (t.type === 'container_smd_close') { stack.pop(); continue; }
+    if (t.type !== 'container_smd_open') continue;
+    const meta = t.meta as ContainerMeta;
+    tags.parent.set(t, stack.at(-1));
+    const v = meta.attrs.values;
+    if (meta.name === 'comment' && v.kind?.toLowerCase() === 'answer') {
+      for (const id of idList(v.for ?? '')) tags.answered.add(id);
+      for (const open of stack) if ((open.meta as ContainerMeta).name === 'question') tags.answeredTokens.add(open);
+    }
+    if (meta.name === 'decision' && meta.attrs.id) {
+      for (const id of idList(v.supersedes ?? '')) tags.supersededBy.set(id, [...(tags.supersededBy.get(id) ?? []), meta.attrs.id]);
+    }
+    stack.push(t);
+  }
+  tokenTags.set(tokens, tags);
+  return tags;
+}
+
+
+/** A label whose placeholders are HTML: the label's own words are escaped, the values go in as they are. */
+function htmlLabel(m: Messages, key: MessageKey, values: Record<string, string>): string {
+  return m[key].split(/(\{\w+\})/).map((part) => {
+    const name = /^\{(\w+)\}$/.exec(part)?.[1];
+    return name && Object.hasOwn(values, name) ? values[name] : escapeHtml(part);
+  }).join('');
+}
+
+/** Ids as links to their blocks, as `:ref[id]` shows them: unknown ids as written, ambiguous ones linked to neither. */
+function idLinks(c: ContainerView, value: string | readonly string[], cls = ''): string {
+  const ids = typeof value === 'string' ? idList(value) : value;
+  const blocks = (c.env as { smdBlockIds?: ReadonlyMap<string, { count: number; title?: string }> } | undefined)?.smdBlockIds;
+  const links = ids.map((id) => {
+    const html = renderRef(id, undefined, c.m, blocks?.get(id));
+    return cls ? html.replace('class="smd-ref', `class="smd-ref ${cls}`) : html;
+  });
+  return links.join(', ');
+}
+
+/** A coloured pill with its value as text, so colour never carries the meaning alone. */
+function pill(kind: string, value: string, text: string): string {
+  const css = value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return `<span class="smd-pill smd-pill-${kind}${css ? ` smd-pill-${kind}-${css}` : ''}">${escapeHtml(text)}</span>`;
+}
+
+/** The priority pill, coloured as `:priority` is. */
+function priorityPill(m: Messages, value: string): string {
+  const color = PRIORITY_COLORS.get(value.toLowerCase()) ?? 'gray';
+  return `<span class="smd-priority" style="--smd-badge:var(--smd-${color})">${escapeHtml(term(m, 'priority', value))}</span>`;
+}
+
+/** `<div class="smd-block smd-<tag>" id="…">`: the kind and id, pills, facts, then the title and the body. */
+function tagOpen(c: ContainerView, kind: string, pills: string[], facts: string[], classes: string[] = []): string {
+  c.meta.close = '</div></div>';
+  const id = c.attrs.id ? `<span class="smd-block-id">${escapeHtml(c.attrs.id)}</span>` : '';
+  const shown = facts.filter(Boolean);
+  const head = `<div class="smd-block-head"><span class="smd-block-kind">${escapeHtml(kind)}</span>${id}${pills.filter(Boolean).join('')}`
+    + `${shown.length ? `<span class="smd-block-facts">${shown.join('<span class="smd-dot">·</span>')}</span>` : ''}</div>`;
+  const title = c.meta.title ? `<div class="smd-block-title">${c.inline(c.meta.title)}</div>` : '';
+  return `<div${htmlAttrs(c.attrs, ['smd-block', `smd-${c.name}`, ...classes], c.style)}${c.dataLine}>${head}${title}<div class="smd-block-body">\n`;
+}
+
+/** ` · overdue` after a date that has passed, in words as well as colour (as `:due` shows it). */
+const overdueNote = (c: ContainerView, date: string) => (dueState(date, c.ctx.options(c.env).today) === 'overdue' ? dueNote('overdue', c.m) : '');
+const ownerFact = (c: ContainerView) => (c.attrs.values.owner ? escapeHtml(c.attrs.values.owner) : '');
+const dependsFact = (c: ContainerView) => {
+  const ids = c.attrs.values['depends-on'];
+  return ids ? htmlLabel(c.m, 'tag.dependsOn', { ids: idLinks(c, ids) }) : '';
+};
+
+function requirementOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  const status = (values.status ?? 'proposed').toLowerCase();
+  return tagOpen(c, c.m['requirement.label'],
+    [values.priority ? priorityPill(c.m, values.priority) : '', pill('status', status, term(c.m, 'requirementStatus', status))],
+    [ownerFact(c), dependsFact(c)], [`smd-requirement-${status.replace(/[^a-z0-9-]/g, '')}`]);
+}
+
+function constraintOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  const level = (values.level ?? 'must').toLowerCase();
+  const scope = values['applies-to']
+    ? htmlLabel(c.m, 'tag.appliesTo', { ids: idLinks(c, values['applies-to']) })
+    : (values.scope ?? '').toLowerCase() === 'document' ? escapeHtml(c.m['tag.wholeDocument']) : '';
+  return tagOpen(c, c.m['constraint.label'], [pill('level', level, term(c.m, 'constraintLevel', level))], [scope, ownerFact(c), dependsFact(c)],
+    [`smd-constraint-${level.replace(/[^a-z0-9-]/g, '')}`]);
+}
+
+function acceptanceOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  const parent = parentRequirementOf(c.tokens, c.idx);
+  const ids = [...new Set([...(parent ? [parent] : []), ...idList(values.verifies ?? '')])];
+  const href = quoteCite(values.test);
+  const test = values.test
+    ? htmlLabel(c.m, 'tag.test', { file: href ? `<a href="${escapeHtml(href)}"><code>${escapeHtml(values.test)}</code></a>` : `<code>${escapeHtml(values.test)}</code>` })
+    : '';
+  return tagOpen(c, c.m['acceptance.label'], [], [ids.length ? htmlLabel(c.m, 'tag.verifies', { ids: idLinks(c, ids) }) : '', test]);
+}
+
+function assumptionOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  const status = (values.status ?? 'unvalidated').toLowerCase();
+  const late = status === 'unvalidated' && values['review-by'] ? overdueNote(c, values['review-by']) : '';
+  const review = values['review-by'] ? `${escapeHtml(label(c.m, 'tag.reviewBy', { date: values['review-by'] }))}${late}` : '';
+  return tagOpen(c, c.m['assumption.label'], [pill('status', status, term(c.m, 'assumptionStatus', status))], [ownerFact(c), review, dependsFact(c)],
+    [`smd-assumption-${status.replace(/[^a-z0-9-]/g, '')}`]);
+}
+
+function evidenceOpen(c: ContainerView): string {
+  const { values } = c.attrs;
+  const result = values.result?.toLowerCase();
+  const source = values.source ? quoteCite(values.source) : undefined;
+  const facts = [
+    values.supports ? htmlLabel(c.m, 'tag.supports', { ids: idLinks(c, values.supports) }) : '',
+    values.contradicts ? htmlLabel(c.m, 'tag.contradicts', { ids: idLinks(c, values.contradicts, 'smd-conflict') }) : '',
+    values.method ? escapeHtml(values.method) : '',
+    values.commit ? `<code>${escapeHtml(values.commit)}</code>` : '',
+    values.date ? escapeHtml(values.date) : '',
+    values.by ? escapeHtml(values.by) : '',
+    values.source ? (source ? `<a href="${escapeHtml(source)}">${escapeHtml(values.source)}</a>` : escapeHtml(values.source)) : '',
+  ];
+  return tagOpen(c, c.m['evidence.label'], [result ? pill('result', result, term(c.m, 'evidenceResult', result)) : ''], facts,
+    result ? [`smd-evidence-${result.replace(/[^a-z0-9-]/g, '')}`] : []);
+}
+
+/** A decision's links to others: what it supersedes, what supersedes it, what it depends on. Empty without any. */
+function decisionLinks(c: ContainerView): string[] {
+  const { values, id } = c.attrs;
+  const by = supersedersOf(c.tokens, id);
+  return [
+    values.supersedes ? htmlLabel(c.m, 'tag.supersedes', { ids: idLinks(c, values.supersedes) }) : '',
+    by ? htmlLabel(c.m, 'tag.supersededBy', { ids: idLinks(c, by) }) : '',
+    dependsFact(c),
+  ].filter(Boolean);
+}
+
+const QUESTION_LIFECYCLE = ['status', 'owner', 'due', 'between', 'reason'];
+
+/**
+ * The state of the question opened at `idx` when it uses the lifecycle, else undefined. `answered` and `incorporated`
+ * hold only with an answer (research contract, "Questions"); with an answer and no status, it is answered.
+ */
+export function questionStateOf(tokens: Token[], idx: number): string | undefined {
+  const meta = tokens[idx].meta as ContainerMeta;
+  const { values, id } = meta.attrs;
+  const tags = tagsOf(tokens);
+  const answer = (id !== undefined && tags.answered.has(id)) || tags.answeredTokens.has(tokens[idx]);
+  if (!answer && !QUESTION_LIFECYCLE.some((k) => values[k] !== undefined)) return undefined;
+  const written = values.status?.toLowerCase();
+  if ((written === 'answered' || written === 'incorporated') && !answer) return 'open';
+  return written || (answer ? 'answered' : 'open');
+}
+
+/** The ids of the decisions in `tokens` that supersede the decision with this id. */
+export function supersedersOf(tokens: Token[], id: string | undefined): string[] | undefined {
+  return id ? tagsOf(tokens).supersededBy.get(id) : undefined;
+}
+
+/** The id of the requirement the container opened at `idx` sits in. */
+export function parentRequirementOf(tokens: Token[], idx: number): string | undefined {
+  const { parent } = tagsOf(tokens);
+  for (let p = parent.get(tokens[idx]); p; p = parent.get(p)) if ((p.meta as ContainerMeta).name === 'requirement') return (p.meta as ContainerMeta).attrs.id;
+  return undefined;
+}
+
+/**
+ * A question's state and facts, when it uses the lifecycle: `answered` and `incorporated` only with an answer
+ * (research contract, "Questions"), `between=` as two conflicting links. Empty for any other question.
+ */
+function questionFacts(c: ContainerView): string {
+  const { values } = c.attrs;
+  const status = questionStateOf(c.tokens, c.idx);
+  if (!status) return '';
+  const between = idList(values.between ?? '');
+  const facts = [
+    values.owner ? escapeHtml(values.owner) : '',
+    values.due ? `${escapeHtml(label(c.m, 'due.title', { date: values.due }))}${status === 'open' ? overdueNote(c, values.due) : ''}` : '',
+    between.length >= 2 ? htmlLabel(c.m, 'question.between', { a: idLinks(c, [between[0]], 'smd-conflict'), b: idLinks(c, between.slice(1), 'smd-conflict') }) : '',
+    between.length === 1 ? idLinks(c, between, 'smd-conflict') : '',
+    values.reason ? escapeHtml(label(c.m, 'question.reason', { reason: values.reason })) : '',
+  ].filter(Boolean);
+  return `<div class="smd-question-facts">${pill('status', status, term(c.m, 'questionStatus', status))}`
+    + `${facts.length ? `<span class="smd-block-facts">${facts.join('<span class="smd-dot">·</span>')}</span>` : ''}</div>`;
 }
 
 function apiOpen(c: ContainerView): string {
@@ -369,6 +642,8 @@ const CONTAINERS = new Map<string, ContainerOpen>([
   ['agent', agentOpen],
   ['human', humanOpen],
   ['decision', decisionOpen],
+  ['comment', reviewOpen],
+  ['suggestion', reviewOpen],
   ['risk', riskOpen],
   ['api', apiOpen],
   ['risk-matrix', riskMatrixOpen],
@@ -377,6 +652,11 @@ const CONTAINERS = new Map<string, ContainerOpen>([
   ['changelog', changelogOpen],
   ['quote', quoteOpen],
   ['glossary', glossaryOpen],
+  ['requirement', requirementOpen],
+  ['constraint', constraintOpen],
+  ['acceptance', acceptanceOpen],
+  ['assumption', assumptionOpen],
+  ['evidence', evidenceOpen],
 ]);
 
 // ---------------------------------------------------------------------------
@@ -392,14 +672,17 @@ interface Directive {
   m: Messages;
   /** The document's rules, for the inline Markdown in the content: its spec version and typography (specEnv). */
   spec: SpecEnv;
+  /** For `:progress{basis=tasks}`: the tasks of its section. */
+  counts?: TaskCount;
 }
 
 export function renderInlineDirective(
   md: MarkdownIt, name: string, content: string, values: Record<string, string>, today?: string, m: Messages = EN, spec: SpecEnv = {},
+  counts?: TaskCount,
 ): string {
   const color = values.color ? resolveColor(values.color) : null;
   const render = DIRECTIVES.get(name);
-  return render ? render({ md, content, values, color, today, m, spec }) : escapeHtml(content);
+  return render ? render({ md, content, values, color, today, m, spec, counts }) : escapeHtml(content);
 }
 
 /**
@@ -429,7 +712,9 @@ function kbd({ content }: Directive): string {
     .join('<span class="smd-kbd-plus">+</span>');
 }
 
-function progress({ content, values, color, m }: Directive): string {
+function progress({ content, values, color, m, counts }: Directive): string {
+  const state = progressState(values, content, counts);
+  if (state.kind !== 'plain') return progressWithBasis(state, values, color, m);
   const raw = Number.parseFloat(values.value ?? content ?? '0');
   const value = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
   const barStyle = `width:${value}%${color ? `;background:${color}` : ''}`;
@@ -437,6 +722,26 @@ function progress({ content, values, color, m }: Directive): string {
   // A progress bar needs a name; the label inside it is presentational to assistive technology.
   const name = escapeHtml(values.label ?? m['progress.label']);
   return `<span class="smd-progress" role="progressbar" aria-label="${name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><span class="smd-progress-track"><span class="smd-progress-bar" style="${escapeHtml(barStyle)}"></span></span><span class="smd-progress-label">${escapeHtml(label)}</span></span>`;
+}
+
+/** The words a bar with a basis shows, in the document's language. */
+export function progressLabel(state: Exclude<ProgressState, { kind: 'plain' }>, m: Messages): string {
+  if (state.kind === 'tasks') return label(m, 'progress.tasks', { checked: state.checked, total: state.total });
+  if (state.kind === 'unknown') return m['progress.unknown'];
+  return label(m, state.basis === 'measured' ? 'progress.measured' : 'progress.estimated', { value: `${Math.round(state.percent)}%` });
+}
+
+/**
+ * A bar with a basis: its words are shown and are its `aria-valuetext`. Unknown progress has no filled bar and no
+ * `aria-valuenow`, and neither has a task count with no tasks. `label` stays the bar's name.
+ */
+function progressWithBasis(state: Exclude<ProgressState, { kind: 'plain' }>, values: Record<string, string>, color: string | null, m: Messages): string {
+  const name = escapeHtml(values.label ?? m['progress.label']);
+  const words = escapeHtml(progressLabel(state, m));
+  const percent = state.kind === 'unknown' ? undefined : state.percent;
+  const now = percent === undefined ? '' : ` aria-valuenow="${percent}"`;
+  const bar = percent === undefined ? '' : `<span class="smd-progress-bar" style="${escapeHtml(`width:${percent}%${color ? `;background:${color}` : ''}`)}"></span>`;
+  return `<span class="smd-progress smd-progress-${state.kind}" role="progressbar" aria-label="${name}" aria-valuemin="0" aria-valuemax="100"${now} aria-valuetext="${words}"><span class="smd-progress-track">${bar}</span><span class="smd-progress-label">${words}</span></span>`;
 }
 
 /** The named colour of each priority, for the :priority pill and the exporters. */
@@ -521,7 +826,14 @@ const DIRECTIVES = new Map<string, (d: Directive) => string>([
   ['due', due],
   ['metric', metric],
   ['status', status],
+  ['depends', depends],
 ]);
+
+/** `:depends[R1,R2]` (spec v2): "depends on R1, R2", each id linked to its block. */
+function depends({ content, m }: Directive): string {
+  const ids = idList(content).map((id) => `<a class="smd-ref" href="#${escapeHtml(id)}">${escapeHtml(id)}</a>`).join(', ');
+  return `<span class="smd-depends">${htmlLabel(m, 'tag.dependsOn', { ids })}</span>`;
+}
 
 /** overdue | soon (≤ 7 days) | later | invalid */
 export function dueState(date: string, today = new Date().toISOString().slice(0, 10)): 'overdue' | 'soon' | 'later' | 'invalid' {

@@ -1,7 +1,7 @@
 // The Block Editor page's logic that needs no DOM: labels, which blocks to keep, the order to put them in, keys.
 // The page (blockEditor.ts) does the DOM work; the unit tests import this module directly. Types only from the
 // session module: nothing of the .smd engine reaches the page.
-import type { BlockProblems, BlockView, FixView, FormField, InlineView, RenderMessage } from '../blockEditorSession';
+import type { BlockProblems, BlockView, FixView, FormField, InlineView, RenderMessage, ReviewAction } from '../blockEditorSession';
 
 export interface LineRange {
   start: number;
@@ -108,6 +108,27 @@ export function fixLabel(fix: Pick<FixView, 'title' | 'scope'>): string {
 export function fixesAnnouncement(fixes: readonly Pick<FixView, 'title' | 'scope'>[]): string {
   if (fixes.length === 1) return `1 quick fix: ${fixLabel(fixes[0])}.`;
   return fixes.length ? `${fixes.length} quick fixes.` : 'No quick fixes.';
+}
+
+/** A review button's text, and what its tooltip adds. */
+export const REVIEW_LABELS: Readonly<Record<ReviewAction, { text: string; title: string }>> = {
+  accept: { text: 'Accept', title: 'Replace the text this suggestion is for with it, and record that you accepted it' },
+  reject: { text: 'Reject', title: 'Record that you rejected this suggestion; its target stays as it is' },
+  resolve: { text: 'Resolve', title: 'Record that this comment is resolved' },
+  rebase: {
+    text: 'Rebase',
+    title: 'The text this is for changed since it was written: read it, then rebase to record its current revision (Accept comes back)',
+  },
+};
+
+/** What is announced once a review button's edit is made. */
+export function reviewAnnouncement(action: ReviewAction): string {
+  switch (action) {
+    case 'accept': return 'Suggestion accepted. Ctrl+Z undoes it.';
+    case 'reject': return 'Suggestion rejected. Ctrl+Z undoes it.';
+    case 'resolve': return 'Comment resolved. Ctrl+Z undoes it.';
+    default: return 'Rebased on the current text: read it, then accept or reject. Ctrl+Z undoes it.';
+  }
 }
 
 /**

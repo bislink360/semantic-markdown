@@ -490,7 +490,7 @@ test('assist helpers work on plain text', () => {
   const labels = (line: string) => at(line).items.map((i) => i.label);
   assert.deepEqual([at(':badge[x]{color="gr').from, labels(':badge[x]{color="gr').includes('green')], [17, true]);
   assert.deepEqual([at(':badge[x]{co').from, labels(':badge[x]{co')], [10, ['color']]);
-  assert.deepEqual(labels(':progress{value=1 la'), ['value', 'color', 'label']);
+  assert.deepEqual(labels(':progress{value=1 la'), ['value', 'color', 'label', 'basis']);
   assert.deepEqual(labels(':::note{collapsible='), ['open']);
   assert.ok(labels(':::note{').includes('collapsible'));
   assert.equal(at('Read *:sta').from, 7);

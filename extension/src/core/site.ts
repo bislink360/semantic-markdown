@@ -8,6 +8,7 @@ import { linker as makeLinker, PAGE_SOURCE, pageOutput, rewriteLinks, siteBackli
 import { headMetaHtml, imageUrl, llmsTxt, pageUrl, plainDescription, robotsTxt, sitemapXml, siteUrl } from './siteMeta';
 import { breadcrumbsHtml, folderTitle, navOrder, navTree, pagerHtml, sidebarHtml, type NavFolder, type SitePage } from './siteNav';
 import { searchDoc, searchIndexScript } from './siteSearch';
+import { withoutReviewBlocks } from './review';
 import { STATUS_VALUES } from './spec';
 
 /**
@@ -45,6 +46,8 @@ export interface SiteOptions {
   url?: string;
   /** The image link previews show (`og:image`): an absolute URL, or a path resolved against `url`. */
   image?: string;
+  /** Keep `:::comment` and `:::suggestion` blocks on the pages, which a site leaves out by default. */
+  comments?: boolean;
 }
 
 /** A file of the site: `path` relative to the site folder. */
@@ -93,7 +96,8 @@ interface Site {
 
 /** Build the site: every document rendered, linked and wrapped in the site's navigation. */
 export function buildSite(sources: SiteSource[], options: SiteOptions = {}): SiteBuild {
-  const { chosen, skipped } = chooseSources(sources);
+  // Review blocks are left out of every page, and so of the search index and the dashboard too.
+  const { chosen, skipped } = chooseSources(options.comments ? sources : sources.map((s) => ({ ...s, text: withoutReviewBlocks(s.text) })));
   const linker = makeLinker(options.base);
   const homePath = homeOf(chosen);
   const homeSource = chosen.find((s) => s.path === homePath);
@@ -169,7 +173,9 @@ function homeOf(sources: SiteSource[]): string | undefined {
 
 function buildPage(source: SiteSource, outputs: Map<string, string>, linker: Linker, options: SiteOptions, assets: Set<string>): BuiltPage {
   const output = outputs.get(source.path)!;
-  const result = renderSmd(source.text, { readFile: options.readFile?.(source.path), today: options.today, lang: options.lang });
+  const result = renderSmd(source.text, {
+    readFile: options.readFile?.(source.path), today: options.today, lang: options.lang, reviewBlocks: options.comments ? 'shown' : 'hidden',
+  });
   const rewritten = rewriteLinks(result.html, source.path, output, { pages: outputs, linker });
   rewritten.assets.forEach((a) => assets.add(a));
   const data = result.frontMatter;

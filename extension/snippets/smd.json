@@ -257,6 +257,59 @@
       ":::"
     ]
   },
+  "Requirement": {
+    "prefix": [
+      "requirement",
+      "req"
+    ],
+    "description": "A required behavior with an id, priority and status",
+    "body": [
+      ":::requirement{#${1:R1} priority=${2|P0,P1,P2,P3|} status=${3|proposed,accepted,implemented,verified,deprecated|}} ${4:The system does one thing}",
+      "${5:Detail, rationale and examples.}",
+      ":::"
+    ]
+  },
+  "Constraint": {
+    "prefix": "constraint",
+    "description": "A restriction work must respect, for its section or the whole document",
+    "body": [
+      ":::constraint{#${1:C1} scope=${2|section,document|} level=${3|must,should|}} ${4:What work must respect}",
+      "${5:Why it holds.}",
+      ":::"
+    ]
+  },
+  "Acceptance": {
+    "prefix": [
+      "acceptance",
+      "given"
+    ],
+    "description": "Observable conditions that say how to check a requirement",
+    "body": [
+      ":::acceptance{#${1:AC1} verifies=${2:R1}}",
+      "Given ${3:a starting state}",
+      "When ${4:something happens}",
+      "Then ${5:an observable result}",
+      ":::"
+    ]
+  },
+  "Assumption": {
+    "prefix": "assumption",
+    "description": "An unverified premise with an owner and a review-by date",
+    "body": [
+      ":::assumption{#${1:A1} status=${2|unvalidated,validated,invalid|} owner=${3:@owner} review-by=$CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE} ${4:What we take as true}",
+      "${5:What changes if it is wrong.}",
+      ":::"
+    ]
+  },
+  "Evidence": {
+    "prefix": "evidence",
+    "description": "The result of a check for or against a block",
+    "body": [
+      ":::evidence{#${1:E1} supports=${2:R1} method=${3|test,review,benchmark,manual,analysis,acceptance|} result=${4|pass,fail,inconclusive|} date=$CURRENT_YEAR-$CURRENT_MONTH-$CURRENT_DATE} ${5:What was checked}",
+      "${6:How it was checked, and where to see it.}",
+      ":::"
+    ]
+  },
   "Risk matrix": {
     "prefix": [
       "risk-matrix",

@@ -2,13 +2,13 @@
 smd: 2
 title: Tree and graph filtering for agent reads
 summary: Let agents select exactly the blocks they need from .smd documents by walking the document tree (headings and nested containers) and the reference graph (links and typed edges), so a focused read costs fewer tokens and fewer calls and still carries the rules that apply.
-status: draft
+status: approved
 owners: ["@roshanmadhushanka"]
 audience: both
 tags: [requirements, agents, query, tokens]
 version: 0.1
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-07
 related: [../reports/tokens.md, ../reference/spec.md]
 toc: true
 ---
@@ -182,19 +182,21 @@ The targets are proposed. They get fixed after the first measurement in phase 1.
 
 ## Decisions
 
-:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} One selector language for the tree and a follow option for the graph
+The maintainer accepted the four decisions below on 2026-11-07 (decision F3 of the [feedback loop RFC](../rfcs/feedback-loop.smd)). `--follow` ships in the CLI and the library first. The MCP `query` tool gets its fields when its token budget allows. The open question on agent blocks in `query` is answered by the research contract: a `constraints` option, off by default.
+
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} One selector language for the tree and a follow option for the graph
 Tree filtering extends the existing CSS-like `query` selectors with descendant, child and `:not()`. Graph traversal is a separate `follow` option and not new selector syntax. Models already know CSS selectors, so the tree part needs almost no new instructions. Keeping edges out of the grammar stops it from growing into a query language of its own.
 :::
 
-:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Compute the graph from the source and never store it
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Compute the graph from the source and never store it
 Edges are built from the source each time they are asked for. A stored index would go stale as documents change and would need upkeep of its own. The parsers already run on every validate and preview, and `smd index` can cache edges later if measurement shows a need.
 :::
 
-:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Neighbors are pointers unless the agent asks for them
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Neighbors are pointers unless the agent asks for them
 A pointer costs one line. The agent reads the neighbors it needs by line or id. This keeps a one-hop walk from turning into a full read of the document.
 :::
 
-:::decision{status=proposed date=2026-11-06 owner=@roshanmadhushanka} Edges a model infers are only suggestions
+:::decision{status=accepted date=2026-11-07 owner=@roshanmadhushanka} Edges a model infers are only suggestions
 A model can propose an edge, for example through the writer skill, but the edge goes into the source only when a person accepts it. The tools only follow edges a person wrote or edges derived from links.
 :::
 
@@ -222,8 +224,8 @@ S5 caps the growth. Small documents keep the read-the-file shortcut in the reade
 
 ## Open questions
 
-:::question Should query include agent blocks by default?
-Including them changes the output of calls that work today. This document keeps them behind a `constraints` option. Decide before phase 1 starts.
+:::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Query keeps agent blocks behind an option
+The question was whether `query` includes agent blocks by default. Answer, from the research contract: no. They come with the `constraints` option, and a result without them says so.
 :::
 
 :::question Is T6 what static placeholders should mean?
@@ -231,7 +233,7 @@ T6 reads static placeholders as inline values and front matter variables. If the
 :::
 
 :::question What shape should the follow option take on the MCP tool?
-Two fields (`follow` and `direction`) are clearer. One field such as `edges: "in:verifies"` costs fewer tokens in the tool definition. Decide with the S5 measurement in phase 2.
+Two fields (`follow` and `direction`) are clearer. One field such as `edges: "in:verifies"` costs fewer tokens in the tool definition. The CLI and library ship first (2026-11-07). Decide when the MCP token budget has room, with the S5 measurement.
 :::
 
 :::question Should read take a selector too?

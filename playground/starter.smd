@@ -13,7 +13,7 @@ tags: [playground, example]
 **Copy link** puts this whole document in the link, after the `#`. That part of a link is never sent to a server.
 :::
 
-Style text with [named colors]{color=blue}, ==highlights== and badges: :badge[Shipped]{color=green} :badge[Beta]{color=amber} · press :kbd[Ctrl+Enter] · progress :progress{value=60}
+Style text with [named colors]{color=blue}, ==highlights== and badges: :badge[Shipped]{color=green} :badge[Beta]{color=amber} · press :kbd[Ctrl+Enter] · progress :progress{value=60 basis=estimate}
 
 - [x] Open the playground
 - [ ] Break something and check **Diagnostics** :priority[P1] @you

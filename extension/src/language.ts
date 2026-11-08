@@ -21,6 +21,7 @@ import { frontMatterProperty } from './core/frontmatterSchema';
 import { termHover } from './core/glossary';
 import { documentPreview, documentSymbols, embedPreview, fuzzyMatch, sectionExcerpt, type SmdSymbol } from './core/symbols';
 import { codeLines, lazyLineSet } from './core/parse';
+import { idChoices } from './core/semanticTags';
 import { own } from './core/util';
 import { variableCompletion, variableHover, type VariableCompletion } from './core/variables';
 
@@ -390,6 +391,9 @@ class CompletionProvider implements vscode.CompletionItemProvider {
       if (valueMatch) {
         const owner = /^\s*:{3,}\s*([\w-]+)\{/.exec(prefix)?.[1];
         const directiveName = /:([a-z][\w-]*)(?:\[[^\]]*\])?\{[^}]*$/.exec(prefix)?.[1];
+        // An id attribute offers the document's ids (`verifies=` its requirements).
+        const ids = owner ? idChoices(document.getText(), owner, valueMatch[1]) : [];
+        if (ids.length) return ids.map((id) => new vscode.CompletionItem(id, vscode.CompletionItemKind.Reference));
         // Own names and keys only: `:::constructor{constructor=` offers nothing.
         const specValues = (owner && own(own(CONTAINERS, owner)?.values ?? {}, valueMatch[1]))
           ?? (directiveName && own(own(INLINE_DIRECTIVES, directiveName)?.values ?? {}, valueMatch[1]));
@@ -477,7 +481,8 @@ class HoverProvider implements vscode.HoverProvider {
       const spec = own(CONTAINERS, container[2]);
       if (spec && position.character >= start && position.character <= end) {
         const attrs = spec.attrs?.length ? `\n\nAttributes: \`${spec.attrs.join('`, `')}\` + style attributes` : '';
-        return new vscode.Hover(new vscode.MarkdownString(`**:::${container[2]}** — ${spec.description}${attrs}`),
+        const defaults = spec.defaults ? `\n\nDefaults: ${Object.entries(spec.defaults).map(([k, v]) => `\`${k}=${v}\``).join(', ')}` : '';
+        return new vscode.Hover(new vscode.MarkdownString(`**:::${container[2]}** — ${spec.description}${attrs}${defaults}`),
           new vscode.Range(position.line, start, position.line, end));
       }
     }
@@ -584,6 +589,11 @@ const SYMBOL_KINDS: Record<SmdSymbol['kind'], vscode.SymbolKind> = {
   decision: vscode.SymbolKind.Event,
   risk: vscode.SymbolKind.Constant,
   api: vscode.SymbolKind.Method,
+  requirement: vscode.SymbolKind.Interface,
+  constraint: vscode.SymbolKind.Key,
+  acceptance: vscode.SymbolKind.Boolean,
+  assumption: vscode.SymbolKind.Variable,
+  evidence: vscode.SymbolKind.Object,
 };
 
 class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
