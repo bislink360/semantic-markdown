@@ -422,6 +422,8 @@ export interface DirectiveMeta {
   /** The content, front matter variables replaced. */
   content: string;
   values: Record<string, string>;
+  /** `:progress{basis=tasks}`: the checked and total tasks of its section (see markdownItProgress.ts). */
+  progress?: { checked: number; total: number };
 }
 
 /** The meta of the checkbox token that taskLists puts in front of a task's text. */

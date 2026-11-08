@@ -10,6 +10,7 @@ import { EN, label, term, type MessageKey, type Messages } from './i18n';
 import {
   includeHref, includeLabel, includeProblemText, includeRequest, type IncludeRequest, type IncludeResult,
 } from './include';
+import { progressState, type ProgressState, type TaskCount } from './progress';
 import { quoteCite } from './quote';
 import { CALLOUT_TYPES, idList, STATUS_VALUES } from './spec';
 import { CLOSED_STATES, hasReviewBlocks, reviewItems, type ReviewItem, type ReviewType } from './review';
@@ -670,14 +671,17 @@ interface Directive {
   m: Messages;
   /** The document's rules, for the inline Markdown in the content: its spec version and typography (specEnv). */
   spec: SpecEnv;
+  /** For `:progress{basis=tasks}`: the tasks of its section. */
+  counts?: TaskCount;
 }
 
 export function renderInlineDirective(
   md: MarkdownIt, name: string, content: string, values: Record<string, string>, today?: string, m: Messages = EN, spec: SpecEnv = {},
+  counts?: TaskCount,
 ): string {
   const color = values.color ? resolveColor(values.color) : null;
   const render = DIRECTIVES.get(name);
-  return render ? render({ md, content, values, color, today, m, spec }) : escapeHtml(content);
+  return render ? render({ md, content, values, color, today, m, spec, counts }) : escapeHtml(content);
 }
 
 /**
@@ -707,7 +711,9 @@ function kbd({ content }: Directive): string {
     .join('<span class="smd-kbd-plus">+</span>');
 }
 
-function progress({ content, values, color, m }: Directive): string {
+function progress({ content, values, color, m, counts }: Directive): string {
+  const state = progressState(values, content, counts);
+  if (state.kind !== 'plain') return progressWithBasis(state, values, color, m);
   const raw = Number.parseFloat(values.value ?? content ?? '0');
   const value = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
   const barStyle = `width:${value}%${color ? `;background:${color}` : ''}`;
@@ -715,6 +721,26 @@ function progress({ content, values, color, m }: Directive): string {
   // A progress bar needs a name; the label inside it is presentational to assistive technology.
   const name = escapeHtml(values.label ?? m['progress.label']);
   return `<span class="smd-progress" role="progressbar" aria-label="${name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><span class="smd-progress-track"><span class="smd-progress-bar" style="${escapeHtml(barStyle)}"></span></span><span class="smd-progress-label">${escapeHtml(label)}</span></span>`;
+}
+
+/** The words a bar with a basis shows, in the document's language. */
+export function progressLabel(state: Exclude<ProgressState, { kind: 'plain' }>, m: Messages): string {
+  if (state.kind === 'tasks') return label(m, 'progress.tasks', { checked: state.checked, total: state.total });
+  if (state.kind === 'unknown') return m['progress.unknown'];
+  return label(m, state.basis === 'measured' ? 'progress.measured' : 'progress.estimated', { value: `${Math.round(state.percent)}%` });
+}
+
+/**
+ * A bar with a basis: its words are shown and are its `aria-valuetext`. Unknown progress has no filled bar and no
+ * `aria-valuenow`, and neither has a task count with no tasks. `label` stays the bar's name.
+ */
+function progressWithBasis(state: Exclude<ProgressState, { kind: 'plain' }>, values: Record<string, string>, color: string | null, m: Messages): string {
+  const name = escapeHtml(values.label ?? m['progress.label']);
+  const words = escapeHtml(progressLabel(state, m));
+  const percent = state.kind === 'unknown' ? undefined : state.percent;
+  const now = percent === undefined ? '' : ` aria-valuenow="${percent}"`;
+  const bar = percent === undefined ? '' : `<span class="smd-progress-bar" style="${escapeHtml(`width:${percent}%${color ? `;background:${color}` : ''}`)}"></span>`;
+  return `<span class="smd-progress smd-progress-${state.kind}" role="progressbar" aria-label="${name}" aria-valuemin="0" aria-valuemax="100"${now} aria-valuetext="${words}"><span class="smd-progress-track">${bar}</span><span class="smd-progress-label">${words}</span></span>`;
 }
 
 /** The named colour of each priority, for the :priority pill and the exporters. */

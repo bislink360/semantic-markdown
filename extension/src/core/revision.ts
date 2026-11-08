@@ -13,7 +13,8 @@ import { sha256Hex } from './sha256';
  * response to the block stale:
  *
  * - A container: its title and body. Its attributes (status, owner, by, on…) are not part of it, and neither are the
- *   `:::comment` and `:::suggestion` blocks nested in it.
+ *   `:::comment`, `:::suggestion` and `:::evidence` blocks nested in it, so recording a response or a check never
+ *   makes the earlier ones stale.
  * - A task: its text, without the list marker, the checkbox and the trailing `{#id}`. Ticking or unticking a task
  *   leaves its revision as it was.
  * - A heading: its text and its own section body, up to the next heading at any level, without review blocks.
@@ -38,6 +39,9 @@ export type BlockRevision =
 
 /** Containers that are responses, not content: left out of the text of the block they sit in. */
 export const REVIEW_CONTAINERS: readonly string[] = ['comment', 'suggestion'];
+
+/** Containers left out of the text of the block they sit in: responses and the evidence recorded about it. */
+const RESPONSE_CONTAINERS: readonly string[] = [...REVIEW_CONTAINERS, 'evidence'];
 
 const TASK = /^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]\s+(.*)$/;
 const TRAILING_ID = /\s*\{#[^}\s]+\}\s*$/;
@@ -66,7 +70,7 @@ export function blockRevision(text: string, id: string): BlockRevision {
   const owner = owners[0];
   const lines = text.split(/\r?\n/);
   const blocks = documentBlocks(text);
-  const reviewRanges = blocks.filter((b) => REVIEW_CONTAINERS.includes(b.type)).map((b) => [b.line, b.endLine] as const);
+  const reviewRanges = blocks.filter((b) => RESPONSE_CONTAINERS.includes(b.type)).map((b) => [b.line, b.endLine] as const);
   const keep = (i: number) => !reviewRanges.some(([a, b]) => i >= a && i <= b);
   const own = (from: number, to: number) => {
     const out: string[] = [];

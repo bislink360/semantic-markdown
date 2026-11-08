@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   agentView, applyFixes, DECISION_STATUS_FILTERS, decisionLog, decisionLogMarkdown, diffSmd, formatRelated, formatSmd, ganttDate,
-  ganttDocument, getDocumentInfo, markdownToSmd, outline, relatedDocs, renderRiskPage,
+  ganttDocument, getDocumentInfo, markdownToSmd, outline, relatedDocs, renderRiskPage, formatTrace, traceRequirements, traceSummary,
   RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, LATEST_SPEC, smdIndex,
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
   type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
@@ -60,6 +60,7 @@ Reading (token-efficient, for agents):
       --related    also list the front matter "related:" documents: title, status, summary and cost
   smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
+                       [--evidence]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
       --section    only these sections (repeatable; agent instructions elsewhere are still included)
       --exact      --section matches a heading's id or whole text only (by default a part of the text,
@@ -77,6 +78,9 @@ Reading (token-efficient, for agents):
                    :::danger blocks in full; warnings, accepted decisions and open questions as pointers
       --provenance write a JSON manifest of the view to a file: source hashes, settings, resolved
                    sections, a source map and every omission with its reason. The text doesn't change.
+      --evidence   for review: after each requirement and acceptance criterion shown, the evidence that
+                   supports or contradicts it in full (from any section), outdated records marked, and
+                   "[evidence: none for R1]" for a requirement with none
   smd agent <file.smd> --view <name> [--inspect] [--section …] [--max-tokens <n>] [--brief] [--provenance <file.json>]
   smd agent <file.smd> --views
       A task view the author declared in the front matter (views:): its sections and query, its mandatory
@@ -95,6 +99,13 @@ Reading (token-efficient, for agents):
       a missing level counts as medium and shows as "medium?"), highest score first, then a matrix of
       counts. Closed risks are left out unless --all or --status asks for them.
       --html  a standalone, theme-aware page: a colour-coded matrix that links to the register table
+  smd trace <files|dirs...> [--uncovered] [--json]
+      Each requirement in five separate columns: status as written, coverage (acceptance criteria that
+      verify it), claims (tasks in it or that :depends on it, checked of total), evidence (verification
+      records that support it: passing, failing, inconclusive, outdated) and human acceptance (evidence
+      with method=acceptance). Then the counts, each of all requirements. A checked task is never
+      evidence, and an acceptance criterion is never evidence. Evidence ids resolve in their own document.
+      --uncovered  only requirements no acceptance criterion covers
   smd query "<selector>" <files|dirs...> [--json] [--titles] [--brief] [--no-lines] [--constraints]
             [--follow <types|*> [--direction out|in|both] [--depth 1-3]]
       Blocks selected by type and attributes, each in the agent view. Exit code 1 when nothing matches.
@@ -294,6 +305,8 @@ function main(argv: string[]): number | Promise<number> {
       return tasks(positional.length ? positional : ['.'], args, today);
     case 'risks':
       return risks(positional, args);
+    case 'trace':
+      return trace(positional, args, today);
     case 'query':
       return query(positional[0], positional.slice(1), {
         json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
@@ -540,8 +553,12 @@ function tasks(targets: string[], args: Args, today?: string): number {
   const text = format === '--csv' ? tasksToCsv(rows) : rows.map((r) => taskLine(r) + '\n').join('');
   const code = write(out, text);
   console.error(`[smd] ${taskSummary(rows, all)}`);
+  // A checked box is an implementation claim (research contract, "Tasks").
+  console.error(`[smd] ${TASK_CLAIMS}`);
   return code;
 }
+
+const TASK_CLAIMS = 'Checked boxes are implementation claims, not verification: smd trace shows the evidence.';
 
 /** `smd tasks --gantt [--smd] [--title …]`: the chart, or a document with it, and how many tasks it shows. */
 function taskGantt(rows: TaskRow[], args: Args, out?: string): number {
@@ -553,6 +570,27 @@ function taskGantt(rows: TaskRow[], args: Args, out?: string): number {
   const skipped = left ? `, ${left} without a YYYY-MM-DD due date left out` : '';
   console.error(`[smd] ${charted} task(s) on the chart${skipped}.`);
   return code;
+}
+
+/**
+ * `smd trace`: each requirement's status, coverage, claims, evidence and human acceptance, then the counts (in the
+ * JSON too, as `summary`).
+ */
+function trace(targets: string[], args: Args, today?: string): number {
+  const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
+  if (!files.length) return fail('No .smd files found.');
+  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const result = traceRequirements(documents, { uncovered: args.flags.has('--uncovered'), today });
+  if (args.flags.has('--json')) {
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    return 0;
+  }
+  if (!result.requirements.length) {
+    console.log(traceSummary(result.summary));
+    return 0;
+  }
+  process.stdout.write(formatTrace(result));
+  return 0;
 }
 
 /** `smd risks`: the register as text, JSON or a standalone HTML page. Closed risks only with --all or --status. */
@@ -690,6 +728,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
     lineRefs: !args.flags.has('--no-lines'),
     constraints: args.flags.has('--constraints'),
     provenance: manifest !== undefined,
+    ...(args.flags.has('--evidence') ? { evidence: 'full' as const } : {}),
     readFile: readerFor(file),
     file,
     ...extra,
