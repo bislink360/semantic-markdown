@@ -2,6 +2,8 @@
 
 Every document about Semantic Markdown, grouped by what it is for. Start with the [install guide](guides/install.md) or the [feature guide](reference/features.md).
 
+The guides and the reference are also published as the [user guide](https://bislink360.github.io/semantic-markdown/guides/index.html) on the website, with a sidebar and search. The Pages workflow builds them from this folder on every push to `main`; a link to a file outside `guides/`, `reference/` and `images/` points at it on GitHub there.
+
 ## Guides
 
 How to set something up or get a task done.

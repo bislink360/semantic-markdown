@@ -1,0 +1,18 @@
+---
+smd: 2
+title: Reference
+summary: The Semantic Markdown syntax, the formal specification, the guide for AI agents and the compatibility policy.
+accent: indigo
+---
+
+What the format and the tools are and promise. Start with the feature guide: it shows every construct with its syntax, its rendering, its agent view and its plain-Markdown fallback.
+
+<!-- These pages are docs/reference in the repository. The Pages workflow stages them next to this page. -->
+<!-- smd-disable link/missing-file -->
+| Document                                 | For                                                                                                |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Feature guide](features.md)             | Every construct with its syntax and rendering; the VS Code extension, the CLI and the Block Editor |
+| [Specification](spec.md)                 | The formal specification (v2, with the v1 rules it keeps) and the validation rules                 |
+| [Guide for AI agents](agents.md)         | The one-page guide to paste into an agent's instructions, and the MCP server's tools               |
+| [Compatibility policy](compatibility.md) | What each release may change, deprecations and release cadence                                     |
+<!-- smd-enable link/missing-file -->
