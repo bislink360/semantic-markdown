@@ -1,7 +1,10 @@
 name: Pages
 
 # Publishes https://bislink360.github.io/semantic-markdown/: the homepage (site/index.smd, built with `smd build`, so
-# the homepage is itself a Semantic Markdown document) at /, and the web playground (playground/) at /playground/.
+# the homepage is itself a Semantic Markdown document) at /, the user guide (docs/guides and docs/reference, with
+# search and a sidebar) at /guides/ and /reference/, and the web playground (playground/) at /playground/.
+# extension/scripts/stage-site.mjs gathers site/ and those docs into one folder first, pointing links that leave
+# the site at GitHub.
 # main only changes when a release is merged, so the site always matches the latest release.
 #
 # Until GitHub Pages is turned on for the repository (Settings → Pages → Source: GitHub Actions), only the deploy
@@ -37,12 +40,14 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Build the CLI
         run: npm run build
-      - name: Homepage validates and is formatted
+      - name: Stage the homepage and the user guide
+        run: node scripts/stage-site.mjs --out ../_site_src
+      - name: Site validates and is formatted
         run: |
-          node dist/cli.js validate ../site --strict
+          node dist/cli.js validate ../_site_src --strict
           node dist/cli.js fmt --check ../site
-      - name: Build the homepage
-        run: node dist/cli.js build ../site --out ../_site --title "Semantic Markdown" --url https://bislink360.github.io/semantic-markdown/
+      - name: Build the homepage and the user guide
+        run: node dist/cli.js build ../_site_src --md --out ../_site --title "Semantic Markdown" --url https://bislink360.github.io/semantic-markdown/
       - name: Build the playground into /playground/
         run: node scripts/build-playground.mjs --out ../_site/playground
       - name: List the site

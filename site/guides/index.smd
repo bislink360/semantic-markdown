@@ -1,0 +1,22 @@
+---
+smd: 2
+title: Guides
+summary: How to install Semantic Markdown and set it up in your editor, your AI agent and your CI, with the full syntax reference.
+accent: teal
+---
+
+New to Semantic Markdown? Install it, then read the [feature guide](../reference/features.md) for every construct with its syntax, how it renders and what an agent sees. <!-- smd-disable-line link/missing-file -->
+
+<!-- These pages are docs/guides in the repository. The Pages workflow stages them next to this page. -->
+<!-- smd-disable link/missing-file -->
+| Guide                                      | For                                                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| [Installing Semantic Markdown](install.md) | The VS Code extension, the `smd` CLI and npm library, MkDocs, the web playground and Obsidian        |
+| [Set up an AI agent](agent-setup.md)       | The Claude Code plugin, `smd init --agent`, the MCP server and the agent skills                      |
+| [Other editors](editors.md)                | Neovim, Helix, Zed, JetBrains IDEs and others, with the language server and Tree-sitter highlighting |
+| [GitHub and CI](github-and-ci.md)          | The GitHub Action, `smd validate` in any CI, pre-commit hooks, and `.smd` files on GitHub            |
+| [Spec-driven work](spec-driven.md)         | Spec → plan → tasks with an agent                                                                    |
+| [Upgrading](upgrading.md)                  | Moving from Styled Markdown (3.0) and upgrading to 2.0                                               |
+<!-- smd-enable link/missing-file -->
+
+The [reference](../reference/index.smd) has the syntax, the specification and the stability promise. <!-- smd-disable-line link/missing-file -->
