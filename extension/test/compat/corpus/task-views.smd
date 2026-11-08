@@ -7,7 +7,7 @@ views:
     sections: [Requirements]
     mandatory: [C1]
     optional: [AC1]
-    budget: 1500
+    budget: "1500"
     evidence: full
 ---
 
