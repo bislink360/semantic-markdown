@@ -66,6 +66,7 @@ A YAML mapping between `---` lines at the very start of the file. It is parsed w
 | `related` | list | Paths or URLs of related documents |
 | `lang` | string | Language of the labels the renderer adds (callout titles, "Figure 2", "overdue"…), a BCP 47 tag such as `de` or `pt-BR`; see §2.2. Default English |
 | `typography` | boolean | Spec v2: `true` turns on typographic quotes, dashes and ellipses (§4.8). Spec v1 always has them, and ignores the key |
+| `views` | mapping | Task views for agents: each name maps to `sections`, `query`, `mandatory`, `optional`, `budget`, `evidence` and `description` (§8b). The agent view's header lists the names only |
 
 The values of the enum keys (`status`, `audience`, `theme`) are matched in any case: `audience: Both` is `both` (§5).
 
@@ -118,7 +119,7 @@ Any Markdown content, including other containers.
 
 | Name | Purpose | Extra attributes |
 |------|---------|------------------|
-| `note` `info` `tip` `success` `warning` `danger` `question` | Callouts | `title`, `collapsible` (value `open` starts expanded) |
+| `note` `info` `tip` `success` `warning` `danger` `question` | Callouts | `title`, `collapsible` (value `open` starts expanded). `question` also takes the lifecycle attributes `status` (`open` `answered` `incorporated` `withdrawn`), `owner`, `due`, `between`, `reason`, `by`, `on` (§3.9) |
 | `details` | Collapsible section; title = summary | `title`, `open` |
 | `card` | Bordered card with accent stripe | `title`, `accent` |
 | `box` | Generic block for style attributes | — |
@@ -127,9 +128,15 @@ Any Markdown content, including other containers.
 | `steps` | Renders the ordered list inside as numbered steps | — |
 | `agent` | Content addressed to AI agents (instructions, constraints) | `title` (`priority` was removed in 2.0, see §11.2) |
 | `human` | Content addressed to human readers only | `title` |
-
-| `decision` | Decision record (ADR-style); title = the decision | `status` (`proposed` `accepted` `rejected` `superseded` `deprecated`), `date`, `owner` |
-| `risk` | Risk with mitigation in the body | `impact`, `likelihood` (`low` `medium` `high` `critical`), `owner`, `status` (`open` `mitigated` `accepted` `closed`) |
+| `decision` | Decision record (ADR-style); title = the decision | `status` (`proposed` `accepted` `rejected` `superseded` `deprecated`), `date`, `owner`, `supersedes`, `depends-on` (§3.9) |
+| `risk` | Risk with mitigation in the body | `impact`, `likelihood` (`low` `medium` `high` `critical`), `owner`, `status` (`open` `mitigated` `accepted` `closed`), `depends-on` |
+| `requirement` | A required behavior; title = the requirement in one sentence (§3.9) | `priority` (`P0`–`P4` or `critical` `high` `medium` `low`), `status` (`proposed` `accepted` `implemented` `verified` `deprecated`; default `proposed`), `owner`, `depends-on` |
+| `constraint` | A restriction work must respect (§3.9) | `scope` (`section` `document`; default `section`), `applies-to`, `level` (`must` `should`; default `must`), `owner`, `depends-on` |
+| `acceptance` | Observable conditions that say how to check a requirement (§3.9) | `verifies`, `test` (a relative path) |
+| `assumption` | A premise nobody has checked yet (§3.9) | `status` (`unvalidated` `validated` `invalid`; default `unvalidated`), `owner`, `review-by` (`YYYY-MM-DD`), `depends-on` |
+| `evidence` | The record of a check for or against a block (§3.9) | `supports`, `contradicts`, `method`, `result` (`pass` `fail` `inconclusive`), `source`, `commit`, `date`, `by`, `rev` |
+| `comment` | A review comment on a block (§3.10) | `for` (needed, see `review/for`), `author`, `date`, `rev`, `kind` (`remark` `answer` `correction`; default `remark`), `status` (`open` `resolved`; default `open`), `by`, `on` |
+| `suggestion` | A proposed replacement for a block's body (§3.10) | `for` (needed, see `review/for`), `author`, `date`, `rev`, `status` (`open` `accepted` `rejected` `withdrawn`; default `open`), `by`, `on`, `reason` |
 | `risk-matrix` | Impact × likelihood matrix of the document's `risk` blocks (closed ones left out); cells coloured by score, risks with an `{#id}` linked. Write it with an empty body; a body renders below the matrix as a caption | `title` (or title text after the name) |
 | `api` | API endpoint; body documents params/responses | **`method`** (`GET` `POST` `PUT` `PATCH` `DELETE` `HEAD` `OPTIONS` `WS` `RPC` `EVENT`), **`path`**, `auth` |
 | `timeline` | Renders the list inside as a vertical timeline (tasks inside show done state) | — |
@@ -143,6 +150,7 @@ All containers additionally accept the style attributes in §5. Attributes in **
 `tab` must be a direct child of `tabs`; `column` of `columns`.
 Unknown container names render as a plain `box` that keeps its title (§3), and produce a warning.
 A `risk` without `impact` has impact `medium`. Risk registers (`smd risks`, `:::risk-matrix`) score a risk as impact × likelihood, each ranked `low` 1, `medium` 2, `high` 3, `critical` 4; a missing or unknown likelihood also counts as `medium`, and a missing `status` means `open`.
+The attributes `verifies`, `applies-to`, `depends-on`, `supports`, `contradicts`, `supersedes`, `between` and `for` name blocks by id, one id or a comma-separated list (`verifies=R1,R2`). Each id must name exactly one block of the document (`ref/unknown`, `ref/ambiguous`, §7).
 
 ### 3.2 Audience semantics
 
@@ -286,6 +294,111 @@ A blockquote written as a [GitHub alert](https://docs.github.com/en/get-started/
 
 Tools before 1.10 render an alert as a blockquote whose first line is the `[!WARNING]` marker. Alerts add no diagnostics.
 
+### 3.9 Semantic tags: requirements, constraints, acceptance, assumptions, evidence
+
+*Semantic tags RFC, phases 1 and 2 ([rfcs/semantic-tags.smd](../rfcs/semantic-tags.smd), [rfcs/feedback-loop.smd](../rfcs/feedback-loop.smd)).*
+
+```text
+:::constraint{#C1 scope=document} Included files stay inside the workspace
+No reader follows a path outside the allowed roots.
+:::
+
+:::requirement{#R1 priority=P0 status=accepted owner=@api-team} Section reads keep applicable instructions
+Detail and rationale.
+
+:::acceptance{#AC1 test="test/sections.test.ts"}
+Given a document with an agent block in section 2
+When an agent reads only section 3.1
+Then the view holds the agent block
+:::
+:::
+
+:::assumption{#A1 owner=@maya review-by=2026-12-01} Most documents stay under 4,000 tokens
+:::
+
+:::evidence{#E1 supports=R1 method=test result=pass commit=1a2b3c4 date=2026-11-07 by=@ci}
+The section-read tests pass.
+:::
+```
+
+- **The tags.** Five containers say what a block is. A `requirement` is a required behavior. A `constraint` is a restriction work must respect. An `acceptance` block says how to check a requirement, written as Given, When and Then lines. An `assumption` is a premise nobody has checked yet. An `evidence` block records a check for or against a block. Each takes a title and an `{#id}`. `smd fmt` writes the id first, then the attributes in the order §3.1 lists them.
+- **Defaults.** A requirement without `status` is `proposed`. A constraint is `scope=section` and `level=must`. An assumption is `unvalidated`. Queries, the agent view and rendering all use these defaults. People write the states. No tool moves a requirement to `verified` or an assumption to `validated` by itself.
+- **What an acceptance block verifies.** The ids in its `verifies`, and the requirement it is nested in, which comes first. An acceptance block says how to check a requirement. It is not evidence that the requirement passed.
+- **Constraint scope.** `scope=section` binds the section the constraint is in, and `scope=document` the whole document. `applies-to` names the blocks or headings it binds instead. A section-scoped constraint above the first heading applies to the whole document (`constraint/scope`).
+- **Evidence.** `supports` or `contradicts` names what the record is about, and one of them is needed. `method` is free text, and `test`, `review`, `benchmark`, `manual`, `analysis` and `acceptance` are the known values. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` holds the revision (§3.10) of each supported block when the check ran, as `R1@3f2a9c1b0d4e`, or a bare revision when the record names one block.
+- **Rendering.** `<div class="smd-block smd-requirement smd-requirement-accepted" id="R1">`, then a head (`smd-block-head`) with the kind, the id, pills with text labels (priority, status, level, result) and facts (owner, scope, verifies, test, review-by, depends-on), then the title (`smd-block-title`) and the body (`smd-block-body`). The ids in id attributes are links, rendered as `:ref[id]` renders them (§3.3). An unvalidated assumption past its `review-by` date says "overdue" in words. Colour never carries the meaning alone, and the labels follow `lang` (§2.2). Exports (Confluence, Notion, Word) show each tag as a panel with its facts. The agent view is in §8a and plain Markdown in §8.
+
+**Questions, decisions and dependencies.** The phase 2 attributes link blocks to each other.
+
+```text
+:::question{#Q1 status=open owner=@maya due=2026-12-01} Should constraints cost more than 500 tokens?
+:::
+
+:::comment{for=Q1 kind=answer author=@sam date=2026-11-08}
+No. Move the large ones into their sections.
+:::
+
+:::decision{#D2 status=accepted supersedes=D1 depends-on=R1} Give each reader its own cache
+:::
+
+- [ ] Build the overflow line :depends[R2] {#t2}
+```
+
+- **Question lifecycle.** A `:::question` uses the lifecycle when it has `status`, `owner`, `due`, `between` or `reason`, or when an answer exists. Its states are `open` (the default), `answered`, `incorporated` and `withdrawn`. A question is answered only when an answer exists. An answer is a `:::comment{kind=answer for=Q1}` anywhere in the document, or a `kind=answer` comment nested in the question. A written `answered` or `incorporated` without an answer reads as `open` on every surface and is warned (`question/unanswered`). A question with an answer and no `status` is `answered`. `withdrawn` needs a `reason`. `by` and `on` record who changed the state and when. `between=A,B` names two blocks that disagree. Both are shown, marked as conflicting, and nothing picks a winner. A question without these attributes and without an answer renders, converts and reads as before.
+- **Superseded decisions.** `supersedes=D1` on a decision names the decision it replaces. A view that shows D1 adds the decisions that supersede it as `superseded-by`, which is computed and never written. D1's own status should say `superseded` (`decision/supersedes`, with a fix).
+- **Dependencies.** `depends-on=` on a requirement, constraint, decision, risk or assumption names the blocks it needs. A task names them with the inline `:depends[R1,Q1]` (§4.2, spec v2 only). A task is blocked while a task it depends on is unchecked, a requirement it depends on is not `implemented` or `verified`, or a question it depends on is open. Other ids never block. `smd tasks` prints `(depends on R2; BLOCKED by R2)` and counts blocked tasks. A `depends-on` or `supersedes` chain that returns to its start is `depends/cycle`.
+
+**Older readers.** The tags are additive. A document without them renders, converts, validates and reads byte for byte as before.
+
+| Reader | The five tags | Question lifecycle, `supersedes`, `depends-on`, `:depends` |
+|---|---|---|
+| `.smd` tools 4.0.0 and earlier | Unknown containers. Each renders as a box with its title (`smd-box smd-box-requirement`) and a `container/unknown` warning, the agent view shows a `Title:` line and the content, and plain Markdown a `**Title**` paragraph and the content. `smd validate` still passes | The attributes are kept and not shown, with `attrs/unknown` warnings. A question renders as the callout it always was. `:depends[R1]` in a spec v2 document is an unknown directive that shows `R1`, with a `directive/unknown` warning |
+| GitHub and other Markdown renderers | The `:::` lines as text around the body | The `:::question` line as text, and `:depends[R1]` as written |
+
+A document that already used one of the five names as an unknown container now renders it as the tag, with the tag's rules.
+
+### 3.10 Review comments and suggestions
+
+*Collaboration RFC, phase 3 ([rfcs/collaboration.smd](../rfcs/collaboration.smd)), and the feedback loop RFC.*
+
+```text
+:::requirement{#R1 status=accepted} The cache keeps results for 10 minutes
+Pricing pages use the same cache.
+:::
+
+:::comment{for=R1 author=@maya date=2026-11-06 rev=69a84ed3b073} Too long?
+Pricing changes hourly, so 10 minutes may show stale prices.
+:::
+
+:::suggestion{for=R1 author=@agent date=2026-11-06 rev=69a84ed3b073} Shorter cache
+The cache keeps results for 5 minutes, and pricing pages bypass it.
+:::
+```
+
+- **Target.** `for` names the block the item is about by its id, and that block may be a heading, a task or a container. It is needed (`review/for`). A comment or suggestion is never the target of another one.
+- **Block revisions.** `rev` is the target's revision when the item was written. A revision is the first 12 hex digits of the SHA-256 of the block's text. For a container that text is its title and body. For a task it is its text without the list marker, the checkbox and the trailing `{#id}`. For a heading it is its text and its own section body, up to the next heading of any level. Attributes are not part of it, and neither are the `:::comment` and `:::suggestion` blocks nested in it. Lines are compared without trailing white space and outer blank lines, and CRLF reads as LF. So a status change, a ticked box or a new comment never changes a revision.
+- **Stale items.** An open item whose `rev` differs from its target's revision now is stale (`review/stale`). Tools show it as stale with the revision now, and refuse to accept a stale suggestion until a person rebases it, which records the revision now. An item without `rev` can't be told stale (`review/rev`).
+- **States.** A comment is `open` or `resolved`. A suggestion is `open`, `accepted`, `rejected` or `withdrawn`. Any other value counts as open. A closed state stays in the document, written in place with `by` (who) and `on` (when), and with `reason` for a rejected or withdrawn suggestion. A closed item without `by` and `on` is `review/transition`. An open item is `review/open`, a hint, and an error in a document with `status: approved`.
+- **Kinds.** `kind=remark` (the default) is a remark, `correction` a correction, and `answer` answers the question `for` names (§3.9). An answer is not a review remark. It is never `review/open` or `review/stale`, and the agent view keeps it with its question whatever its status.
+- **Accepting a suggestion.** The suggestion's body replaces the target's body. A container keeps its opening and closing lines, a task its list marker, checkbox and id, and a heading its own line. Review blocks nested in the replaced body stay, after the new text. `smd review` makes each change and records it ([feature guide](features.md#review-comments-and-suggestions-smd-review)).
+- **Rendering.** An open item is an `<aside class="smd-review smd-review-comment smd-review-open" data-review="comment" data-review-status="open" data-review-for="R1">` with its label, kind, target, author and date, and a "stale" pill (`smd-review-stale`, `data-review-stale="true"`) when stale. A closed item is a one-line `<details class="smd-review smd-review-comment smd-review-closed smd-review-resolved">` record of its state, who and when, which opens to show the body. The labels follow `lang`.
+
+| Surface | Open items | Closed items |
+|---|---|---|
+| Preview, Block Editor, `renderSmd` (option `reviewBlocks`, default `shown`) | A review box | A one-line record |
+| Agent view | `<comment for="R1" author="@maya" kind="remark">` … `</comment>` or `<suggestion for="R1" author="@agent">` … `</suggestion>`, with `stale="true" current-rev="…"` when stale | Left out, counted on one line at the end (§8a). Answers are kept |
+| `smd export` (every format), `smd to-md`, `smd build` and its search index | Left out. `--comments` keeps them | Left out. `--comments` keeps them |
+| `smd query` | `comment` and `suggestion`, with their attributes, defaults and the computed `stale` | The same |
+
+**Older readers.** Review blocks are additive. A document without them renders, converts, validates and reads byte for byte as before.
+
+| Reader | `:::comment` and `:::suggestion` |
+|---|---|
+| `.smd` tools 4.0.0 and earlier | Unknown containers. Each renders as a box with its title and body, in the preview and in every export, with a `container/unknown` warning. The agent view shows a `Title:` line and the body, and plain Markdown a `**Title**` paragraph and the body. Nothing is stale or closed there |
+| GitHub and other Markdown renderers | The `:::comment{…}` and `:::` lines as text around the body |
+
+A document that already used `comment` or `suggestion` as an unknown container now renders it as a review block, and the exports leave it out unless `--comments` is given.
+
 ---
 
 ## 4. Inline syntax
@@ -322,11 +435,12 @@ The content, like CommonMark link text and a styled span's text (§4.1), may run
 | `status` | required | `color` | `:status[At risk]{color=red}` |
 | `kbd` | required (`+` separates keys) | — | `:kbd[Ctrl+Shift+P]` |
 | `mention` | required | — | `:mention[@platform]` |
-| `progress` | — | `value` (0–100), `color`, `label` | `:progress{value=60}` |
+| `progress` | — | `value` (0–100 or `unknown`), `color`, `label`, `basis` (`tasks` `measured` `estimate`) | `:progress{value=60 basis=estimate}` |
 | `priority` | required: `P0`–`P4` or `critical` `high` `medium` `low` | — | `:priority[P1]` |
 | `due` | required: `YYYY-MM-DD` | — | `:due[2026-10-15]` (overdue = red, ≤ 7 days = amber) |
 | `metric` | required: the value | `label` (recommended), `delta`, `trend` (`up` `down` `flat`), `good` (`up` `down`) | `:metric[42%]{label="Activation" delta="+3%" trend=up}` |
 | `ref` | required: the id of a `figure` or another block | — | `:ref[fig-checkout]` → *Figure 2*, linked; `:ref[R1]` → *R1*, linked (§3.3) |
+| `depends` | required: block ids, comma-separated. Spec v2 only, on a task | — | `:depends[R1,Q1]` → *depends on R1, Q1*, each linked (§3.9) |
 
 ### 4.2.1 Task metadata
 
@@ -335,7 +449,10 @@ A task item may carry an owner (`@name` or `:mention[…]`), `:priority[…]` an
 ```text
 - [ ] Idempotent order creation :priority[P0] @api-team :due[2026-10-03]
 - [ ] Ship the migration @ops {#ship-migration}
+- [ ] Build the importer :depends[R1,Q1] {#build-importer}
 ```
+
+**Dependencies.** In a spec v2 document a task may name the blocks it waits for with `:depends[…]` (§3.9). `smd tasks` prints them, and while one isn't done it adds `BLOCKED by` with those ids. `--json` gives `depends` and `blocked`, and `smd query` selects `task[depends=R1]` and `task[blocked=true]`. In a spec v1 document `:depends[…]` is text and a task has no dependencies.
 
 **Task ids (3.1).** A task takes an id as a trailing `{#id}` on its first line, after a space, the form headings use (§4.2.2), so the line is still a GitHub task in plain Markdown. Only a list with exactly one `#id` counts, the id written with letters, digits, `_` and `-`. `{#a .b}`, braces right after text (`:badge[x]{#y}`), an escaped `\{#id}` and an id on a later line of the task stay text. Rendering puts the id on the task's list item (`<li id="ship-migration" class="smd-task">`) and leaves it out of the text. The agent view and `smd query` show it as written, `smd tasks` prints it last (`{#ship-migration}`) and gives it as `id` in `--json`, `smd query` selects it with `task[id=ship-migration]`, and `smd to-md` writes it as an anchor, `<a id="ship-migration"></a>`. Spec v1 documents read task ids the same way.
 
@@ -585,10 +702,10 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `fence/unclosed` | error | Unclosed code fence (fix: add it at the end of the document, for an unindented fence) |
 | `link/missing-anchor` | warning | `[x](#id)` or `[x](../other.smd#id)` with no heading or element with that id (fix: closest id) |
 | `link/github-anchor` | info | `[x](#max_tokens)`: the anchor is the GitHub id of a heading whose own id differs (`#maxtokens`, §4.2.3). It works on GitHub but not in the rendered HTML (fix: the heading's id) |
-| `link/missing-file` | warning | Relative link, image, reference definition, HTML `href`/`src` or `related:` entry does not exist |
+| `link/missing-file` | warning | Relative link, image, reference definition, HTML `href`/`src`, `related:` entry or `test=` path of an `acceptance` block does not exist |
 | `link/undefined-reference` | warning | `[text][label]` or `[label][]` with no `[label]: …` definition |
 | `figure/unknown-ref` | warning | `:ref[id]` names no `figure` or other block in the document (fix: closest id) |
-| `ref/unknown` | warning | Since 3.1: an id in an id attribute (`verifies` on `acceptance`, `applies-to` on `constraint`) names no block of the document (fix: closest id). An id in another document (`other.smd#R1`) is reported too until references across documents exist |
+| `ref/unknown` | warning | Since 3.1: an id in an id attribute (`verifies`, `applies-to`, `depends-on`, `supports`, `contradicts`, `supersedes`, `between`, `for`, §3.1) or in a task view's `mandatory` or `optional` (§8b) names no block of the document (fix: closest id). An id in another document (`other.smd#R1`) is reported too until references across documents exist |
 | `ref/ambiguous` | warning | Since 3.1: an id attribute or `:ref[id]` names an id two or more blocks give, so it names none of them (figures keep their first-match rule) |
 | `figure/duplicate-id` | warning | Two `figure` blocks share an `{#id}`; references go to the first |
 | `id/duplicate` | warning | Since 3.1: a block gives an id that an earlier block already gives (a heading's id or slug, a task's, container's or figure's `{#id}`, a raw HTML id), so links and feedback naming it resolve to neither (§4.2.1). Two figures get `figure/duplicate-id` instead |
@@ -614,12 +731,34 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `variable/undefined` | info | `{{name}}` names no front matter key; it is shown as written (fix: the closest key). `info`, since `{{…}}` in prose may be meant literally, as in documents written before 1.6 |
 | `variable/not-text` | warning | `{{name}}` names a front matter mapping or empty value, which has no text; it is shown as written |
 | `task/overdue` | info | Open task past its `:due[…]` date |
+| `requirement/id` · `acceptance/id` | warning | A `requirement` or `acceptance` block has no `{#id}` (fix: the next free id in the document's own pattern, `R4` after `R3`, `AC1` when there is none) |
+| `requirement/uncovered` | hint | An `accepted`, `implemented` or `verified` requirement that no `acceptance` block verifies, by `verifies` or by nesting |
+| `acceptance/verifies` | warning | An `acceptance` block has no `verifies` and sits in no requirement |
+| `acceptance/verifies-type` | warning | `verifies` names a block that isn't a requirement |
+| `constraint/scope` | info | A section-scoped `constraint` without `applies-to` above the first heading, which applies to the whole document (fix: `scope=document`) |
+| `constraint/size` | hint | The document-wide constraints cost more than 500 tokens together, which every section an agent reads pays for |
+| `assumption/overdue` | info | An `unvalidated` assumption whose `review-by` date has passed |
+| `assumption/invalid` | warning | An accepted requirement (or one implemented or verified) or an accepted decision `depends-on` an `invalid` assumption |
+| `evidence/target` | warning | An `evidence` block with neither `supports` nor `contradicts` |
+| `evidence/rev` | hint | An `evidence` block without `rev`, so a later change to what it supports can't be detected |
+| `question/unanswered` | warning | A question says `answered` or `incorporated` but no answer exists, so it reads as open (§3.9) |
+| `question/reason` | warning | A question is `withdrawn` without `reason` |
+| `question/overdue` | info | An open question whose `due` date has passed |
+| `decision/supersedes` | warning | A decision is superseded by another one (`supersedes=`) but its status isn't `superseded` (fix: `status=superseded`) |
+| `decision/depends-superseded` | warning | An accepted decision `depends-on` a decision that is superseded, by its status or by another decision's `supersedes` |
+| `depends/cycle` | warning | A `depends-on` chain (task `:depends` included) or a `supersedes` chain returns to its start. Reported once per cycle, at its first block |
+| `review/for` | warning | A `comment` or `suggestion` without `for`, so it names no block (§3.10) |
+| `review/stale` | warning | An open comment or suggestion whose target changed since its `rev`. Answers are never stale |
+| `review/rev` | hint | An open comment or suggestion without `rev`, so a later change to its target can't be detected |
+| `review/open` | hint / error | An open comment or suggestion. An error in a document with `status: approved`. Answers never count |
+| `review/transition` | warning | A resolved, accepted, rejected or withdrawn comment or suggestion without `by` and `on` |
+| `views/key` · `views/section` · `views/query` · `views/value` | warning | A task view (§8b) has a key it doesn't know, a section that names no heading, a `query` that isn't a valid selector, or a value of the wrong type (a `budget` that isn't a whole number, an `evidence` other than `pointers` or `full`…) |
 | `table/pipe-in-code` | info | A pipe inside a code span in a table row. GFM splits a row into cells at every pipe without a backslash before it, code spans included, so the code span never forms, as on GitHub (fix: put a backslash before the pipe; the cell shows the pipe without it) |
 | `rules/unknown` | warning | A suppression comment or a rule setting names an unknown rule code (fix: closest code). For a code removed in 2.0 (`figure/kind`, `deprecated/agent-priority`) the message names the code that reports those problems now, and the fix changes to it |
 
 The hints `container/colons` and `heading/attrs-text` and the info `include/section-match` (1.10) warn early, in documents without `smd: 2`, about what spec v2 reads differently. In a document with `smd: 2`, `container/colons` is the warning described above instead. They never make a document that passed fail, `--strict` included, and each fix keeps how the document renders today. Since 2.0, in every document, the 1.10 hints `attrs/duplicate` and `container/title-conflict` are errors and the 1.10 info form of `frontmatter/version` is a warning.
 
-Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.smdrc.json` file in the document's folder or a parent folder has `{"rules": {"<code>" | "<category>/*" | "*": "off" | "error" | "warning" | "info" | "hint"}}`. The nearest file applies, the search stops at the repository root, and the most specific key wins. Inside a document, the comments `<!-- smd-disable-next-line [codes] -->`, `<!-- smd-disable-line [codes] -->` and `<!-- smd-disable [codes] -->` … `<!-- smd-enable [codes] -->` silence rules. No codes means every rule. Codes are separated by spaces or commas and may be `category/*`.
+Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.smdrc.json` file in the document's folder or a parent folder has `{"rules": {"<code>" | "<category>/*" | "*": "off" | "error" | "warning" | "info" | "hint"}}`. The nearest file applies, the search stops at the repository root, and the most specific key wins. Inside a document, the comments `<!-- smd-disable-next-line [codes] -->`, `<!-- smd-disable-line [codes] -->` and `<!-- smd-disable [codes] -->` … `<!-- smd-enable [codes] -->` silence rules. No codes means every rule. Codes are separated by spaces or commas and may be `category/*`. The categories of the semantic tags, the review blocks and task views are `requirement`, `acceptance`, `constraint`, `assumption`, `evidence`, `question`, `decision`, `depends`, `review` and `views`. None of their codes is an error, apart from `review/open` in a document with `status: approved`.
 
 ---
 
@@ -629,7 +768,14 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 |--------|------------------------------|
 | `:::note/info` | `> [!NOTE]` |
 | `:::tip/success` | `> [!TIP]` |
-| `:::question` | `> [!IMPORTANT]` |
+| `:::question` | `> [!IMPORTANT]`. A question that uses the lifecycle (§3.9) starts with a facts line, `**Question Q1** · open · @maya · due 2026-12-01`, then its title in bold |
+| `:::requirement` | `> [!IMPORTANT]` with a facts line, `**Requirement R1** · P0 · accepted · @api-team`, then the title and the body |
+| `:::constraint` | `> [!CAUTION]` for `level=must`, `> [!WARNING]` for `should`, with `**Constraint C1** · must · whole document` (or `applies to R2`) |
+| `:::acceptance` | `> [!NOTE]` with `**Acceptance AC1** · verifies R1 · test path` |
+| `:::assumption` | `> [!WARNING]` when `unvalidated` or `invalid`, `> [!NOTE]` when `validated`, with `**Assumption A1** · unvalidated · @maya · review by 2026-12-01` |
+| `:::evidence` | `> [!TIP]` for `result=pass`, `> [!CAUTION]` for `fail`, `> [!NOTE]` otherwise, with `**Evidence E1** · supports R1 · test · pass · 1a2b3c4 · 2026-11-07 · @ci` |
+| `:::decision` | `> [!NOTE]` with `**Decision (accepted · 2026-11-01 · @maya): Title**`. A decision with `supersedes`, `depends-on` or a decision that supersedes it names its id and adds them: `**Decision D2 (accepted · 2026-11-01 · supersedes D1 · depends on R1): Title**`, and `superseded by D2` on D1. A risk adds `depends on …` the same way |
+| `:::comment`, `:::suggestion` | Left out. With `--comments`, a blockquote whose first line is `**Comment (for R1 · @maya · 2026-11-06): Title**` (`Answer`, `Suggestion`, and the state when it is closed) |
 | `:::warning` | `> [!WARNING]` |
 | `:::danger` | `> [!CAUTION]` |
 | `:::agent` / `:::human` | `> [!NOTE]` with **For agents / For humans** label |
@@ -654,6 +800,7 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 | `:status[x]{color=green}` | `🟢 x` |
 | `:progress{value=60}` | `▰▰▰▰▰▰▱▱▱▱ 60%` |
 | `:kbd[Ctrl+S]` | `<kbd>Ctrl</kbd>+<kbd>S</kbd>` |
+| `:depends[R1,Q1]` (spec v2) | `(depends on R1, Q1)` |
 | `==x==` | `**x**` |
 | Mermaid, math, tables, tasks, footnotes | unchanged (GitHub renders them) |
 
@@ -671,7 +818,12 @@ The *agent view* is a canonical, lossless-in-meaning rendering for LLMs (`smd ag
 | `:::agent` | `<agent-instructions title="…">…</agent-instructions>` (always included, even when other sections are filtered out) |
 | Callouts | `<warning title="…">…</warning>` etc. |
 | GitHub alerts (§3.8) | The callout's tags without a title, `<warning>` … `</warning>` (`[!IMPORTANT]` is `<info>`), around the body without its `>` markers |
-| `decision` / `risk` | `<decision status= date= owner=> title …</decision>` / `<risk impact= likelihood= …>` |
+| `decision` / `risk` | `<decision status= date= owner=> title …</decision>` / `<risk impact= likelihood= …>`. With `supersedes`, `depends-on` or a decision that supersedes it, the decision's id comes first and `supersedes=`, `superseded-by=` and `depends-on=` follow (`<decision id="D1" status="superseded" superseded-by="D2">`). A risk with `depends-on` shows its id and `depends-on=` |
+| `requirement` / `constraint` / `acceptance` / `assumption` / `evidence` (§3.9) | `<requirement id="R1" priority="P0" status="accepted" owner="@api-team"> title` … `</requirement>`, and the same for each tag, with its attributes in the order of §3.1. Defaults that change the meaning are always shown: `status="proposed"` on a requirement, `level="must"` on a constraint, `status="unvalidated"` on an assumption. A nested acceptance block lists its requirement first in `verifies` |
+| `question` with the lifecycle (§3.9) | `<question id="Q1" status="open" owner="@maya" due="2026-12-01" title="…">`. `status` is the state the document supports: `answered` and `incorporated` only when an answer exists. A question without the lifecycle reads as before, `<question title="…">` |
+| Open `comment` / `suggestion` (§3.10) | `<comment for="R1" author="@maya" kind="remark"> title` … `</comment>`, `<suggestion for="R1" author="@agent"> title` … `</suggestion>`. A stale one adds `stale="true" current-rev="69a84ed3b073"`. An answer (`kind="answer"`) is shown whatever its status |
+| Closed `comment` / `suggestion` | Left out. The view ends with one line that counts them and names the query that lists them: `[2 closed review items (resolved, accepted, rejected or withdrawn) left out: smd query "comment[status=resolved], suggestion[status!=open]" plan.smd lists them]`. `smd query` shows them |
+| `:depends[R1,Q1]` (spec v2) | `(depends on R1, Q1)` |
 | `api` | `API POST /v1/x — title (auth: …)` |
 | `risk-matrix` | `[risk matrix: title — impact × likelihood …; each is a <risk> block]` pointer (the risks themselves are already `<risk>` tags) |
 | Tabs / cards | `Tab "name":` / `Title:` label lines; other layout containers vanish |
@@ -689,7 +841,31 @@ The *agent view* is a canonical, lossless-in-meaning rendering for LLMs (`smd ag
 | Footnotes | As written: `[^1]` references in the text, `[^1]: …` definitions where they are (no renumbering). A `--section` excerpt lists the definitions its references need once, after a `Footnotes referenced above:` line, unless they are in a `{agent=skip}` section or `:::human` block |
 | `:::include` | The included text inside `<included file="shared/terms.smd" section="Pricing">…</included>`; its `[L<n>]` references are lines of that file. With `--no-includes`, or when it can't be read: `[include: shared/terms.smd § Pricing — read that file for the content]` (or the reason, e.g. `— cannot read the file`). The fallback body is left out |
 
-`--brief` also condenses Mermaid diagrams to `[diagram: type, n lines — see Lx-Ly]`, long code blocks to their first 10 lines, `:::details` to a pointer, and completed tasks to a count.
+`--brief` also condenses Mermaid diagrams to `[diagram: type, n lines — see Lx-Ly]`, long code blocks to their first 10 lines, `:::details` to a pointer, and completed tasks to a count. It condenses a `deprecated` requirement to `[requirement R7 (deprecated): title — omitted, see L12]`. `--max-tokens` keeps a section longer when it holds an accepted, implemented or verified requirement or an unvalidated assumption, as it does for an accepted decision. The header shows the `views` key as the names of the task views.
+
+## 8b. Task views
+
+*Feedback loop RFC, "Author task views".* An author names the parts of a document an agent needs for a task, in the front matter.
+
+```yaml
+views:
+  implement-r1:
+    sections: [Requirements]        # headings, by text or id, with their subsections
+    query: "requirement[id=R1]"     # a selector (smd query); the blocks it matches
+    mandatory: [C1, R3]             # ids shown in full, with what they depend on
+    optional: [AC1]                 # ids shown as one-line pointers
+    budget: 1500                    # tokens
+    evidence: full                  # pointers (the default) or full
+    description: Implement R1
+```
+
+- **Keys.** `sections` is a list of headings. `query` is one selector. `mandatory` and `optional` are lists of block ids. `budget` is a whole number of tokens, written as a number or a string of digits. `evidence` is `pointers` or `full`. `description` is text. Every key is optional. A key or value of another kind is a warning (`views/key`, `views/section`, `views/query`, `views/value`), and an id in `mandatory` or `optional` must name one block (`ref/unknown`, `ref/ambiguous`).
+- **The view.** `smd agent <file> --view <name>` (and `smd read --view`) builds an agent view (§8a) with the header, the document's agent instructions and dangers, the view's sections, and the blocks its query matches and its mandatory blocks, in document order under their headings. The header's excerpt line names the view, `(task view "implement-r1" — sections: Requirements; mandatory: C1)`.
+- **Mandatory blocks** are shown in full with what they need in turn, followed along `include`, `depends-on` and `applies-to` edges as `smd query --follow` follows them, up to 5 hops and 50 blocks. A dependency in another file comes under "Dependencies in other files (mandatory, in full)". Mandatory content is never left out for a budget and never condensed by `--brief`.
+- **Optional blocks** come at the end under "Optional context (pointers, not read)", one line each with its kind, line, section and token cost, and the `smd query` call that reads it.
+- **Incomplete views.** A mandatory id that names nothing, a dependency that is missing, ambiguous, outside the folder or in a cycle, a depth or block limit, or a query that can't be read, is listed under "Unsatisfied requirements of this view", and the view ends with `This view is incomplete: …`. It is still printed. The command exits 0 and warns on stderr.
+- **Budget.** The view's `budget` applies as `--max-tokens` does, with the same `[budget: …]` line when required content does not fit. `--max-tokens` on the command line takes its place. `--section`, `--brief` and `--max-tokens` given with `--view` are the agent's own choices, recorded apart from the author's.
+- **Other commands.** `--views` lists a document's views. `--inspect` explains a view for people instead of printing it. It says what the author selected, what the agent added, the dependencies followed, the pointers, what was left out and why, the budget, and whether the view is complete. A name the document doesn't declare exits 1 and lists the names it has. `--provenance` (§8a) adds a `view` field to the manifest with the author's policy, the agent's choices, what was applied, the paths followed and what is unsatisfied, with one-based lines.
 
 ## 9. Security model
 
