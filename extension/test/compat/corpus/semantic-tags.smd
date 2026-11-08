@@ -14,7 +14,7 @@ No reader follows a path or link outside the allowed roots.
 :::requirement{#R1 priority=P0 status=accepted owner=@api-team} Section reads keep applicable instructions
 Selecting a nested section returns every agent block and every constraint that applies to it.
 
-:::acceptance{#AC1 test="../../samples/spec.smd"}
+:::acceptance{#AC1 test="../../core.test.ts"}
 Given a document with an agent block in section 2
 When an agent reads only section 3.1
 Then the view holds the agent block
