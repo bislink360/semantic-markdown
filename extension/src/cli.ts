@@ -13,6 +13,7 @@ import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
 import { runQuery, type QueryFlags } from './queryCommand';
 import { runTaskView } from './taskViewCommand';
+import { runUpdates } from './updatesCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -117,6 +118,13 @@ Reading (token-efficient, for agents):
       then changed, renamed and added sections, then removed ones (heading and old lines only).
       --since      compare each .smd file with its version at a Git commit, branch or tag
       --exit-code  exit 1 when something changed (like git diff); the default is 0
+  smd updates <file.smd> --since <commit|tag|branch|rev:<revision>> [--json]
+      What changed in the document's feedback since a checkpoint: questions answered or reopened,
+      suggestions accepted or rejected, comments, tasks checked or reopened, and requirements,
+      constraints, acceptance criteria, decisions, assumptions and evidence that changed, each with
+      the blocks that point at it. Other changed lines are only counted. rev: is the revision an
+      earlier read gave, looked for in the file's Git history. An unknown checkpoint exits with 2.
+      Reading the updates records nothing: it is not incorporation.
   smd meta <file.smd> [--no-diagnostics]
       Full JSON summary: front matter, outline, tasks, decisions, risks, agent blocks.
   smd decisions <files|dirs...> [--status <list>] [--owner @name] [--json] [--md] [-o <file>] [--title "…"]
@@ -286,6 +294,12 @@ function main(argv: string[]): number | Promise<number> {
         json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
         constraints: flags.has('--constraints'), follow: value('--follow'), direction: value('--direction'), depth: value('--depth'),
       });
+    case 'updates': {
+      const out = runUpdates(positional[0], value('--since'), { json: flags.has('--json'), today });
+      process.stdout.write(out.stdout);
+      process.stderr.write(out.stderr);
+      return out.code;
+    }
     case 'diff':
       return diff(positional, value('--since'), { json: flags.has('--json'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), exitCode: flags.has('--exit-code'), today });
     case 'meta': {

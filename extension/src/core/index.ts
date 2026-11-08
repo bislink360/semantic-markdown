@@ -47,6 +47,10 @@ export {
   taskViews, findTaskView, taskView, taskViewProblems, formatTaskViewInspection, formatTaskViewList, TaskViewError, VIEW_KEYS, VIEW_EVIDENCE,
 } from './taskViews';
 export type { TaskViewSpec, TaskViewOptions, TaskViewResult, TaskViewReport, ViewBlock, ViewUnsatisfied, TaskViewProblem } from './taskViews';
+export { feedbackUpdates, formatFeedbackUpdates, UPDATES_NOTE } from './updates';
+export type { FeedbackUpdates, FeedbackChange, FeedbackKind, ChangeType, AffectedBlock, UpdatesOptions, UpdatesFormat } from './updates';
+export { blockRevision, revisionOfText } from './revision';
+export type { BlockRevision } from './revision';
 export { relatedDocs, relatedEntries, summarizeSmd, formatRelated } from './related';
 export type { RelatedDoc, RelatedOptions, SmdSummary } from './related';
 export { indexEntry, smdIndex, INDEX_FORMAT, INDEX_VERSION } from './catalog';
