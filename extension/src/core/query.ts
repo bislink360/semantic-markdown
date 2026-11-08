@@ -9,6 +9,8 @@ import type { Heading } from './render';
 import { CALLOUT_TYPES, CONTAINERS, RISK_LEVELS, STYLE_KEYS } from './spec';
 import { own, suggest } from './util';
 import { documentVariables } from './variables';
+import { REVIEW_CONTAINERS } from './revision';
+import { reviewItems } from './review';
 import { specVersion, type SpecVersion } from './specVersion';
 
 /**
@@ -101,6 +103,8 @@ const OWN_KEYS: Record<string, string[]> = {
   task: ['done', 'owner', 'priority', 'due', 'overdue', 'id'],
   heading: ['level', 'id', 'agent'],
 };
+/** Keys tools compute for a container type, beside its own attributes: a review block's `stale`. */
+const COMPUTED_KEYS: Record<string, string[]> = { comment: ['stale'], suggestion: ['stale'] };
 const DEFAULTS: Record<string, Record<string, string>> = {
   decision: { status: 'proposed' },
   risk: { impact: 'medium' },
@@ -114,7 +118,7 @@ function knownKeys(type: string): string[] | undefined {
   if (type === '*') return undefined;
   if (OWN_KEYS[type]) return [...COMMON_KEYS, ...OWN_KEYS[type]];
   const spec = CONTAINERS[type === 'callout' ? 'note' : type];
-  return [...COMMON_KEYS, 'id', 'class', ...(spec.attrs ?? []).filter((k) => k !== 'title'), ...Object.keys(STYLE_KEYS)];
+  return [...COMMON_KEYS, 'id', 'class', ...(spec.attrs ?? []).filter((k) => k !== 'title'), ...own(COMPUTED_KEYS, type) ?? [], ...Object.keys(STYLE_KEYS)];
 }
 
 /** Parse `decision[status=accepted], risk[impact>=high]`. Throws a SelectorError that says what's wrong. */
@@ -303,13 +307,25 @@ export function querySmd(text: string, selector: string | Selector[], options: Q
   const selectors = typeof selector === 'string' ? parseSelector(selector) : selector;
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const lines = text.split(/\r?\n/);
-  const blocks = blocksOf(text, lines, today);
+  const blocks = withStale(text, blocksOf(text, lines, today));
   const parents = ancestorBlocks(blocks);
   const matched = blocks.filter((b) => selectors.some((s) => matches(s, b, parents, today)));
   return matched.map((b) => ({
     ...b,
-    text: agentViewOfRange(lines, b.line, b.endLine, { brief: options.brief, lineRefs: options.lineRefs, today, includeHuman: b.type === 'human' }),
+    text: agentViewOfRange(lines, b.line, b.endLine, {
+      brief: options.brief, lineRefs: options.lineRefs, today, includeHuman: b.type === 'human', includeReview: REVIEW_CONTAINERS.includes(b.type),
+    }),
   }));
+}
+
+/** A review block's `stale`: "true" when its target changed since `rev`, else "false" (feedback loop RFC). */
+function withStale(text: string, blocks: Block[]): Block[] {
+  if (!blocks.some((b) => REVIEW_CONTAINERS.includes(b.type))) return blocks;
+  const items = new Map(reviewItems(text).map((r) => [r.line, r]));
+  return blocks.map((b) => {
+    const item = REVIEW_CONTAINERS.includes(b.type) ? items.get(b.line) : undefined;
+    return item ? { ...b, attrs: { ...b.attrs, stale: String(item.stale === true) } } : b;
+  });
 }
 
 function blocksOf(text: string, lines: string[], today: string): Block[] {
@@ -411,7 +427,7 @@ function openingOf(line: string, spec: SpecVersion): ContainerInfo | null {
 
 /** Attributes as written plus the spec's defaults; the title is a field of its own. */
 function containerAttrs(info: ContainerInfo): Record<string, string | string[]> {
-  const attrs: Record<string, string | string[]> = { ...own(DEFAULTS, info.name), ...info.attrs.values };
+  const attrs: Record<string, string | string[]> = { ...own(DEFAULTS, info.name), ...own(CONTAINERS, info.name)?.defaults, ...info.attrs.values };
   delete attrs.title;
   if (info.name === 'api') attrs.method = String(attrs.method).toUpperCase();
   if (info.attrs.id) attrs.id = info.attrs.id;

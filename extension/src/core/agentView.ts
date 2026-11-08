@@ -26,6 +26,8 @@ import {
 import { dueState, type Heading } from './render';
 import { matchesExactly, matchesHeading, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
 import { quoteCite } from './quote';
+import { hasReviewBlocks, reviewItems, type ReviewItem } from './review';
+import { REVIEW_CONTAINERS } from './revision';
 import { CALLOUT_TYPES, INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { openTaskLines } from './taskLines';
@@ -53,6 +55,11 @@ export interface AgentViewOptions {
   brief?: boolean;
   /** Keep :::human blocks (dropped by default). */
   includeHuman?: boolean;
+  /**
+   * Keep resolved, accepted, rejected and withdrawn comments and suggestions (left out by default, with one line
+   * that counts them). Open ones and answers are always shown.
+   */
+  includeReview?: boolean;
   /** Append [L12] source line references to headings (default true) so agents can edit precisely. */
   lineRefs?: boolean;
   /** Inline `file="…"` code embeds instead of referencing the path (default false). */
@@ -256,6 +263,8 @@ interface ViewHead {
   constraints: string;
   constraintView?: ConstraintView;
   footnotes: string;
+  /** The line that counts the closed review blocks left out, last in the view (see reviewCountLine). */
+  review?: string;
 }
 
 /** Where a view's head comes from, for provenance: the traces of its document-wide parts. */
@@ -339,7 +348,7 @@ function outsideFootnotes(scope: ViewScope, options: TransformOptions): string {
 }
 
 function assemble(head: ViewHead, body: string): string {
-  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes]
+  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes, head.review ?? '']
     .filter((s) => s.trim())
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -374,8 +383,10 @@ function oneView<O extends AgentViewOptions, T>(options: O, make: (options: O) =
 }
 
 function wholeView(text: string, scope: ViewScope, options: TransformOptions): AgentViewResult {
-  const body = transform(scope.lines, scope.bodyStart, scope.inScope, options);
+  const closed = { count: 0 };
+  const body = transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, closedReview: closed });
   const head = viewHead(scope, options);
+  head.review = reviewCountLine(closed.count, options.file);
   return viewResult(text, scope, assemble(head, body), options, undefined, head.constraintView);
 }
 
@@ -395,8 +406,10 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   const omissions: Omission[] = [];
   const traces: HeadTraces = { external: { file, entries: [] }, dangers: { file, entries: [] }, constraints: { file, entries: [] }, footnotes: { file, entries: [] } };
   const body: Trace = { file, entries: [], omissions };
-  transform(scope.lines, scope.bodyStart, scope.inScope, { ...traced, trace: body });
+  const closed = { count: 0 };
+  transform(scope.lines, scope.bodyStart, scope.inScope, { ...traced, trace: body, closedReview: closed });
   const head = viewHead(scope, traced, traces);
+  head.review = reviewCountLine(closed.count, options.file);
   // Lines of sections the budget omitted are not in the text: leave them out before matching.
   const cut = result.budget?.omitted ?? [];
   const bodyEntries = body.entries.filter((e) => !cut.some((o) => e.root >= o.line && e.root <= o.endLine));
@@ -469,10 +482,11 @@ interface Pointer { text: string; kind: number; cues: string[] }
 function draftOf(scope: ViewScope, options: AgentViewOptions): Draft {
   const lines: Array<[number, string]> = [];
   const agentLines = new Set<number>();
-  transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines, onAgentLine: (l) => agentLines.add(l) });
+  const closed = { count: 0 };
+  transform(scope.lines, scope.bodyStart, scope.inScope, { ...options, collect: lines, onAgentLine: (l) => agentLines.add(l), closedReview: closed });
   const byLine = lines.map((_, k) => k).sort((a, b) => lines[a][0] - lines[b][0] || a - b);
   return {
-    head: viewHead(scope, options), lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
+    head: { ...viewHead(scope, options), review: reviewCountLine(closed.count, options.file) }, lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
     file: options.file, count: options.tokenizer?.count ?? estimateTokens, estimated: !options.tokenizer, agentLines, costs: new Map(), pointers: new Map(),
   };
 }
@@ -747,6 +761,48 @@ interface TransformOptions extends AgentViewOptions {
   trace?: Trace;
   /** Called with the line of every emitted line of an `:::agent` block; inside an include, with the include's line. */
   onAgentLine?: (line: number) => void;
+  /** The review blocks of the whole document by opening line; found from `lines` when left out. */
+  review?: ReadonlyMap<number, ReviewItem>;
+  /** Counts the closed review blocks in scope that are left out. */
+  closedReview?: { count: number };
+}
+
+/** The review blocks of a document by opening line, found once per array of lines. */
+const reviewCache = new WeakMap<string[], ReadonlyMap<number, ReviewItem>>();
+const NO_REVIEW: ReadonlyMap<number, ReviewItem> = new Map();
+
+function reviewOf(lines: string[]): ReadonlyMap<number, ReviewItem> {
+  let found = reviewCache.get(lines);
+  if (!found) {
+    const text = lines.join('\n');
+    found = hasReviewBlocks(text) ? new Map(reviewItems(text).map((r) => [r.line, r])) : NO_REVIEW;
+    reviewCache.set(lines, found);
+  }
+  return found;
+}
+
+/**
+ * A review block's opening line in the view (feedback loop RFC): `<comment for="R1" author="@maya" kind="remark">`
+ * or `<suggestion for="R1" author="@agent">` with its title, and `stale="true"` with the target's current revision
+ * when its target changed. Null for a closed one (resolved, accepted, rejected, withdrawn), which the view leaves out
+ * unless `includeReview`; an answer is shown whatever its status.
+ */
+function reviewHead(name: string, item: ReviewItem | undefined, values: Record<string, string>, title: string, includeClosed: boolean): ContainerHead | null {
+  const open = item?.open ?? true;
+  if (!open && !item?.answer && !includeClosed) return null;
+  const shown: Record<string, string> = {
+    for: values.for ?? '', author: values.author ?? '', kind: name === 'comment' ? (item?.kind ?? values.kind ?? 'remark') : '',
+    status: open ? '' : item?.status ?? '', by: open ? '' : values.by ?? '', on: open ? '' : values.on ?? '',
+    stale: open && item?.stale ? 'true' : '', 'current-rev': open && item?.stale ? item.currentRev ?? '' : '',
+  };
+  return { line: `<${name}${attrList(shown, Object.keys(shown))}>${titleAfter(title)}`, close: `</${name}>` };
+}
+
+/** One line for the closed review blocks a view leaves out, pointing at the query that lists them; empty for none. */
+function reviewCountLine(count: number, file = '<file>'): string {
+  if (!count) return '';
+  const items = count === 1 ? '1 closed review item' : `${count} closed review items`;
+  return `[${items} (resolved, accepted, rejected or withdrawn) left out: smd query "comment[status=resolved], suggestion[status!=open]" ${file} lists them]`;
 }
 
 /**
@@ -901,6 +957,17 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       const frame: Frame = { name: info.name, colons: open[2].length, drop: false, start: i, visible: inScope(i) && !dropping() };
       stack.push(frame);
       if (info.name === 'human' && !options.includeHuman) { frame.drop = true; continue; }
+      if (REVIEW_CONTAINERS.includes(info.name)) {
+        const review = reviewHead(info.name, (options.review ?? reviewOf(lines)).get(i), info.attrs.values, title, !!options.includeReview);
+        if (!review) {
+          if (frame.visible) options.closedReview && options.closedReview.count++;
+          frame.drop = true;
+          continue;
+        }
+        emit(review.line!, i);
+        frame.close = review.close;
+        continue;
+      }
       // Condensed in brief views, but not inside :::agent: there it is part of the instructions.
       if (info.name === 'details' && options.brief && !inAgent()) {
         emit(`[details: ${title || 'Details'} — omitted, see L${i + 1}]`, i);
@@ -1053,7 +1120,7 @@ export function agentViewOfRange(lines: string[], start: number, end: number, op
   const text = lines.join('\n');
   const variables = documentVariables(lines);
   const whole = { figures: expandedFigures(text, viewReader(options)), changelogs: changelogEntries(lines, 0, specVersion(variables)), variables, literalLines: literalLines(text), inlineMath: inlineMathLines(text),
-    alerts: alertLines(text), inlineItems: inlineItemLines(text), taskLines: renderedTaskLines(text) };
+    alerts: alertLines(text), inlineItems: inlineItemLines(text), taskLines: renderedTaskLines(text), review: reviewOf(lines) };
   return transform(lines.slice(0, end + 1), start, () => true, { ...options, ...whole }).trim();
 }
 

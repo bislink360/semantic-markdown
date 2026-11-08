@@ -46,7 +46,10 @@ test('T7: selectors that worked before return the same matches, in the same orde
   if (process.env.SMD_WRITE_T7 === '1') fs.writeFileSync(FIXTURE, JSON.stringify(now, null, 1) + '\n');
   const pinned = JSON.parse(fs.readFileSync(FIXTURE, 'utf8')) as Record<string, string[]>;
   assert.deepEqual(Object.keys(now), Object.keys(pinned));
-  for (const selector of LEGACY_SELECTORS) assert.deepEqual(now[selector], pinned[selector], selector);
+  // Documents added to the corpus after the pin (new syntax) are not part of it.
+  const docOf = (row: string) => row.slice(0, row.indexOf(':'));
+  const pinnedDocs = new Set(pinned['*'].map(docOf));
+  for (const selector of LEGACY_SELECTORS) assert.deepEqual(now[selector].filter((row) => pinnedDocs.has(docOf(row))), pinned[selector], selector);
   // The pin is not empty: most selectors match something.
   assert.ok(Object.values(pinned).filter((rows) => rows.length).length >= 25);
 });

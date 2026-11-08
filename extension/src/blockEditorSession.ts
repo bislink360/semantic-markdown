@@ -20,6 +20,7 @@ import {
 } from './core/tableEdit';
 import type { BlockTemplate } from './core/templates';
 import { own as ownEntry } from './core/util';
+import { REVIEW_TRANSITIONS, reviewItems, type ReviewItem } from './core/review';
 import { shownValues, substituteLine, type Variables } from './core/variables';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,7 @@ export type EditorMessage =
   | ImageMessage
   | { type: 'getFixes'; key: string; requestId: number }
   | ApplyFixMessage
+  | ReviewMessage
   | { type: 'toggleTask'; line: number }
   | { type: 'openLink'; href: string }
   | { type: 'revealLine'; line: number }
@@ -127,6 +129,18 @@ export interface ApplyFixMessage {
   editId?: string;
 }
 
+/** What a review block's buttons do (feedback loop RFC): accept or reject a suggestion, resolve a comment, rebase a stale item. */
+export type ReviewAction = 'accept' | 'reject' | 'resolve' | 'rebase';
+export const REVIEW_ACTIONS: readonly ReviewAction[] = ['accept', 'reject', 'resolve', 'rebase'];
+
+/** A button on a review block (`key`): the transition, made through the same core function as `smd review`. */
+export interface ReviewMessage {
+  type: 'review';
+  key: string;
+  action: ReviewAction;
+  editId?: string;
+}
+
 /** The messages the session itself answers; the provider runs the others (toggleTask, openLink, revealLine). */
 export type SessionMessage = Exclude<EditorMessage, { type: 'toggleTask' | 'openLink' | 'revealLine' }>;
 
@@ -200,6 +214,16 @@ export interface BlockView {
   inline?: InlineView[];
   /** A table block, as the grid edits it (top-level blocks and children). */
   table?: TableView;
+  /** A `:::comment` or `:::suggestion`: its state and the buttons it gets. */
+  review?: ReviewView;
+}
+
+/** A review block as the page shows its buttons: Accept and Reject on an open suggestion (Rebase instead of Accept when stale), Resolve on an open comment. */
+export interface ReviewView {
+  type: 'comment' | 'suggestion';
+  status: string;
+  stale: boolean;
+  actions: ReviewAction[];
 }
 
 /** A table for the grid: its cells and alignments, or why only its source can change it. */
@@ -491,6 +515,8 @@ const READERS: Readonly<Record<string, Reader>> = {
   image: readImage,
   getFixes: (m) => (isKey(m.key) && isCount(m.requestId) ? { type: 'getFixes', key: m.key, requestId: m.requestId } : undefined),
   applyFix: readApplyFix,
+  review: (m) => (isKey(m.key) && REVIEW_ACTIONS.includes(m.action as ReviewAction) && optionalId(m.editId)
+    ? withId({ type: 'review', key: m.key, action: m.action as ReviewAction }, m.editId) : undefined),
   toggleTask: (m) => (isCount(m.line) ? { type: 'toggleTask', line: m.line } : undefined),
   openLink: (m) => (isText(m.href, 4096) && m.href !== '' ? { type: 'openLink', href: m.href } : undefined),
   revealLine: (m) => (isCount(m.line) ? { type: 'revealLine', line: m.line } : undefined),
@@ -633,6 +659,13 @@ export interface SessionOptions {
   saveImage?(bytes: Uint8Array, extension: string, name: string | undefined): PromiseLike<{ markdown: string; path: string } | { refused: string }>;
   /** The quick fixes VS Code has for the problems on lines [start, end): code actions of kind quickfix with an edit. */
   quickFixes?(range: LineRange): PromiseLike<readonly QuickFix[]>;
+  /**
+   * Who makes a review transition, as `@name` (the review author setting, else asked once); undefined when no one
+   * said, and the transition is not made.
+   */
+  reviewer?(): PromiseLike<string | undefined> | string | undefined;
+  /** Today as YYYY-MM-DD, for the `on=` a transition records (default: the current date). */
+  today?(): string;
 }
 
 /** A position in the document: a zero-based line and a UTF-16 column. */
@@ -983,6 +1016,14 @@ function tableChange(table: TableSource, lines: readonly string[], m: TableMessa
   }
 }
 
+/** The buttons of a review block: none once it is closed, or for an answer. */
+function reviewView(item: ReviewItem): ReviewView {
+  const actions: ReviewAction[] = [];
+  if (item.open && item.type === 'suggestion') actions.push(item.stale === false ? 'accept' : 'rebase', 'reject');
+  if (item.open && item.type === 'comment' && !item.answer) actions.push('resolve');
+  return { type: item.type, status: item.status, stale: item.open && item.stale === true, actions };
+}
+
 /** One session per Block Editor panel. */
 export class BlockEditorSession {
   private readonly log: EditLog;
@@ -999,6 +1040,8 @@ export class BlockEditorSession {
   private inlineRendered: { version: number; items: Map<string, readonly RenderedInline[]> } = { version: -1, items: new Map() };
   /** The spec version of the document the last render showed. */
   private viewSpec: SpecVersion = 1;
+  /** The review blocks of the last render, by opening line. */
+  private reviews = new Map<number, ReviewItem>();
   /** The document version the session's last edit made. */
   private applied = 0;
   /** The quick fixes last listed for each block, and the document version they belong to. */
@@ -1063,6 +1106,7 @@ export class BlockEditorSession {
     for (const s of allSegments(result.segments)) {
       this.known.set(s.key, { start: s.start, end: s.end, version, text: lines.slice(s.start, s.end).join('\n') });
     }
+    this.reviews = new Map(reviewItems(text).map((r) => [r.line, r]));
     const html = new Map(result.blocks.map((b) => [b.key, b.html]));
     const inline = new Map(result.blocks.map((b) => [b.key, b.inline]));
     this.inlineRendered = { version, items: new Map() };
@@ -1136,6 +1180,8 @@ export class BlockEditorSession {
     const form = s.type === CONTAINER ? containerForm(lines[s.start], s.container, this.viewSpec) : undefined;
     if (form) view.form = form;
     if (isBlock && s.type === TABLE) view.table = this.tableView(lines.slice(s.start, s.end));
+    const review = s.type === CONTAINER ? this.reviews.get(s.start) : undefined;
+    if (review) view.review = reviewView(review);
     const problems = problemsOf(owners.get(s.key));
     if (problems) view.problems = problems;
     return view;
@@ -1204,7 +1250,26 @@ export class BlockEditorSession {
         return this.getFixes(message.key, message.requestId);
       case 'applyFix':
         return this.applyFix(message);
+      case 'review':
+        return this.review(message);
     }
+  }
+
+  /**
+   * A review button: the transition `smd review` makes, through the same core function, on the block the page
+   * showed (refused when it changed since), recorded with the reviewer's name and today, as one undoable edit.
+   */
+  private async review(m: ReviewMessage): Promise<void> {
+    const by = await this.options.reviewer?.();
+    if (!by) return this.notice(m.editId, 'Set your name for review (Semantic Markdown › Review: Author) to accept, reject or resolve.');
+    const found = this.found(m.key, m.editId);
+    if (!found) return;
+    const today = this.options.today?.() ?? new Date().toISOString().slice(0, 10);
+    const result = REVIEW_TRANSITIONS[m.action](found.text, String(found.range.start + 1), { by, today });
+    if (!result.ok) return this.notice(m.editId, result.error);
+    const change = minimalEdit(found.text, result.text);
+    if (change && !(await this.apply([change]))) return this.notice(m.editId, NOT_APPLIED);
+    this.ack(m.editId, { line: result.line });
   }
 
   /** The lines a key names in the document now, or undefined when they can't be found any more. */

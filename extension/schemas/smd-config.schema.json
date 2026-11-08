@@ -170,6 +170,16 @@
           ],
           "description": "Every decision/… rule. Exact codes win."
         },
+        "review/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every review/… rule. Exact codes win."
+        },
         "footnote/*": {
           "enum": [
             "off",
@@ -979,6 +989,56 @@
             "hint"
           ],
           "description": "Open task past its :due[…] date"
+        },
+        "review/for": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::comment or :::suggestion without for=, so it names no block"
+        },
+        "review/stale": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An open comment or suggestion whose target changed since its rev"
+        },
+        "review/rev": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::comment or :::suggestion without rev=, so a later change to its target cannot be detected"
+        },
+        "review/open": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An open comment or suggestion (an error in a document with status: approved)"
+        },
+        "review/transition": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A resolved, accepted, rejected or withdrawn comment or suggestion without by and on"
         },
         "table/pipe-in-code": {
           "enum": [

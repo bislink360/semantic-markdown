@@ -77,6 +77,11 @@ export const RULE_CODES: Record<string, string> = {
   'variable/undefined': '`{{name}}` names no front matter key; it is shown as written',
   'variable/not-text': '`{{name}}` names a front matter mapping or empty value, which has no text',
   'task/overdue': 'Open task past its `:due[…]` date',
+  'review/for': 'A `:::comment` or `:::suggestion` without `for=`, so it names no block',
+  'review/stale': 'An open comment or suggestion whose target changed since its `rev`',
+  'review/rev': 'A `:::comment` or `:::suggestion` without `rev=`, so a later change to its target cannot be detected',
+  'review/open': 'An open comment or suggestion (an error in a document with `status: approved`)',
+  'review/transition': 'A resolved, accepted, rejected or withdrawn comment or suggestion without `by` and `on`',
   'table/pipe-in-code': 'A `|` inside a code span in a table row still splits the cell, as on GitHub; write `\\|`',
   'rules/unknown': 'Suppression comment or rule setting names an unknown rule code',
 };

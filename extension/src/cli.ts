@@ -12,6 +12,7 @@ import {
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
 import { runQuery, type QueryFlags } from './queryCommand';
+import { REVIEW_HELP, runReview } from './reviewCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
@@ -164,8 +165,8 @@ Checking and converting:
       --stdout  print the formatted file instead of writing it (one file)
       validate and fmt take any number of files: use them as a pre-commit hook (see docs/guides/install.md).
       After --, every argument is a file, even one that starts with "-".
-${MIGRATE_HELP}${EXPORT_HELP}
-  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--today YYYY-MM-DD] [--lang <tag>]
+${MIGRATE_HELP}${REVIEW_HELP}${EXPORT_HELP}
+  smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--today YYYY-MM-DD] [--lang <tag>]
       Static docs site: a page per .smd file in the same folders (links between documents rewritten,
       linked images copied), a sidebar, breadcrumbs, previous/next, backlinks, client-side search and
       a dashboard of open tasks, decisions and open risks. Opens from disk or any static web server.
@@ -178,6 +179,7 @@ ${MIGRATE_HELP}${EXPORT_HELP}
                and the site an llms.txt listing its documents for AI tools.
       --md     also publish .md files; the home page is <dir>/index.smd or README, else a generated index
       --clean  first delete the files of the previous build (only those listed in its .smd-site.json)
+      --comments  keep review comments and suggestions on the pages (left out by default)
       --lang   language of the navigation, search and dashboard, and of documents without "lang:"
                (default: the home document's "lang:", else English)
   smd from-md <file.md> [-o out.smd]       Upgrade Markdown to .smd
@@ -191,10 +193,12 @@ Agent integration:
       (claude) or the reading/writing rules (cursor, copilot, agents: AGENTS.md), this CLI, and the
       MCP server in the agent's config: .mcp.json (claude), .cursor/mcp.json, .vscode/mcp.json
       (copilot). Existing configs are merged; re-run to update.
-  smd mcp [--root <dir>] [--allow-write] [--legacy-tools]
+  smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools]
       Model Context Protocol server over stdio with the tools read, tasks, query and validate. Only .smd
       files inside --root (default: the current directory) can be read.
       --allow-write   add check_task, set_status and add_decision (each refuses edits that add errors)
+      --allow-suggest add suggest, which proposes new text for a block as a :::suggestion for a person
+                      to accept or reject (smd review), and never edits content
       --legacy-tools  also list the older outline, section and agent tools (always callable)
       Register it, e.g.: claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 
@@ -227,6 +231,7 @@ const VALUE_OPTIONS = new Set([
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
   '--follow', '--direction', '--depth',
+  '--text', '--by', '--reason', '--kind',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -303,6 +308,8 @@ function main(argv: string[]): number | Promise<number> {
       return fmt(positional.length ? positional : ['.'], flags.has('--check'), flags.has('--stdout'));
     case 'merge':
       return runMerge(positional, args);
+    case 'review':
+      return runReview(args);
     case 'migrate':
       return runMigrate(positional.length ? positional : ['.'], args);
     case 'build':
@@ -335,7 +342,7 @@ function main(argv: string[]): number | Promise<number> {
       for (const [name, t] of Object.entries(TEMPLATES)) console.log(`${name.padEnd(15)} ${t.description}`);
       return 0;
     case 'mcp':
-      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), legacyTools: flags.has('--legacy-tools') });
+      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), allowSuggest: flags.has('--allow-suggest'), legacyTools: flags.has('--legacy-tools') });
     case 'lsp':
       return lsp(flags);
     case 'skills':
@@ -550,7 +557,7 @@ function query(selector: string | undefined, targets: string[], flags: QueryFlag
   return code;
 }
 
-async function mcp(root = '.', options: { allowWrite: boolean; legacyTools: boolean }): Promise<number> {
+async function mcp(root = '.', options: { allowWrite: boolean; allowSuggest: boolean; legacyTools: boolean }): Promise<number> {
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return fail(`--root must be a folder: ${root}`);
   await runMcpServer({ root, version: pkg.version, ...options });
   return 0;
@@ -751,6 +758,7 @@ function build(positional: string[], args: Args): number {
     lang,
     md: args.flags.has('--md'),
     clean: args.flags.has('--clean'),
+    comments: args.flags.has('--comments'),
     generator: `smd ${pkg.version}`,
   }, { err: (text) => console.error(text) });
 }

@@ -12,6 +12,7 @@ import { splitTaskId } from './taskId';
 import { quoteCite } from './quote';
 import { renderSmd } from './render';
 import { riskMatrixMarkdown } from './risks';
+import { REVIEW_CONTAINERS } from './revision';
 import { withoutHeadingAttrs } from './sections';
 import { INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
@@ -24,6 +25,8 @@ export interface ToMarkdownOptions {
    * and an include its fallback body (or a link when it has none).
    */
   readFile?: (relativePath: string) => string | undefined;
+  /** Keep `:::comment` and `:::suggestion` blocks (as quotes). Left out by default, as every export leaves them out. */
+  comments?: boolean;
 }
 
 const TICK = '`';
@@ -113,6 +116,10 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
     const open = notLiteral && CONTAINER_OPEN.exec(line);
     const info = open ? parseContainerInfo(open[3] + open[4], spec) : null;
     if (open && info) {
+      if (REVIEW_CONTAINERS.includes(info.name) && !options.comments) {
+        i = containerEnd(lines, i, spec, bodyStart);
+        continue;
+      }
       if (info.name === 'include') {
         const len = open[2].length;
         i = includeMarkdown(info, { lines, open: i, from: bodyStart, spec, options, numbering, emit, keepBody: () => stack.push({ len, prefix: '' }) });
@@ -278,7 +285,7 @@ function includeMarkdown(info: ContainerInfo, at: IncludeAt): number {
   const result = request && loadInclude(request, scope, includeSource(options.readFile));
   if (result?.ok) {
     const inc = result.include;
-    const child: ToMarkdownOptions = { readFile: options.readFile };
+    const child: ToMarkdownOptions = { readFile: options.readFile, comments: options.comments };
     includeScopes.set(child, innerScope(scope, inc));
     // Included text uses this document's front matter variables, as the rendered HTML does.
     includeVariables.set(child, variablesOf(options, lines));
@@ -333,6 +340,15 @@ function decisionMarkdown({ title, values: v }: ContainerSource): ContainerMarkd
   return alert('NOTE', withTitle(`Decision (${facts})`, title));
 }
 
+/** A review block, kept with `comments`: a quote with who wrote it, when and for what. */
+function reviewMarkdown(label: string) {
+  return ({ title, values: v }: ContainerSource): ContainerMarkdown => {
+    const facts = [v.for ? `for ${v.for}` : '', v.author, v.date, v.status && v.status !== 'open' ? v.status : ''].filter(Boolean).join(' · ');
+    const name = label === 'Comment' && v.kind === 'answer' ? 'Answer' : label;
+    return { prefix: '> ', inside: [withTitle(`${name}${facts ? ` (${facts})` : ''}`, title), ''] };
+  };
+}
+
 function riskMarkdown({ title, values: v }: ContainerSource): ContainerMarkdown {
   const facts = [`impact ${v.impact ?? 'medium'}`, v.likelihood ? `likelihood ${v.likelihood}` : '', v.owner ? `owner ${v.owner}` : '', v.status ?? '']
     .filter(Boolean).join(', ');
@@ -365,6 +381,8 @@ const CONTAINER_MARKDOWN = new Map<string, (c: ContainerSource) => ContainerMark
   ['agent', ({ title }) => alert('NOTE', withTitle('For agents', title))],
   ['human', ({ title }) => alert('NOTE', withTitle('For humans', title))],
   ['decision', decisionMarkdown],
+  ['comment', reviewMarkdown('Comment')],
+  ['suggestion', reviewMarkdown('Suggestion')],
   ['risk', riskMarkdown],
   ['api', apiMarkdown],
   ['details', ({ title, values }) => ({

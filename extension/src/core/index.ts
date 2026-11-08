@@ -81,3 +81,8 @@ export { smdToConfluence } from './confluence';
 export { smdToNotion, notionRequests, NOTION_LIMITS } from './notion';
 export type { NotionAnnotations, NotionBlock, NotionRequest, NotionRichText } from './notion';
 export type { ExportOptions } from './exportTree';
+export {
+  reviewItems, withoutReviewBlocks, addComment, addSuggestion, answerQuestion, incorporateQuestion, acceptSuggestion, rejectSuggestion, withdrawItem,
+  resolveComment, reopenItem, rebaseItem, CLOSED_STATES,
+} from './review';
+export type { ReviewItem, ReviewResult, ReviewActor, ReviewWrite, ReviewType } from './review';

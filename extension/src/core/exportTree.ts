@@ -32,6 +32,8 @@ export interface ExportOptions {
   lang?: string;
   /** Start with the front matter's status, version, dates, summary, owners and tags (default true). The title is the page's own. */
   header?: boolean;
+  /** Keep `:::comment` and `:::suggestion` blocks, which exports leave out by default. */
+  comments?: boolean;
 }
 
 /** exportTree's options: the public ones, and those only smd's own writers use. */
@@ -103,7 +105,9 @@ export interface ExportDocument {
 
 /** The export tree of a .smd document. */
 export function exportTree(text: string, options: TreeOptions = {}): ExportDocument {
-  const parsed = parseSmdTokens(text, { readFile: options.readFile, agentBlocks: options.agentBlocks, lang: options.lang, today: '1970-01-01' });
+  const parsed = parseSmdTokens(text, {
+    readFile: options.readFile, agentBlocks: options.agentBlocks, lang: options.lang, today: '1970-01-01', reviewBlocks: options.comments ? 'shown' : 'hidden',
+  });
   const builder = new TreeBuilder(parsed, options);
   const header = options.header === false ? [] : builder.header();
   const blocks = [...builder.unreadFrontMatter(), ...header, ...builder.blocks(0, parsed.tokens.length)];
@@ -424,6 +428,19 @@ function decision(c: ContainerCall): Block[] {
   return [{ kind: 'panel', type: 'decision', title: withTitle(c.b.m['decision.label'], c.title), blocks: [paragraph(facts), ...c.body()] }];
 }
 
+/** A review block, kept with `comments`: a card with its kind, author, date and target. */
+function review(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const name = c.meta.name === 'suggestion' ? m['review.suggestion'] : (values.kind ?? '').toLowerCase() === 'answer' ? m['review.answer'] : m['review.comment'];
+  const facts = joinFacts([
+    values.for ? [text(label(m, 'review.for', { id: values.for }))] : [],
+    values.author ? [text(values.author)] : [],
+    values.date ? [dateOrText(values.date)] : [],
+  ]);
+  return [{ kind: 'panel', type: 'card', title: withTitle(name, c.title), blocks: [...(facts.length ? [paragraph(facts)] : []), ...c.body()] }];
+}
+
 function risk(c: ContainerCall): Block[] {
   const { values } = c.meta.attrs;
   const { m } = c.b;
@@ -512,6 +529,8 @@ const CONTAINERS = new Map<string, (c: ContainerCall) => Block[]>([
   ['human', (c) => [{ kind: 'panel', type: 'human', title: withTitle(c.b.m['human.label'], c.title), blocks: c.body() }]],
   ['agent', agent],
   ['decision', decision],
+  ['comment', review],
+  ['suggestion', review],
   ['risk', risk],
   ['api', api],
   ['risk-matrix', riskMatrixBlocks],
