@@ -2,6 +2,7 @@ import type { AgentViewResult, ResolvedSection } from './agentView';
 import type { ConstraintView } from './constraints';
 import type { Section } from './sections';
 import { sha256Hex } from './sha256';
+import type { TaskViewReport } from './taskViews';
 
 /**
  * Projection provenance (`agentView(text, { provenance: true })`, `smd agent --provenance <file>`): an optional,
@@ -128,6 +129,8 @@ export interface Provenance {
   /** The view's size and the file's, counted with `tokenizer`. */
   size: { tokens: number; originalTokens: number; tokenizer: string };
   constraints: ConstraintView | null;
+  /** An author task view (`--view`): the author's policy and the agent's choices apart, the paths followed, and what is unsatisfied. */
+  view?: TaskViewReport;
 }
 
 /** Add an omission; HTML comments on neighbouring lines become one. */

@@ -98,6 +98,10 @@ export const RULE_CODES: Record<string, string> = {
   'review/open': 'An open comment or suggestion (an error in a document with `status: approved`)',
   'review/transition': 'A resolved, accepted, rejected or withdrawn comment or suggestion without `by` and `on`',
   'table/pipe-in-code': 'A `|` inside a code span in a table row still splits the cell, as on GitHub; write `\\|`',
+  'views/key': 'A task view in the front matter `views:` has a key it does not know',
+  'views/section': 'A task view lists a section that names no heading',
+  'views/query': 'A task view\'s `query` is not a valid selector',
+  'views/value': 'A task view, or its `sections`, `mandatory`, `optional`, `budget`, `evidence` or `description`, has the wrong type or value',
   'rules/unknown': 'Suppression comment or rule setting names an unknown rule code',
 };
 

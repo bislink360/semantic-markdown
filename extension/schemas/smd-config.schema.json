@@ -250,6 +250,16 @@
           ],
           "description": "Every table/… rule. Exact codes win."
         },
+        "views/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every views/… rule. Exact codes win."
+        },
         "rules/*": {
           "enum": [
             "off",
@@ -1109,6 +1119,46 @@
             "hint"
           ],
           "description": "A | inside a code span in a table row still splits the cell, as on GitHub; write \\|"
+        },
+        "views/key": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view in the front matter views: has a key it does not know"
+        },
+        "views/section": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view lists a section that names no heading"
+        },
+        "views/query": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view's query is not a valid selector"
+        },
+        "views/value": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A task view, or its sections, mandatory, optional, budget, evidence or description, has the wrong type or value"
         },
         "rules/unknown": {
           "enum": [
