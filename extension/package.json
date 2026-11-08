@@ -2,7 +2,7 @@
   "name": "semantic-markdown",
   "displayName": "Semantic Markdown (.smd)",
   "description": "Semantic Markdown: Markdown for humans and AI agents. Callouts, colors, diagrams, math, decisions, risks, APIs, KPIs — with live preview, validation, and token-efficient agent views.",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "publisher": "bislink360",
   "author": {
     "name": "Roshan Alwis"
