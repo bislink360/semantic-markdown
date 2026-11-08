@@ -13,6 +13,7 @@ import SYNTAX_FIGURES from '../../skills/semantic-markdown-writer/references/syn
 import SYNTAX_INLINE from '../../skills/semantic-markdown-writer/references/syntax/inline.md';
 import SYNTAX_SPEC_V2 from '../../skills/semantic-markdown-writer/references/syntax/spec-v2.md';
 import SYNTAX_REQUIREMENTS from '../../skills/semantic-markdown-writer/references/syntax/requirements.md';
+import SYNTAX_REVIEW from '../../skills/semantic-markdown-writer/references/syntax/review.md';
 import WRITER_STYLE from '../../skills/semantic-markdown-writer/references/style-guide.md';
 import AGENT_RULES_TEMPLATE from '../../skills/agent-rules.md';
 import T_PRD from '../../skills/semantic-markdown-writer/assets/templates/prd.smd';
@@ -80,6 +81,7 @@ export const SKILLS: SkillBundle[] = [
       'references/syntax/inline.md': SYNTAX_INLINE,
       'references/syntax/spec-v2.md': SYNTAX_SPEC_V2,
       'references/syntax/requirements.md': SYNTAX_REQUIREMENTS,
+      'references/syntax/review.md': SYNTAX_REVIEW,
       'references/style-guide.md': WRITER_STYLE,
       ...Object.fromEntries(Object.entries(TEMPLATES).map(([name, t]) => [`assets/templates/${name}.smd`, t.text])),
     },

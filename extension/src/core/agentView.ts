@@ -1,3 +1,4 @@
+import { keepsTies, mandatoryPlan, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan } from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
 import {
@@ -135,6 +136,11 @@ export interface AgentViewResult {
   constraints?: ConstraintView;
   /** With `provenance`: where each part of `text` came from and what was left out. */
   provenance?: Provenance;
+  /**
+   * Only for a document with `:::constraint` blocks or dependencies: the constraints from outside the selected
+   * sections, the dependencies the view adds, and what it could not satisfy (see applicability.ts).
+   */
+  mandatory?: MandatoryContext;
 }
 
 /** One `sections` query and the headings it selected, each with its id and zero-based line. */
@@ -296,6 +302,8 @@ interface ViewScope {
   resolved: ResolvedSection[];
   inScope: (line: number) => boolean;
   pinned?: PinnedSelection;
+  /** The constraints and dependencies the view must carry, when the document has any (see applicability.ts). */
+  mandatory?: MandatoryPlan;
 }
 
 /** Which lines of the document are in the view. */
@@ -339,6 +347,9 @@ function selectSections(
 interface ViewHead {
   header: string;
   external: string;
+  /** "Constraints that apply here" and "Dependencies of the selected content" (see applyingHead, dependencyHead). */
+  applying?: string;
+  dependencies?: string;
   /** The `:::danger` blocks and CAUTION alerts outside the selected sections (see outsideDangers). */
   dangers: string;
   /** With `constraints`: the constraints outside the selected sections (see constraintsOutside). */
@@ -352,7 +363,7 @@ interface ViewHead {
 }
 
 /** Where a view's head comes from, for provenance: the traces of its document-wide parts. */
-interface HeadTraces { external?: Trace; dangers?: Trace; constraints?: Trace; footnotes?: Trace }
+interface HeadTraces { external?: Trace; applying?: Trace; dependencies?: Trace; dangers?: Trace; constraints?: Trace; footnotes?: Trace }
 
 /**
  * The header, plus what applies to the whole document outside the selected sections: its :::agent blocks and its
@@ -376,7 +387,43 @@ function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTrace
   }
   const excerpt = options.pinned ? options.pinned.label : selected && `(excerpt — sections: ${selected.map((s) => s.heading.text).join(', ')})`;
   const head = [header(scope.data, scope.shown, excerpt), unreadBlock(scope.unread)].filter(Boolean).join('\n');
-  return { header: head, external, dangers, constraints, constraintView, footnotes, appendix: options.pinned?.appendix ?? '' };
+  const mandatory = scope.mandatory
+    ? { applying: applyingHead(scope, options, traces.applying), dependencies: dependencyHead(scope, options, traces.dependencies) } : {};
+  return { header: head, external, ...mandatory, dangers, constraints, constraintView, footnotes, appendix: options.pinned?.appendix ?? '' };
+}
+
+/** A head pass that shows only the picked lines, of the document and its includes, in full (see applicability.ts). */
+function pickedText(scope: ViewScope, options: TransformOptions, picks: MandatoryPlan['applying'], trace?: Trace): string {
+  if (!picks.ranges.size) return '';
+  const hidden = (line: number) => scope.skipped.some((s) => line >= s.start && line <= s.end);
+  return transform(scope.lines, scope.bodyStart, (l) => !scope.inScope(l) && !hidden(l), {
+    ...options, brief: false, onlyConstraints: false, constraintSink: undefined, pick: pickTest(picks), trace,
+  }).trim();
+}
+
+/**
+ * The constraints that apply to a section view from outside its sections, in full, after the agent instructions and
+ * before the dangers (semantic tags D6). A whole-document view shows them in place.
+ */
+function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace): string {
+  const text = pickedText(scope, options, scope.mandatory!.applying, trace);
+  return text ? `Constraints that apply here:\n${text}\n\n` : '';
+}
+
+/**
+ * The dependencies of what the view shows that it does not show, in full, then what could not be satisfied (feedback
+ * loop RFC, "Dependencies"). Empty when there is nothing to add or report.
+ */
+function dependencyHead(scope: ViewScope, options: TransformOptions, trace?: Trace): string {
+  const plan = scope.mandatory!;
+  const parts = [pickedText(scope, options, plan.dependencies, trace)];
+  for (const extra of plan.extra) parts.push(`<included file="${extra.file}">\n${extra.text.trim()}\n</included>`);
+  if (plan.unsatisfied.length) {
+    const n = plan.unsatisfied.length;
+    parts.push(['Not satisfied:', ...plan.unsatisfied, `[incomplete: ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied]`].join('\n'));
+  }
+  const text = parts.filter(Boolean).join('\n');
+  return text ? `Dependencies of the selected content:\n${text}\n\n` : '';
 }
 
 /**
@@ -392,8 +439,9 @@ function outsideDangers(scope: ViewScope, options: TransformOptions): string {
 }
 
 /**
- * The constraints outside the selected sections (policy `constraints/1`, see constraints.ts): `:::danger` blocks in
- * full, then pointers to warnings, accepted decisions, open questions, and to includes that were not checked.
+ * The constraints outside the selected sections (policy `constraints/1`, or `constraints/2` with constraint blocks, see
+ * constraints.ts): `:::danger` blocks in full, then pointers to warnings, accepted decisions, open questions, constraints
+ * that apply nowhere in the view, and to includes that were not checked.
  * Sections marked {agent=skip}, `:::human` blocks and what `:::agent` blocks already show are left out.
  */
 function constraintsOutside(scope: ViewScope, options: TransformOptions): { text: string; view: ConstraintView } {
@@ -404,9 +452,11 @@ function constraintsOutside(scope: ViewScope, options: TransformOptions): { text
     ...options, brief: false, onlyConstraints: true, constraintSink: found,
   }).trim();
   const sectionAt = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1)?.heading.text ?? null;
-  const pointers = found.map((p) => ({ ...p, section: sectionAt(p.line) }));
+  // A constraint that applies is shown in full above; one that applies nowhere in the view is a pointer (constraints/2).
+  const applying = scope.mandatory?.applyingLines;
+  const pointers = found.filter((p) => p.type !== 'constraint' || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
   const view: ConstraintView = {
-    policy: 'constraints/1',
+    policy: scope.mandatory?.hasConstraints ? 'constraints/2' : 'constraints/1',
     complete: !pointers.some((p) => p.type === 'include'),
     shown: pointers.filter((p) => p.type === 'danger').length,
     pointers,
@@ -433,7 +483,7 @@ function outsideFootnotes(scope: ViewScope, options: TransformOptions): string {
 }
 
 function assemble(head: ViewHead, body: string): string {
-  return [head.header, head.external + head.dangers + head.constraints + body, head.footnotes, head.appendix, head.review ?? '']
+  return [head.header, head.external + (head.applying ?? '') + (head.dependencies ?? '') + head.dangers + head.constraints + body, head.footnotes, head.appendix, head.review ?? '']
     .filter((s) => s.trim())
     .join('\n\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -445,9 +495,19 @@ export function agentView(text: string, viewOptions: AgentViewOptions = {}): Age
     // Figures are numbered once, for every pass over the document.
     const options: TransformOptions = { ...viewOptions, figures: expandedFigures(text, viewReader(viewOptions)) };
     const scope = viewScope(text, options);
+    scope.mandatory = mandatoryOf(text, scope, options);
     const result = options.maxTokens !== undefined ? budgetedView(text, scope, options) : wholeView(text, scope, options);
     if (options.provenance) result.provenance = provenanceOf(text, scope, options, result);
     return result;
+  });
+}
+
+/** The constraints and dependencies a view must carry (see applicability.ts); undefined for a document with none. */
+function mandatoryOf(text: string, scope: ViewScope, options: AgentViewOptions): MandatoryPlan | undefined {
+  return mandatoryPlan({
+    text, lines: scope.lines, bodyStart: scope.bodyStart, sections: scope.sections, selected: scope.selected, skipped: scope.skipped,
+    inScope: scope.inScope, includeHuman: !!options.includeHuman, includes: options.includes !== false, readFile: options.readFile,
+    file: options.file ?? '<file>',
   });
 }
 
@@ -489,7 +549,10 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   });
   const traced = { ...options, readFile, brief: options.brief || result.budget?.condensed };
   const omissions: Omission[] = [];
-  const traces: HeadTraces = { external: { file, entries: [] }, dangers: { file, entries: [] }, constraints: { file, entries: [] }, footnotes: { file, entries: [] } };
+  const traces: HeadTraces = {
+    external: { file, entries: [] }, applying: { file, entries: [] }, dependencies: { file, entries: [] }, dangers: { file, entries: [] },
+    constraints: { file, entries: [] }, footnotes: { file, entries: [] },
+  };
   const body: Trace = { file, entries: [], omissions };
   const closed = { count: 0 };
   transform(scope.lines, scope.bodyStart, scope.inScope, { ...traced, trace: body, closedReview: closed });
@@ -498,9 +561,12 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   // Lines of sections the budget omitted are not in the text: leave them out before matching.
   const cut = result.budget?.omitted ?? [];
   const bodyEntries = body.entries.filter((e) => !cut.some((o) => e.root >= o.line && e.root <= o.endLine));
+  for (const u of scope.mandatory?.context.unsatisfied ?? []) {
+    omissions.push({ kind: 'dependency', file: u.file, lines: [u.line, u.line], reason: `a mandatory dependency is not satisfied: ${u.reason}` });
+  }
   return provenanceManifest({
     text, file, result, omissions, dependencies,
-    entries: [...traces.external!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
+    entries: [...traces.external!.entries, ...traces.applying!.entries, ...traces.dependencies!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
     headerLines: head.header ? head.header.split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
     sections: scope.sections, selected: selectedWithPinned(scope), skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
@@ -541,6 +607,7 @@ function viewResult(
   if (tokenizer) result.counted = { tokenizer: tokenizer.name, tokens: tokenizer.count(out), originalTokens: tokenizer.count(text) };
   if (budget) result.budget = budget;
   if (constraints) result.constraints = constraints;
+  if (scope.mandatory) result.mandatory = scope.mandatory.context;
   return result;
 }
 
@@ -570,6 +637,8 @@ interface Draft {
   /** Each section's tokens and pointer, worked out once. */
   costs: Map<BudgetSection, number>;
   pointers: Map<BudgetSection, Pointer>;
+  /** Where the document's constraints sit, so a pointer says `holds constraint` (see applicability.ts). */
+  constraintAt: readonly number[];
 }
 
 /** A section's pointer, and the cues its view text holds (see keyCues). */
@@ -584,6 +653,7 @@ function draftOf(scope: ViewScope, options: AgentViewOptions): Draft {
   return {
     head: { ...viewHead(scope, options), review: reviewCountLine(closed.count, options.file) }, lines, kinds: Uint8Array.from(lines, ([, line]) => pieceKind(line)), byLine, sourceLines: scope.lines.length,
     file: options.file, count: options.tokenizer?.count ?? estimateTokens, estimated: !options.tokenizer, agentLines, costs: new Map(), pointers: new Map(),
+    constraintAt: scope.mandatory?.constraintAt ?? [],
   };
 }
 
@@ -616,6 +686,7 @@ function pointerOf(draft: Draft, s: BudgetSection): Pointer {
   let pointer = draft.pointers.get(s);
   if (!pointer) {
     const cues = keyCues(draftSection(draft, s));
+    if (draft.constraintAt.some((l) => l >= s.start && l <= s.end)) cues.splice(cues[0] === 'danger' ? 1 : 0, 0, 'constraint');
     const text = omissionPointer(s, sectionTokens(draft, s), draft.file, cues);
     draft.pointers.set(s, (pointer = { text, kind: pieceKind(text), cues }));
   }
@@ -760,11 +831,32 @@ function withOverflowLine(view: string, maxTokens: number, count: (text: string)
   return { text, tokens: count(text) };
 }
 
-/** The cues a section's view text holds that its pointer names, so a hidden danger or question is never silent. */
+/**
+ * The cues a section's view text holds that its pointer names, so a hidden danger or question is never silent. A
+ * question the lifecycle settled (answered, incorporated, withdrawn) is ordinary content.
+ */
 function keyCues(view: string): string[] {
   const cues: string[] = [];
-  for (const cue of ['danger', 'warning', 'question']) if (new RegExp(`^<${cue}[ >]`, 'm').test(view)) cues.push(cue);
+  for (const cue of ['danger', 'warning']) if (new RegExp(`^<${cue}[ >]`, 'm').test(view)) cues.push(cue);
+  if (/^<question[ >]/m.test(view)) {
+    const open = !SETTLED_QUESTION_HEAD.test(view) || view.split('\n').some((l) => /^<question[ >]/.test(l) && !SETTLED_QUESTION_HEAD.test(l));
+    if (open) cues.push('question');
+  }
   return cues;
+}
+
+const SETTLED_QUESTION_HEAD = /^<question(?: id="[^"]*")? status="(?:answered|incorporated|withdrawn)"/m;
+
+/** The lines of the questions the lifecycle settled: ordinary content under a budget, not key content. */
+function settledQuestions(text: string): Set<number> {
+  const tags = tagContext(text);
+  const out = new Set<number>();
+  for (const b of tags?.blocks ?? []) {
+    if (b.name !== 'question') continue;
+    const answer = hasAnswer(b, tags!.blocks, tags!.answered);
+    if (isLifecycleQuestion(b, answer) && questionStatus(b, answer) !== 'open') out.add(b.line);
+  }
+  return out;
 }
 
 /** Omit sections, least important first, until the view fits or nothing more may be omitted. */
@@ -783,9 +875,27 @@ function omitToFit(draft: Draft, scope: ViewScope, maxTokens: number): BudgetSec
     return !pointer.cues.includes('danger') && cost(s) > draft.count(pointer.text);
   });
   let omitted: BudgetSection[] = [];
-  for (const s of omissionOrder(candidates, scope.lines, cost)) {
-    if (draftCount(draft, omitted) <= maxTokens) break;
-    omitted = withOmitted(omitted, s);
+  const order = omissionOrder(candidates, scope.lines, cost, settledQuestions(scope.lines.join('\n')));
+  const ties = scope.mandatory?.ties ?? [];
+  if (!ties.length) {
+    for (const s of order) {
+      if (draftCount(draft, omitted) <= maxTokens) break;
+      omitted = withOmitted(omitted, s);
+    }
+    return omitted;
+  }
+  // What applies or is depended on keeps its section while what needs it is kept (semantic tags R29, AF15). A section
+  // refused once may go later, after what needs it went.
+  for (let more = true; more;) {
+    more = false;
+    for (const s of order) {
+      if (draftCount(draft, omitted) <= maxTokens) return omitted;
+      if (omitted.some((o) => s.start >= o.start && s.end <= o.end)) continue;
+      const next = withOmitted(omitted, s);
+      if (!keepsTies(ties, next)) continue;
+      omitted = next;
+      more = true;
+    }
   }
   return omitted;
 }
@@ -866,6 +976,10 @@ interface TransformOptions extends AgentViewOptions {
   review?: ReadonlyMap<number, ReviewItem>;
   /** Counts the closed review blocks in scope that are left out. */
   closedReview?: { count: number };
+  /** Which document `lines` are: an included file's path, the root's when left out (see applicability.ts). */
+  docPath?: string;
+  /** Only the picked lines of each document, with `[L12]` on the picked opening lines (see pickedText). */
+  pick?: { lines: (doc: string, line: number) => boolean; refs: (doc: string, line: number) => boolean };
 }
 
 /** The review blocks of a document by opening line, found once per array of lines. */
@@ -963,11 +1077,19 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     && (!options.onlyAgentBlocks || inAgent())
     && (!options.onlyDangers || (inDanger() && !inAgent()))
     && (!options.onlyMandatory || inAgent() || inDanger())
-    && (!options.onlyConstraints || (inDanger() && !inAgent()));
+    && (!options.onlyConstraints || (inDanger() && !inAgent()))
+    && (!options.pick || options.pick.lines(options.docPath ?? ROOT_DOC, at));
   const trace = options.trace;
+  const referenced = new Set<number>();
   // `end`: the last source line the emitted line stands for, when it is more than `at` (a fence's lines).
-  const emit = (line: string, at: number, traced = true, end = at) => {
+  const emit = (shownLine: string, at: number, traced = true, end = at) => {
     if (!visibleAt(at)) return;
+    let line = shownLine;
+    // A picked block's opening line says where it is, as a heading does.
+    if (options.pick && lineRefs && !referenced.has(at) && options.pick.refs(options.docPath ?? ROOT_DOC, at)) {
+      referenced.add(at);
+      if (!/\[L\d+\]$/.test(line)) line = `${line} [L${at + 1}]`;
+    }
     out.push(line);
     options.collect?.push([at, line]);
     if (inAgent()) options.onAgentLine?.(at);
@@ -1068,7 +1190,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       const title = info.title ? text(info.title) : '';
       // A constraint here, for the constraints pass: one inside a danger block or :::agent is already shown.
       if (sink && inScope(i) && !dropping() && !inAgent() && !inDanger()) {
-        recordConstraint(sink, info.name, info.name === 'include' ? info.attrs.values.file ?? '' : title, i, info.attrs.values.status);
+        recordConstraint(sink, info.name, info.name === 'include' ? info.attrs.values.file ?? '' : title, i, info.attrs.values.status, info.attrs.id);
       }
       const frame: Frame = { name: info.name, colons: open[2].length, drop: false, start: i, visible: inScope(i) && !dropping() };
       stack.push(frame);
@@ -1094,7 +1216,13 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         // Traced inside: its lines are the included file's (see includeView).
         const shown = visibleAt(i);
         if (shown) {
-          includeView(info, lines, i, { ...options, brief: briefAt(i), figures, trace }).forEach((l) => emit(l, i, false));
+          includeView(info, lines, i, { ...options, brief: briefAt(i), figures, trace, pick: undefined }).forEach((l) => emit(l, i, false));
+        } else if (options.pick) {
+          // A picked block may be inside the included file: its lines are picked there.
+          if (inScope(i) && !stack.some((f) => f.drop) && options.includes !== false) {
+            const picked = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined } });
+            if (picked.length > 2) out.push(...picked);
+          }
         } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
           // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
           // blocks still apply, as the document's own do (C01).
@@ -1174,11 +1302,14 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
 
 const COMMENT = { kind: 'comment', reason: 'HTML comments are not part of the view' } as const;
 
-/** A container that the constraints pass reports: a danger, warning or question, an accepted decision, an include. */
-function recordConstraint(sink: ConstraintPointer[], name: string, title: string, line: number, status?: string): void {
+/**
+ * A container that the constraints pass reports: a danger, warning or question, an accepted decision, an include, a
+ * constraint (kept only when it applies nowhere in the view, see constraintsOutside).
+ */
+function recordConstraint(sink: ConstraintPointer[], name: string, title: string, line: number, status?: string, id?: string): void {
   if (name === 'decision' && status?.trim().toLowerCase() !== 'accepted') return;
-  if (!['danger', 'warning', 'question', 'decision', 'include'].includes(name)) return;
-  sink.push({ type: name as ConstraintPointer['type'], title, line, section: null });
+  if (!['danger', 'warning', 'question', 'decision', 'include', 'constraint'].includes(name)) return;
+  sink.push({ type: name as ConstraintPointer['type'], title, line, section: null, ...(name === 'constraint' && id ? { id } : {}) });
 }
 
 interface DocumentContext {
@@ -1286,7 +1417,7 @@ function includeView(info: ContainerInfo, lines: string[], line: number, options
   const inc = result.include;
   // Included text uses this document's front matter variables, as the rendered HTML does.
   const inner = {
-    ...options, collect: undefined, pinned: undefined, includeScope: innerScope(scope, inc), variables: options.variables ?? documentVariables(lines), literalLines: includedLiteralLines(inc),
+    ...options, collect: undefined, pinned: undefined, docPath: inc.path, includeScope: innerScope(scope, inc), variables: options.variables ?? documentVariables(lines), literalLines: includedLiteralLines(inc),
     inlineMath: includedInlineMath(inc), alerts: includedAlerts(inc), inlineItems: includedInlineItems(inc), taskLines: includedTaskLines(inc),
     // Its figures are numbered with the including document's, and `:ref` resolves across both, as in rendered output.
     figureKey: includeKey(options.figureKey ?? '', line),

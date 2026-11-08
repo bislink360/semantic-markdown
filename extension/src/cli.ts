@@ -696,6 +696,7 @@ function readCommand(file: string, args: Args, today?: string): number {
     process.stdout.write(result.text);
     const exact = result.counted ? ` (${result.counted.tokens} ${result.counted.tokenizer})` : '';
     console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens${exact} · file ≈${result.fileTokens} tokens`);
+    if (result.shown !== 'outline') warnIncomplete(result.mandatory);
     return 0;
   });
 }
@@ -708,6 +709,12 @@ function provenanceTarget(args: Args): string | undefined | null {
 }
 
 const PROVENANCE_USAGE = '--provenance needs a file to write the manifest to, e.g. --provenance view.json.';
+
+/** A view that could not include a mandatory dependency says so on stderr too; the view lists them. */
+function warnIncomplete(mandatory: AgentViewResult['mandatory']): void {
+  const n = mandatory?.unsatisfied.length ?? 0;
+  if (n) console.error(`[smd] warning: incomplete view, ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied (listed under "Dependencies of the selected content")`);
+}
 
 function writeProvenance(target: string, manifest: Provenance): void {
   fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
@@ -741,6 +748,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   process.stdout.write(result.text);
   console.error(sizeLine(result));
   if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer, !!result.resolvedSections)) console.error(line);
+  warnIncomplete(result.mandatory);
   return 0;
 }
 
