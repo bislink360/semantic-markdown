@@ -6,6 +6,7 @@ import {
 import { exportTree } from '../src/core/exportTree';
 import { smdToDocx } from '../src/core/docxWriter';
 import { blockRevision } from '../src/core/revision';
+import { withoutReviewBlocks } from '../src/core/review';
 
 /**
  * Review comments and suggestions on every surface (feedback loop RFC, "Review comments and suggestions"): the
@@ -163,4 +164,16 @@ test('fmt: both containers get their attributes in spec order, and @names stay b
   assert.equal(formatSmd(out), out);
   // :::quote keeps quoting its prose author.
   assert.match(formatSmd('---\nsmd: 2\n---\n\n:::quote{author=Ada}\nx\n:::\n'), /:::quote\{author="Ada"\}/);
+});
+
+test('withoutReviewBlocks: the source without review blocks, line endings kept; the site search index leaves them out', () => {
+  const text = '---\nsmd: 2\n---\n\nBefore.\n:::comment{for=x}\nGone.\n:::\nAfter.\n\n:::suggestion{for=x}\nAlso gone.\n:::\n';
+  assert.equal(withoutReviewBlocks(text), '---\nsmd: 2\n---\n\nBefore.\n\nAfter.\n\n');
+  assert.equal(withoutReviewBlocks(text.replaceAll('\n', '\r\n')), '---\r\nsmd: 2\r\n---\r\n\r\nBefore.\r\n\r\nAfter.\r\n\r\n');
+  assert.equal(withoutReviewBlocks('Last.\n\n:::comment{for=x}\nGone.\n:::'), 'Last.\n');
+  assert.equal(withoutReviewBlocks(plain), plain);
+  const index = (comments?: boolean) => buildSite([{ path: 'index.smd', text: reviewed() }], { comments, today: '2026-11-07' })
+    .files.find((f) => f.path.endsWith('search-index.js'))!.content;
+  assert.doesNotMatch(index(), /Pricing changes hourly/);
+  assert.match(index(true), /Pricing changes hourly/);
 });

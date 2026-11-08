@@ -17,10 +17,10 @@ import { specVersion, type SpecVersion } from './specVersion';
 export type ReviewType = 'comment' | 'suggestion';
 
 /** The states that close an item. Anything else (including no status) is open. */
-export const CLOSED_STATES: Readonly<Record<ReviewType, readonly string[]>> = {
-  comment: ['resolved'],
-  suggestion: ['accepted', 'rejected', 'withdrawn'],
-};
+export const CLOSED_STATES: Readonly<Record<ReviewType, readonly string[]>> = Object.freeze({
+  comment: Object.freeze(['resolved']),
+  suggestion: Object.freeze(['accepted', 'rejected', 'withdrawn']),
+});
 
 export interface ReviewItem {
   type: ReviewType;
@@ -190,6 +190,7 @@ class Rows {
     const last = to >= from ? this.rows[to] : undefined;
     // Rows replaced up to the end keep the end as it was: no line ending after the last line when it had none.
     if (last && to === this.rows.length - 1 && fresh.length) fresh[fresh.length - 1].eol = last.eol;
+    else if (last && to === this.rows.length - 1 && from > 0) this.rows[from - 1].eol = last.eol;
     if (!last && from >= this.rows.length && fresh.length) {
       const end = this.rows[this.rows.length - 1];
       if (end && end.eol === '') {
@@ -617,6 +618,24 @@ export const REVIEW_TRANSITIONS = {
   rebase: rebaseItem,
   incorporate: incorporateQuestion,
 } as const;
+
+/**
+ * The text without its review blocks, for outputs built from the source (a site's search index and dashboard). A
+ * blank line stays where one is needed to keep the blocks around apart. A text without review blocks comes back as it is.
+ */
+export function withoutReviewBlocks(text: string): string {
+  const items = reviewItems(text);
+  if (!items.length) return text;
+  const outer = items.filter((r) => !items.some((o) => o !== r && r.line > o.line && r.line <= o.endLine));
+  const rows = new Rows(text);
+  for (const r of [...outer].reverse()) {
+    const before = rows.text(r.line - 1);
+    const after = rows.text(r.endLine + 1);
+    const apart = !!before?.trim() && !!after?.trim();
+    rows.splice(r.line, r.endLine, apart ? [''] : []);
+  }
+  return rows.toString();
+}
 
 /** Whether a line opens a review block (outside code; the caller knows). */
 export function isReviewOpening(line: string): boolean {
