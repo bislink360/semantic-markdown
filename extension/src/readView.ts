@@ -44,6 +44,8 @@ export interface ReadResult {
   resolvedSections?: ResolvedSection[];
   /** With `constraints` and `sections`: the constraints outside the sections (see agentView). */
   constraints?: AgentViewResult['constraints'];
+  /** For a document with constraints or dependencies: what the view carries and could not satisfy (see agentView). */
+  mandatory?: AgentViewResult['mandatory'];
   /** With `provenance`: the manifest of what was returned (the outline's when the outline is shown). */
   provenance?: Provenance;
 }
@@ -57,6 +59,7 @@ export function readDocument(text: string, options: ReadOptions = {}): ReadResul
       shown: 'sections', text: result.text, fullTokens: result.tokens, fileTokens: result.originalTokens, missingSections: result.missingSections,
       tokenBasis, ...counted(result), resolvedSections: result.resolvedSections,
       ...(result.constraints ? { constraints: result.constraints } : {}), ...(result.provenance ? { provenance: result.provenance } : {}),
+      ...(result.mandatory ? { mandatory: result.mandatory } : {}),
     };
   }
   const full = agentView(text, { ...view, brief });
@@ -64,7 +67,9 @@ export function readDocument(text: string, options: ReadOptions = {}): ReadResul
   // Route on the tokenizer's count when there is one, so an exact budget means exact routing.
   const size = full.counted?.tokens ?? full.tokens;
   if (mode === 'full' || (mode === 'auto' && size <= maxTokens)) {
-    return { shown: 'full', text: full.text, ...sizes, ...(full.provenance ? { provenance: full.provenance } : {}) };
+    return {
+      shown: 'full', text: full.text, ...sizes, ...(full.provenance ? { provenance: full.provenance } : {}), ...(full.mandatory ? { mandatory: full.mandatory } : {}),
+    };
   }
   const unit = full.counted ? `${full.counted.tokenizer} tokens` : 'tokens';
   const approx = full.counted ? '' : '≈';
