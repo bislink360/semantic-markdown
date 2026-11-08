@@ -16,7 +16,9 @@ The short version of this guide; each item is described in full in the sections 
 | **Styling** | 14 theme-aware named colors · `[text]{color bg border size weight font style}` · `==highlight==` |
 | **Inline** | `:badge` `:status` `:priority` `:due` `:metric` `:progress` `:kbd` `:mention` · inline and display math (KaTeX) · front matter values in text with `{{version}}` |
 | **Layout** | `tabs` · `columns` · `card` · `box` · `steps` · `timeline` (nest to any depth) |
-| **Project management** | `decision` (ADR records) · `risk` (impact × likelihood) · tasks with owner, priority and due date · overdue detection |
+| **Project management** | `decision` (ADR records, `supersedes`, `depends-on`) · `risk` (impact × likelihood) · tasks with owner, priority, due date and `:depends` · overdue and blocked detection |
+| **Requirements** | `requirement` · `constraint` · `acceptance` · `assumption` · `evidence`, each with an id · questions with a lifecycle (open, answered, incorporated, withdrawn) |
+| **Review** | `comment` and `suggestion` on any block with an id, against its revision, with stale detection · `smd review` to accept, reject and resolve |
 | **Developers** | `api` endpoint blocks · code titles · line highlights `{2,5-7}` · live source embeds `file="…" lines="…"` · shared text included from other documents `:::include{file="…" section="…"}` · syntax highlighting |
 | **Diagrams** | Every Mermaid type (flowchart, sequence, gantt, ER, state, class, pie, mindmap, timeline, xychart…), themed to match the document |
 | **Audience** | `:::agent` (instructions for AI) · `:::human` (people only) · `## Heading {agent=skip}` |
@@ -28,7 +30,7 @@ The short version of this guide; each item is described in full in the sections 
 <summary><b>VS Code extension</b></summary>
 
 - **Live preview** (`Ctrl+K V`) with scroll sync, double-click to jump to source, clickable task checkboxes, and light/dark themes
-- **[Block Editor (Preview)](#block-editor-preview):** the rendered document, edited one block's source at a time (opt-in through **Open With…**)
+- **[Block Editor (Preview)](#block-editor-preview):** the rendered document, edited one block's source at a time (opt-in through **Open With…**), with **Accept**, **Reject**, **Resolve** and **Rebase** on review blocks
 - **Validation** as you type, with **quick fixes** (`:::warnign` → `:::warning`, `flowchat` → `flowchart`, `blu` → `blue`), and Mermaid syntax errors on the exact line
 - **IntelliSense:** completions for blocks, directives, attributes, allowed values and front matter; paths and `#anchors` in links, `related:` and `file="…"` embeds; hover docs; color picker
 - **Go to definition** for `#anchor` and `other.smd#anchor` links, files and reference links
@@ -39,7 +41,7 @@ The short version of this guide; each item is described in full in the sections 
 - **Document status** in the status bar: click it to move a document from `draft` to `review` to `approved` (or `deprecated`, `archived`); only the front matter `status:` (and `updated:`) changes, as one undoable edit
 - **Workspace symbols** (`Ctrl+T`) across every `.smd` heading, decision, risk and API endpoint (`POST /v1/orders`), and **hover previews** of linked sections, linked documents and `file="…"` code embeds
 - **Editing comfort:** Enter continues task lists (unchecked, keeping `@owner`), bullets and numbered lists; paste or drop images to save them in `docs/images/` with a relative link; **Set Up Spell Checking** teaches cSpell to skip directives, attributes and code
-- **Outline, folding** and **41 snippets** (`prd`-style blocks, `decision`, `risk`, `api`, `figure`, `glossary`, `changelog`, `quote`, `mermaid`, `gantt`, `task`, `embed`, `transclude`…)
+- **Outline, folding** and **46 snippets** (`prd`-style blocks, `decision`, `risk`, `requirement`, `constraint`, `acceptance`, `assumption`, `evidence`, `api`, `figure`, `glossary`, `changelog`, `quote`, `mermaid`, `gantt`, `task`, `embed`, `transclude`…)
 - **Agent view** (🤖 button), **brief agent view**, **copy for an agent** (whole doc or picked sections), and a **status-bar token counter**
 - **Export** to standalone HTML, plain GitHub Markdown, Confluence, Notion or Word (.docx) · **Convert** `.md` → `.smd` · **Validate workspace** · **Migrate to Spec v2** (and **Preview Migration to Spec v2**)
 - **Built-in Markdown preview:** `.md` files that opt in with `smd: 1` in their front matter render `.smd` syntax (callouts, directives, attribute lists, Mermaid, code titles) in VS Code's own preview too; `smd.markdownPreview.enabled` set to `always` does it for every `.md` file, `never` for none
@@ -64,7 +66,12 @@ The short version of this guide; each item is described in full in the sections 
 | `smd tasks <dir> --csv` · `--gantt [--smd]` | Export tasks to a spreadsheet, or a Mermaid Gantt chart of due dates (`--smd`: a document `smd export --to html` draws) |
 | `smd risks <dir> [--html]` | Risk register: every risk scored impact × likelihood, highest first, with a matrix; `--html` for a colour-coded page |
 | `smd report <dir> --since <date\|git-ref> [-o status.smd]` | Draft a status report: tasks done and added since, open tasks (overdue and due this week first), decisions since, high-impact risks, linked to their sections |
-| `smd query "<selector>" <paths> [--json]` | Decisions, risks, APIs, callouts, tasks or headings by type and attributes, e.g. `risk[impact>=high]` |
+| `smd query "<selector>" <paths> [--json]` | Blocks by type and attributes, e.g. `risk[impact>=high]`, and by where they sit: `heading[title=Rollout] task`, `requirement > acceptance`, `risk:not([status=closed])` |
+| `smd query … --follow "*" [--direction in] [--depth 2]` | Also the blocks each match links to, as one-line pointers with their cost, and what it depends on in full (`depends-on`, `applies-to`, `include`) |
+| `smd query … --constraints` | Also the documents' `:::agent` blocks and document-wide `:::constraint` blocks. Without it, a line says when a document has some |
+| `smd review <file>` · `smd review accept\|reject\|resolve … <item> --by @me` | Open comments and suggestions with their targets and whether each is stale; each review step is its own command ([below](#review-comments-and-suggestions-smd-review)) |
+| `smd updates <file> --since <ref\|rev:…>` | What changed in the document's feedback since a checkpoint: answers, accepted and rejected suggestions, checked tasks, changed requirements |
+| `smd agent <file> --view <name>` · `--views` | A task view the author declared in the front matter, with its mandatory blocks in full ([Task views](#task-views)) |
 | `smd diff <paths> --since <git-ref>` / `smd diff <old> <new>` | Only the sections that changed, in the agent view: catch up on a doc without rereading it |
 | `smd validate <paths> [--fix] [--json] [--strict]` | Check files (CI-friendly exit codes); rules configurable in `smd.config.json` / `.smdrc` and with `<!-- smd-disable-next-line code -->`; `--format github` for pull request annotations ([GitHub Action](../guides/github-and-ci.md#github-actions)) |
 | `smd fmt <paths> [--check]` | Format files in place; `--check` fails CI on unformatted files |
@@ -77,7 +84,7 @@ The short version of this guide; each item is described in full in the sections 
 | `… --to confluence` · `notion` | A page for your wiki: Confluence storage format (callouts, code, expands, tasks and statuses as built-in macros) or Notion API blocks cut into request bodies. It only writes the file: no network, no credentials ([mapping](#confluence-and-notion-smd-export)) |
 | `smd from-md` · `meta` | Upgrade Markdown to `.smd`; a document's full JSON summary |
 | `smd build <dir> --out site` | Static docs site: a page per doc, sidebar, breadcrumbs, search, backlinks and a task/decision/risk dashboard |
-| `smd mcp [--root <dir>] [--allow-write]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision` ([setup](agents.md#mcp-server)) |
+| `smd mcp [--root <dir>] [--allow-write] [--allow-suggest]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision`, `--allow-suggest` adds `suggest` ([setup](agents.md#mcp-server)) |
 | `smd lsp --stdio` | Language server for Neovim, Helix, Zed and other LSP editors: diagnostics, quick fixes, outline, hover, completion, go to definition, formatting (also `smd-language-server`; [setup](../guides/editors.md)) |
 | `smd init --agent claude|cursor|copilot|agents` | Set up an agent in a project in one command: skills or rules, the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet |
 | `smd skills install [--global] [--target …]` | Install the agent skills, or rules for Cursor, Copilot and `AGENTS.md` |
@@ -110,6 +117,9 @@ The short version of this guide; each item is described in full in the sections 
 4. [Inline directives](#4-inline-directives)
 5. [Tasks with owners, priorities and due dates](#5-tasks-with-owners-priorities-and-due-dates)
 6. [Project blocks: decisions, risks, timelines](#6-project-blocks-decisions-risks-timelines)
+   - [Requirements, constraints and acceptance criteria](#requirements-constraints-and-acceptance-criteria)
+   - [Questions, superseded decisions and dependencies](#questions-superseded-decisions-and-dependencies)
+   - [Selecting by tree and graph: `smd query`](#selecting-by-tree-and-graph-smd-query)
 7. [Developer blocks: APIs, code, embeds](#7-developer-blocks-apis-code-embeds)
 8. [Layout: tabs, columns, cards, boxes, steps](#8-layout-tabs-columns-cards-boxes-steps)
 9. [Diagrams and math](#9-diagrams-and-math)
@@ -126,6 +136,9 @@ The short version of this guide; each item is described in full in the sections 
 16. [Export and conversion](#16-export-and-conversion)
 17. [CLI reference](#17-cli-reference)
     - [Collaborating on .smd](#collaborating-on-smd)
+    - [Review comments and suggestions: `smd review`](#review-comments-and-suggestions-smd-review)
+    - [Feedback since a checkpoint: `smd updates`](#feedback-since-a-checkpoint-smd-updates)
+    - [Task views](#task-views)
 18. [Templates](#18-templates)
 19. [Web playground](#19-web-playground)
 
@@ -230,7 +243,7 @@ Collapsed section for long content.
 | `success` | green | done / good | `<success>` | `> [!TIP]` |
 | `warning` | amber | caveat | `<warning>` | `> [!WARNING]` |
 | `danger` | red | hard constraint | `<danger>`, **always included**: a section view shows the dangers of other sections under "Dangers elsewhere in the document" | `> [!CAUTION]` |
-| `question` | purple | open decision | `<question>` | `> [!IMPORTANT]` |
+| `question` | purple | open decision | `<question>`; with a lifecycle `<question id="Q1" status="open">` ([below](#questions-superseded-decisions-and-dependencies)) | `> [!IMPORTANT]` |
 | `details` | — | long optional content | `<details>` (omitted with `--brief`, except `:::agent` and `:::danger` blocks inside) | `<details><summary>` |
 
 ### GitHub alerts
@@ -288,10 +301,11 @@ Named colors are theme tokens tuned for light and dark mode. Only whitelisted va
 | `:priority[P0–P4]` | auto-colored pill (P0 red → P4 gray) | `[P0]` | `**P0**` |
 | `:due[YYYY-MM-DD]` | date pill: amber ≤ 7 days, red overdue | `(due …, OVERDUE)` | `📅 …` |
 | `:metric[v]{label delta trend good}` | KPI tile; the delta is green when it moves the `good` way | `label: v (delta, trend, good or bad)`: the trend as written, and good or bad only when `good` is written | `**v** label (delta)` |
-| `:progress{value color label}` | progress bar | `65%` | `▰▰▰▰▰▰▱▱▱▱ 65%` |
+| `:progress{value color label basis}` | progress bar (`basis` is `tasks`, `measured` or `estimate`) | `65%` | `▰▰▰▰▰▰▱▱▱▱ 65%` |
 | `:kbd[Ctrl+S]` | key caps | `Ctrl+S` | `<kbd>Ctrl</kbd>+<kbd>S</kbd>` |
 | `:mention[@x]` | highlighted mention | `@x` | `@x` |
 | `:ref[fig-id]` | the figure's number as a link (see [§9](#figures-and-numbered-references)) | `Figure 2 (fig-id)` | `[Figure 2](#fig-id)` |
+| `:depends[R1,Q1]` (`smd: 2`, on a task) | "depends on R1, Q1", each id linked to its block ([§5](#5-tasks-with-owners-priorities-and-due-dates)) | `(depends on R1, Q1)` | `(depends on R1, Q1)` |
 | `:abbr[x]{.class color}`, any other name (`smd: 2` only) | `x` in a plain `smd-directive smd-directive-abbr` span, styled as `[x]{…}` is; a `directive/unknown` warning | `x` | `x` |
 
 **Spec v2 (`smd: 2`).** Any `:name[…]` is a directive, so a directive a later release adds shows its content in older 2.x tools, and names are read in any case (`:Badge[x]` is a badge). In documents without `smd: 2`, only the names above, in lower case, are directives; anything else is text. Write `\:abbr[HTML]` to keep a colon as text in either.
@@ -337,10 +351,12 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 - [ ] Legal review of new terms :priority[P1] @legal :due[2026-09-20]
 - [x] Kickoff with design @sam
 - [ ] Ship the migration @ops {#ship-migration}
+- [ ] Build the overflow line :depends[R2] {#t2}
 ```
 
 - **Preview:** checkboxes are clickable and update the source. Overdue dates turn red.
 - **Task ids:** a trailing `{#id}` gives a task an id, as on headings, so links (`[x](#ship-migration)`), and later answers and reviews, can point at it. The line stays a GitHub task. The preview puts the id on the task and hides it from the text, the agent view and `smd tasks` show it, `--json` has `id`, and `smd query "task[id=ship-migration]"` finds it. Ids share one namespace per document with headings, figures and containers: two blocks with one id get `id/duplicate`, and a link to it gets `link/ambiguous-anchor`, since it resolves to neither.
+- **Dependencies** (`smd: 2`). `:depends[R2]` names the blocks a task waits for, by id, comma-separated. The preview shows "depends on R2" with a link. A task is **blocked** while a task it depends on is unchecked, a requirement is not `implemented` or `verified`, or a question is open ([§6](#questions-superseded-decisions-and-dependencies)). `smd tasks` adds `(depends on R2; BLOCKED by R2)` and counts blocked tasks in its summary, `--json` has `depends` and `blocked`, and `smd query "task[blocked=true]"` or `"task[depends=R2]"` finds them. In a document without `smd: 2`, `:depends[…]` is text.
 - **SMD Tasks view** (VS Code Explorer): open tasks from every `.smd` file in the workspace, grouped by owner, due date or document; see [section 13](#13-vs-code-editing-assistance).
 - **Problems panel:** open tasks past their due date show a `task/overdue` notice.
 - **`smd tasks docs/`** lists open tasks across every document, overdue first, then by priority. `--mine @api-team` filters by owner, `--json` gives machine-readable output, `--csv` and `--gantt` export (below).
@@ -349,6 +365,8 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 ```text
 docs/checkout.smd:61  [ ] [P1] Server-side validation returns all field errors @api-team (due 2026-09-25, OVERDUE)  — Requirements
 docs/checkout.smd:62  [ ] [P0] Idempotent order creation @api-team (due 2026-10-03)  — Requirements
+docs/checkout.smd:73  [ ] Build the overflow line (depends on R2; BLOCKED by R2) {#t2}  — Tasks
+[smd] 3 task(s) open, 1 overdue, 1 blocked.
 ```
 
 - **`smd report docs/ --since 2026-09-01`** drafts a status report from what happened to these tasks since a date or Git revision (see [§6](#6-project-blocks-decisions-risks-timelines)).
@@ -450,13 +468,82 @@ Start in week 1; Google Pay can launch alone.
 
 | Block | Attributes | Agent view |
 |---|---|---|
-| `decision` | `status`: proposed · accepted · rejected · superseded · deprecated; `date`; `owner` | `<decision status="accepted" …> title …</decision>` |
-| `risk` | `impact`, `likelihood`: low · medium · high · critical; `owner`; `status`: open · mitigated · accepted · closed | `<risk impact="high" …> title …</risk>` |
+| `decision` | `status`: proposed · accepted · rejected · superseded · deprecated; `date`; `owner`; `supersedes`; `depends-on` | `<decision status="accepted" …> title …</decision>`, with `superseded-by` when another decision supersedes it |
+| `risk` | `impact`, `likelihood`: low · medium · high · critical; `owner`; `status`: open · mitigated · accepted · closed; `depends-on` | `<risk impact="high" …> title …</risk>` |
 | `timeline` | — (checked items show as done) | the list |
 | `risk-matrix` | title after the name; no body | `[risk matrix: title — …]` pointer (the risks are already `<risk>` blocks) |
 | `changelog` | title after the name; one heading per release | `<changelog title="…">` with `## 1.2.0 (2026-03-01)` entry lines |
 
 Rejected and superseded decisions are struck through in the preview. `smd meta` lists all decisions and risks as JSON.
+
+### Requirements, constraints and acceptance criteria
+
+Write requirements, constraints and acceptance criteria as blocks with ids instead of tables, so a plan, a task, a test or a review can name them, and agents, `smd query` and the validator can read them.
+
+```markdown
+:::constraint{#C1 scope=document} Included files stay inside the workspace
+No reader follows a path outside the allowed roots.
+:::
+
+:::requirement{#R1 priority=P0 status=accepted owner=@api-team} Section reads keep applicable instructions
+Detail and rationale.
+
+:::acceptance{#AC1 test="test/sections.test.ts"}
+Given a document with an agent block in section 2
+When an agent reads only section 3.1
+Then the view holds the agent block
+:::
+:::
+
+:::assumption{#A1 owner=@maya review-by=2026-12-01} Most documents stay under 4,000 tokens
+:::
+
+:::evidence{#E1 supports=R1 method=test result=pass commit=1a2b3c4 date=2026-11-07 by=@ci}
+The section-read tests pass.
+:::
+```
+
+| Block | Attributes (default first) | Agent view | GitHub |
+|---|---|---|---|
+| `requirement` | `priority` P0–P4 or critical, high, medium, low · `status` proposed, accepted, implemented, verified, deprecated · `owner` · `depends-on` | `<requirement id="R1" priority="P0" status="accepted" owner="@api-team">` | `> [!IMPORTANT]` with `**Requirement R1** · P0 · accepted · @api-team` |
+| `constraint` | `scope` section, document · `applies-to` · `level` must, should · `owner` · `depends-on` | `<constraint id="C1" scope="document" level="must">` | `> [!CAUTION]` for must, `> [!WARNING]` for should |
+| `acceptance` | `verifies` (requirement ids) · `test` (a relative path) | `<acceptance id="AC1" verifies="R1" test="…">` | `> [!NOTE]` with `**Acceptance AC1** · verifies R1` |
+| `assumption` | `status` unvalidated, validated, invalid · `owner` · `review-by` · `depends-on` | `<assumption id="A1" status="unvalidated" …>` | `> [!WARNING]`, or `> [!NOTE]` once validated |
+| `evidence` | `supports` · `contradicts` · `method` · `result` pass, fail, inconclusive · `source` · `commit` · `date` · `by` · `rev` | `<evidence id="E1" supports="R1" method="test" result="pass" …>` | `> [!TIP]` for pass, `> [!CAUTION]` for fail, else `> [!NOTE]` |
+
+- **Preview.** Each tag is a panel with its kind, its id, pills that say their value in words as well as in colour, and its facts. Ids in `verifies`, `applies-to`, `supports`, `contradicts` and `depends-on` link to their blocks. An unvalidated assumption past its `review-by` date says "overdue". The exports (HTML, PDF, Word, Confluence, Notion) show the same panels.
+- **People set the states.** A requirement without `status` is `proposed`, and the agent view says so. Acceptance criteria say how to check a requirement. They don't prove that it passed, and no tool marks a requirement `verified` by itself. An acceptance block nested in a requirement verifies it.
+- **Evidence** records a check for or against a block. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` keeps the revision of each block it supports, as `R1@3f2a9c1b0d4e` ([revisions](spec.md#310-review-comments-and-suggestions)).
+- **Constraints for agents.** A constraint with `scope=document`, or one above the first heading, binds the whole document. `applies-to` names the blocks or headings it binds. `smd query --constraints` adds the document-wide ones to a result, and `--follow` brings the `applies-to` constraints of each match ([below](#selecting-by-tree-and-graph-smd-query)).
+- **Budgets.** `smd agent --max-tokens` keeps a section with an accepted, implemented or verified requirement, or an unvalidated assumption, longer. `--brief` condenses a deprecated requirement to one line, `[requirement R7 (deprecated): Title — omitted, see L12]`.
+- **Catalog.** `smd index` counts the tags each document has under `counts.tags`, as `{"requirement": 3, "constraint": 1}`. Documents without tags have no `tags` key.
+- **Editor.** The outline and workspace symbols list each tag as `R1 — Title` with its state. Typing an id attribute offers the document's ids (requirement ids for `verifies`), and hovering a tag shows its defaults. The snippets are `requirement` (also `req`), `constraint`, `acceptance` (also `given`), `assumption` and `evidence`.
+- **Validation.** A requirement or acceptance block without an id warns, and the fix adds the next free id in the document's own pattern (`R4` after `R3`). The other checks are in [§15](#15-validation-and-quick-fixes).
+- **Templates.** `spec` and `prd` write their requirements, acceptance criteria and constraints with these blocks ([§18](#18-templates)).
+- `.smd` tools 4.0.0 and earlier show each tag as a plain box with its title and a `container/unknown` warning.
+
+### Questions, superseded decisions and dependencies
+
+```markdown
+:::question{#Q1 status=open owner=@maya due=2026-12-01 between=C2,R2} Do C2 and R2 disagree?
+:::
+
+:::comment{for=Q1 kind=answer author=@sam date=2026-11-08}
+No. C2 is a should, so R2's overflow line still applies.
+:::
+
+:::decision{#D1 status=superseded date=2026-10-01} Keep one cache for every reader
+:::
+
+:::decision{#D2 status=accepted date=2026-11-01 supersedes=D1 depends-on=R1} Give each reader its own cache
+:::
+```
+
+- **Question lifecycle.** A question with `status`, `owner`, `due`, `between` or `reason` has a state. It is `open`, `answered`, `incorporated` (the answer is in the document now) or `withdrawn` (with a `reason`). It is answered only when an answer exists, which is a `:::comment{kind=answer for=Q1}` anywhere in the document or a `kind=answer` comment nested in the question. `smd review answer` writes one and sets the state ([§17](#review-comments-and-suggestions-smd-review)). Without an answer, a written `answered` still shows and reads as `open`, with a `question/unanswered` warning.
+- The preview shows the state as a pill, with the owner and due date ("overdue" once it passes). `between=C2,R2` shows both blocks as conflicting links, and nothing picks a winner. The agent view writes `<question id="Q1" status="answered" …>` with the answer after it. A question without these attributes reads as before everywhere.
+- `smd query "question[status=open]"` finds the open questions, those without a status included, and `smd query question` still finds every one. Once a document uses the lifecycle, `smd index` counts only its open questions in `counts.questions`.
+- **Superseded decisions.** `supersedes=D1` names the decision D2 replaces. The preview and the agent view add "superseded by D2" to D1 (`superseded-by="D2"`), and `decision/supersedes` warns until D1 says `status=superseded`, with a fix that sets it.
+- **Dependencies.** `depends-on=` on a requirement, constraint, decision, risk or assumption names what it needs, and `:depends[…]` does the same on a task ([§5](#5-tasks-with-owners-priorities-and-due-dates)). The preview links each id. `smd query --follow depends-on` includes those blocks in full. A chain that comes back to its start is `depends/cycle`, and an accepted decision that depends on a superseded one is `decision/depends-superseded`.
 
 ### Release history: `:::changelog`
 
@@ -531,7 +618,9 @@ docs/checkout.smd:145-147  risk  Apple Pay domain verification delays launch  {i
 | `[key*=v]` `[key^=v]` `[key$=v]` | Contains / starts with / ends with |
 | `[key<v]` `<=` `>` `>=` | Numbers, dates (`YYYY-MM-DD` or `today`), priorities (`P0` < `P1` …, `critical` = `P0`, `high` = `P1`) and risk levels (`low` < `medium` < `high` < `critical`) |
 
-Every block also has `title`, `section` (the heading it sits under) and `type`. Defaults count: a decision without `status` is `proposed` and a risk without `impact` is `medium`. Tasks have `done`, `overdue`, `owner`, `priority` and `due`; headings have `level` and `id`. A misspelled type or attribute is an error with a suggestion, and the exit code is 1 when nothing matches.
+Every block also has `title`, `section` (the heading it sits under) and `type`. Defaults count: a decision without `status` is `proposed` and a risk without `impact` is `medium`. Tasks have `done`, `overdue`, `owner`, `priority`, `due`, `id`, `depends` and `blocked`; headings have `level` and `id`; comments and suggestions have `stale`. A misspelled type or attribute is an error with a suggestion, and the exit code is 1 when nothing matches.
+
+Selectors can also say where a block sits (`heading[title=Rollout] task`), and `--follow` reads what a match links to. See [Selecting by tree and graph](#selecting-by-tree-and-graph-smd-query).
 
 **`smd decisions`** is the decision log across documents (an ADR index): every `:::decision`, newest date first and undated last, one line each with its location, date, status, title, owner and document › section:
 
@@ -568,6 +657,60 @@ smd report docs/ --since v1.3.0 --title "Checkout squad"             # since a t
 - Tasks have no ids, so a task is the same task when its document and text match (ignoring case and spacing); its owner, priority and due date may change. A reworded task shows up as removed and added. Decisions are matched by document and title the same way.
 - Without Git history (outside a repository), `--since` a date reports the current state only and the draft says so; `--since` a revision is an error.
 - Items are plain list entries, not tasks, decisions or risks of their own, so the report doesn't add to `smd tasks` or `smd decisions`, and it passes `smd validate --strict` and `smd fmt --check`. `-o` never overwrites a file: the draft is for you to edit. `--today` sets the date for overdue and due-soon tasks and the title.
+
+### Selecting by tree and graph: `smd query`
+
+Selectors combine as in CSS, so a query can say where a block sits in the document.
+
+| Selector | Matches |
+|---|---|
+| `heading[title=Rollout] task` | tasks anywhere under the Rollout heading, nested containers included |
+| `heading[level=2] > decision` | decisions directly in a level-2 section, not inside another container |
+| `requirement > acceptance` | acceptance blocks nested directly in a requirement |
+| `risk:not([status=closed])` | risks that aren't closed. `:not(…)` takes lists and combinators too |
+| `decision risk` | risks inside a decision |
+
+The lifecycle states are attributes like any other. `question[status=open]` also finds the questions with no status, `suggestion[status=rejected]` the rejected suggestions, `comment[kind=answer]` the answers, `task[done=false]` the open tasks and `task[blocked=true]` the blocked ones. An id attribute matches when any id it lists does, so `acceptance[verifies=R1]` finds `verifies=R1,R2`, and an acceptance block nested in R1 too.
+
+Selectors that worked before match the same blocks in the same order, and print the same output. Each match in the library also records its `ancestors`, the headings and containers that hold it, outermost first. `smd query --json` keeps its released array, without them.
+
+**Rules that bind the whole document.** A query that picks one block can miss the rules around it. When a document has `:::agent` blocks or document-wide constraints that the matches don't show, `smd query` ends that document's part with one line.
+
+```text
+[smd] docs/spec.smd: 1 agent block and 2 document-wide constraints not included. Add --constraints to include them.
+```
+
+The line is on stdout, or on stderr with `--json`, so the JSON keeps its shape. `--constraints` adds those blocks after the document's matches, under "Agent blocks and document-wide constraints of docs/spec.smd, which apply to every match in it". Sections marked `{agent=skip}` and `:::human` blocks stay out.
+
+**Following references.** `--follow` reads what each match links to, and what links to it.
+
+```bash
+smd query "requirement[id=R2]" docs/spec.smd --follow "*" --direction both
+```
+
+```text
+docs/spec.smd:24-25  — Requirements
+<requirement id="R2" priority="P1" status="proposed" depends-on="R1"> Budgets report what does not fit
+</requirement>
+  <- verifies    acceptance  AC2  [L27]  §Requirements  ≈38 tokens
+  <- between     question  Do C2 and R2 disagree?  [L63]  §Questions  ≈24 tokens
+  <- depends-on  task  Build the overflow line  [L73]  §Tasks  ≈13 tokens
+Dependencies (mandatory edges, included in full):
+docs/spec.smd:14-22  — Requirements  (depends-on from L24)
+<requirement id="R1" priority="P0" status="accepted" owner="@api-team"> Section reads keep applicable instructions
+…
+docs/spec.smd:33-34  — Requirements  (applies-to from L33)
+<constraint id="C2" applies-to="R2" level="should"> Keep views under 2,000 tokens
+</constraint>
+```
+
+- **Edges.** `--follow` takes edge types, kinds or `*`, separated by commas. The navigation edges are `link`, `ref` and `related`. The mandatory ones are `include`, `applies-to` and `depends-on`. The evidence edges are `verifies`, `supports` and `contradicts`, the lifecycle ones `supersedes` and `between`, and the review edge is `for`. A task's `:depends[…]` is a `depends-on` edge. Edges are worked out from the source on every call and never stored.
+- **Direction and depth.** `--direction out` (the default) follows what the match names, `in` what names the match, and `both` both. `--depth 1` to `3` sets how many hops pointers go.
+- **Pointers.** Each neighbor is one line with `->` (out) or `<-` (in), the edge type, the block's type and title, its line, its section and the tokens it would cost to read. A deeper neighbor is indented under the one it was reached from. A block the result already shows says "(shown in this result)", and a target that can't be read says `missing`, `ambiguous` or `denied`.
+- **Mandatory edges** are followed to their closure, whatever the direction. What a match `depends-on` or `include`s, and the constraints that `applies-to` it, come in full under "Dependencies (mandatory edges, included in full)", then what those need, up to 5 hops and 50 blocks. A dependency that is missing, ambiguous, outside the paths given, in a cycle, or past those limits gets an "Unsatisfied dependency" line, and the match ends with "the result is incomplete". The summary on stderr then says "Incomplete".
+- **Other files** are read only inside the files and folders given on the command line. A link to a file outside them is `denied`, and its content, or even whether it exists, stays unknown.
+- **JSON.** With `--follow` or `--constraints`, `--json` prints an object instead of the array. It has `matches` (each with `ancestors`, and with `--follow` its `neighbors`, `dependencies`, `unsatisfied` and `cut`), `constraints`, `edges`, `complete` and `tokens` (`shown`, `pointers`, `dependencies`).
+- **Library.** The npm package exports `queryDocuments`, `DocumentGraph`, `mandatoryClosure`, `followEdges`, `edgeTypes`, `dependencyProblems`, `formatQueryResult` and `queryResultJson`. The MCP `query` tool is unchanged.
 
 ## 7. Developer blocks: APIs, code, embeds
 
@@ -812,7 +955,7 @@ An `:::agent` block inside a section marked `{agent=skip}` is omitted with the s
 | Lists on Enter | Enter on `- [x] Ship it @maya` starts `- [ ] ` with the cursor before ` @maya`. Bullets repeat, numbers count up, Enter on an empty item ends the list, and code blocks are left alone (`smd.editor.continueLists`) |
 | Images | Paste an image, or drop image files, to save them in `docs/images/` (`smd.images.folder`) and insert `![alt](../relative/path.png)`. Images already in the workspace are linked where they are; name clashes get `-1`, `-2`… |
 | Spell checking | **Set Up Spell Checking (cSpell)** adds an `smd` entry to cSpell's `languageSettings`, so container and directive names, attribute lists, `@mentions`, link targets, front matter and code aren't flagged; titles and link text still are |
-| Snippets (41) | `frontmatter` `callout` `details` `card` `tabs` `columns` `steps` `agent` `human` `decision` `risk` `risk-matrix` `api` `timeline` `figure` `ref` `glossary` `changelog` `quote` `task` `priority` `due` `metric` `badge` `status` `progress` `kbd` `mermaid` `sequence` `gantt` `pie` `math` `code` `embed` `skip` `table` `tasks`… |
+| Snippets (46) | `frontmatter` `callout` `details` `card` `tabs` `columns` `steps` `agent` `human` `decision` `risk` `requirement` (`req`) `constraint` `acceptance` (`given`) `assumption` `evidence` `risk-matrix` `api` `timeline` `figure` `ref` `glossary` `changelog` `quote` `task` `priority` `due` `metric` `badge` `status` `progress` `kbd` `mermaid` `sequence` `gantt` `pie` `math` `code` `embed` `skip` `table` `tasks`… |
 
 ### Block Editor (Preview)
 
