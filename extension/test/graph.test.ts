@@ -96,7 +96,7 @@ test('G1: :depends is read on tasks in spec v2 only, and the other typed edges c
 test('G3: follow lists take edge types, kinds and *, and say what is unknown', () => {
   assert.deepEqual(edgeTypes('supersedes, verifies'), ['verifies', 'supersedes']);
   assert.deepEqual(edgeTypes(['mandatory']), ['include', 'applies-to', 'depends-on']);
-  assert.equal(edgeTypes('*').length, 12);
+  assert.equal(edgeTypes('*').length, 13);
   assert.throws(() => edgeTypes('supercedes'), (e: Error) => e instanceof EdgeTypeError && /Did you mean "supersedes"\?/.test(e.message));
   assert.throws(() => edgeTypes(''), EdgeTypeError);
 });

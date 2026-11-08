@@ -310,6 +310,42 @@
       ":::"
     ]
   },
+  "Non-goals": {
+    "prefix": "non-goals",
+    "description": "What the work leaves out on purpose, kept in every agent view",
+    "body": [
+      ":::non-goals",
+      "- ${1:Something this work will not do}",
+      ":::"
+    ]
+  },
+  "Example": {
+    "prefix": "example",
+    "description": "A good (do) or bad (dont) example",
+    "body": [
+      ":::example{kind=${1|do,dont|}} ${2:What it shows}",
+      "${3:The example.}",
+      ":::"
+    ]
+  },
+  "Limitation": {
+    "prefix": "limitation",
+    "description": "A known issue or threat to validity, with what it affects",
+    "body": [
+      ":::limitation{#${1:L1} status=${2|open,mitigated,resolved|} affects=${3:R1}} ${4:What does not work or hold}",
+      "${5:Impact and workaround.}",
+      ":::"
+    ]
+  },
+  "Deprecated": {
+    "prefix": "deprecated",
+    "description": "Content that should not be used for new work, with its replacement",
+    "body": [
+      ":::deprecated{since=${1:2.0} use=\"${2:replacement}\"} ${3:What is deprecated}",
+      "${4:Why, and how to move.}",
+      ":::"
+    ]
+  },
   "Risk matrix": {
     "prefix": [
       "risk-matrix",

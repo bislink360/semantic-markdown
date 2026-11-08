@@ -70,6 +70,7 @@ export const RULE_CODES: Record<string, string> = {
   'constraint/size': 'Document-scoped constraints together cost more than 500 tokens, which every section read pays',
   'assumption/overdue': 'An unvalidated `:::assumption` whose `review-by` date has passed',
   'assumption/invalid': 'An accepted requirement or decision `depends-on` an invalid assumption',
+  'non-goals/list': 'A `:::non-goals` block with no list item, so an exclusion can read as a goal',
   'evidence/target': 'A `:::evidence` block with neither `supports` nor `contradicts`',
   'evidence/rev': 'A `:::evidence` block without `rev`, so a later change to what it supports can\'t be detected',
   'question/unanswered': 'A question says `answered` or `incorporated` but no answer exists, so it reads as open',

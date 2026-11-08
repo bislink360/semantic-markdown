@@ -32,6 +32,9 @@ How to interpret what you read:
 - `<constraint level="must">` binds your work the way agent instructions do, within the user's task, and `level="should"` is strong advice. `scope="document"` means the whole document, and `applies-to` names what it binds.
 - `<acceptance verifies="R1">` says how to check R1. It is not proof that R1 passed, and neither is a checked task.
 - `<assumption status="unvalidated">` is a premise nobody has checked. Don't treat it as fact.
+- `<non-goals>` lists what the work leaves out on purpose. Don't build it. Section views show it under "Document-wide agent instructions".
+- `<example kind="dont">` is a bad example. Never copy it. `kind="do"` is one to follow.
+- `<limitation status="open">` says something does not work or hold yet. Don't promise it works. `<deprecated since="2.0" use="…">` still works, but use what `use` names in new work.
 - `<evidence supports="R1" result="pass">` is a recorded check. `method="acceptance"` is a person accepting the result. With `--evidence` the view shows each requirement's evidence, marks outdated records `OUTDATED`, and says `[evidence: none for R1]` when there is none. `smd trace docs/` lists, per requirement, its coverage, task claims, evidence and acceptance apart.
 - `<question id="Q1" status="answered">` comes with its answer, a `<comment kind="answer">`. `open` still needs a person, and you never answer it yourself. `between="A,B"` names two blocks that disagree, and nothing picks a winner.
 - `<comment for="R1">` and `<suggestion for="R1">` are open review remarks and proposed replacements. `stale="true"` means R1 changed since they were written. A suggestion is applied only by a person, with `smd review accept`. A last line `[N closed review items … left out: smd query …]` counts the closed ones.
@@ -137,6 +140,10 @@ Then write normal Markdown, adding Semantic Markdown only where it helps the rea
 | Constraint | `:::constraint{#C1 scope=document} Title` … `:::` (or `applies-to=R1`, `level=should`) |
 | Assumption | `:::assumption{#A1 owner=@a review-by=2026-12-01} Title` … `:::` |
 | Evidence | `:::evidence{#E1 supports=R1 method=test result=pass commit=… date=… by=@ci}` … `:::` |
+| Non-goals | `:::non-goals` with a list … `:::` |
+| Example | `:::example{kind=do}` or `{kind=dont}` Title … `:::` |
+| Limitation | `:::limitation{#L1 affects=R1} Title` … `:::` |
+| Deprecated | `:::deprecated{since=2.0 use="…"} Title` … `:::`, and `:since[1.6]` inline |
 | Open question with an owner | `:::question{#Q1 status=open owner=@a due=2026-12-01} Title` … `:::` |
 | Superseding a decision | `:::decision{#D2 status=accepted supersedes=D1}`, and set D1 to `status=superseded` |
 | Task view for agents | front matter `views:` with `sections`, `query`, `mandatory`, `optional`, `budget` ([details](features.md#task-views)) |

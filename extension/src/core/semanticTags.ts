@@ -13,8 +13,10 @@ import { own } from './util';
  * here, so they agree on what a nested acceptance verifies, whether a question is answered and what supersedes what.
  */
 
-/** The phase 1 and 2 tags, in the order their labels and counts are listed. */
-export const SEMANTIC_TAGS: readonly string[] = ['requirement', 'constraint', 'acceptance', 'assumption', 'evidence'];
+/** The semantic tags of phases 1 to 3, in the order their labels and counts are listed. */
+export const SEMANTIC_TAGS: readonly string[] = [
+  'requirement', 'constraint', 'acceptance', 'assumption', 'evidence', 'non-goals', 'example', 'limitation', 'deprecated',
+];
 
 /** A container as written: its lines, id, title, attributes and the container it sits in. */
 export interface TagBlock {
@@ -51,7 +53,7 @@ export function tagBlocks(text: string): TagBlock[] {
 
 /** Whether the document may hold anything this module reads, without scanning it. */
 export const mayHoldTags = (text: string): boolean =>
-  /:{3,}\s*(?:requirement|constraint|acceptance|assumption|evidence|question|decision|comment)\b|:depends\[/i.test(text);
+  /:{3,}\s*(?:requirement|constraint|acceptance|assumption|evidence|question|decision|comment|non-goals|limitation)\b|:depends\[/i.test(text);
 
 function scan(text: string): TagBlock[] {
   const lines = text.split(/\r?\n/);

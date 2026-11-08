@@ -11,7 +11,7 @@ import { openTaskLines } from './taskLines';
  *   [section omitted: ## Rollout plan, L120-L160, ≈420 tokens — smd agent plan.smd --section "Rollout plan"]
  *
  * Never omitted: the header (title, front matter facts, summary), text before the first
- * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions or a danger (`:::danger`
+ * subsection, level-1 sections as a whole, sections that contain `:::agent` instructions, `:::non-goals` or a danger (`:::danger`
  * or a CAUTION alert, their own or from a file they include), sections requested with `sections` (and their
  * subsections), and the head blocks "Constraints that apply here" and "Dependencies of the selected content". A section
  * holding a `scope=document` constraint is never omitted, nor, while what needs it is kept, one holding a constraint
@@ -20,7 +20,7 @@ import { openTaskLines } from './taskLines';
  * with a `[budget: …, required content does not fit]` line (see agentView's withOverflowLine).
  *
  * Order: sections without key content go first; sections with a danger or warning callout (or alert), an accepted,
- * implemented or verified requirement, an unvalidated assumption, a constraint, an
+ * implemented or verified requirement, an unvalidated assumption, a limitation not resolved, a constraint, an
  * accepted decision, an open question or an open task are kept longer. A question the lifecycle settled (answered,
  * incorporated, withdrawn) is ordinary content. Within each group the deepest
  * headings go first, then the largest, then the latest in the document. A parent section is only
@@ -59,7 +59,8 @@ export interface BudgetResult {
 
 export interface BudgetSection { heading: Heading; start: number; end: number }
 
-const AGENT_BLOCK = /^\s*:{3,}\s*agent(?![\w-])/;
+/** `:::agent` and `:::non-goals` (semantic tags R57): what an agent must see whatever the budget. */
+const AGENT_BLOCK = /^\s*:{3,}\s*(?:agent|non-goals)(?![\w-])/;
 /** Key content besides open tasks, which are the ones `smd tasks` lists (see openTaskLines). */
 const KEY_CONTENT = [
   /^\s*:{3,}\s*(?:danger|warning|question)(?![\w-])/,
@@ -68,6 +69,8 @@ const KEY_CONTENT = [
   // A settled requirement and an unvalidated assumption (semantic tags R23 and phase 2).
   /^\s*:{3,}\s*requirement(?![\w-]).*\bstatus\s*=\s*["']?(?:accepted|implemented|verified)\b/,
   /^\s*:{3,}\s*assumption(?![\w-])(?!.*\bstatus\s*=\s*["']?(?:validated|invalid)\b)/,
+  // A limitation that is not resolved (semantic tags R70).
+  /^\s*:{3,}\s*limitation(?![\w-])(?!.*\bstatus\s*=\s*["']?resolved\b)/,
   // A constraint (semantic tags R29): one that applies is never omitted, and the others are kept longer.
   /^\s*:{3,}\s*constraint(?![\w-])/,
 ];

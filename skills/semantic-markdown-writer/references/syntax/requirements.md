@@ -1,4 +1,4 @@
-# Requirements, constraints, acceptance, assumptions, evidence and open questions
+# Requirements, constraints, acceptance, assumptions, evidence, open questions, non-goals, examples, limitations and deprecated content
 
 Part of the syntax reference (`../syntax.md` lists the topics). Use these blocks for specs, PRDs, RFCs and test plans, instead of tables or bold text. Agents, `smd query` and the validator read them. Give each one an `{#id}` first in its attributes, and refer to it by that id elsewhere.
 
@@ -83,3 +83,40 @@ Both decisions are accepted and disagree.
 - `between=` names the two blocks that disagree. Both stay shown and nothing picks a winner.
 - `supersedes=` on a decision names the one it replaces. Set the old one to `status=superseded` (`decision/supersedes` has a fix).
 - `depends-on=` works on requirements, constraints, decisions, risks and assumptions. On a task, write `:depends[R1]` (spec v2 only). `smd tasks` shows a task as blocked while a task it depends on is open, a requirement isn't implemented or verified, or a question is open. `smd query "task[depends=R1]"` finds them.
+
+## Non-goals, examples, limitations and deprecated content
+
+```markdown
+:::non-goals
+- No requirements-management tool.
+- No test runner integration.
+:::
+
+:::example{kind=do} Give every requirement an id
+`:::requirement{#R1 status=accepted}`
+:::
+
+:::example{kind=dont} Spell the id as an attribute
+`:::requirement{id=R1}`
+:::
+
+:::limitation{#L1 status=open affects=R1 owner=@api-team} PDF export needs a local browser
+Workaround: export HTML and print it.
+:::
+
+:::deprecated{since=2.0 use="`smd export`"} `smd convert`
+It still works and prints a warning. It goes away in 3.0. Added :since[1.6].
+:::
+```
+
+| Block | Attribute | Values (default first) |
+|---|---|---|
+| example | `kind` | do · dont (none means a neutral example) |
+| limitation | `status` | open · mitigated · resolved |
+| limitation | `affects`, `owner` | ids of the blocks it limits; @name |
+| deprecated | `since`, `use` | the version that deprecated it; what to use instead (inline Markdown) |
+
+- Use `:::non-goals` instead of a bold **Non-goals** paragraph. Agents see it in every section view and a token budget never drops it. Write it as a list (`non-goals/list` hints otherwise).
+- Mark every bad example `kind=dont`. Agents see `<example kind="dont">` and don't copy it.
+- A limitation says something does not work, does not hold or has not been checked: known issues in release notes, threats to validity in research. A constraint is a rule the work must follow, so don't use one for the other.
+- `:since[1.6]` is a small version label, in spec v2 only. `smd query "deprecated[since=2.0]"` lists deprecated blocks.

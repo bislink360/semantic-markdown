@@ -1,0 +1,53 @@
+---
+smd: 2
+title: Semantic tags phase 3
+summary: Non-goals, good and bad examples, limitations, deprecated content and version labels.
+status: draft
+---
+
+## Scope
+
+:::non-goals
+- No requirements-management tool.
+- No test runner integration.
+:::
+
+::::requirement{#R1 priority=P1 status=accepted} Export documents to PDF
+The CLI writes a PDF of the rendered page.
+
+:::acceptance{#AC1}
+Given a document
+When it is exported with --to pdf
+Then a PDF file is written
+:::
+::::
+
+## Examples
+
+:::example{kind=do} Give every requirement an id
+`:::requirement{#R1 status=accepted}`
+:::
+
+:::example{kind=dont} Spell the id as an attribute
+`:::requirement{id=R1}`
+:::
+
+:::example
+A neutral example without a kind.
+:::
+
+## Known issues
+
+:::limitation{#L1 affects=R1 owner=@cli-team} PDF export needs a local browser
+Workaround: export HTML and print it.
+:::
+
+:::limitation{#L2 status=resolved affects=R1} Fonts were missing in PDFs
+Fixed by embedding them.
+:::
+
+## Deprecated
+
+:::deprecated{since=2.0 use="`smd export`"} `smd convert`
+It still works and goes away in 3.0. Exports came in :since[1.6].
+:::

@@ -427,6 +427,32 @@ function evidenceMarkdown(c: ContainerSource): ContainerMarkdown {
   ]);
 }
 
+/** Non-goals are an IMPORTANT alert: what the work leaves out matters as much as what it does (R57). */
+function nonGoalsMarkdown(c: ContainerSource): ContainerMarkdown {
+  return tagAlert('IMPORTANT', 'Non-goals', c, []);
+}
+
+/** A good example is a TIP, a bad one a CAUTION that says "Don't", any other a NOTE (R58). */
+function exampleMarkdown(c: ContainerSource): ContainerMarkdown {
+  const kind = c.values.kind?.toLowerCase();
+  if (kind === 'do') return tagAlert('TIP', 'Example', c, ['do']);
+  if (kind === 'dont') return tagAlert('CAUTION', 'Example', c, ["don't"]);
+  return tagAlert('NOTE', 'Example', c, []);
+}
+
+/** A limitation is a WARNING until it is resolved, then a NOTE (R70). */
+function limitationMarkdown(c: ContainerSource): ContainerMarkdown {
+  const v = c.values;
+  const status = v.status ?? 'open';
+  return tagAlert(status.toLowerCase() === 'resolved' ? 'NOTE' : 'WARNING', 'Limitation', c,
+    [status, v.affects ? `affects ${ids(v.affects)}` : '', v.owner]);
+}
+
+function deprecatedMarkdown(c: ContainerSource): ContainerMarkdown {
+  const v = c.values;
+  return tagAlert('WARNING', 'Deprecated', c, [v.since ? `since ${v.since}` : '', v.use ? `use ${v.use}` : '']);
+}
+
 /** A question as before, unless it uses the lifecycle: then a facts line with its id and state comes first. */
 function questionMarkdown(c: ContainerSource): ContainerMarkdown {
   const plain = alert('IMPORTANT', c.title ? `**${c.title}**` : '');
@@ -491,6 +517,10 @@ const CONTAINER_MARKDOWN = new Map<string, (c: ContainerSource) => ContainerMark
   ['acceptance', acceptanceMarkdown],
   ['assumption', assumptionMarkdown],
   ['evidence', evidenceMarkdown],
+  ['non-goals', nonGoalsMarkdown],
+  ['example', exampleMarkdown],
+  ['limitation', limitationMarkdown],
+  ['deprecated', deprecatedMarkdown],
   ['risk', riskMarkdown],
   ['api', apiMarkdown],
   ['details', ({ title, values }) => ({
@@ -608,6 +638,7 @@ function directiveMarkdown(m: string, pre: string, name: string, content: string
     case 'kbd': return `${pre}${content.split('+').map((k: string) => `<kbd>${k.trim()}</kbd>`).join('+')}`;
     case 'mention': return `${pre}${content}`;
     case 'depends': return `${pre}(depends on ${idList(content).join(', ')})`;
+    case 'since': return `${pre}(since ${content.trim()})`;
     case 'priority': return `${pre}**${content}**`;
     case 'due': return `${pre}📅 ${content}`;
     case 'metric': return `${pre}**${content}**${v.label ? ` ${v.label}` : ''}${v.delta ? ` (${v.delta})` : ''}`;

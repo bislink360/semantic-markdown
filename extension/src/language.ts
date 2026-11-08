@@ -594,6 +594,9 @@ const SYMBOL_KINDS: Record<SmdSymbol['kind'], vscode.SymbolKind> = {
   acceptance: vscode.SymbolKind.Boolean,
   assumption: vscode.SymbolKind.Variable,
   evidence: vscode.SymbolKind.Object,
+  'non-goals': vscode.SymbolKind.Null,
+  limitation: vscode.SymbolKind.EnumMember,
+  deprecated: vscode.SymbolKind.TypeParameter,
 };
 
 class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {

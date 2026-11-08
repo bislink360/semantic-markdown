@@ -69,7 +69,8 @@ export type Inline =
   | { kind: 'image'; src: string; alt: string };
 
 /** What a panel stands for, so a writer can give it an icon. */
-export type PanelType = 'card' | 'agent' | 'human' | 'decision' | 'risk' | 'api' | 'requirement' | 'constraint' | 'acceptance' | 'assumption' | 'evidence';
+export type PanelType = 'card' | 'agent' | 'human' | 'decision' | 'risk' | 'api' | 'requirement' | 'constraint' | 'acceptance' | 'assumption' | 'evidence'
+  | 'non-goals' | 'example' | 'limitation' | 'deprecated';
 
 export interface ListItem {
   /** Set for task list items. */
@@ -436,7 +437,7 @@ function questionFacts(c: ContainerCall): Block[] {
 const SEMANTIC_COLORS = new Map([
   ['proposed', 'amber'], ['accepted', 'green'], ['implemented', 'green'], ['verified', 'teal'], ['deprecated', 'gray'],
   ['unvalidated', 'amber'], ['validated', 'green'], ['invalid', 'red'], ['must', 'red'], ['should', 'orange'],
-  ['pass', 'green'], ['fail', 'red'], ['inconclusive', 'gray'],
+  ['pass', 'green'], ['fail', 'red'], ['inconclusive', 'gray'], ['open', 'amber'], ['mitigated', 'teal'], ['resolved', 'green'],
 ]);
 
 /** A coloured status label with its value as text. */
@@ -513,6 +514,38 @@ function evidence(c: ContainerCall): Block[] {
     factIf(values.date, (v) => [dateOrText(v)]),
     factIf(values.by, (v) => [text(v)]),
     factIf(values.source, (v) => [text(v, source ? { href: source } : {})]),
+  ]);
+}
+
+// Phase 3 (RFC D10, D11)
+
+function nonGoals(c: ContainerCall): Block[] {
+  return tagPanel(c, 'non-goals', c.b.m['nonGoals.label'], []);
+}
+
+function example(c: ContainerCall): Block[] {
+  const kind = (c.meta.attrs.values.kind ?? '').toLowerCase();
+  const known = kind === 'do' || kind === 'dont';
+  return tagPanel(c, 'example', c.b.m['example.label'], [known ? [statusOf(term(c.b.m, 'exampleKind', kind), kind === 'do' ? 'pass' : 'fail')] : []]);
+}
+
+function limitation(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  const status = (values.status ?? 'open').toLowerCase();
+  return tagPanel(c, 'limitation', m['limitation.label'], [
+    [statusOf(term(m, 'limitationStatus', status), status)],
+    factIf(values.affects, (v) => [text(label(m, 'tag.affects', { ids: idText(v) }))]),
+    factIf(values.owner, (o) => [text(o)]),
+  ]);
+}
+
+function deprecated(c: ContainerCall): Block[] {
+  const { values } = c.meta.attrs;
+  const { m } = c.b;
+  return tagPanel(c, 'deprecated', m['deprecated.label'], [
+    factIf(values.since, (v) => [text(label(m, 'tag.since', { version: v }))]),
+    factIf(values.use, (v) => [text(label(m, 'tag.use', { replacement: v }))]),
   ]);
 }
 
@@ -657,6 +690,10 @@ const CONTAINERS = new Map<string, (c: ContainerCall) => Block[]>([
   ['acceptance', acceptance],
   ['assumption', assumption],
   ['evidence', evidence],
+  ['non-goals', nonGoals],
+  ['example', example],
+  ['limitation', limitation],
+  ['deprecated', deprecated],
   ['api', api],
   ['risk-matrix', riskMatrixBlocks],
   ['include', include],
@@ -820,6 +857,7 @@ const DIRECTIVES = new Map<string, DirectiveExport>([
   ['mention', (d, _b, marks) => [text(d.content, marks)]],
   ['progress', (d, b, marks) => [text(progressText(d, b.m), marks)]],
   ['metric', metric],
+  ['since', (d, b, marks) => [text(label(b.m, 'tag.since', { version: d.content.trim() }), marks)]],
 ]);
 
 function directive(d: DirectiveMeta, b: TreeBuilder, marks: Marks): Inline[] {

@@ -8,7 +8,8 @@ import { SEMANTIC_TAGS } from './semanticTags';
 
 /** Something worth jumping to from anywhere in a workspace. */
 export interface SmdSymbol {
-  kind: 'heading' | 'decision' | 'risk' | 'api' | 'requirement' | 'constraint' | 'acceptance' | 'assumption' | 'evidence';
+  kind: 'heading' | 'decision' | 'risk' | 'api' | 'requirement' | 'constraint' | 'acceptance' | 'assumption' | 'evidence'
+    | 'non-goals' | 'limitation' | 'deprecated';
   /** What the symbol search matches: the heading text, a decision or risk title, `POST /v1/orders — Title`. */
   name: string;
   /** Short context: `H2`, `accepted · 2026-09-12`, `impact high`. */
@@ -41,7 +42,8 @@ export function documentSymbols(text: string): SmdSymbol[] {
       symbols.push({ kind: 'decision', name: info.title || 'Decision', detail: [v.status, v.date].filter(Boolean).join(' · '), line: i });
     } else if (info.name === 'risk') {
       symbols.push({ kind: 'risk', name: info.title || 'Risk', detail: v.impact ? `impact ${v.impact}` : '', line: i });
-    } else if (SEMANTIC_TAGS.includes(info.name)) {
+    } else if (SEMANTIC_TAGS.includes(info.name) && info.name !== 'example') {
+      // Examples are left out: a document has many, and none is a place to jump to.
       // `R1 — Title`, with the state as the detail: `accepted`, `must`, `verifies R1`.
       const name = [info.attrs.id, info.title].filter(Boolean).join(' — ') || info.name;
       symbols.push({ kind: info.name as SmdSymbol['kind'], name, detail: tagDetail(info.name, v), line: i });
@@ -60,6 +62,9 @@ function tagDetail(name: string, v: Record<string, string>): string {
     case 'constraint': return v.level ?? 'must';
     case 'acceptance': return v.verifies ? `verifies ${v.verifies}` : '';
     case 'assumption': return v.status ?? 'unvalidated';
+    case 'limitation': return [v.status ?? 'open', v.affects && `affects ${v.affects}`].filter(Boolean).join(' · ');
+    case 'deprecated': return [v.since && `since ${v.since}`, v.use && `use ${v.use}`].filter(Boolean).join(' · ');
+    case 'non-goals': return '';
     default: return [v.result, v.supports && `supports ${v.supports}`].filter(Boolean).join(' · ');
   }
 }

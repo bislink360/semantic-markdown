@@ -310,6 +310,7 @@ const READ_DIFFERENTLY_IN_V2: Record<string, string> = {
   'extension/test/compat/corpus/v2-math.smd': 'proposal 2: $ delimiters',
   'extension/test/compat/corpus/v2-fences.smd': 'proposal 3: closing fences',
   'extension/test/compat/corpus/semantic-tags.smd': 'semantic tags D5: `:depends[R2]` is a directive in spec v2 only',
+  'extension/test/compat/corpus/semantic-tags-phase-3.smd': 'semantic tags D5: `:since[1.6]` is a directive in spec v2 only',
 };
 const posix = (file: string) => file.split(path.sep).join('/');
 

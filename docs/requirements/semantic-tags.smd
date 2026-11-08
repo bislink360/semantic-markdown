@@ -6,7 +6,7 @@ status: draft
 owners: ["@roshanmadhushanka"]
 tags: [requirements, spec, semantic-tags]
 created: 2026-11-06
-updated: 2026-11-07
+updated: 2026-11-08
 toc: true
 related:
   - ../reference/spec.md
@@ -37,13 +37,13 @@ Semantic Markdown has tags for decisions, risks, questions, APIs and tasks, but 
 4. Every new tag degrades to readable text in GitHub, in plain Markdown and in tools older than the release that adds it.
 5. The writer skill and agent rules grow by no more than the limits in [Token budget](#token-budget).
 
-**Non-goals**
-
+:::non-goals
 - No requirements-management tool. There are no workflows, approvals, baselines or change requests beyond `status` values.
 - No test runner integration. An acceptance criterion can name a test file, but tools don't run it or read its result.
 - No new syntax. Every tag uses the existing container, attribute and inline directive grammar.
 - No change to how any existing `smd: 2` document renders, other than documents that already use one of the new names as an unknown container (see [Compatibility](#compatibility)).
-- `claim`, `conflict`, `limitation` and a standalone `dependency` block are out of scope. The reasons are in [Deferred](#deferred).
+- `claim`, `conflict` and a standalone `dependency` block are out of scope. The reasons are in [Deferred](#deferred).
+:::
 
 ## Scope
 
@@ -62,6 +62,7 @@ Semantic Markdown has tags for decisions, risks, questions, APIs and tasks, but 
 | `:::non-goals` | New block | 3 | :priority[P2] |
 | `:::example` | New block | 3 | :priority[P3] |
 | `:::deprecated` and inline `:since[…]` | New block and directive | 3 | :priority[P3] |
+| `:::limitation` | New block | 3 | :priority[P3] |
 
 ## Shared requirements
 
@@ -282,6 +283,7 @@ These come after the core set and follow the shared requirements too.
 | R57 | `:::non-goals` wraps a list of explicit exclusions. Budgeted views never drop it, and the agent view shows `<non-goals>`. The spec and PRD templates use it in place of the bold paragraph. | :priority[P2] |
 | R58 | `:::example{kind=do}` and `:::example{kind=dont}` mark good and bad examples. The agent view shows `<example kind="dont">` so an agent never copies a bad example as guidance. Plain Markdown shows `> [!TIP]` and `> [!CAUTION]`. | :priority[P3] |
 | R59 | `:::deprecated{since=2.0 use="smd export"}` marks deprecated content and its replacement. Inline `:since[1.6]` renders a small version label. `smd query deprecated` lists them. | :priority[P3] |
+| R70 | `:::limitation{status=open affects=R1}` records something that does not work, does not hold or has not been checked, such as a known issue in release notes or a threat to validity. `status` is `open`, `mitigated` or `resolved` and defaults to `open`. `affects` names the blocks it limits. The agent view shows `<limitation status="open">`, plain Markdown shows `> [!WARNING]`, and a limitation that is not resolved is key content in budgets. Added on 2026-11-08 (RFC D11). | :priority[P3] |
 
 ## Deferred
 
@@ -289,8 +291,9 @@ These come after the core set and follow the shared requirements too.
 |---|---|
 | `claim` | A requirement or decision already is the claim. `evidence{supports}` links to it without a second tag that authors must write first. |
 | `conflict` | Authors who know about a conflict write a question or a decision. `question{between}` covers that case, and tools are better at finding conflicts nobody noticed, such as two accepted decisions that disagree. |
-| `limitation` | It overlaps `constraint` and `:::warning`. Revisit if "Known issues" in release notes or threats to validity in research documents keep needing it. |
 | `dependency` block | `depends-on` covers links between items. A block only pays off for an external dependency with its own status and notes. |
+
+`limitation` was on this list until 2026-11-08. It moved to phase 3 as R70, because known issues and threats to validity need a tag that says something does not work or hold, which `constraint` and `:::warning` don't say (RFC D11).
 
 ## Compatibility
 
@@ -343,7 +346,7 @@ Each phase is one minor release with its own RFC section accepted first.
 
 1. **Phase 1.** The RFC, block ids and references, `requirement`, `constraint` and `acceptance`, and the spec, PRD and test-plan templates. This also answers the C04 constraint-scope item.
 2. **Phase 2.** `assumption`, `evidence`, `depends-on` and `:depends`, the question and decision attributes, `smd trace` and references to other documents.
-3. **Phase 3.** `non-goals`, `example`, `deprecated` and `:since`, if phase 1 and 2 adoption shows people use the tags.
+3. **Phase 3.** `non-goals`, `example`, `deprecated`, `:since` and `limitation`. The maintainer asked for it on 2026-11-08 without waiting for adoption numbers (RFC D10, D11).
 
 The id attributes from phases 1 and 2 (`verifies`, `applies-to`, `supports`, `contradicts`, `depends-on`, `supersedes`) are the typed edges that phase 3 of [Tree and graph filtering](tree-and-graph-filtering.smd) waits for (G2).
 

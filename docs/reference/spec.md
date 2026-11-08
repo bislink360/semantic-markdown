@@ -135,6 +135,10 @@ Any Markdown content, including other containers.
 | `acceptance` | Observable conditions that say how to check a requirement (§3.9) | `verifies`, `test` (a relative path) |
 | `assumption` | A premise nobody has checked yet (§3.9) | `status` (`unvalidated` `validated` `invalid`; default `unvalidated`), `owner`, `review-by` (`YYYY-MM-DD`), `depends-on` |
 | `evidence` | The record of a check for or against a block (§3.9) | `supports`, `contradicts`, `method`, `result` (`pass` `fail` `inconclusive`), `source`, `commit`, `date`, `by`, `rev` |
+| `non-goals` | A list of what the work leaves out on purpose, kept in every agent view (§3.9) | `title` |
+| `example` | A good or bad example (§3.9) | `kind` (`do` `dont`; none means neutral) |
+| `limitation` | Something that does not work, does not hold or has not been checked (§3.9) | `status` (`open` `mitigated` `resolved`; default `open`), `affects`, `owner` |
+| `deprecated` | Content that should not be used for new work (§3.9) | `since`, `use` (inline Markdown) |
 | `comment` | A review comment on a block (§3.10) | `for` (needed, see `review/for`), `author`, `date`, `rev`, `kind` (`remark` `answer` `correction`; default `remark`), `status` (`open` `resolved`; default `open`), `by`, `on` |
 | `suggestion` | A proposed replacement for a block's body (§3.10) | `for` (needed, see `review/for`), `author`, `date`, `rev`, `status` (`open` `accepted` `rejected` `withdrawn`; default `open`), `by`, `on`, `reason` |
 | `risk-matrix` | Impact × likelihood matrix of the document's `risk` blocks (closed ones left out); cells coloured by score, risks with an `{#id}` linked. Write it with an empty body; a body renders below the matrix as a caption | `title` (or title text after the name) |
@@ -296,7 +300,7 @@ Tools before 1.10 render an alert as a blockquote whose first line is the `[!WAR
 
 ### 3.9 Semantic tags: requirements, constraints, acceptance, assumptions, evidence
 
-*Semantic tags RFC, phases 1 and 2 ([rfcs/semantic-tags.smd](../rfcs/semantic-tags.smd), [rfcs/feedback-loop.smd](../rfcs/feedback-loop.smd)).*
+*Semantic tags RFC, phases 1 to 3 ([rfcs/semantic-tags.smd](../rfcs/semantic-tags.smd), [rfcs/feedback-loop.smd](../rfcs/feedback-loop.smd)).*
 
 ```text
 :::constraint{#C1 scope=document} Included files stay inside the workspace
@@ -361,6 +365,32 @@ No. Move the large ones into their sections.
 | GitHub and other Markdown renderers | The `:::` lines as text around the body | The `:::question` line as text, and `:depends[R1]` as written |
 
 A document that already used one of the five names as an unknown container now renders it as the tag, with the tag's rules.
+
+**Non-goals, examples, limitations and deprecated content.** Phase 3 adds four blocks and one inline directive.
+
+```text
+:::non-goals
+- No requirements-management tool.
+:::
+
+:::example{kind=dont} Spell the id as an attribute
+`:::requirement{id=R1}`
+:::
+
+:::limitation{#L1 affects=R1 owner=@api-team} PDF export needs a local browser
+:::
+
+:::deprecated{since=2.0 use="`smd export`"} `smd convert`
+Added :since[1.6].
+:::
+```
+
+- **Non-goals.** `:::non-goals` wraps a list of exclusions. It is kept wherever an `:::agent` block is. A section view that doesn't include it shows it under `Document-wide agent instructions:`, `--max-tokens` never leaves out its section, and `--brief` keeps it whole inside a condensed `:::details`. A block with no list item is `non-goals/list`.
+- **Examples.** `kind=do` is a good example and `kind=dont` a bad one. Without `kind` an example is neutral. The agent view writes the kind on the tag, so a bad example is never read as guidance.
+- **Limitations.** A limitation says something does not work, does not hold or has not been checked, such as a known issue or a threat to validity. `affects` names the blocks it limits and is an id attribute (§3.3), with the edge kind `evidence`. A limitation that is not `resolved` is key content for `--max-tokens`.
+- **Deprecated content.** `since` is the version that deprecated it and `use` what to use instead. `smd query "deprecated[since=2.0]"` selects them.
+- **Version labels.** `:since[1.6]` renders `since 1.6` (`smd-since`), in spec v2 only (§4.2). In spec v1 it stays text and `smd migrate --to 2` escapes it.
+- **Rendering.** The same panel as the other tags, with the class `smd-non-goals`, `smd-example smd-example-dont`, `smd-limitation smd-limitation-open` or `smd-deprecated`. The outline notes `non-goals`, `limitation` and `deprecated`. `.smd` tools 4.0.0 and earlier show the blocks as boxes with their title, and `:since[1.6]` in a spec v2 document as `1.6` with a `directive/unknown` warning.
 
 ### 3.10 Review comments and suggestions
 
@@ -446,6 +476,7 @@ The content, like CommonMark link text and a styled span's text (§4.1), may run
 | `metric` | required: the value | `label` (recommended), `delta`, `trend` (`up` `down` `flat`), `good` (`up` `down`) | `:metric[42%]{label="Activation" delta="+3%" trend=up}` |
 | `ref` | required: the id of a `figure` or another block | — | `:ref[fig-checkout]` → *Figure 2*, linked; `:ref[R1]` → *R1*, linked (§3.3) |
 | `depends` | required: block ids, comma-separated. Spec v2 only, on a task | — | `:depends[R1,Q1]` → *depends on R1, Q1*, each linked (§3.9) |
+| `since` | required: a version. Spec v2 only | — | `:since[1.6]` → *since 1.6* (§3.9) |
 
 ### 4.2.1 Task metadata
 
@@ -762,6 +793,7 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `constraint/size` | hint | The document-wide constraints cost more than 500 tokens together, which every section an agent reads pays for |
 | `assumption/overdue` | info | An `unvalidated` assumption whose `review-by` date has passed |
 | `assumption/invalid` | warning | An accepted requirement (or one implemented or verified) or an accepted decision `depends-on` an `invalid` assumption |
+| `non-goals/list` | hint | A `non-goals` block with no list item, so an exclusion can read as a goal (§3.9) |
 | `evidence/target` | warning | An `evidence` block with neither `supports` nor `contradicts` |
 | `evidence/stale` | warning | A block an `evidence` record supports changed after the revision its `rev` records, so the record needs a recheck before it counts as current. There is no fix |
 | `requirement/verified` | warning | A requirement says `status=verified` and no current passing evidence supports it (`result=pass`, a method other than `acceptance`, not outdated). A requirement without an id can't have any |
@@ -801,6 +833,10 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 | `:::acceptance` | `> [!NOTE]` with `**Acceptance AC1** · verifies R1 · test path` |
 | `:::assumption` | `> [!WARNING]` when `unvalidated` or `invalid`, `> [!NOTE]` when `validated`, with `**Assumption A1** · unvalidated · @maya · review by 2026-12-01` |
 | `:::evidence` | `> [!TIP]` for `result=pass`, `> [!CAUTION]` for `fail`, `> [!NOTE]` otherwise, with `**Evidence E1** · supports R1 · test · pass · 1a2b3c4 · 2026-11-07 · @ci` |
+| `:::non-goals` | `> [!IMPORTANT]` with `**Non-goals**` |
+| `:::example` | `> [!TIP]` with `**Example** · do`, `> [!CAUTION]` with `**Example** · don't`, `> [!NOTE]` with `**Example**` without a kind |
+| `:::limitation` | `> [!WARNING]`, or `> [!NOTE]` once `resolved`, with `**Limitation L1** · open · affects R1 · @api-team` |
+| `:::deprecated` | `> [!WARNING]` with ``**Deprecated** · since 2.0 · use `smd export` `` |
 | `:::decision` | `> [!NOTE]` with `**Decision (accepted · 2026-11-01 · @maya): Title**`. A decision with `supersedes`, `depends-on` or a decision that supersedes it names its id and adds them: `**Decision D2 (accepted · 2026-11-01 · supersedes D1 · depends on R1): Title**`, and `superseded by D2` on D1. A risk adds `depends on …` the same way |
 | `:::comment`, `:::suggestion` | Left out. With `--comments`, a blockquote whose first line is `**Comment (for R1 · @maya · 2026-11-06): Title**` (`Answer`, `Suggestion`, and the state when it is closed) |
 | `:::warning` | `> [!WARNING]` |
@@ -829,6 +865,7 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 | `:progress{basis=tasks}`, `{value=40 basis=estimate}`, `{value=unknown}` | `▰▰▰▰▰▰▰▰▱▱ 8 of 10 tasks checked`, `▰▰▰▰▱▱▱▱▱▱ 40% (estimated)`, `progress unknown` |
 | `:kbd[Ctrl+S]` | `<kbd>Ctrl</kbd>+<kbd>S</kbd>` |
 | `:depends[R1,Q1]` (spec v2) | `(depends on R1, Q1)` |
+| `:since[1.6]` (spec v2) | `(since 1.6)` |
 | `==x==` | `**x**` |
 | Mermaid, math, tables, tasks, footnotes | unchanged (GitHub renders them) |
 
@@ -848,10 +885,12 @@ The *agent view* is a canonical, lossless-in-meaning rendering for LLMs (`smd ag
 | GitHub alerts (§3.8) | The callout's tags without a title, `<warning>` … `</warning>` (`[!IMPORTANT]` is `<info>`), around the body without its `>` markers |
 | `decision` / `risk` | `<decision status= date= owner=> title …</decision>` / `<risk impact= likelihood= …>`. With `supersedes`, `depends-on` or a decision that supersedes it, the decision's id comes first and `supersedes=`, `superseded-by=` and `depends-on=` follow (`<decision id="D1" status="superseded" superseded-by="D2">`). A risk with `depends-on` shows its id and `depends-on=` |
 | `requirement` / `constraint` / `acceptance` / `assumption` / `evidence` (§3.9) | `<requirement id="R1" priority="P0" status="accepted" owner="@api-team"> title` … `</requirement>`, and the same for each tag, with its attributes in the order of §3.1. Defaults that change the meaning are always shown: `status="proposed"` on a requirement, `level="must"` on a constraint, `status="unvalidated"` on an assumption. A nested acceptance block lists its requirement first in `verifies` |
+| `non-goals` / `example` / `limitation` / `deprecated` (§3.9) | `<non-goals>` … `</non-goals>`, kept in every view as `:::agent` blocks are; `<example kind="dont"> title`; `<limitation id="L1" status="open" affects="R1"> title`, with `status="open"` shown when not written; `<deprecated since="2.0" use="…"> title` |
 | `question` with the lifecycle (§3.9) | `<question id="Q1" status="open" owner="@maya" due="2026-12-01" title="…">`. `status` is the state the document supports: `answered` and `incorporated` only when an answer exists. A question without the lifecycle reads as before, `<question title="…">` |
 | Open `comment` / `suggestion` (§3.10) | `<comment for="R1" author="@maya" kind="remark"> title` … `</comment>`, `<suggestion for="R1" author="@agent"> title` … `</suggestion>`. A stale one adds `stale="true" current-rev="69a84ed3b073"`. An answer (`kind="answer"`) is shown whatever its status |
 | Closed `comment` / `suggestion` | Left out. The view ends with one line that counts them and names the query that lists them: `[2 closed review items (resolved, accepted, rejected or withdrawn) left out: smd query "comment[status=resolved], suggestion[status!=open]" plan.smd lists them]`. `smd query` shows them |
 | `:depends[R1,Q1]` (spec v2) | `(depends on R1, Q1)` |
+| `:since[1.6]` (spec v2) | `(since 1.6)` |
 | `:progress` with a basis, or `value=unknown` (§4.2.4) | `[progress 80%: 8 of 10 tasks checked]`, `[progress 40% (estimated)]`, `[progress unknown]`. A bar without them is `60%`, as before |
 | Evidence, with `--evidence` | After each requirement and acceptance block shown, `[evidence for R1: E1 supports it · test · pass · by @ci · L18]` and the record in full, from any section (`shown above` when it sits inside the block). An outdated record is marked `OUTDATED`, and a requirement with none gets `[evidence: none for R1]`. Without `--evidence` the view is unchanged |
 | `api` | `API POST /v1/x — title (auth: …)` |
@@ -871,7 +910,7 @@ The *agent view* is a canonical, lossless-in-meaning rendering for LLMs (`smd ag
 | Footnotes | As written: `[^1]` references in the text, `[^1]: …` definitions where they are (no renumbering). A `--section` excerpt lists the definitions its references need once, after a `Footnotes referenced above:` line, unless they are in a `{agent=skip}` section or `:::human` block |
 | `:::include` | The included text inside `<included file="shared/terms.smd" section="Pricing">…</included>`; its `[L<n>]` references are lines of that file. With `--no-includes`, or when it can't be read: `[include: shared/terms.smd § Pricing — read that file for the content]` (or the reason, e.g. `— cannot read the file`). The fallback body is left out |
 
-`--brief` also condenses Mermaid diagrams to `[diagram: type, n lines — see Lx-Ly]`, long code blocks to their first 10 lines, `:::details` to a pointer, and completed tasks to a count. It condenses a `deprecated` requirement to `[requirement R7 (deprecated): title — omitted, see L12]`. `--max-tokens` keeps a section longer when it holds an accepted, implemented or verified requirement or an unvalidated assumption, as it does for an accepted decision. The header shows the `views` key as the names of the task views.
+`--brief` also condenses Mermaid diagrams to `[diagram: type, n lines — see Lx-Ly]`, long code blocks to their first 10 lines, `:::details` to a pointer, and completed tasks to a count. It condenses a `deprecated` requirement to `[requirement R7 (deprecated): title — omitted, see L12]`. `--max-tokens` keeps a section longer when it holds an accepted, implemented or verified requirement, an unvalidated assumption or a limitation that is not resolved, as it does for an accepted decision, and never leaves out a section with `:::non-goals`. The header shows the `views` key as the names of the task views.
 
 ## 8b. Task views
 
