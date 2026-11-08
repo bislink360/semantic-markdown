@@ -16,7 +16,8 @@ import { openTaskLines } from './taskLines';
  * sections requested with `sections` (and their subsections). When these alone are over the budget, the view ends
  * with a `[budget: …, required content does not fit]` line (see agentView's withOverflowLine).
  *
- * Order: sections without key content go first; sections with a danger or warning callout (or alert), an
+ * Order: sections without key content go first; sections with a danger or warning callout (or alert), an accepted,
+ * implemented or verified requirement, an unvalidated assumption, an
  * accepted decision, a question or an open task are kept longer. Within each group the deepest
  * headings go first, then the largest, then the latest in the document. A parent section is only
  * omitted after its subsections, and its pointer then replaces theirs.
@@ -60,6 +61,9 @@ const KEY_CONTENT = [
   /^\s*:{3,}\s*(?:danger|warning|question)(?![\w-])/,
   /^ {0,3}>\s*\[!(?:CAUTION|WARNING)\]/i,
   /^\s*:{3,}\s*decision\b.*\bstatus\s*=\s*["']?accepted\b/,
+  // A settled requirement and an unvalidated assumption (semantic tags R23 and phase 2).
+  /^\s*:{3,}\s*requirement(?![\w-]).*\bstatus\s*=\s*["']?(?:accepted|implemented|verified)\b/,
+  /^\s*:{3,}\s*assumption(?![\w-])(?!.*\bstatus\s*=\s*["']?(?:validated|invalid)\b)/,
 ];
 
 const within = (inner: BudgetSection, outer: BudgetSection) => inner.start >= outer.start && inner.end <= outer.end;

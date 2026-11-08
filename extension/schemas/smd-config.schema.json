@@ -260,6 +260,66 @@
           ],
           "description": "Every rules/… rule. Exact codes win."
         },
+        "requirement/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every requirement/… rule. Exact codes win."
+        },
+        "acceptance/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every acceptance/… rule. Exact codes win."
+        },
+        "constraint/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every constraint/… rule. Exact codes win."
+        },
+        "assumption/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every assumption/… rule. Exact codes win."
+        },
+        "evidence/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every evidence/… rule. Exact codes win."
+        },
+        "question/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every question/… rule. Exact codes win."
+        },
         "frontmatter/invalid": {
           "enum": [
             "off",
@@ -1059,6 +1119,156 @@
             "hint"
           ],
           "description": "Suppression comment or rule setting names an unknown rule code"
+        },
+        "requirement/id": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::requirement has no {#id}; the fix adds the next free id in the document's pattern"
+        },
+        "requirement/uncovered": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An accepted, implemented or verified requirement that no :::acceptance block verifies"
+        },
+        "acceptance/id": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::acceptance block has no {#id}; the fix adds the next free id in the document's pattern"
+        },
+        "acceptance/verifies": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::acceptance block has no verifies and sits in no requirement"
+        },
+        "acceptance/verifies-type": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "verifies names a block that isn't a requirement"
+        },
+        "constraint/scope": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A section-scoped :::constraint above the first heading, which applies to the whole document"
+        },
+        "constraint/size": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Document-scoped constraints together cost more than 500 tokens, which every section read pays"
+        },
+        "assumption/overdue": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An unvalidated :::assumption whose review-by date has passed"
+        },
+        "assumption/invalid": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An accepted requirement or decision depends-on an invalid assumption"
+        },
+        "evidence/target": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence block with neither supports nor contradicts"
+        },
+        "evidence/rev": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence block without rev, so a later change to what it supports can't be detected"
+        },
+        "question/unanswered": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A question says answered or incorporated but no answer exists, so it reads as open"
+        },
+        "question/reason": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A question is withdrawn without a reason"
+        },
+        "question/overdue": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "An open question whose due date has passed"
+        },
+        "decision/supersedes": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A decision is superseded by another, but its status isn't superseded"
         }
       },
       "additionalProperties": false

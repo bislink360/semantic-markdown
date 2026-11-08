@@ -6,7 +6,8 @@ import { parseFrontMatter } from './frontmatter';
 import { extractTasks } from './meta';
 import { parseSmd } from './parse';
 import type { Heading } from './render';
-import { CALLOUT_TYPES, CONTAINERS, RISK_LEVELS, STYLE_KEYS } from './spec';
+import { CALLOUT_TYPES, CONTAINERS, ID_ATTRIBUTES, idList, RISK_LEVELS, STYLE_KEYS } from './spec';
+import { hasAnswer, isLifecycleQuestion, questionStatus, tagContext } from './semanticTags';
 import { own, suggest } from './util';
 import { documentVariables } from './variables';
 import { REVIEW_CONTAINERS } from './revision';
@@ -100,7 +101,7 @@ const CONTAINER_TYPES = Object.keys(CONTAINERS);
 const BLOCK_TYPES = ['*', 'task', 'heading', 'callout', ...CONTAINER_TYPES];
 const COMMON_KEYS = ['title', 'section', 'type'];
 const OWN_KEYS: Record<string, string[]> = {
-  task: ['done', 'owner', 'priority', 'due', 'overdue', 'id'],
+  task: ['done', 'owner', 'priority', 'due', 'overdue', 'id', 'depends', 'blocked'],
   heading: ['level', 'id', 'agent'],
 };
 /** Keys tools compute for a container type, beside its own attributes: a review block's `stale`. */
@@ -110,6 +111,8 @@ const DEFAULTS: Record<string, Record<string, string>> = {
   risk: { impact: 'medium' },
   api: { method: 'GET' },
   figure: { kind: 'figure' },
+  // The tags added in 4.1 keep their defaults in the spec (semantic tags R2).
+  ...Object.fromEntries(Object.entries(CONTAINERS).flatMap(([name, spec]) => (spec.defaults ? [[name, spec.defaults]] : []))),
 };
 const PRIORITY_RANK: Record<string, number> = { p0: 0, critical: 0, p1: 1, high: 1, p2: 2, medium: 2, p3: 3, low: 3, p4: 4 };
 
@@ -338,10 +341,12 @@ function blocksOf(text: string, lines: string[], today: string): Block[] {
     }
     return section;
   };
+  const containers = containerBlocks(lines, parseFrontMatter(text).bodyStartLine, sectionAt);
+  questionStates(text, containers);
   const blocks = [
     ...headingBlocks(headings, lines.length),
     ...taskBlocks(text, today, sectionAt),
-    ...containerBlocks(lines, parseFrontMatter(text).bodyStartLine, sectionAt),
+    ...containers,
   ].sort((a, b) => a.line - b.line);
   for (const [block, held] of ancestorBlocks(blocks)) {
     block.ancestors = held.map((a) => ({ type: a.type, line: a.line, title: a.title, ...(typeof a.attrs.id === 'string' ? { id: a.attrs.id } : {}) }));
@@ -353,6 +358,25 @@ function blocksOf(text: string, lines: string[], today: string): Block[] {
 function ancestorBlocks(blocks: Block[]): Map<Block, Block[]> {
   const holders = blocks.filter((b) => b.type !== 'task');
   return new Map(blocks.map((b) => [b, holders.filter((h) => h.line < b.line && h.endLine >= b.line)]));
+}
+
+/** The state a question's `status` selector tests, when it differs from what is written (see questionStates). */
+const questionState = new WeakMap<Block, string>();
+
+/**
+ * A question that uses the lifecycle is selected by its state: `answered` and `incorporated` only with an answer, as
+ * the agent view shows it (research contract, "Questions"). Its attributes stay as written on the match.
+ */
+function questionStates(text: string, containers: Block[]): void {
+  if (!containers.some((b) => b.type === 'question')) return;
+  const context = tagContext(text);
+  if (!context) return;
+  for (const b of containers) {
+    const tag = b.type === 'question' ? context.byLine.get(b.line) : undefined;
+    if (!tag) continue;
+    const answer = hasAnswer(tag, context.blocks, context.answered);
+    if (isLifecycleQuestion(tag, answer)) questionState.set(b, questionStatus(tag, answer));
+  }
 }
 
 function headingBlocks(headings: Heading[], lineCount: number): Block[] {
@@ -378,6 +402,7 @@ function taskBlocks(text: string, today: string, sectionAt: (line: number) => st
       ...(t.priority ? { priority: t.priority } : {}),
       ...(t.due ? { due: t.due } : {}),
       ...(t.id ? { id: t.id } : {}),
+      ...(t.depends ? { depends: t.depends, blocked: String(Boolean(t.blocked?.length)) } : {}),
     },
     section: sectionAt(t.line),
     ancestors: [],
@@ -404,6 +429,9 @@ function containerBlocks(lines: string[], from: number, sectionAt: (line: number
     const info = openingOf(lines[i], spec);
     if (!info) continue;
     const block: Block = { type: info.name, line: i, endLine: lines.length - 1, title: inlineText(info.title, { variables }), attrs: containerAttrs(info), section: sectionAt(i), ancestors: [] };
+    // A nested acceptance verifies the requirement it sits in (semantic tags R33).
+    const parent = info.name === 'acceptance' ? [...open].reverse().find((o) => o.block.type === 'requirement')?.block.attrs.id : undefined;
+    if (typeof parent === 'string') block.attrs.verifies = [...new Set([parent, ...idList(String(block.attrs.verifies ?? ''))])].join(',');
     blocks.push(block);
     open.push({ block, colons: openerColons(lines[i]) });
   }
@@ -456,7 +484,12 @@ function valueOf(block: Block, key: string): string | string[] | undefined {
   if (key === 'title') return block.title;
   if (key === 'section') return block.section ?? undefined;
   if (key === 'type') return block.type;
-  return block.attrs[key];
+  const value = block.attrs[key];
+  // A question is selected by its state, and one without a status is open (research contract, AF21).
+  if (key === 'status' && block.type === 'question') return questionState.get(block) ?? value ?? 'open';
+  // An id attribute matches when any id it lists does: `acceptance[verifies=R1]` finds `verifies=R1,R2`.
+  if (typeof value === 'string' && own(ID_ATTRIBUTES, key)?.includes(block.type)) return idList(value);
+  return value;
 }
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/^@/, '');

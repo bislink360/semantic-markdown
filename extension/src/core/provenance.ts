@@ -20,7 +20,7 @@ export const PROVENANCE_SCHEMA = 'smd-projection/1';
 
 export type OmissionKind =
   | 'skipped-section' | 'not-selected' | 'budget' | 'human' | 'details' | 'diagram' | 'code' | 'completed-tasks'
-  | 'comment' | 'include' | 'embed' | 'outline';
+  | 'comment' | 'include' | 'embed' | 'outline' | 'deprecated';
 
 export interface Omission {
   kind: OmissionKind;

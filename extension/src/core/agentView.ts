@@ -28,7 +28,8 @@ import { matchesExactly, matchesHeading, sectionsOf, withoutHeadingAttrs, type S
 import { quoteCite } from './quote';
 import { hasReviewBlocks, reviewItems, type ReviewItem } from './review';
 import { REVIEW_CONTAINERS } from './revision';
-import { CALLOUT_TYPES, INLINE_DIRECTIVES, isKnownDirective } from './spec';
+import { CALLOUT_TYPES, idList, INLINE_DIRECTIVES, isKnownDirective } from './spec';
+import { hasAnswer, isLifecycleQuestion, questionStatus, tagContext, type TagBlock, type TagContext } from './semanticTags';
 import { specVersion, type SpecVersion } from './specVersion';
 import { openTaskLines } from './taskLines';
 import { own } from './util';
@@ -140,6 +141,10 @@ interface HeadSource {
   id?: string;
   /** The `:::figure` that opens on this line. */
   figure?: Figure;
+  /** The id of the requirement this container sits in (a nested acceptance verifies it). */
+  requirement?: string;
+  /** What the document's other blocks say about this one: its answer, what supersedes it. */
+  tags?: { block?: TagBlock; context: TagContext };
 }
 
 const titleAttr = (title: string) => (title ? ` title="${title}"` : '');
@@ -148,6 +153,44 @@ const attrList = (values: Record<string, string>, keys: string[]) => keys.filter
 
 /** `<tag title="…">` … `</tag>` */
 const tagged = (tag: string) => ({ title }: HeadSource): ContainerHead => ({ line: `<${tag}${titleAttr(title)}>`, close: `</${tag}>` });
+
+/** ` id="…" key="…"`: the id, then the attributes in `keys` that have a value. */
+const tagAttrs = (id: string | undefined, values: Record<string, string>, keys: string[]) => `${id ? ` id="${id}"` : ''}${attrList(values, keys)}`;
+
+/** A semantic tag: `<requirement id="R1" status="accepted">` Title … `</requirement>`. `shown` are defaults the view states. */
+const semanticTag = (tag: string, keys: string[], shown: Record<string, string> = {}) => ({ title, values, id }: HeadSource): ContainerHead => ({
+  line: `<${tag}${tagAttrs(id, { ...shown, ...values }, keys)}>${titleAfter(title)}`, close: `</${tag}>`,
+});
+
+/** An acceptance block lists the requirement it sits in first in `verifies`. */
+function acceptanceHead(source: HeadSource): ContainerHead {
+  const verifies = [...new Set([...(source.requirement ? [source.requirement] : []), ...idList(source.values.verifies ?? '')])].join(',');
+  return semanticTag('acceptance', ['verifies', 'test'])({ ...source, values: { ...source.values, ...(verifies ? { verifies } : {}) } });
+}
+
+/**
+ * A question: as before, unless it uses the lifecycle. Then its id and state come first, and `answered` or
+ * `incorporated` show only when an answer exists (research contract, "Questions", GAP-8).
+ */
+function questionHead(source: HeadSource): ContainerHead {
+  const plain = tagged('question')(source);
+  const block = source.tags?.block;
+  if (!block || block.name !== 'question') return plain;
+  const { blocks, answered } = source.tags!.context;
+  const answer = hasAnswer(block, blocks, answered);
+  if (!isLifecycleQuestion(block, answer)) return plain;
+  const values = { ...source.values, status: questionStatus(block, answer) };
+  return { line: `<question${tagAttrs(source.id, values, ['status', 'owner', 'due', 'between', 'reason'])}${titleAttr(source.title)}>`, close: '</question>' };
+}
+
+/** A decision, with `superseded-by` when a decision of the document supersedes it. */
+function decisionHead({ title, values, id, tags }: HeadSource): ContainerHead {
+  const by = id ? tags?.context.supersededBy.get(id) : undefined;
+  const shown = by ? { ...values, 'superseded-by': by.join(',') } : values;
+  // Its id only with a link, so decisions without one read as before.
+  const linked = id && (by || shown.supersedes || shown['depends-on']) ? id : undefined;
+  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
+}
 
 function apiHead({ title, values: v }: HeadSource): ContainerHead {
   return { line: `API ${(v.method ?? 'GET').toUpperCase()} ${v.path ?? ''}${titleAfter(title, ' — ')}${v.auth ? ` (auth: ${v.auth})` : ''}` };
@@ -168,6 +211,9 @@ function quoteHead({ values }: HeadSource): ContainerHead {
 /** `Title:`, or nothing without a title. */
 const titleLine = ({ title }: HeadSource): ContainerHead => (title ? { line: `${title}:` } : {});
 
+/** Containers whose head reads what other blocks say about them (see tagContext). */
+const TAG_HEADS: ReadonlySet<string> = new Set(['question', 'decision']);
+
 /**
  * The agent view of each container's opening line. `:::human` (unless included) and `:::details` in brief
  * views are dropped before this. tabs, columns, column, box, steps and timeline: content only. Unknown containers:
@@ -176,8 +222,15 @@ const titleLine = ({ title }: HeadSource): ContainerHead => (title ? { line: `${
 const CONTAINER_HEADS = new Map<string, (c: HeadSource) => ContainerHead>([
   ['agent', tagged('agent-instructions')],
   ...CALLOUT_TYPES.map((c) => [c, tagged(c)] as const),
-  ['decision', ({ title, values }) => ({ line: `<decision${attrList(values, ['status', 'date', 'owner'])}>${titleAfter(title)}`, close: '</decision>' })],
-  ['risk', ({ title, values }) => ({ line: `<risk${attrList(values, ['impact', 'likelihood', 'owner', 'status'])}>${titleAfter(title)}`, close: '</risk>' })],
+  ['question', questionHead],
+  ['decision', decisionHead],
+  ['risk', ({ title, values, id }) => ({ line: `<risk${tagAttrs(values['depends-on'] ? id : undefined, values, ['impact', 'likelihood', 'owner', 'status', 'depends-on'])}>${titleAfter(title)}`, close: '</risk>' })],
+  // A status or level is shown when not written: an agent must know a requirement is only proposed (semantic tags R4).
+  ['requirement', semanticTag('requirement', ['priority', 'status', 'owner', 'depends-on'], { status: 'proposed' })],
+  ['constraint', semanticTag('constraint', ['scope', 'applies-to', 'level', 'owner', 'depends-on'], { level: 'must' })],
+  ['acceptance', acceptanceHead],
+  ['assumption', semanticTag('assumption', ['status', 'owner', 'review-by', 'depends-on'], { status: 'unvalidated' })],
+  ['evidence', semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])],
   ['risk-matrix', ({ title }) => ({ line: riskMatrixPointer(title) })],
   ['api', apiHead],
   ['details', tagged('details')],
@@ -831,8 +884,13 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const changelogs = options.changelogs ?? changelogEntries(lines, 0, spec);
   // `condensed`: a :::details in a brief view. Its content is left out, except :::agent blocks inside it, which every view keeps.
   // `visible`: its opening line was in the view (for provenance).
-  interface Frame { name: string; colons: number; close?: string; drop: boolean; condensed?: boolean; start: number; visible?: boolean }
+  interface Frame {
+    name: string; colons: number; close?: string; drop: boolean; condensed?: 'details' | 'deprecated'; start: number; visible?: boolean; id?: string;
+  }
   const stack: Frame[] = [];
+  // What the document's blocks say about each other (answers, supersedes), read on the first question or decision.
+  let tags: TagContext | undefined | null = null;
+  const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'))) : tags);
   const inAgent = () => stack.some((f) => f.name === 'agent');
   // Inside a danger block or a GitHub alert shown as one (the constraints pass).
   const inDanger = () => stack.some((f) => f.name === 'danger') || alertView.callout() === 'danger';
@@ -869,7 +927,8 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     if (frame.close) emit(frame.close, at);
     if (!frame.visible) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
-    if (frame.condensed) omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
+    if (frame.condensed === 'details') omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
+    if (frame.condensed === 'deprecated') omit({ kind: 'deprecated', reason: 'a deprecated requirement is condensed in brief views' }, frame.start, at);
   };
 
   let fence: { marker: string; start: number; body: string[]; info: string } | null = null;
@@ -971,7 +1030,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       // Condensed in brief views, but not inside :::agent: there it is part of the instructions.
       if (info.name === 'details' && options.brief && !inAgent()) {
         emit(`[details: ${title || 'Details'} — omitted, see L${i + 1}]`, i);
-        frame.condensed = true;
+        frame.condensed = 'details';
         continue;
       }
       if (info.name === 'include') {
@@ -993,7 +1052,19 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         frame.drop = true; // the body is fallback text for renderers that can't include
         continue;
       }
-      const head = containerHead(info.name, { title, values: info.attrs.values, id: info.attrs.id, figure: ownFigures.get(i) });
+      frame.id = info.attrs.id;
+      // A deprecated requirement is condensed to its opening line in brief views (semantic tags R23).
+      if (info.name === 'requirement' && options.brief && !inAgent() && info.attrs.values.status?.toLowerCase() === 'deprecated') {
+        emit(`[requirement${info.attrs.id ? ` ${info.attrs.id}` : ''} (deprecated): ${title || 'Requirement'} — omitted, see L${i + 1}]`, i);
+        frame.condensed = 'deprecated';
+        continue;
+      }
+      const requirement = info.name === 'acceptance' ? [...stack].reverse().find((f) => f !== frame && f.name === 'requirement')?.id : undefined;
+      const tags = TAG_HEADS.has(info.name) ? tagsHere() : undefined;
+      const head = containerHead(info.name, {
+        title, values: info.attrs.values, id: info.attrs.id, figure: ownFigures.get(i), requirement,
+        ...(tags ? { tags: { block: tags.byLine.get(i), context: tags } } : {}),
+      });
       if (head.line !== undefined) emit(head.line, i);
       frame.close = head.close;
       continue;
@@ -1364,6 +1435,8 @@ function directiveText(
     case 'badge': return `${pre}[${content}]`;
     case 'priority': return `${pre}[${content}]`;
     case 'kbd': return `${pre}${content}`;
+    // The ids stay as written, so an agent can look each one up.
+    case 'depends': return `${pre}(depends on ${idList(content).join(', ')})`;
     case 'mention': return `${pre}${content}`;
     case 'status': return `${pre}[status: ${content}${status ? ` (${status})` : ''}]`;
     case 'progress': return `${pre}${v.label ?? `${Math.round(Number(v.value ?? content) || 0)}%`}`;
@@ -1459,6 +1532,9 @@ const SECTION_MARKS: SectionMark[] = [
   { note: 'API', line: /^\s*:{3,}\s*api\b/ },
   { note: 'decision', line: /^\s*:{3,}\s*decision\b/ },
   { note: 'risk', line: /^\s*:{3,}\s*risk(?![\w-])/ },
+  { note: 'requirement', line: /^\s*:{3,}\s*requirement(?![\w-])/ },
+  { note: 'constraint', line: /^\s*:{3,}\s*constraint(?![\w-])/ },
+  { note: 'assumption', line: /^\s*:{3,}\s*assumption(?![\w-])/ },
   { note: 'open question', line: /^\s*:{3,}\s*question\b/ },
 ];
 

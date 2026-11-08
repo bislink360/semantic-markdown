@@ -18,6 +18,7 @@ import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
 import { duplicateIds } from './ids';
 import { dependencyProblems } from './graph';
+import { checkSemanticTags } from './semanticCheck';
 import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
 import { openTaskLines } from './taskLines';
 import { checkTablePipes } from './tableCheck';
@@ -228,6 +229,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkIdAttributes(text, idAttrBlocks, pushText);
   checkDependencies(text, lines, idAttrBlocks, pushText, options.today);
   if (hasReviewBlocks(text)) checkReview(text, lines, fm.data, push);
+  checkSemanticTags(text, lines, pushText, { today: options.today, fileExists: options.fileExists, spec });
   checkFootnotes(text, pushText);
   // Release headings and glossary terms are read with their `{{name}}` values in, as they render.
   const expanded = lines.map((l) => substituteLine(l, fm.data, spec));

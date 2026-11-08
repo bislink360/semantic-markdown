@@ -484,6 +484,42 @@ pre.smd-has-hl code { position: relative; }
 .smd-risk-facts b { color: var(--c); text-transform: uppercase; font-size: .9em; letter-spacing: .04em; }
 .smd-risk-status { text-transform: uppercase; font-weight: 650; letter-spacing: .04em; }
 
+/* ---------- Semantic tags (requirement, constraint, acceptance, assumption, evidence) ---------- */
+.smd-block {
+  --c: var(--smd-blue);
+  margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 16px;
+  background: color-mix(in srgb, var(--c) 5%, transparent);
+}
+.smd-constraint { --c: var(--smd-red); }
+.smd-constraint-should { --c: var(--smd-orange); }
+.smd-acceptance { --c: var(--smd-teal); }
+.smd-assumption { --c: var(--smd-amber); }
+.smd-evidence { --c: var(--smd-gray); }
+.smd-evidence-pass { --c: var(--smd-green); }
+.smd-evidence-fail { --c: var(--smd-red); }
+.smd-requirement-deprecated, .smd-assumption-invalid { --c: var(--smd-gray); }
+.smd-requirement-deprecated > .smd-block-title { text-decoration: line-through; opacity: .75; }
+.smd-block-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8em; }
+.smd-block-kind { font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--smd-fg-muted); }
+.smd-block-id { font-family: var(--smd-font-mono); font-weight: 700; }
+.smd-block-facts { color: var(--smd-fg-muted); display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.smd-block-title { font-weight: 650; font-size: 1.05em; margin: 6px 0 4px; }
+.smd-block-body > :last-child { margin-bottom: 0; }
+.smd-pill {
+  --p: var(--c, var(--smd-gray));
+  font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 0 .6em; border-radius: 999px;
+  color: color-mix(in srgb, var(--p) var(--smd-ink), var(--smd-fg)); background: color-mix(in srgb, var(--p) 15%, transparent);
+}
+.smd-pill-status-accepted, .smd-pill-status-implemented, .smd-pill-status-validated, .smd-pill-status-answered, .smd-pill-result-pass { --p: var(--smd-green); }
+.smd-pill-status-verified, .smd-pill-status-incorporated { --p: var(--smd-teal); }
+.smd-pill-status-proposed, .smd-pill-status-unvalidated, .smd-pill-status-open { --p: var(--smd-amber); }
+.smd-pill-status-deprecated, .smd-pill-status-withdrawn, .smd-pill-result-inconclusive { --p: var(--smd-gray); }
+.smd-pill-status-invalid, .smd-pill-result-fail, .smd-pill-level-must { --p: var(--smd-red); }
+.smd-pill-level-should { --p: var(--smd-orange); }
+.smd-question-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8em; margin: 0 0 6px; }
+.smd-conflict { text-decoration: underline wavy; text-decoration-color: var(--smd-red); }
+.smd-depends { color: var(--smd-fg-muted); font-size: .9em; }
+
 /* ---------- Risk matrix (:::risk-matrix, smd risks --html) ---------- */
 .smd-risk-band-low { --c: var(--smd-green); }
 .smd-risk-band-moderate { --c: var(--smd-yellow); }
@@ -598,7 +634,7 @@ pre.smd-has-hl code { position: relative; }
   /* Page breaks: keep headings with what follows, and blocks in one piece where they fit. */
   .smd-doc h1, .smd-doc h2, .smd-doc h3, .smd-doc h4, .smd-doc h5, .smd-doc h6,
   .smd-callout-title, .smd-card-title, .smd-box-title, .smd-tab-label, .smd-code-title { break-after: avoid; page-break-after: avoid; }
-  .smd-callout, .smd-card, .smd-box, .smd-include-missing, .smd-details, .smd-human, .smd-decision, .smd-risk, .smd-api, .smd-metric,
+  .smd-callout, .smd-card, .smd-box, .smd-include-missing, .smd-details, .smd-human, .smd-decision, .smd-risk, .smd-api, .smd-metric, .smd-block,
   .smd-diagram, .smd-code, .smd-math-block, .smd-doc-header, .smd-doc tr, .smd-doc img, .smd-doc blockquote,
   .smd-steps > ol > li, .smd-timeline li, .smd-figure, .smd-changelog-entry, .smd-quote { break-inside: avoid; page-break-inside: avoid; }
   /* A caption stays on the page of what it describes (above a table, below anything else). */

@@ -714,7 +714,9 @@ test('property: insert, move and delete never change a line they do not add, mov
         onlyInserted(before, h.doc.text);
       } else if (op === 1) {
         await h.send({ type: 'delete', key: target.key, editId: `d${i}` });
-        onlyInserted(h.doc.text, before);
+        // A blank line may take the block's place, so its neighbours don't join (deleteBlock).
+        const text = (t: string) => t.split('\n').filter((l) => l.trim()).join('\n');
+        onlyInserted(text(h.doc.text), text(before));
       } else if (i === 2) {
         await h.send({ type: 'move', key: target.key, direction: random() < 0.5 ? 'up' : 'down', editId: `m${i}` });
         assertMoved(before, h.doc.text, target, d.name);
