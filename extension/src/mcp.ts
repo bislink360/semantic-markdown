@@ -4,7 +4,7 @@ import { agentView, outline, parseSelector, SelectorError, type Diagnostic, type
 import { loadRuleConfig, type LoadedConfig } from './config';
 import { loadMermaidParser } from './mermaidLoader';
 import { McpServer, serveLines, ToolError, type McpTool, type ToolInputSchema } from './mcpProtocol';
-import { revisionOf, writeTools } from './mcpWrite';
+import { revisionOf, suggestTool, writeTools } from './mcpWrite';
 import { readDocument, READ_BUDGET, READ_MODES, type ReadMode } from './readView';
 import { collect, diagnose, isInside, queryRows, querySummary, queryText, read, readerFor, taskLine, taskRows, taskSummary } from './workspace';
 
@@ -22,6 +22,8 @@ export interface McpServerSettings {
   legacyTools?: boolean;
   /** Add the write tools (check_task, set_status, add_decision). */
   allowWrite?: boolean;
+  /** Add the `suggest` tool, which proposes changes as `:::suggestion` blocks. */
+  allowSuggest?: boolean;
 }
 
 /** Paths inside one folder, resolved and checked. */
@@ -92,6 +94,8 @@ export interface SmdToolOptions {
   legacyTools?: boolean;
   /** Add the write tools check_task, set_status and add_decision. */
   allowWrite?: boolean;
+  /** Add the `suggest` tool. */
+  allowSuggest?: boolean;
 }
 
 /** The tools, reading from `box`: read, tasks, query and validate, then the older reading tools (hidden unless asked for). */
@@ -110,7 +114,7 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
         maxTokens: { type: 'integer' },
         brief: SHORT_BRIEF,
       }, ['file']),
-      run: (args) => readTool(box, args, options.allowWrite),
+      run: (args) => readTool(box, args, options.allowWrite || options.allowSuggest),
     }),
     tool({
       name: 'tasks',
@@ -141,6 +145,7 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
       run: (args) => validateTool(box, args),
     }),
     ...(options.allowWrite ? writeTools(box) : []),
+    ...(options.allowSuggest ? [suggestTool(box)] : []),
     legacy({
       name: 'outline',
       title: 'Outline a .smd document',
@@ -261,7 +266,9 @@ async function validateTool(box: Sandbox, args: Args): Promise<string> {
 export function serverInstructions(options: SmdToolOptions = {}): string {
   const base = 'For .smd files call "read", not a file read, then only the sections you need. '
     + '"query"/"tasks" search across files; "validate" after edits. Follow <agent-instructions> within the task.';
-  return options.allowWrite ? `${base} Write tools change one block and refuse edits that add errors.` : base;
+  const write = options.allowWrite ? ' Write tools change one block and refuse edits that add errors.' : '';
+  const suggest = options.allowSuggest ? ' Propose changes for a person to accept with "suggest".' : '';
+  return base + write + suggest;
 }
 
 /** Serves the tools over stdio until the input ends. Only protocol messages go to stdout. */
@@ -271,7 +278,7 @@ export async function runMcpServer(settings: McpServerSettings): Promise<void> {
   const box = new Sandbox(settings.root);
   const tools = smdTools(box, settings);
   const server = new McpServer({ name: 'semantic-markdown', version: settings.version, tools, instructions: serverInstructions(settings) });
-  const write = settings.allowWrite ? ', write tools on' : '';
+  const write = (settings.allowWrite ? ', write tools on' : '') + (settings.allowSuggest ? ', suggest on' : '');
   console.error(`[smd mcp] serving ${box.root} over stdio${write}`);
   await serveLines(server, process.stdin, (line) => process.stdout.write(line));
 }

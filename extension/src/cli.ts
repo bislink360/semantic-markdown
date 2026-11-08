@@ -182,10 +182,12 @@ Agent integration:
       (claude) or the reading/writing rules (cursor, copilot, agents: AGENTS.md), this CLI, and the
       MCP server in the agent's config: .mcp.json (claude), .cursor/mcp.json, .vscode/mcp.json
       (copilot). Existing configs are merged; re-run to update.
-  smd mcp [--root <dir>] [--allow-write] [--legacy-tools]
+  smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools]
       Model Context Protocol server over stdio with the tools read, tasks, query and validate. Only .smd
       files inside --root (default: the current directory) can be read.
       --allow-write   add check_task, set_status and add_decision (each refuses edits that add errors)
+      --allow-suggest add suggest, which proposes new text for a block as a :::suggestion for a person
+                      to accept or reject (smd review), and never edits content
       --legacy-tools  also list the older outline, section and agent tools (always callable)
       Register it, e.g.: claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 
@@ -325,7 +327,7 @@ function main(argv: string[]): number | Promise<number> {
       for (const [name, t] of Object.entries(TEMPLATES)) console.log(`${name.padEnd(15)} ${t.description}`);
       return 0;
     case 'mcp':
-      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), legacyTools: flags.has('--legacy-tools') });
+      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), allowSuggest: flags.has('--allow-suggest'), legacyTools: flags.has('--legacy-tools') });
     case 'lsp':
       return lsp(flags);
     case 'skills':
@@ -553,7 +555,7 @@ function query(selector: string | undefined, targets: string[], flags: QueryFlag
   return rows.length ? 0 : 1;
 }
 
-async function mcp(root = '.', options: { allowWrite: boolean; legacyTools: boolean }): Promise<number> {
+async function mcp(root = '.', options: { allowWrite: boolean; allowSuggest: boolean; legacyTools: boolean }): Promise<number> {
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return fail(`--root must be a folder: ${root}`);
   await runMcpServer({ root, version: pkg.version, ...options });
   return 0;

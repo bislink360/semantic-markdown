@@ -5,6 +5,7 @@ import { DECISION_STATUS, extractTasks, parseSmd, specVersion, STATUS_VALUES, ty
 import { findSection, sectionsOf } from './core/sections';
 import { applyLineEdits, type LineEdit } from './core/sourceEdit';
 import { isFrontMatterRefusal, setFrontMatterValue } from './core/frontMatterEdit';
+import { addSuggestion, normalizeActor } from './core/review';
 import { loadRuleConfig } from './config';
 import { taskCheckbox } from './editing';
 import { loadMermaidParser } from './mermaidLoader';
@@ -71,6 +72,49 @@ export function writeTools(box: Sandbox, today: () => string = isoToday): McpToo
       run: (args) => addDecision(box, args, today()),
     },
   ];
+}
+
+/**
+ * `smd mcp --allow-suggest`: one tool, `suggest`, that proposes new body text for a block as a `:::suggestion` with the
+ * block's revision, for a person to accept or reject (collaboration RFC, "Agents as collaborators"). It never edits
+ * content, needs the document's revision from "read", and refuses when the document changed since.
+ */
+export function suggestTool(box: Sandbox, today: () => string = isoToday): McpTool {
+  return {
+    name: 'suggest',
+    description: 'Propose new body text for the block with this {#id} as a :::suggestion a person accepts or rejects. Content is not edited.',
+    inputSchema: schema({
+      file: FILE,
+      id: { type: 'string', description: 'The id of the block (requirement, decision, task, heading…).' },
+      text: { type: 'string', description: 'Markdown: the whole replacement body.' },
+      title: { type: 'string', description: 'One line: the gist.' },
+      author: { type: 'string', description: 'Default: @agent.' },
+      revision: { type: 'string', description: 'From "read": refused if the file changed since.' },
+    }, ['file', 'id', 'text', 'revision']),
+    annotations: { ...WRITE, idempotentHint: false },
+    run: (args) => suggest(box, args, today()),
+  };
+}
+
+async function suggest(box: Sandbox, args: Args, today: string): Promise<string> {
+  const path = box.document(args.file as string);
+  const text = read(path);
+  const name = box.name(path);
+  const expected = String(args.revision ?? '').trim().toLowerCase();
+  if (expected !== revisionOf(text)) throw new ToolError(`Not written: ${name} changed since revision ${expected || '(none)'} (now ${revisionOf(text)}). Call "read" again.`);
+  const author = normalizeActor((args.author as string | undefined) ?? '@agent');
+  if (!author) throw new ToolError('"author" must be one word, like "@agent".');
+  const title = args.title as string | undefined;
+  if (title !== undefined && /[\r\n]/.test(title)) throw new ToolError('"title" must be one line.');
+  const result = addSuggestion(text, args.id as string, { by: author, today, text: args.text as string, title });
+  if (!result.ok) throw new ToolError(`Not written: ${result.error}`);
+  const added = await newErrors(text, result.text, path, box);
+  if (added.length) {
+    const list = added.slice(0, 3).map((d) => `line ${d.line + 1}: ${d.message} (${d.code})`).join('; ');
+    throw new ToolError(`Not written: the suggestion would add ${added.length} validation error(s) to ${name}: ${list}`);
+  }
+  replaceFile(path, text, result.text, name);
+  return `Suggested new text for ${args.id as string} in ${name}, line ${result.line + 1}. A person accepts or rejects it.  [revision ${revisionOf(result.text)}]\n`;
 }
 
 type Args = Record<string, unknown>;
