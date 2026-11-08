@@ -9,7 +9,8 @@ import { githubIds, markdownHeadings, type MarkdownHeading } from './githubSlug'
 import { expandedFigures, figuresOf, includedLines, includeKey, includeSource, type ExpandedFigures } from './includeText';
 import { aroundInlineMath, convertedParts, inlineItemLines, inlineMathLines, literalLines, parseSmd, renderedTaskLines, type InlinePart } from './parse';
 import { splitTaskId } from './taskId';
-import { countsTasks, progressState, progressWords, sectionTaskCounts, type TaskCount } from './progress';
+import { countsTasks, progressState, progressWords, type TaskCount } from './progress';
+import { sectionTaskCounts } from './progressCounts';
 import { quoteCite } from './quote';
 import { renderSmd } from './render';
 import { riskMatrixMarkdown } from './risks';

@@ -13,7 +13,8 @@ import {
 import { progressState, type ProgressState, type TaskCount } from './progress';
 import { quoteCite } from './quote';
 import { CALLOUT_TYPES, idList, STATUS_VALUES } from './spec';
-import { CLOSED_STATES, hasReviewBlocks, reviewItems, type ReviewItem, type ReviewType } from './review';
+import type { ReviewItem } from './review';
+import { CLOSED_STATES, hasReviewBlocks, readReviewItems, type ReviewType } from './reviewKinds';
 import type { SpecEnv } from './specVersion';
 import type { SmdContext } from './markdownItSetup';
 import type { ContainerMeta, FootnoteMeta } from './markdownItRules';
@@ -237,7 +238,7 @@ let reviewCache: { source: string; items: ReadonlyMap<number, ReviewItem> } | un
 
 function reviewItemAt(source: string | undefined, line: number): ReviewItem | undefined {
   if (!source || !hasReviewBlocks(source)) return undefined;
-  if (reviewCache?.source !== source) reviewCache = { source, items: new Map(reviewItems(source).map((r) => [r.line, r])) };
+  if (reviewCache?.source !== source) reviewCache = { source, items: new Map(readReviewItems(source).map((r) => [r.line, r])) };
   return reviewCache.items.get(line);
 }
 

@@ -18,7 +18,7 @@ import { progressTasks } from './markdownItProgress';
 import { documentLanguage, languageTag, messagesFor, type Messages } from './i18n';
 import type { MarkdownItSmdOptions } from './markdownIt';
 import { specOf } from './specVersion';
-import { REVIEW_CONTAINERS } from './revision';
+import { REVIEW_CONTAINERS } from './reviewKinds';
 import { addTextRules } from './typography';
 import { shownValues } from './variables';
 

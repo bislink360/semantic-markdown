@@ -1,4 +1,5 @@
 import MarkdownIt from 'markdown-it';
+import './review';
 import type { Token } from 'markdown-it';
 import hljs from 'highlight.js/lib/common';
 import { escapeHtml, resolveColor } from './attrs';

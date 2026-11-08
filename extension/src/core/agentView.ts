@@ -26,7 +26,8 @@ import {
 } from './provenance';
 import { dueState, type Heading } from './render';
 import { matchesExactly, matchesHeading, sectionsOf, withoutHeadingAttrs, type Section } from './sections';
-import { countsTasks, progressState, progressTag, sectionTaskCounts, type TaskCount } from './progress';
+import { countsTasks, progressState, progressTag, type TaskCount } from './progress';
+import { sectionTaskCounts } from './progressCounts';
 import { evidenceRecords, type EvidenceRecord } from './evidence';
 import { documentBlocks, type DocumentBlock } from './query';
 import { quoteCite } from './quote';

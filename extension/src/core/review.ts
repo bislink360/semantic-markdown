@@ -14,13 +14,9 @@ import { specVersion, type SpecVersion } from './specVersion';
  * accepted suggestion replaces), keeps every line ending as it was, and never formats. Browser-safe.
  */
 
-export type ReviewType = 'comment' | 'suggestion';
+import { CLOSED_STATES, hasReviewBlocks, setReviewReader, type ReviewType } from './reviewKinds';
 
-/** The states that close an item. Anything else (including no status) is open. */
-export const CLOSED_STATES: Readonly<Record<ReviewType, readonly string[]>> = Object.freeze({
-  comment: Object.freeze(['resolved']),
-  suggestion: Object.freeze(['accepted', 'rejected', 'withdrawn']),
-});
+export { CLOSED_STATES, hasReviewBlocks, type ReviewType };
 
 export interface ReviewItem {
   type: ReviewType;
@@ -51,12 +47,7 @@ export interface ReviewItem {
   body: string;
 }
 
-const REVIEW_LINE = /^[ \t]*:{3,}[ \t]*(?:comment|suggestion)\b/im;
 
-/** A quick test: false means the document has no review block (code fences are not looked at). */
-export function hasReviewBlocks(text: string): boolean {
-  return REVIEW_LINE.test(text);
-}
 
 const isReview = (b: DocumentBlock) => REVIEW_CONTAINERS.includes(b.type);
 const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v.join(' ') : v);
@@ -642,3 +633,5 @@ export function isReviewOpening(line: string): boolean {
   const m = CONTAINER_OPEN.exec(line);
   return !!m && REVIEW_CONTAINERS.includes(m[3].toLowerCase());
 }
+
+setReviewReader(reviewItems);

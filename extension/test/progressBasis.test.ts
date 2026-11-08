@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { agentView, renderSmd, smdToMarkdown, validateSmd } from '../src/core';
 import { exportTree, inlineText } from '../src/core/exportTree';
-import { sectionTaskCounts } from '../src/core/progress';
+import { sectionTaskCounts } from '../src/core/progressCounts';
 
 const V2 = '---\nsmd: 2\n---\n';
 const html = (text: string) => renderSmd(text).html;

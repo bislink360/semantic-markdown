@@ -1,6 +1,7 @@
 import { CONTAINER_OPEN, parseContainerInfo } from './containers';
 import { idOwners, parseSmd } from './parse';
 import { documentBlocks } from './query';
+import { REVIEW_CONTAINERS } from './reviewKinds';
 import { sha256Hex } from './sha256';
 
 /**
@@ -38,7 +39,7 @@ export type BlockRevision =
   | { status: 'missing' };
 
 /** Containers that are responses, not content: left out of the text of the block they sit in. */
-export const REVIEW_CONTAINERS: readonly string[] = ['comment', 'suggestion'];
+export { REVIEW_CONTAINERS } from './reviewKinds';
 
 /** Containers left out of the text of the block they sit in: responses and the evidence recorded about it. */
 const RESPONSE_CONTAINERS: readonly string[] = [...REVIEW_CONTAINERS, 'evidence'];
