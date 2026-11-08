@@ -14,6 +14,7 @@ import { termHover } from './core/glossary';
 import { headingAlias } from './core/headingAliases';
 import { documentPreview, embedPreview, sectionExcerpt } from './core/symbols';
 import { codeLines, lazyLineSet } from './core/parse';
+import { idChoices } from './core/semanticTags';
 import { own } from './core/util';
 import { variableCompletion, variableHover } from './core/variables';
 
@@ -217,6 +218,12 @@ function attributeCompletion(cursor: Cursor): Completion | undefined {
   const directive = directiveBefore(prefix, brace);
   const inside = prefix.slice(brace + 1);
   const value = attributeValueAt(inside);
+  // An id attribute offers the document's ids, one item of its comma-separated list at a time.
+  const ids = value && container ? idChoices(cursor.text, container, value.key) : [];
+  if (value && ids.length) {
+    const typed = value.value.slice(value.value.lastIndexOf(',') + 1);
+    return { from: column - typed.length, items: ids.map((label) => ({ label, kind: COMPLETION_KIND.reference })) };
+  }
   if (value) return { from: column - value.value.length, items: attributeValueItems(value.key, container, directive) };
   const typed = trailing(inside, NAME_CHAR);
   return { from: column - typed.length, items: attributeKeyItems(container, directive) };
@@ -321,7 +328,12 @@ function containerHover(lineText: string, column: number): AssistHover | undefin
   const end = start + container[2].length;
   if (column < start || column > end) return undefined;
   const attrs = spec.attrs?.length ? `\n\nAttributes: \`${spec.attrs.join('`, `')}\` + style attributes` : '';
-  return { markdown: `**:::${container[2]}** — ${spec.description}${attrs}`, start, end };
+  return { markdown: `**:::${container[2]}** — ${spec.description}${attrs}${defaultsText(spec.defaults)}`, start, end };
+}
+
+/** `Defaults: \`status=proposed\``, for the containers whose attributes have defaults; empty for the others. */
+export function defaultsText(defaults: Readonly<Record<string, string>> | undefined): string {
+  return defaults ? `\n\nDefaults: ${Object.entries(defaults).map(([k, v]) => `\`${k}=${v}\``).join(', ')}` : '';
 }
 
 function directiveHover(lineText: string, column: number): AssistHover | undefined {
