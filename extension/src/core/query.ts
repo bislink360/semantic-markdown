@@ -219,6 +219,17 @@ function didYouMean(word: string, candidates: string[]): string {
 
 type Block = Omit<QueryMatch, 'text'>;
 
+/** A block of a document as `query` sees it, without its agent view text. */
+export type DocumentBlock = Block;
+
+/**
+ * Every block `query` can select (headings, tasks, containers), in document order, with lines, attributes as
+ * written plus defaults, and the nearest section. Cheaper than `querySmd(text, '*')`: no agent view is built.
+ */
+export function documentBlocks(text: string, today = new Date().toISOString().slice(0, 10)): DocumentBlock[] {
+  return blocksOf(text, text.split(/\r?\n/), today);
+}
+
 /** The blocks of a document that match any of the selectors, in document order. */
 export function querySmd(text: string, selector: string | Selector[], options: QueryOptions = {}): QueryMatch[] {
   const selectors = typeof selector === 'string' ? parseSelector(selector) : selector;

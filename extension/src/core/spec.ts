@@ -28,6 +28,22 @@ export const RISK_STATUS: readonly string[] = ['open', 'mitigated', 'accepted', 
 export const HTTP_METHODS: readonly string[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'WS', 'RPC', 'EVENT'];
 export const PRIORITY_VALUES: readonly string[] = ['P0', 'P1', 'P2', 'P3', 'P4', 'critical', 'high', 'medium', 'low'];
 
+// Semantic tags (RFC phases 1 and 2) and review blocks (collaboration RFC phase 3). People write these states:
+// no tool moves a requirement to `verified` or a question to `answered` by itself (research contract, "Lifecycle").
+export const REQUIREMENT_STATUS: readonly string[] = ['proposed', 'accepted', 'implemented', 'verified', 'deprecated'];
+export const CONSTRAINT_SCOPES: readonly string[] = ['document', 'section'];
+export const CONSTRAINT_LEVELS: readonly string[] = ['must', 'should'];
+export const ASSUMPTION_STATUS: readonly string[] = ['unvalidated', 'validated', 'invalid'];
+export const EVIDENCE_RESULTS: readonly string[] = ['pass', 'fail', 'inconclusive'];
+/** Evidence methods tools know. `acceptance` is a person accepting the result (research contract, "Tasks"). Any other value is allowed. */
+export const EVIDENCE_METHODS: readonly string[] = ['test', 'review', 'benchmark', 'manual', 'analysis', 'acceptance'];
+export const QUESTION_STATUS: readonly string[] = ['open', 'answered', 'incorporated', 'withdrawn'];
+export const COMMENT_KINDS: readonly string[] = ['remark', 'answer', 'correction'];
+export const COMMENT_STATUS: readonly string[] = ['open', 'resolved'];
+export const SUGGESTION_STATUS: readonly string[] = ['open', 'accepted', 'rejected', 'withdrawn'];
+/** `:progress{basis=…}`: what a percentage counts (research AF25). `tasks` counts the checked tasks of the section. */
+export const PROGRESS_BASES: readonly string[] = ['tasks', 'measured', 'estimate'];
+
 export const CALLOUT_TYPES = ['note', 'info', 'tip', 'success', 'warning', 'danger', 'question'] as const;
 
 /** `:::figure{kind=…}` values. Each kind has its own label and counter: Figure 1, Table 1, Listing 1. */
@@ -45,6 +61,11 @@ export interface ContainerSpec {
   readonly values?: Readonly<Record<string, readonly string[]>>;
   /** Attributes that must be present. */
   readonly required?: readonly string[];
+  /**
+   * Values an attribute has when it is not written (semantic tags R2). Query results and the agent view read them
+   * from here. Only the tags added in 4.1 use it, so older blocks keep their released query output.
+   */
+  readonly defaults?: Readonly<Record<string, string>>;
 }
 
 const callout = (label: string): ContainerSpec => ({
@@ -60,7 +81,11 @@ export const CONTAINERS: Readonly<Record<string, ContainerSpec>> = {
   success: callout('Success / done'),
   warning: callout('Warning'),
   danger: callout('Danger / breaking'),
-  question: callout('Open question'),
+  question: {
+    ...callout('Open question'),
+    attrs: ['title', 'collapsible', 'status', 'owner', 'due', 'between', 'reason'],
+    values: { status: QUESTION_STATUS },
+  },
   details: { description: 'Collapsible section. Title after the name is the summary.', title: true, attrs: ['title', 'open'] },
   card: { description: 'Bordered card with optional title and accent color.', title: true, attrs: ['title', 'accent'] },
   box: { description: 'Generic styled block — use style attributes (bg, color, border, align...).', title: false },
@@ -86,13 +111,13 @@ export const CONTAINERS: Readonly<Record<string, ContainerSpec>> = {
   decision: {
     description: 'Decision record (ADR-style): what was decided, by whom, when. Title = the decision.',
     title: true,
-    attrs: ['title', 'status', 'date', 'owner'],
+    attrs: ['title', 'status', 'date', 'owner', 'supersedes', 'depends-on'],
     values: { status: DECISION_STATUS },
   },
   risk: {
     description: 'Risk with impact and likelihood. Body = description and mitigation.',
     title: true,
-    attrs: ['title', 'impact', 'likelihood', 'owner', 'status'],
+    attrs: ['title', 'impact', 'likelihood', 'owner', 'status', 'depends-on'],
     values: { impact: RISK_LEVELS, likelihood: RISK_LEVELS, status: RISK_STATUS },
   },
   'risk-matrix': {
@@ -122,6 +147,56 @@ export const CONTAINERS: Readonly<Record<string, ContainerSpec>> = {
     description: 'Glossary: a list of **Term**: definition items, rendered as a definition list. The first use of each term in a section shows its definition on hover and links to it.',
     title: true,
     attrs: ['title'],
+  },
+
+  // Semantic tags (RFC phase 1: requirement, constraint, acceptance. Phase 2: assumption, evidence)
+  requirement: {
+    description: 'A required behavior. Title = the requirement in one sentence, body = detail and rationale. Give it an {#id}.',
+    title: true,
+    attrs: ['title', 'priority', 'status', 'owner', 'depends-on'],
+    values: { priority: PRIORITY_VALUES, status: REQUIREMENT_STATUS },
+    defaults: { status: 'proposed' },
+  },
+  constraint: {
+    description: 'A restriction work must respect. scope=document keeps it in every agent view, applies-to=… names the blocks it binds.',
+    title: true,
+    attrs: ['title', 'scope', 'applies-to', 'level', 'owner', 'depends-on'],
+    values: { scope: CONSTRAINT_SCOPES, level: CONSTRAINT_LEVELS },
+    defaults: { scope: 'section', level: 'must' },
+  },
+  acceptance: {
+    description: 'Observable conditions (Given/When/Then) that say how to check a requirement: verifies=… or nested in it. Not evidence that it passed.',
+    title: true,
+    attrs: ['title', 'verifies', 'test'],
+  },
+  assumption: {
+    description: 'An unverified premise, with an owner and a review-by date.',
+    title: true,
+    attrs: ['title', 'status', 'owner', 'review-by', 'depends-on'],
+    values: { status: ASSUMPTION_STATUS },
+    defaults: { status: 'unvalidated' },
+  },
+  evidence: {
+    description: 'The basis for or against a block (supports=… or contradicts=…), with the method, result, commit and date that produced it. method=acceptance records a person accepting the result.',
+    title: true,
+    attrs: ['title', 'supports', 'contradicts', 'method', 'result', 'source', 'commit', 'date', 'by', 'rev'],
+    values: { result: EVIDENCE_RESULTS },
+  },
+
+  // Review (collaboration RFC phase 3)
+  comment: {
+    description: 'A review comment on the block with id for=…, written by author=… against its revision rev=…. kind=answer answers a question.',
+    title: true,
+    attrs: ['title', 'for', 'author', 'date', 'rev', 'kind', 'status', 'by', 'on'],
+    values: { kind: COMMENT_KINDS, status: COMMENT_STATUS },
+    defaults: { kind: 'remark', status: 'open' },
+  },
+  suggestion: {
+    description: 'A proposed replacement for the body of the block with id for=…, against its revision rev=…. Accepting or rejecting it records by=… and on=….',
+    title: true,
+    attrs: ['title', 'for', 'author', 'date', 'rev', 'status', 'by', 'on', 'reason'],
+    values: { status: SUGGESTION_STATUS },
+    defaults: { status: 'open' },
   },
 
   // Developer
@@ -171,7 +246,13 @@ export interface InlineDirectiveSpec {
 export const INLINE_DIRECTIVES: Readonly<Record<string, InlineDirectiveSpec>> = {
   badge: { description: 'Colored pill label', content: true, attrs: ['color'], example: ':badge[Shipped]{color=green}' },
   kbd: { description: 'Keyboard key', content: true, attrs: [], example: ':kbd[Ctrl+Shift+P]' },
-  progress: { description: 'Progress bar, value 0–100', content: false, attrs: ['value', 'color', 'label'], example: ':progress{value=60}' },
+  progress: {
+    description: 'Progress bar, value 0–100 or unknown. basis=tasks counts the checked tasks of its section; measured or estimate says how value was found',
+    content: false,
+    attrs: ['value', 'color', 'label', 'basis'],
+    values: { basis: PROGRESS_BASES },
+    example: ':progress{value=60 basis=estimate}',
+  },
   mention: { description: 'Person or team mention', content: true, attrs: [], example: ':mention[@platform-team]' },
   status: {
     description: 'Status dot + label',
@@ -194,6 +275,12 @@ export const INLINE_DIRECTIVES: Readonly<Record<string, InlineDirectiveSpec>> = 
     attrs: [],
     example: ':ref[fig-checkout]',
   },
+  depends: {
+    description: 'On a task (spec v2): the ids of the blocks it waits for, comma-separated',
+    content: true,
+    attrs: [],
+    example: ':depends[R1]',
+  },
 };
 
 /**
@@ -206,11 +293,37 @@ export const V1_DIRECTIVES: readonly string[] = ['badge', 'kbd', 'progress', 'me
 /**
  * Attributes whose value names blocks by id, one id or a comma-separated list (`verifies=R1,R2`, semantic tags R15),
  * with the containers that take each. The validator checks every id they name (`ref/unknown`, `ref/ambiguous`).
- * Phase 2 adds `depends-on`, `supports`, `contradicts`, `supersedes` and `between`.
+ * Phase 2 added `depends-on`, `supports`, `contradicts`, `supersedes` and `between`, and the review blocks `for`.
  */
 export const ID_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
   verifies: ['acceptance'],
   'applies-to': ['constraint'],
+  'depends-on': ['requirement', 'constraint', 'decision', 'risk', 'assumption'],
+  supports: ['evidence'],
+  contradicts: ['evidence'],
+  supersedes: ['decision'],
+  between: ['question'],
+  for: ['comment', 'suggestion'],
+};
+
+/**
+ * The kind of each edge: the id attributes and the edges derived from links, `:ref`, `related:` and includes
+ * (research contract, "Edge semantics"). Only mandatory edges expand automatically. Navigation, evidence and review
+ * edges come back as pointers, and lifecycle edges never expand.
+ */
+export const EDGE_KINDS: Readonly<Record<string, 'navigation' | 'mandatory' | 'evidence' | 'lifecycle' | 'review'>> = {
+  link: 'navigation',
+  ref: 'navigation',
+  related: 'navigation',
+  include: 'mandatory',
+  'applies-to': 'mandatory',
+  'depends-on': 'mandatory',
+  verifies: 'evidence',
+  supports: 'evidence',
+  contradicts: 'evidence',
+  supersedes: 'lifecycle',
+  between: 'lifecycle',
+  for: 'review',
 };
 
 /** The ids an id attribute's value lists: `R1,R2` and `"R1, R2"` are both `R1` and `R2`. */
@@ -250,6 +363,7 @@ export const FRONTMATTER_KEYS: Readonly<Record<string, string>> = {
   related: 'List of related documents (paths or URLs)',
   lang: 'Language of the rendered labels (callout titles, "Figure 2", "overdue"…), a BCP 47 tag such as de or pt-BR. Default English',
   typography: 'Spec v2: true turns on typographic quotes, dashes and ellipses (v1 always has them)',
+  views: 'Named task views for agents: each selects sections or a query and lists mandatory and optional block ids (smd agent --view name)',
 };
 
 export const STATUS_VALUES: readonly string[] = ['draft', 'review', 'approved', 'deprecated', 'archived'];
@@ -274,6 +388,8 @@ function deepFreeze(value: unknown, seen = new Set<object>()): void {
 // The shared tables, frozen once so no caller (in this package or using it) can change them for everyone else.
 deepFreeze([
   NAMED_COLORS, DECISION_STATUS, RISK_LEVELS, RISK_STATUS, HTTP_METHODS, PRIORITY_VALUES, CALLOUT_TYPES, FIGURE_KINDS, CONTAINERS,
+  REQUIREMENT_STATUS, CONSTRAINT_SCOPES, CONSTRAINT_LEVELS, ASSUMPTION_STATUS, EVIDENCE_RESULTS, EVIDENCE_METHODS, QUESTION_STATUS,
+  COMMENT_KINDS, COMMENT_STATUS, SUGGESTION_STATUS, PROGRESS_BASES, EDGE_KINDS,
   STYLE_KEYS, SIZE_VALUES, WEIGHT_VALUES, FONT_VALUES, ALIGN_VALUES, TEXT_STYLE_VALUES, INLINE_DIRECTIVES, V1_DIRECTIVES, ID_ATTRIBUTES, VARIABLE_SYNTAX,
   FRONTMATTER_KEYS, STATUS_VALUES, AUDIENCE_VALUES, MERMAID_TYPES,
 ]);
