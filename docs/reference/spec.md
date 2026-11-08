@@ -325,7 +325,8 @@ The section-read tests pass.
 - **Defaults.** A requirement without `status` is `proposed`. A constraint is `scope=section` and `level=must`. An assumption is `unvalidated`. Queries, the agent view and rendering all use these defaults. People write the states. No tool moves a requirement to `verified` or an assumption to `validated` by itself.
 - **What an acceptance block verifies.** The ids in its `verifies`, and the requirement it is nested in, which comes first. An acceptance block says how to check a requirement. It is not evidence that the requirement passed.
 - **Constraint scope.** `scope=section` binds the section the constraint is in, and `scope=document` the whole document. `applies-to` names the blocks or headings it binds instead. A section-scoped constraint above the first heading applies to the whole document (`constraint/scope`).
-- **Evidence.** `supports` or `contradicts` names what the record is about, and one of them is needed. `method` is free text, and `test`, `review`, `benchmark`, `manual`, `analysis` and `acceptance` are the known values. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` holds the revision (§3.10) of each supported block when the check ran, as `R1@3f2a9c1b0d4e`, or a bare revision when the record names one block.
+- **Evidence.** `supports` or `contradicts` names what the record is about, and one of them is needed. `method` is free text, and `test`, `review`, `benchmark`, `manual`, `analysis` and `acceptance` are the known values. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` holds the revision (§3.10) of each supported block when the check ran, as `R1@3f2a9c1b0d4e`, or a bare revision when the record names one block. A record is outdated for a block once the block's revision differs from the one recorded (`evidence/stale`). A person rechecks the block and records the new revision, and no tool does it for them. A record without `rev` counts as current. Evidence supports blocks in its own document only.
+- **Verified requirements.** Passing verification evidence is a current record with `result=pass` and a method other than `acceptance`. A requirement that says `status=verified` without it is `requirement/verified`. A checked task and an acceptance criterion are never evidence. `smd trace` lists each requirement's status, coverage, task claims, evidence and acceptance by a person apart ([feature guide](features.md#tracing-requirements-smd-trace)).
 - **Rendering.** `<div class="smd-block smd-requirement smd-requirement-accepted" id="R1">`, then a head (`smd-block-head`) with the kind, the id, pills with text labels (priority, status, level, result) and facts (owner, scope, verifies, test, review-by, depends-on), then the title (`smd-block-title`) and the body (`smd-block-body`). The ids in id attributes are links, rendered as `:ref[id]` renders them (§3.3). An unvalidated assumption past its `review-by` date says "overdue" in words. Colour never carries the meaning alone, and the labels follow `lang` (§2.2). Exports (Confluence, Notion, Word) show each tag as a panel with its facts. The agent view is in §8a and plain Markdown in §8.
 
 **Questions, decisions and dependencies.** The phase 2 attributes link blocks to each other.
@@ -376,7 +377,7 @@ The cache keeps results for 5 minutes, and pricing pages bypass it.
 ```
 
 - **Target.** `for` names the block the item is about by its id, and that block may be a heading, a task or a container. It is needed (`review/for`). A comment or suggestion is never the target of another one.
-- **Block revisions.** `rev` is the target's revision when the item was written. A revision is the first 12 hex digits of the SHA-256 of the block's text. For a container that text is its title and body. For a task it is its text without the list marker, the checkbox and the trailing `{#id}`. For a heading it is its text and its own section body, up to the next heading of any level. Attributes are not part of it, and neither are the `:::comment` and `:::suggestion` blocks nested in it. Lines are compared without trailing white space and outer blank lines, and CRLF reads as LF. So a status change, a ticked box or a new comment never changes a revision.
+- **Block revisions.** `rev` is the target's revision when the item was written. A revision is the first 12 hex digits of the SHA-256 of the block's text. For a container that text is its title and body. For a task it is its text without the list marker, the checkbox and the trailing `{#id}`. For a heading it is its text and its own section body, up to the next heading of any level. Attributes are not part of it, and neither are the `:::comment`, `:::suggestion` and `:::evidence` blocks nested in it, so recording a response or a check never makes an earlier one stale. Nested tasks and acceptance blocks are part of it. Lines are compared without trailing white space and outer blank lines, and CRLF reads as LF. So a status change, a ticked box or a new comment never changes a revision.
 - **Stale items.** An open item whose `rev` differs from its target's revision now is stale (`review/stale`). Tools show it as stale with the revision now, and refuse to accept a stale suggestion until a person rebases it, which records the revision now. An item without `rev` can't be told stale (`review/rev`).
 - **States.** A comment is `open` or `resolved`. A suggestion is `open`, `accepted`, `rejected` or `withdrawn`. Any other value counts as open. A closed state stays in the document, written in place with `by` (who) and `on` (when), and with `reason` for a rejected or withdrawn suggestion. A closed item without `by` and `on` is `review/transition`. An open item is `review/open`, a hint, and an error in a document with `status: approved`.
 - **Kinds.** `kind=remark` (the default) is a remark, `correction` a correction, and `answer` answers the question `for` names (§3.9). An answer is not a review remark. It is never `review/open` or `review/stale`, and the agent view keeps it with its question whatever its status.
@@ -453,6 +454,24 @@ A task item may carry an owner (`@name` or `:mention[…]`), `:priority[…]` an
 ```
 
 **Dependencies.** In a spec v2 document a task may name the blocks it waits for with `:depends[…]` (§3.9). `smd tasks` prints them, and while one isn't done it adds `BLOCKED by` with those ids. `--json` gives `depends` and `blocked`, and `smd query` selects `task[depends=R1]` and `task[blocked=true]`. In a spec v1 document `:depends[…]` is text and a task has no dependencies.
+
+### 4.2.4 Progress with a basis
+
+*Feedback loop RFC, "Progress with a basis".* A progress bar says how its number was found.
+
+```text
+:progress{basis=tasks}              8 of 10 tasks checked
+:progress{value=40 basis=measured}  40% (measured)
+:progress{value=40 basis=estimate}  40% (estimated)
+:progress{value=unknown}            unknown
+```
+
+- **`basis=tasks`** counts the checked tasks in the section of the nearest heading above the bar, its subsections included, or in the whole document when the bar is above the first heading. The bar shows "8 of 10 tasks checked", also as its `aria-valuetext`. A section without tasks gives a bar with no fill and no `aria-valuenow`. A `value` next to `basis=tasks` is ignored (`progress/basis-value`).
+- **`basis=measured`** and **`basis=estimate`** say how a written `value` was found. The bar shows "40% (measured)" or "40% (estimated)".
+- **`value=unknown`** shows "unknown" and no fill.
+- **Labels.** On a bar with a basis, `label=` is the bar's accessible name only. The words the bar adds follow `lang` (§2.2).
+- **Bars without `basis` or `value=unknown`** render as before. A number without a basis is the hint `progress/basis`, in every spec version.
+- **Checked boxes are claims.** A checked task says someone did the work. It doesn't verify a requirement (§3.9), so `smd tasks` says so on stderr after its summary.
 
 **Task ids (3.1).** A task takes an id as a trailing `{#id}` on its first line, after a space, the form headings use (§4.2.2), so the line is still a GitHub task in plain Markdown. Only a list with exactly one `#id` counts, the id written with letters, digits, `_` and `-`. `{#a .b}`, braces right after text (`:badge[x]{#y}`), an escaped `\{#id}` and an id on a later line of the task stay text. Rendering puts the id on the task's list item (`<li id="ship-migration" class="smd-task">`) and leaves it out of the text. The agent view and `smd query` show it as written, `smd tasks` prints it last (`{#ship-migration}`) and gives it as `id` in `--json`, `smd query` selects it with `task[id=ship-migration]`, and `smd to-md` writes it as an anchor, `<a id="ship-migration"></a>`. Spec v1 documents read task ids the same way.
 
@@ -740,6 +759,10 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `assumption/overdue` | info | An `unvalidated` assumption whose `review-by` date has passed |
 | `assumption/invalid` | warning | An accepted requirement (or one implemented or verified) or an accepted decision `depends-on` an `invalid` assumption |
 | `evidence/target` | warning | An `evidence` block with neither `supports` nor `contradicts` |
+| `evidence/stale` | warning | A block an `evidence` record supports changed after the revision its `rev` records, so the record needs a recheck before it counts as current. There is no fix |
+| `requirement/verified` | warning | A requirement says `status=verified` and no current passing evidence supports it (`result=pass`, a method other than `acceptance`, not outdated). A requirement without an id can't have any |
+| `progress/basis` | hint | A `:progress` value without a `basis` that says how it was found. Every spec version |
+| `progress/basis-value` | warning | A `:progress{basis=tasks}` also has a `value`, which is ignored |
 | `evidence/rev` | hint | An `evidence` block without `rev`, so a later change to what it supports can't be detected |
 | `question/unanswered` | warning | A question says `answered` or `incorporated` but no answer exists, so it reads as open (§3.9) |
 | `question/reason` | warning | A question is `withdrawn` without `reason` |
@@ -758,7 +781,7 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 
 The hints `container/colons` and `heading/attrs-text` and the info `include/section-match` (1.10) warn early, in documents without `smd: 2`, about what spec v2 reads differently. In a document with `smd: 2`, `container/colons` is the warning described above instead. They never make a document that passed fail, `--strict` included, and each fix keeps how the document renders today. Since 2.0, in every document, the 1.10 hints `attrs/duplicate` and `container/title-conflict` are errors and the 1.10 info form of `frontmatter/version` is a warning.
 
-Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.smdrc.json` file in the document's folder or a parent folder has `{"rules": {"<code>" | "<category>/*" | "*": "off" | "error" | "warning" | "info" | "hint"}}`. The nearest file applies, the search stops at the repository root, and the most specific key wins. Inside a document, the comments `<!-- smd-disable-next-line [codes] -->`, `<!-- smd-disable-line [codes] -->` and `<!-- smd-disable [codes] -->` … `<!-- smd-enable [codes] -->` silence rules. No codes means every rule. Codes are separated by spaces or commas and may be `category/*`. The categories of the semantic tags, the review blocks and task views are `requirement`, `acceptance`, `constraint`, `assumption`, `evidence`, `question`, `decision`, `depends`, `review` and `views`. None of their codes is an error, apart from `review/open` in a document with `status: approved`.
+Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.smdrc.json` file in the document's folder or a parent folder has `{"rules": {"<code>" | "<category>/*" | "*": "off" | "error" | "warning" | "info" | "hint"}}`. The nearest file applies, the search stops at the repository root, and the most specific key wins. Inside a document, the comments `<!-- smd-disable-next-line [codes] -->`, `<!-- smd-disable-line [codes] -->` and `<!-- smd-disable [codes] -->` … `<!-- smd-enable [codes] -->` silence rules. No codes means every rule. Codes are separated by spaces or commas and may be `category/*`. The categories of the semantic tags, the review blocks and task views are `requirement`, `acceptance`, `constraint`, `assumption`, `evidence`, `question`, `decision`, `depends`, `review`, `views` and `progress`. None of their codes is an error, apart from `review/open` in a document with `status: approved`.
 
 ---
 
@@ -799,6 +822,7 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 | `:badge[x]` | `` `x` `` |
 | `:status[x]{color=green}` | `🟢 x` |
 | `:progress{value=60}` | `▰▰▰▰▰▰▱▱▱▱ 60%` |
+| `:progress{basis=tasks}`, `{value=40 basis=estimate}`, `{value=unknown}` | `▰▰▰▰▰▰▰▰▱▱ 8 of 10 tasks checked`, `▰▰▰▰▱▱▱▱▱▱ 40% (estimated)`, `progress unknown` |
 | `:kbd[Ctrl+S]` | `<kbd>Ctrl</kbd>+<kbd>S</kbd>` |
 | `:depends[R1,Q1]` (spec v2) | `(depends on R1, Q1)` |
 | `==x==` | `**x**` |
@@ -824,6 +848,8 @@ The *agent view* is a canonical, lossless-in-meaning rendering for LLMs (`smd ag
 | Open `comment` / `suggestion` (§3.10) | `<comment for="R1" author="@maya" kind="remark"> title` … `</comment>`, `<suggestion for="R1" author="@agent"> title` … `</suggestion>`. A stale one adds `stale="true" current-rev="69a84ed3b073"`. An answer (`kind="answer"`) is shown whatever its status |
 | Closed `comment` / `suggestion` | Left out. The view ends with one line that counts them and names the query that lists them: `[2 closed review items (resolved, accepted, rejected or withdrawn) left out: smd query "comment[status=resolved], suggestion[status!=open]" plan.smd lists them]`. `smd query` shows them |
 | `:depends[R1,Q1]` (spec v2) | `(depends on R1, Q1)` |
+| `:progress` with a basis, or `value=unknown` (§4.2.4) | `[progress 80%: 8 of 10 tasks checked]`, `[progress 40% (estimated)]`, `[progress unknown]`. A bar without them is `60%`, as before |
+| Evidence, with `--evidence` | After each requirement and acceptance block shown, `[evidence for R1: E1 supports it · test · pass · by @ci · L18]` and the record in full, from any section (`shown above` when it sits inside the block). An outdated record is marked `OUTDATED`, and a requirement with none gets `[evidence: none for R1]`. Without `--evidence` the view is unchanged |
 | `api` | `API POST /v1/x — title (auth: …)` |
 | `risk-matrix` | `[risk matrix: title — impact × likelihood …; each is a <risk> block]` pointer (the risks themselves are already `<risk>` tags) |
 | Tabs / cards | `Tab "name":` / `Title:` label lines; other layout containers vanish |
@@ -859,7 +885,7 @@ views:
     description: Implement R1
 ```
 
-- **Keys.** `sections` is a list of headings. `query` is one selector. `mandatory` and `optional` are lists of block ids. `budget` is a whole number of tokens, written as a number or a string of digits. `evidence` is `pointers` or `full`. `description` is text. Every key is optional. A key or value of another kind is a warning (`views/key`, `views/section`, `views/query`, `views/value`), and an id in `mandatory` or `optional` must name one block (`ref/unknown`, `ref/ambiguous`).
+- **Keys.** `sections` is a list of headings. `query` is one selector. `mandatory` and `optional` are lists of block ids. `budget` is a whole number of tokens, written as a number or a string of digits. `evidence` is `pointers` (the default) or `full`, which shows evidence as `--evidence` does (§8a). `description` is text. Every key is optional. A key or value of another kind is a warning (`views/key`, `views/section`, `views/query`, `views/value`), and an id in `mandatory` or `optional` must name one block (`ref/unknown`, `ref/ambiguous`).
 - **The view.** `smd agent <file> --view <name>` (and `smd read --view`) builds an agent view (§8a) with the header, the document's agent instructions and dangers, the view's sections, and the blocks its query matches and its mandatory blocks, in document order under their headings. The header's excerpt line names the view, `(task view "implement-r1" — sections: Requirements; mandatory: C1)`.
 - **Mandatory blocks** are shown in full with what they need in turn, followed along `include`, `depends-on` and `applies-to` edges as `smd query --follow` follows them, up to 5 hops and 50 blocks. A dependency in another file comes under "Dependencies in other files (mandatory, in full)". Mandatory content is never left out for a budget and never condensed by `--brief`.
 - **Optional blocks** come at the end under "Optional context (pointers, not read)", one line each with its kind, line, section and token cost, and the `smd query` call that reads it.
