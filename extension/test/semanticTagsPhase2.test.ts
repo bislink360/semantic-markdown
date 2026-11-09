@@ -53,20 +53,22 @@ test('R40: an unvalidated assumption is key content under a budget; a validated 
 
 // --- Evidence ------------------------------------------------------------------------------------------------------
 
-test('R41: evidence linked to nothing is info evidence/unlinked; an empty supports= is evidence/target; evidence/rev hints without rev', () => {
+test('R41: evidence linked to nothing, or with an empty supports=, is info evidence/unlinked; evidence/rev hints without rev', () => {
   const unlinked = found(v2(':::evidence{#E1 method=test result=pass} Run\n:::'), 'evidence/unlinked');
   assert.equal(unlinked.length, 1);
   assert.equal(unlinked[0].severity, 'info');
-  assert.deepEqual(found(v2(':::evidence{#E1 method=test result=pass} Run\n:::'), 'evidence/target'), [], 'evidence/unlinked replaces the warning');
-  const empty = found(v2(':::evidence{#E1 supports="" result=pass} Run\n:::'), 'evidence/target');
-  assert.equal(empty.length, 1);
-  assert.equal(empty[0].severity, 'warning');
-  assert.equal(v2(':::evidence{#E1 supports="" result=pass} Run\n:::').split('\n')[empty[0].line].slice(empty[0].column, empty[0].endColumn), 'supports=""');
-  assert.deepEqual(found(v2(':::evidence{#E1 supports="" result=pass} Run\n:::'), 'evidence/unlinked'), []);
+  for (const key of ['supports', 'contradicts']) {
+    const text = v2(`:::evidence{#E1 ${key}="" result=pass} Run\n:::`);
+    const empty = found(text, 'evidence/unlinked');
+    assert.equal(empty.length, 1, key);
+    assert.equal(empty[0].severity, 'info');
+    assert.equal(text.split('\n')[empty[0].line].slice(empty[0].column, empty[0].endColumn), `${key}=""`);
+    assert.ok(validateSmd(text).every((d) => d.severity !== 'warning' && d.severity !== 'error'), `no warning for an empty ${key}=`);
+  }
   // An id that names no block is ref/unknown, not evidence/unlinked.
   const unknown = v2(':::evidence{#E1 supports=R9 rev=R9@3f2a9c1b0d4e} Run\n:::');
   assert.equal(found(unknown, 'ref/unknown').length, 1);
-  assert.deepEqual([...found(unknown, 'evidence/unlinked'), ...found(unknown, 'evidence/target')], []);
+  assert.deepEqual(found(unknown, 'evidence/unlinked'), []);
   assert.deepEqual(found(v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 contradicts=R1 rev=R1@3f2a9c1b0d4e} Run\n:::'), 'evidence/unlinked'), []);
   const noRev = found(v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 result=pass} Run\n:::'), 'evidence/rev');
   assert.equal(noRev.length, 1);

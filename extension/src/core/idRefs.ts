@@ -113,6 +113,7 @@ function attributes(text: string, lines: string[], spec: SpecVersion): IdUse[] {
   const uses: IdUse[] = [];
   for (const block of tagBlocks(text)) {
     const keys = Object.entries(ID_ATTRIBUTES).filter(([key, names]) => names.includes(block.name) && block.values[key] !== undefined).map(([key]) => key);
+    if (block.name === 'evidence' && block.values.rev !== undefined) keys.push('rev');
     if (!keys.length) continue;
     const raw = lines[block.line] ?? '';
     const open = CONTAINER_OPEN.exec(raw);
@@ -129,8 +130,25 @@ function attributes(text: string, lines: string[], spec: SpecVersion): IdUse[] {
       let from = eq + 1;
       while (/\s/.test(m[0][from] ?? '')) from++;
       if (m[6] === undefined) from++; // past the opening quote
-      uses.push(...listUses(value, restStart + 1 + pos + from, block.line, 'attribute', m[3]));
+      const offset = restStart + 1 + pos + from;
+      uses.push(...(m[3] === 'rev' ? revUses(value, offset, block.line) : listUses(value, offset, block.line, 'attribute', m[3])));
     }
+  }
+  return uses;
+}
+
+/** The ids of an evidence record's `rev=R1@3f2a…,R2@…`: the part before each `@`. A bare hash names no id. */
+function revUses(value: string, offset: number, line: number): IdUse[] {
+  const uses: IdUse[] = [];
+  let at = 0;
+  for (const part of value.split(',')) {
+    const written = part.trim();
+    const hash = written.lastIndexOf('@');
+    if (hash > 0) {
+      const start = offset + at + (part.length - part.trimStart().length);
+      uses.push(...listUses(written.slice(0, hash), start, line, 'attribute', 'rev'));
+    }
+    at += part.length + 1;
   }
   return uses;
 }
@@ -205,7 +223,7 @@ export function useTarget(from: string, use: IdUse, resolve: ResolveDocument): I
 export function idReferences(documents: readonly IdDocument[], target: IdTargetRef, resolve: ResolveDocument, declaration = false): WorkspaceIdUse[] {
   const found: WorkspaceIdUse[] = [];
   for (const doc of documents) {
-    if (!doc.text.includes(target.id)) continue;
+    if (!doc.text.includes(target.id) && !doc.text.includes('%')) continue; // a link may percent-encode the whole id
     for (const use of idUses(doc.text)) {
       if (use.id !== target.id) continue;
       if (use.kind === 'definition') {

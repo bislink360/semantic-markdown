@@ -97,7 +97,7 @@ Reading (token-efficient, for agents):
   smd tasks <files|dirs...> [--all] [--mine @name] [--order priority|deps] [--json | --csv | --gantt [--smd] [--title "…"]]
             [-o <file>]
       Open tasks across documents with owner, priority and due date (overdue first).
-      --order   deps lists each task after the tasks its :depends[…] names (in the same file), else in the
+      --order   deps lists each task after the tasks its :depends[…] names (T1, or plan.smd#T1 in a listed file), else the
                 default priority order; tasks in a dependency cycle keep their order
       --csv     CSV for spreadsheets (1-based lines, owners joined with ";", formula-like cells prefixed with ')
       --gantt   Mermaid gantt chart: a section per document, a milestone per task with a due date

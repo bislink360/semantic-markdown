@@ -1,6 +1,6 @@
 import type { TaskInfo } from './meta';
 import { SMD_VERSION } from './spec';
-import { orderByPrerequisites, taskPrerequisites } from './taskOrder';
+import { acyclicPrerequisites, orderByPrerequisites } from './taskOrder';
 
 /**
  * Task export: CSV for spreadsheets and a Mermaid Gantt chart of tasks with due dates, from the
@@ -47,9 +47,9 @@ export interface GanttOptions {
  * valid YYYY-MM-DD due date (by date, then line), named by its text and owners. Done tasks are
  * marked `done`, overdue ones `crit`. Tasks without a due date are left out (see `ganttDate`).
  *
- * A task whose `:depends[…]` names charted tasks of its file comes after them (semantic tags R49). When they are all
+ * A task whose `:depends[…]` names charted tasks, of its file or another, comes after them (semantic tags R49). When they are all
  * due no later than it, it is a bar that starts `after` them and ends on its own due date, so the chart shows what it
- * waits for. A chart without such dependencies is the same as before.
+ * waits for. Tasks of a dependency cycle draw no "after" between them. A chart without such dependencies is the same as before.
  */
 export function tasksToGantt(rows: TaskExportRow[], options: GanttOptions = {}): string {
   const out = ['gantt', `  title ${ganttText(options.title?.trim() || 'Tasks')}`, '  dateFormat YYYY-MM-DD'];
@@ -72,7 +72,7 @@ const GANTT_WORDS = new Set(['after', 'until', 'active', 'done', 'crit', 'milest
 /** A task's own id when Mermaid can read it in `after` and no other charted task has it, else `task-N`. */
 function ganttLinks(rows: TaskExportRow[]): GanttLinks {
   const before = new Map<TaskExportRow, TaskExportRow[]>();
-  taskPrerequisites(rows).forEach((p, i) => { if (p.length) before.set(rows[i], p.map((j) => rows[j])); });
+  acyclicPrerequisites(rows).forEach((p, i) => { if (p.length) before.set(rows[i], p.map((j) => rows[j])); });
   const position = new Map(rows.map((r, i) => [r, i]));
   const needed = [...new Set([...before.values()].flat())].sort((a, b) => position.get(a)! - position.get(b)!);
   const count = new Map<string, number>();

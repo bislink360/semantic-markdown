@@ -24,7 +24,7 @@ export { getDocumentInfo, extractTasks } from './meta';
 export type { SmdDocumentInfo, TaskInfo, DecisionInfo, RiskInfo } from './meta';
 export { tasksToCsv, tasksToGantt, ganttDocument, ganttDate, TASK_CSV_COLUMNS } from './taskExport';
 export type { TaskExportRow, GanttOptions } from './taskExport';
-export { orderByPrerequisites, taskPrerequisites } from './taskOrder';
+export { acyclicPrerequisites, orderByPrerequisites, taskPrerequisites } from './taskOrder';
 export { markdownToSmd, fillTemplate } from './fromMarkdown';
 export { agentView, outline, estimateTokens, inlineText } from './agentView';
 export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection, PinnedSelection } from './agentView';

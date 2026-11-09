@@ -1300,16 +1300,6 @@
           ],
           "description": "A :::evidence block with neither supports nor contradicts, so it is linked to nothing"
         },
-        "evidence/target": {
-          "enum": [
-            "off",
-            "error",
-            "warning",
-            "info",
-            "hint"
-          ],
-          "description": "A :::evidence block whose supports or contradicts is written but lists no id"
-        },
         "evidence/source": {
           "enum": [
             "off",

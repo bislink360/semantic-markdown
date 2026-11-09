@@ -95,6 +95,18 @@ test('R53: decisionLog names the decisions that supersede each one; others have 
   assert.ok(decisionLog(docs).every((d) => !Object.hasOwn(d, 'supersededBy')), 'documents without supersedes read as before');
 });
 
+test('R19, R53: a decision of another listed document that supersedes old.smd#D1 is named relative to old.smd', () => {
+  const old = ':::decision{#D1 status=superseded} One shared cache\n:::\n';
+  const next = ':::decision{#D7 status=accepted supersedes="../old.smd#D1,D3"} A cache per reader\n:::\n\n:::decision{#D3} Local\n:::\n';
+  const log = decisionLog([{ path: 'docs/old.smd', text: old }, { path: 'docs/adr/new.smd', text: next }]);
+  assert.deepEqual(log.find((d) => d.anchor === 'D1')?.supersededBy, ['adr/new.smd#D7']);
+  assert.deepEqual(log.find((d) => d.anchor === 'D3')?.supersededBy, ['D7']);
+  assert.equal(decisionLine(log.find((d) => d.anchor === 'D1')!), 'docs/old.smd:1  undated     [superseded]  One shared cache  (superseded by adr/new.smd#D7)  — old');
+  // Backslashes in a host's paths name the same file, and a document that isn't listed supersedes nothing.
+  assert.deepEqual(decisionLog([{ path: 'docs\\old.smd', text: old }, { path: 'docs\\adr\\new.smd', text: next }]).find((d) => d.anchor === 'D1')?.supersededBy, ['adr/new.smd#D7']);
+  assert.equal(decisionLog([{ path: 'docs/old.smd', text: old }]).find((d) => d.anchor === 'D1')?.supersededBy, undefined);
+});
+
 test('R53: the text line and the ADR index say "superseded by D7"', () => {
   const log = decisionLog([{ path: 'cache.smd', text: superseding }]);
   assert.equal(decisionLine(log[2]), 'cache.smd:8  2026-09-01  [superseded]  One shared cache  (superseded by D5, D7)  — Cache › Decisions');

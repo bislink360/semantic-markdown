@@ -61,7 +61,9 @@ test('G3, G4: a section read lists the neighbors of its content as pointers, nev
   assert.match(result.text, /^Edges followed from this content \(\*; out; depth 1\):$/m);
   assert.match(result.text, /^ {2}-> link {8}heading {2}Design {2}\[L20\] {2}≈\d+ tokens$/m);
   assert.match(result.text, /^ {2}-> link {8}heading {2}B intro {2}docs\/b\.smd \[L5\] {2}≈\d+ tokens$/m);
-  assert.equal(follow.complete, true);
+  // The view itself reports the include it could not read, so following edges does not make the result complete.
+  assert.equal(result.mandatory?.complete, false);
+  assert.equal(follow.complete, false);
   assert.equal(follow.tokens.pointers, follow.neighbors.reduce((n, p) => n + p.tokens, 0));
   // Edges written in the {agent=skip} section are not followed (S2), even when reading the whole document.
   const whole = readSmd(A, { ...base, mode: 'full', follow: 'link', readDocument: reader }).follow!;
@@ -109,6 +111,40 @@ test('G4, G5: mandatory edges come in full once, and what cannot be satisfied ma
   const req = readSmd(A, { ...base, sections: ['Requirements'], follow: 'applies-to' });
   assert.equal(req.text.match(/Keep requirements testable/g)?.length, 1);
   assert.deepEqual(req.follow!.dependencies, []);
+});
+
+test('R19, G5: a section read and its followed edges agree on a dependency in another file, and complete says what the view says', () => {
+  const spec = ['---', 'smd: 2', 'title: Spec', '---', '## Reqs', '', ':::requirement{#R1 depends-on=base.smd#B1} One', 'Body.', ':::', '',
+    '## Other', '', ':::requirement{#R2 depends-on=MISSING} Two', ':::', ''].join('\n');
+  const open = ['---', 'smd: 2', 'title: Base', '---', '## Shared', '', ':::constraint{#B1} Visible base', 'Show this.', ':::', ''].join('\n');
+  const skip = open.replace('## Shared', '## Hidden {agent=skip}').replace('Visible base', 'Secret base').replace('Show this.', 'Do not show this.');
+  const files = (base: string) => ({ file: 'docs/spec.smd', today: TODAY, readDocument: (p: string): DocumentRead => (p === 'docs/base.smd' ? { text: base } : { status: 'missing' }) });
+
+  // An allowed file: the view carries B1 and says nothing is missing; following adds nothing more.
+  const allowed = readSmd(spec, { ...files(open), sections: ['Reqs'], follow: '*' });
+  assert.equal(allowed.text.match(/Visible base/g)?.length, 1);
+  assert.doesNotMatch(allowed.text, /outside what the host allows|Not satisfied|incomplete/);
+  assert.equal(allowed.mandatory?.complete, true);
+  assert.equal(allowed.follow!.complete, true);
+  // Without follow the view reads it through readFile, inside what the host allows.
+  const viaReadFile = readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'], readFile: (p) => (p === 'base.smd' ? open : undefined) });
+  assert.match(viaReadFile.text, /Visible base/);
+  assert.equal(viaReadFile.mandatory?.complete, true);
+  const denied = readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'] });
+  assert.match(denied.text, /R1 depends on base\.smd#B1 \[L7\]: outside what the host allows/);
+
+  // A block under {agent=skip} in the other file stays out of the view and of what following adds.
+  const hidden = readSmd(spec, { ...files(skip), sections: ['Reqs'], follow: '*' });
+  assert.doesNotMatch(hidden.text, /Secret base|Do not show this/);
+  assert.match(hidden.text, /R1 depends on base\.smd#B1 \[L7\]: the block is for people only/);
+  assert.deepEqual(hidden.follow!.dependencies, []);
+  assert.equal(hidden.follow!.complete, false);
+
+  // A dependency the view reports missing makes the follow result incomplete too, though it is reported once.
+  const missing = readSmd(spec, { ...files(open), sections: ['Other'], follow: '*' });
+  assert.match(missing.text, /R2 depends on MISSING \[L13\]: no block has this id/);
+  assert.deepEqual(missing.follow!.unsatisfied, []);
+  assert.equal(missing.follow!.complete, false);
 });
 
 test('S4: the followed text counts toward the read budget, and an outline follows nothing', () => {

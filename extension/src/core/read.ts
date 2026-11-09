@@ -1,4 +1,5 @@
 import { agentView, estimateTokens, outline, type AgentViewOptions, type AgentViewResult, type ResolvedSection } from './agentView';
+import { peopleOnly } from './applicability';
 import { parseFrontMatter } from './frontmatter';
 import {
   DocumentGraph, edgeTypes, followEdges, mandatoryClosure, MANDATORY_EDGES, nodeKey, normalizePath, resolvePath,
@@ -58,7 +59,7 @@ export interface ReadFollow extends MatchGraph {
   types: string[];
   direction: EdgeDirection | 'both';
   depth: number;
-  /** False when a mandatory dependency is unsatisfied. */
+  /** False when a mandatory dependency is unsatisfied, along the followed edges or in the view itself. */
   complete: boolean;
   /**
    * ≈ tokens of the text following added after the view (`shown`, counted with the tokenizer when one is given), of
@@ -92,13 +93,20 @@ export interface ReadResult {
 }
 
 export function readSmd(text: string, options: ReadOptions = {}): ReadResult {
-  const { mode = 'auto', maxTokens = READ_BUDGET, brief, sections, exactSections, constraints, follow: followSpec, direction, depth, readDocument, documents, ...view } = options;
+  const { mode = 'auto', maxTokens = READ_BUDGET, brief, sections, exactSections, constraints, follow: followSpec, direction, depth, readDocument, documents, ...rest } = options;
+  const view: typeof rest & Pick<AgentViewOptions, 'readDocument'> = { ...rest };
   const tokenBasis = view.tokenizer?.name ?? 'estimate';
   const types = followSpec === undefined ? null : edgeTypes(followSpec);
   const graphOptions = types ? { types, direction: direction ?? 'out', depth: Math.min(3, Math.max(1, Math.trunc(depth ?? 1))), readDocument, documents } : undefined;
+  // With follow, the view reads the files its dependencies name as following does, so the two never disagree on what
+  // can be read. Its paths are relative to the document; following's are normalized from where it was given.
+  if (graphOptions && readDocument) {
+    const here = normalizePath(view.file ?? '<file>');
+    view.readDocument = (relative) => readDocument(resolvePath(here, relative));
+  }
   if (sections?.length) {
     const result = agentView(text, { ...view, brief, sections, exactSections, constraints });
-    const followed = graphOptions && followView(text, result, 'sections', { ...graphOptions, ...view });
+    const followed = graphOptions && followView(text, result, 'sections', { ...view, ...graphOptions });
     return withFollow({
       shown: 'sections', text: result.text, fullTokens: result.tokens, fileTokens: result.originalTokens, missingSections: result.missingSections,
       tokenBasis, ...counted(result), resolvedSections: result.resolvedSections,
@@ -108,7 +116,7 @@ export function readSmd(text: string, options: ReadOptions = {}): ReadResult {
   }
   const full = agentView(text, { ...view, brief });
   const sizes = { fullTokens: full.tokens, fileTokens: full.originalTokens, missingSections: [], tokenBasis, ...counted(full) };
-  const followed = graphOptions && mode !== 'outline' ? followView(text, full, 'full', { ...graphOptions, ...view }) : undefined;
+  const followed = graphOptions && mode !== 'outline' ? followView(text, full, 'full', { ...view, ...graphOptions }) : undefined;
   // Route on the tokenizer's count when there is one, so an exact budget means exact routing.
   const size = (full.counted?.tokens ?? full.tokens) + (followed?.report.tokens.shown ?? 0);
   if (mode === 'full' || (mode === 'auto' && size <= maxTokens)) {
@@ -200,7 +208,17 @@ function followView(text: string, result: AgentViewResult, shown: 'full' | 'sect
     ...sections.filter((s) => s.heading.agent === 'skip' && !chosen.has(s.start)).map((s) => [s.start, s.end] as [number, number]),
     ...blocks.filter((b) => b.type === 'human').map((b) => [b.line, b.endLine] as [number, number]),
   ];
-  const hiddenAt = (file: string, line: number | undefined) => file === path && line !== undefined && within(line, hidden);
+  // Other files keep their own {agent=skip} sections and :::human blocks for people.
+  const hiddenElsewhere = new Map<string, Array<[number, number]>>();
+  const hiddenOf = (file: string) => {
+    if (file === path) return hidden;
+    if (!hiddenElsewhere.has(file)) {
+      const doc = graph.document(file);
+      hiddenElsewhere.set(file, 'text' in doc ? peopleOnly(doc.text) : []);
+    }
+    return hiddenElsewhere.get(file)!;
+  };
+  const hiddenAt = (file: string, line: number | undefined) => line !== undefined && within(line, hiddenOf(file));
   const written = (e: GraphEdge) => hiddenAt(e.from.file, e.line);
   const toHidden = (e: GraphEdge) => e.type !== 'applies-to' && !!e.to && hiddenAt(e.to.file, e.to.line);
 
@@ -267,9 +285,11 @@ function followView(text: string, result: AgentViewResult, shown: 'full' | 'sect
     dependencies: g.dependencies.reduce((n, b) => n + b.tokens, 0),
     pointers: g.neighbors.reduce((n, p) => n + p.tokens, 0),
   };
-  const report: ReadFollow = { ...g, types: input.types, direction: input.direction, depth: input.depth, complete: !unsatisfied.length, tokens };
+  // Complete only when nothing is missing: along the followed edges, or in the view itself, which lists its own.
+  const complete = !unsatisfied.length && !reported.length;
+  const report: ReadFollow = { ...g, types: input.types, direction: input.direction, depth: input.depth, complete, tokens };
 
-  const files = [...new Set(g.dependencies.map((d) => d.node.file).filter((f) => f !== path))].sort();
+  const files = [...new Set(g.dependencies.map((d) => d.node.file).filter((f) => f !== path))].sort((a, b) => (a < b ? -1 : Number(a > b)));
   const from = (e: GraphEdge) => ({ file: e.from.file === path ? display : e.from.file, line: e.line + 1 });
   const manifest: FollowManifest = {
     types: input.types, direction: input.direction, depth: input.depth,

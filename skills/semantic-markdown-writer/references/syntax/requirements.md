@@ -65,7 +65,7 @@ What changes if it is wrong.
 | evidence | `commit`, `date`, `by`, `source` | 7 to 40 hex characters; YYYY-MM-DD; @name; an http(s) URL or a relative path |
 | evidence | `rev` | `id@revision` of what it supports, from `smd rev <file> <id>` |
 
-`method=acceptance` with a person in `by` records that a person accepted the result. `assumption/overdue` (info) says the review date passed, and `assumption/invalid` warns when an accepted requirement or decision `depends-on` an invalid assumption. `evidence/unlinked` (info) says evidence supports or contradicts nothing, `evidence/target` warns when `supports=` or `contradicts=` is written with no id, and `evidence/rev` (hint) asks for `rev`. A `source` that isn't an http(s) URL or a relative path (`javascript:`, `data:`) is left out of every output and reported as `evidence/source`. A `commit` that isn't 7 to 40 hex characters is `evidence/commit`, and no tool checks that the commit exists.
+`method=acceptance` with a person in `by` records that a person accepted the result. `assumption/overdue` (info) says the review date passed, and `assumption/invalid` warns when an accepted requirement or decision `depends-on` an invalid assumption. `evidence/unlinked` (info) says evidence supports or contradicts nothing, including an empty `supports=""`, and `evidence/rev` (hint) asks for `rev`. A `source` that isn't an http(s) URL or a relative path (`javascript:`, `data:`) is left out of every output and reported as `evidence/source`. A `commit` that isn't 7 to 40 hex characters is `evidence/commit`, and no tool checks that the commit exists.
 
 ## Questions, decisions and dependencies
 

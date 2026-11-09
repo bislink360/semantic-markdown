@@ -1,4 +1,4 @@
-import { DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS, type GraphNode, type UnsatisfiedKind } from './graph';
+import { DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS, type DocumentRead, type GraphNode, type UnsatisfiedKind } from './graph';
 import { resolveId } from './ids';
 import { includeLabel, includeProblemText, includeRequest, innerScope, loadInclude, rootScope, type IncludeScope } from './include';
 import { includeSource } from './includeText';
@@ -110,6 +110,8 @@ export interface ScopeInput {
   includeHuman: boolean;
   includes: boolean;
   readFile?: (relativePath: string) => string | undefined;
+  /** Reads a document a dependency names in another file, relative to this one (R19). Without it they are denied. */
+  readDocument?: (relativePath: string) => DocumentRead;
   /** The document's path for line references, `<file>` by default. */
   file: string;
 }
@@ -149,6 +151,15 @@ function addPick(picks: Picks, doc: string, start: number, end: number): void {
 }
 
 const emptyPicks = (): Picks => ({ ranges: new Map(), opens: new Map() });
+
+/** The lines of a document that are for people only: its `{agent=skip}` sections, and its `:::human` blocks unless they are shown. */
+export function peopleOnly(text: string, includeHuman = false): Array<[number, number]> {
+  const lines = text.split(/\r?\n/);
+  const hidden: Array<[number, number]> = sectionsOf(parseSmd(text).headings, lines.length)
+    .filter((s) => s.heading.agent === 'skip').map((s) => [s.start, s.end]);
+  if (!includeHuman) hidden.push(...tagBlocks(text).filter((b) => b.name === 'human').map((b) => [b.line, b.endLine] as [number, number]));
+  return hidden;
+}
 
 /** Whether a block sits in a `:::human` block (unless they are shown), an include's fallback body, or a block shown elsewhere. */
 function parentHides(block: TagBlock, includeHuman: boolean): boolean {
@@ -211,13 +222,24 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
 
   const hasConstraints = constraints.length > 0;
   if (!hasConstraints && !docs.some((d) => /depends-on|:depends\[/i.test(d.text))) return undefined;
-  const graph = new DocumentGraph(docs.map((d) => ({ path: d.path, text: d.text })));
+  // Other files a dependency names are read through the host, relative to the document (the root's folder is '').
+  const graph = new DocumentGraph(docs.map((d) => ({ path: d.path, text: d.text })), { readDocument: input.readDocument });
   // A word in prose or code is not a dependency: only an edge is.
   if (!hasConstraints && !docs.some((d) => graph.edgesOf(d.path).some((e) => e.type === 'depends-on'))) return undefined;
 
   const fileName = (doc: string) => (doc === ROOT_DOC || doc === GRAPH_ROOT ? input.file : doc);
   const docOf = (path: string) => (path === GRAPH_ROOT ? ROOT_DOC : path);
-  const hiddenIn = (path: string) => docs.find((d) => d.path === path)?.hidden ?? [];
+  const readHidden = new Map<string, Array<[number, number]>>();
+  const hiddenIn = (path: string): Array<[number, number]> => {
+    const known = docs.find((d) => d.path === path);
+    if (known) return known.hidden;
+    // A document read for a dependency: its {agent=skip} sections and :::human blocks are for people.
+    if (!readHidden.has(path)) {
+      const read = graph.document(path);
+      readHidden.set(path, 'text' in read ? peopleOnly(read.text, input.includeHuman) : []);
+    }
+    return readHidden.get(path)!;
+  };
 
   /** Whether the view's body shows line `line` of a document (the root's key or an included path). */
   const shownAt = (doc: string, line: number): boolean => {

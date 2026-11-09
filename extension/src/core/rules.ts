@@ -72,7 +72,6 @@ export const RULE_CODES: Record<string, string> = {
   'assumption/invalid': 'An accepted requirement or decision `depends-on` an invalid assumption',
   'non-goals/list': 'A `:::non-goals` block with no list item, so an exclusion can read as a goal',
   'evidence/unlinked': 'A `:::evidence` block with neither `supports` nor `contradicts`, so it is linked to nothing',
-  'evidence/target': 'A `:::evidence` block whose `supports` or `contradicts` is written but lists no id',
   'evidence/source': 'A `:::evidence` `source` is not an http(s) or relative URL; it is left out',
   'evidence/commit': 'A `:::evidence` `commit` is not 7 to 40 hex characters',
   'evidence/rev': 'A `:::evidence` block without `rev`, so a later change to what it supports can\'t be detected',

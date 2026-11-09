@@ -202,6 +202,30 @@ test('R18: an id two blocks give is renamed only at the {#id} under the cursor, 
   assert.equal(apply(docs, result.edits)['a.smd'], text.replace(':::note{#x}', ':::note{#y}'));
 });
 
+test('R18: a rename updates the ids of an evidence rev= list, and leaves a bare hash alone', () => {
+  const text = v2(
+    ':::requirement{#R1} One', ':::', '', ':::requirement{#R2} Two', ':::', '',
+    ':::evidence{supports=R1,R2 rev=R1@3f2a9c1b0d4e,R2@99ab12cd34ef} Both', ':::', '',
+    ':::evidence{supports=R1 rev=3f2a9c1b0d4e} One',  ':::',
+  );
+  const docs = [{ key: 'a.smd', text }];
+  const result = renameIdEdits(docs, { key: 'a.smd', id: 'R1' }, 'R10', resolve);
+  assert.ok('edits' in result);
+  const out = apply(docs, result.edits)['a.smd'];
+  assert.match(out, /supports=R10,R2 rev=R10@3f2a9c1b0d4e,R2@99ab12cd34ef/);
+  assert.match(out, /supports=R10 rev=3f2a9c1b0d4e/);
+  assert.deepEqual(idUses(text).filter((u) => u.key === 'rev').map((u) => u.id), ['R1', 'R2']);
+});
+
+test('R18: a workspace rename finds a link whose anchor is fully percent-encoded', () => {
+  const spec = v2(':::requirement{#R1} One', ':::');
+  const plan = v2('See [it](spec.smd#%52%31).');
+  const docs = [{ key: 'spec.smd', text: spec }, { key: 'plan.smd', text: plan }];
+  const result = renameIdEdits(docs, { key: 'spec.smd', id: 'R1' }, 'R2', resolve);
+  assert.ok('edits' in result);
+  assert.equal(apply(docs, result.edits)['plan.smd'], plan.replace('%52%31', 'R2'));
+});
+
 test('R18: a heading rename moves the id attributes, :ref and :depends that name its old id (namingUses)', () => {
   const text = v2('## Export', '', ':::constraint{#C1 applies-to=export} Fast', ':::', '', 'See :ref[export] and [it](#export).');
   const uses = namingUses(text, 'export', (p) => p === '');

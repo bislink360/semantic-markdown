@@ -1,6 +1,7 @@
 import { keepsTies, mandatoryPlan, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan } from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
+import type { DocumentRead } from './graph';
 import {
   omissionOrder, omissionPointer, omittableSections, withOmitted, type BudgetResult, type BudgetSection, type Tokenizer,
 } from './budget';
@@ -78,6 +79,12 @@ export interface AgentViewOptions {
   includes?: boolean;
   /** Reads code embeds and includes, relative to the document. */
   readFile?: (relativePath: string) => string | undefined;
+  /**
+   * Reads a document that a dependency names in another file (`depends-on=other.smd#R1`), relative to this one, for
+   * the dependencies the view carries (semantic tags R19). Default: through `readFile`, a file it can't read being
+   * outside what the host allows.
+   */
+  readDocument?: (relativePath: string) => DocumentRead;
   today?: string;
   /**
    * Shrink the view to at most this many tokens: condense it as `brief` does, then omit whole sections
@@ -518,12 +525,18 @@ export function agentView(text: string, viewOptions: AgentViewOptions = {}): Age
   });
 }
 
+/** A document reader from a file reader: a file it can't read is outside what the host allows. */
+const documentReader = (readFile: (relativePath: string) => string | undefined) => (path: string): DocumentRead => {
+  const text = readFile(path);
+  return text === undefined ? { status: 'denied' } : { text };
+};
+
 /** The constraints and dependencies a view must carry (see applicability.ts); undefined for a document with none. */
 function mandatoryOf(text: string, scope: ViewScope, options: AgentViewOptions): MandatoryPlan | undefined {
   return mandatoryPlan({
     text, lines: scope.lines, bodyStart: scope.bodyStart, sections: scope.sections, selected: scope.selected, skipped: scope.skipped,
     inScope: scope.inScope, includeHuman: !!options.includeHuman, includes: options.includes !== false, readFile: options.readFile,
-    file: options.file ?? '<file>',
+    readDocument: options.readDocument ?? (options.readFile && documentReader(options.readFile)), file: options.file ?? '<file>',
   });
 }
 

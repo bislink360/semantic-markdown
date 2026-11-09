@@ -1,10 +1,13 @@
+import { normalizePath, resolvePath } from './graph';
+import { splitIdRef } from './idTarget';
 import type { TaskInfo } from './meta';
 
 /**
- * Task order by declared prerequisites. A task's prerequisites are the tasks its `:depends[…]` names by their `{#id}`,
- * in the same file (ids resolve within a document). An id two tasks of the file give names neither, and ids of other
- * blocks (a requirement, a question) order nothing. Prerequisites that aren't among the rows (a done task left out
- * of `smd tasks`) order nothing either.
+ * Task order by declared prerequisites. A task's prerequisites are the tasks its `:depends[…]` names by their `{#id}`:
+ * `T1` in the same file, or `plan.smd#T1` in the file that path names from the task's own (semantic tags R19). An id
+ * two tasks of a file give names neither, and ids of other blocks (a requirement, a question) order nothing.
+ * Prerequisites that aren't among the rows (a done task left out of `smd tasks`, a file not listed) order nothing
+ * either.
  */
 
 type Row = TaskInfo & { file?: string };
@@ -12,15 +15,31 @@ type Row = TaskInfo & { file?: string };
 /** For each row, the indexes of the rows it depends on, in row order. */
 export function taskPrerequisites(rows: readonly Row[]): number[][] {
   const byId = new Map<string, number | null>();
+  const fileKey = (file: string | undefined) => (file ? normalizePath(file) : '');
   rows.forEach((r, i) => {
     if (!r.id) return;
-    const key = `${r.file ?? ''}\0${r.id}`;
+    const key = `${fileKey(r.file)}\0${r.id}`;
     byId.set(key, byId.has(key) ? null : i); // null: ambiguous
   });
   return rows.map((r, i) => {
-    const found = (r.depends ?? []).map((id) => byId.get(`${r.file ?? ''}\0${id}`));
+    const found = (r.depends ?? []).map((written) => {
+      const { path, id } = splitIdRef(written);
+      if (!path) return byId.get(`${fileKey(r.file)}\0${id}`);
+      return r.file ? byId.get(`${resolvePath(r.file, path)}\0${id}`) : undefined;
+    });
     return [...new Set(found.filter((j): j is number => typeof j === 'number' && j !== i))].sort((a, b) => a - b);
   });
+}
+
+/**
+ * The prerequisites of each row without those inside a dependency cycle, which can't all come first: what a chart
+ * can draw as "after" without going round in a circle.
+ */
+export function acyclicPrerequisites(rows: readonly Row[]): number[][] {
+  const before = taskPrerequisites(rows);
+  const groupOf = new Array<number>(rows.length);
+  cycles(before).forEach((g, n) => { for (const i of g) groupOf[i] = n; });
+  return before.map((p, i) => p.filter((j) => groupOf[j] !== groupOf[i]));
 }
 
 /**

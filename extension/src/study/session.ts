@@ -283,7 +283,7 @@ function scheduleValidation(uri: vscode.Uri): void {
     if (!logger.enabled) return;
     const diagnostics = vscode.languages.getDiagnostics(uri);
     const count = (s: vscode.DiagnosticSeverity) => diagnostics.filter((d) => d.severity === s).length;
-    const codes = [...new Set(diagnostics.map((d) => String(typeof d.code === 'object' ? d.code.value : d.code ?? '')).filter((c) => CODE.test(c)))].sort().slice(0, 50);
+    const codes = [...new Set(diagnostics.map((d) => String(typeof d.code === 'object' ? d.code.value : d.code ?? '')).filter((c) => CODE.test(c)))].sort((a, b) => (a < b ? -1 : Number(a > b))).slice(0, 50);
     const fields = {
       errors: count(vscode.DiagnosticSeverity.Error),
       warnings: count(vscode.DiagnosticSeverity.Warning),

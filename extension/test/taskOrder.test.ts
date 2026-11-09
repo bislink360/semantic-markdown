@@ -5,7 +5,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
-  checkMermaid, extractTasks, ganttDocument, orderByPrerequisites, taskPrerequisites, tasksToGantt, type MermaidParse, type TaskExportRow,
+  acyclicPrerequisites, checkMermaid, extractTasks, ganttDocument, orderByPrerequisites, taskPrerequisites, tasksToGantt, type MermaidParse, type TaskExportRow,
 } from '../src/core';
 import { compareTasks } from '../src/taskGroups';
 
@@ -120,6 +120,39 @@ test('R49: Gantt ids are the task ids when Mermaid can read them, else task-N', 
   const two = tasksToGantt([...rowsOf(GANTT, 'a.smd'), ...rowsOf(GANTT, 'b.smd')]);
   assert.match(two, /section a.smd\n {4}Spec it :done, milestone, task-1, 2026-10-01, 0d\n {4}Undated prerequisite :milestone, 2026-10-05, 0d\n {4}Ship it @maya :task-2, after task-1, 2026-10-10/);
   assert.match(two, /section b.smd\n {4}Spec it :done, milestone, task-3, 2026-10-01, 0d\n {4}Undated prerequisite :milestone, 2026-10-05, 0d\n {4}Ship it @maya :task-4, after task-3, 2026-10-10/);
+});
+
+test('R19: :depends[plan.smd#T1] orders a task after a task of another listed file, resolved from its own folder', () => {
+  const plan = v2('- [ ] Build it {#T1}');
+  const ops = v2('- [ ] Deploy :depends[../plan/plan.smd#T1]\n- [ ] Other');
+  const rows = [...rowsOf(ops, 'docs/ops/ops.smd'), ...rowsOf(plan, 'docs/plan/plan.smd')];
+  assert.deepEqual(taskPrerequisites(rows), [[2], [], []]);
+  assert.deepEqual(titles(orderByPrerequisites(rows)), ['Other', 'Build it', 'Deploy']);
+  // A file that isn't listed, or rows without a file, order nothing.
+  assert.deepEqual(taskPrerequisites(rowsOf(ops, 'docs/ops/ops.smd')), [[], []]);
+  assert.deepEqual(taskPrerequisites([...rowsOf(ops, ''), ...rowsOf(plan, '')]), [[], [], []]);
+  // Backslashes in a host's paths name the same file.
+  assert.deepEqual(taskPrerequisites([...rowsOf(ops, 'docs\\ops\\ops.smd'), ...rowsOf(plan, 'docs\\plan\\plan.smd')]), [[2], [], []]);
+});
+
+test('R19, R49: the Gantt chart starts a task after a dated task of another file', () => {
+  const plan = v2('- [ ] Build it :due[2026-10-01] {#T1}');
+  const ops = v2('- [ ] Deploy :due[2026-10-05] :depends[plan.smd#T1]');
+  const chart = tasksToGantt([...rowsOf(ops, 'ops.smd'), ...rowsOf(plan, 'plan.smd')]);
+  assert.match(chart, /section ops.smd\n {4}Deploy :after T1, 2026-10-05\n {2}section plan.smd\n {4}Build it :milestone, T1, 2026-10-01, 0d/);
+});
+
+test('R49: tasks of a dependency cycle due the same day draw no "after" between them', () => {
+  const text = v2([
+    '- [ ] A :due[2026-10-01] :depends[b] {#a}',
+    '- [ ] B :due[2026-10-01] :depends[a] {#b}',
+    '- [ ] C :due[2026-10-03] :depends[a]',
+  ].join('\n'));
+  assert.deepEqual(acyclicPrerequisites(rowsOf(text)), [[], [], [0]]);
+  const chart = tasksToGantt(rowsOf(text));
+  assert.match(chart, /^ {4}A :milestone, a, 2026-10-01, 0d$/m);
+  assert.match(chart, /^ {4}B :milestone, 2026-10-01, 0d$/m);
+  assert.match(chart, /^ {4}C :after a, 2026-10-03$/m);
 });
 
 const bundle = path.join(__dirname, '..', 'dist', 'mermaid-parse.js');

@@ -795,8 +795,7 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `assumption/overdue` | info | An `unvalidated` assumption whose `review-by` date has passed |
 | `assumption/invalid` | warning | An accepted requirement (or one implemented or verified) or an accepted decision `depends-on` an `invalid` assumption |
 | `non-goals/list` | hint | A `non-goals` block with no list item, so an exclusion can read as a goal (§3.9) |
-| `evidence/unlinked` | info | An `evidence` block with neither `supports` nor `contradicts`, so it supports or contradicts nothing |
-| `evidence/target` | warning | An `evidence` block whose `supports` or `contradicts` is written but lists no id. An id that names no block is `ref/unknown` |
+| `evidence/unlinked` | info | An `evidence` block with neither `supports` nor `contradicts`, or with them written empty (`supports=""`), so it supports or contradicts nothing. An id that names no block is `ref/unknown` |
 | `evidence/source` | warning | An `evidence` `source` that isn't an http(s) or relative URL, the check `quote/cite` makes. It is left out of every output |
 | `evidence/commit` | warning | An `evidence` `commit` that isn't 7 to 40 hex characters. No tool checks that the commit exists |
 | `evidence/stale` | warning | A block an `evidence` record supports changed after the revision its `rev` records, so the record needs a recheck before it counts as current. There is no fix |
