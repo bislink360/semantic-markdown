@@ -47,9 +47,15 @@ export interface ReadOptions
   direction?: EdgeDirection | 'both';
   /** Hops for pointers, 1 to 3 (default 1). Mandatory edges are followed to their closure (up to 5 hops). */
   depth?: number;
-  /** Reads a file the edges name, by its normalized path (see DocumentGraph). Without it other files are denied. */
+  /**
+   * Reads a file the edges or the view's dependencies name, by its normalized path (see DocumentGraph), with or
+   * without `follow`. Without it, following denies other files and the view reads them through `readFile`.
+   */
   readDocument?: (path: string) => DocumentRead;
-  /** Other documents whose edges count, so that `in` finds what points at the content from them. */
+  /**
+   * Other documents whose edges count, so that `in` finds what points at the content from them. The view and
+   * following read a dependency in one of them from here first, with or without `follow`.
+   */
   documents?: readonly GraphDocument[];
 }
 
@@ -98,11 +104,21 @@ export function readSmd(text: string, options: ReadOptions = {}): ReadResult {
   const tokenBasis = view.tokenizer?.name ?? 'estimate';
   const types = followSpec === undefined ? null : edgeTypes(followSpec);
   const graphOptions = types ? { types, direction: direction ?? 'out', depth: Math.min(3, Math.max(1, Math.trunc(depth ?? 1))), readDocument, documents } : undefined;
-  // With follow, the view reads the files its dependencies name as following does, so the two never disagree on what
-  // can be read. Its paths are relative to the document; following's are normalized from where it was given.
-  if (graphOptions && readDocument) {
+  // The view reads the files its dependencies name as following does: from the documents given, then through
+  // readDocument, with or without follow, so the two never disagree on what can be read. What neither has falls back
+  // to readFile as before. The view's paths are relative to the document; these are normalized from where it was given.
+  if (readDocument || documents?.length) {
     const here = normalizePath(view.file ?? '<file>');
-    view.readDocument = (relative) => readDocument(resolvePath(here, relative));
+    const given = new Map((documents ?? []).map((d) => [normalizePath(d.path), d.text]));
+    const readFile = view.readFile;
+    view.readDocument = (relative): DocumentRead => {
+      const path = resolvePath(here, relative);
+      const text = given.get(path);
+      if (text !== undefined) return { text };
+      if (readDocument) return readDocument(path);
+      const read = readFile?.(relative);
+      return read === undefined ? { status: 'denied' } : { text: read };
+    };
   }
   if (sections?.length) {
     const result = agentView(text, { ...view, brief, sections, exactSections, constraints });

@@ -147,6 +147,33 @@ test('R19, G5: a section read and its followed edges agree on a dependency in an
   assert.equal(missing.follow!.complete, false);
 });
 
+test('R19: the view reads a dependency from the documents given and through readDocument, with or without follow', () => {
+  const spec = ['---', 'smd: 2', 'title: Spec', '---', '## Reqs', '', ':::requirement{#R1 depends-on=base.smd#B1} One', 'Body.', ':::', ''].join('\n');
+  const open = ['---', 'smd: 2', 'title: Base', '---', '## Shared', '', ':::constraint{#B1} Visible base', 'Show this.', ':::', ''].join('\n');
+  const documents = [{ path: 'docs/base.smd', text: open }];
+  const carried = (r: ReturnType<typeof readSmd>, what: string) => {
+    assert.equal(r.text.match(/Visible base/g)?.length, 1, `${what}: the view carries B1 once`);
+    assert.doesNotMatch(r.text, /outside what the host allows/, what);
+    assert.equal(r.mandatory?.complete, true, what);
+  };
+
+  // Documents given: the view and following agree, and following repeats nothing.
+  const followed = readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'], follow: '*', documents });
+  carried(followed, 'documents with follow');
+  assert.equal(followed.follow!.complete, true);
+  assert.deepEqual(followed.follow!.dependencies, []);
+  carried(readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'], documents }), 'documents without follow');
+  // A readDocument callback counts without follow too, by the dependency's normalized path.
+  const asked: string[] = [];
+  const readDoc = (p: string): DocumentRead => { asked.push(p); return p === 'docs/base.smd' ? { text: open } : { status: 'missing' }; };
+  carried(readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'], readDocument: readDoc }), 'readDocument without follow');
+  assert.deepEqual([...new Set(asked)], ['docs/base.smd']);
+  // A document given comes first, and what neither has falls back to readFile as before.
+  carried(readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'], documents, readDocument: () => ({ status: 'denied' }) }), 'documents before readDocument');
+  const other = [{ path: 'docs/unrelated.smd', text: '# Other\n' }];
+  carried(readSmd(spec, { file: 'docs/spec.smd', today: TODAY, sections: ['Reqs'], documents: other, readFile: (p) => (p === 'base.smd' ? open : undefined) }), 'readFile fallback');
+});
+
 test('S4: the followed text counts toward the read budget, and an outline follows nothing', () => {
   const full = readSmd(A, { ...base, mode: 'full', follow: '*', readDocument: reader });
   const view = readSmd(A, { ...base, mode: 'full' });
