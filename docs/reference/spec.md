@@ -389,7 +389,7 @@ Added :since[1.6].
 - **Examples.** `kind=do` is a good example and `kind=dont` a bad one. Without `kind` an example is neutral. The agent view writes the kind on the tag, so a bad example is never read as guidance.
 - **Limitations.** A limitation says something does not work, does not hold or has not been checked, such as a known issue or a threat to validity. `affects` names the blocks it limits and is an id attribute (§3.3), with the edge kind `evidence`. A limitation that is not `resolved` is key content for `--max-tokens`.
 - **Deprecated content.** `since` is the version that deprecated it and `use` what to use instead. `smd query "deprecated[since=2.0]"` selects them.
-- **Version labels.** `:since[1.6]` renders `since 1.6` (`smd-since`), in spec v2 only (§4.2). In spec v1 it stays text and `smd migrate --to 2` escapes it.
+- **Version labels.** `:since[1.6]` renders `since 1.6` (`smd-since`), in spec v2 only (§4.2). In spec v1 it stays text and `smd migrate --to 2` escapes it. §11.3 shows this specification's own version notes written with `:::deprecated` and `:since`.
 - **Rendering.** The same panel as the other tags, with the class `smd-non-goals`, `smd-example smd-example-dont`, `smd-limitation smd-limitation-open` or `smd-deprecated`. The outline notes `non-goals`, `limitation` and `deprecated`. `.smd` tools 4.0.0 and earlier show the blocks as boxes with their title, and `:since[1.6]` in a spec v2 document as `1.6` with a `directive/unknown` warning.
 
 ### 3.10 Review comments and suggestions
@@ -1085,7 +1085,7 @@ An included file (§3.4) is read with the version of the document that includes 
 
 ## 11. Deprecated
 
-What is deprecated still works, and is removed in a later major. What 1.10 deprecated is removed in 2.0 (§11.2); nothing in the document syntax is deprecated in 2.0. The CLI's older export command names are (§11.1).
+What is deprecated still works, and is removed in a later major. What 1.10 deprecated is removed in 2.0 (§11.2); nothing in the document syntax is deprecated in 2.0. The CLI's older export command names are (§11.1). §11.3 shows these notes as `:::deprecated` blocks.
 
 ### 11.1 Deprecated tool names
 
@@ -1107,3 +1107,63 @@ Deprecated in 1.10, with a hint (or a note in the message), and removed in Seman
 | `priority` on `:::agent` | 1.10 | No meaning was agreed and no tool read it: it is an unknown attribute, the warning `attrs/unknown`, reported on the attribute. The block renders as before | `smd validate --fix` or `smd migrate --to 2` removes it (with the braces when nothing else is in them) |
 | The `deprecated/agent-priority` diagnostic code | 1.10 | The problem is reported as `attrs/unknown`. A rule setting or suppression comment that names the code (or `deprecated/*`) gets a `rules/unknown` warning that says so, and sets or silences nothing | Name `attrs/unknown` instead (the comment's quick fix does it) |
 | The `figure/kind` diagnostic code | 1.10 | An invalid `kind` on a `figure` is an `attrs/value` error, as on every other container. A rule setting or suppression comment that names `figure/kind` gets a `rules/unknown` warning that says the code was merged into `attrs/value`, and sets or silences nothing | Fix the `kind` (the `attrs/value` quick fix offers the closest value), or name `attrs/value` |
+
+### 11.3 Version notes as tags
+
+A spec v2 document marks what it deprecates with `:::deprecated` and what a version added with `:since` (§3.9), so tools can find them: `smd query "deprecated[since=2.0]"` lists the blocks, and the agent view and plain Markdown keep the version on each. This specification can't do that in its own text. It is a plain `.md` file: GitHub shows the `:::` lines as text, and the website renders it without `smd: 2`, where `:since[1.6]` stays text (§4.2). Its version notes stay prose, and the example below shows them as tags.
+
+The notes that convert are the deprecations (§11.1, §11.2), which become `:::deprecated` blocks, and the notes that say when a feature arrived (since 1.6, since 3.1…), which become `:since` labels. The notes about how older tools read a document (*Tools before 1.10 render…*, *Older renderers (1.5 and earlier)…*) and about a rule's severity in each version (*a hint in 1.10, an error since 2.0*) stay prose: they describe more than one version, and a tag holds one. The prose in the sections above stays the record of each version.
+
+```markdown
+---
+smd: 2
+---
+
+## Deprecated tool names
+
+:::deprecated{since=2.0 use="`smd export <file> --to html`"} `smd render <file>`
+An alias with the same options, output and exit codes, and no warning. It may be removed in 3.0.
+:::
+
+:::deprecated{since=2.0 use="`smd export <file> --to md`"} `smd to-md <file>`
+An alias, as `smd render`. It may be removed in 3.0.
+:::
+
+:::deprecated{since=2.0 use="`smd export <file> --to pdf`"} `smd pdf <file>`
+An alias, as `smd render`. It may be removed in 3.0.
+:::
+
+:::deprecated{since=2.0 use="`smd export <file> --to docx`"} `smd docx <file>`
+An alias, as `smd render`. It may be removed in 3.0.
+:::
+
+## Removed in 2.0
+
+:::deprecated{since=1.10 use="`smd validate --fix` or `smd migrate --to 2`, which remove it"} `priority` on `:::agent`
+Deprecated with a hint, and removed in 2.0: an unknown attribute (`attrs/unknown`).
+:::
+
+:::deprecated{since=1.10 use="`attrs/unknown`"} The `deprecated/agent-priority` diagnostic code
+Removed in 2.0. A rule setting or suppression comment that names it gets `rules/unknown`.
+:::
+
+:::deprecated{since=1.10 use="`attrs/value`"} The `figure/kind` diagnostic code
+Removed in 2.0. A rule setting or suppression comment that names it gets `rules/unknown`.
+:::
+
+## Additions
+
+GitHub-compatible (GFM) footnotes :since[1.6].
+
+Front matter variables, `{{version}}` in the text :since[1.6].
+
+Localized labels with `lang` :since[1.6].
+
+A GitHub alert renders as a callout :since[1.10].
+
+A task takes an id as a trailing `{#id}` :since[3.1].
+
+`:ref[id]` and id attributes point at other blocks :since[3.1].
+```
+
+The example validates with no warning. `smd query "deprecated[since=2.0]"` returns the four aliases and `deprecated[since=1.10]` the three removals. The agent view shows each as `<deprecated since="2.0" use="…"> title` and each label as `(since 1.6)`, and plain Markdown each block as a `> [!WARNING]` that starts with `**Deprecated** · since 2.0 · use …`.
