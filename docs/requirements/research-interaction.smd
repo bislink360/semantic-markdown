@@ -6,7 +6,7 @@ status: draft
 owners: ["@roshanmadhushanka"]
 tags: [requirements, research, human-ai-interaction, attention, retrieval]
 created: 2026-11-06
-updated: 2026-11-07
+updated: 2026-11-08
 toc: true
 related:
   - semantic-tags.smd
@@ -14,6 +14,7 @@ related:
   - ../rfcs/collaboration.smd
   - ../rfcs/research-contract.smd
   - ../rfcs/feedback-loop.smd
+  - ../README.md
 ---
 
 ## Problem
@@ -159,6 +160,8 @@ The [feedback loop RFC](../rfcs/feedback-loop.smd) turns G1 to G3 into one desig
 3. **Complete loop:** an agent raises a meaningful uncertainty, a person responds, the response becomes revision-aware document state, and the agent retrieves it and changes code. Score executable behavior, acceptance criteria and constraints, including delayed answers, rejected suggestions, reopened tasks and changed requirements.
 
 Map these extensions onto the existing Study 1 and Study 2 protocols; write a bounded Study 3 protocol for the full loop. Reconcile question IDs and hypotheses across the research plan before preregistration. A factorial or staged design must isolate visual presentation from semantic encoding and retrieval; changing all three at once supports only an overall-system comparison.
+
+The restored research workspace contains the evidence matrix and research plan in `research/docs/`, with the Study 1 and Study 2 protocols in `research/docs/studies/`. [Research workspace handoff](../README.md#research-workspace)
 
 ## Open decisions
 
