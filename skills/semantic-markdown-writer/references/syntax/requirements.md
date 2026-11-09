@@ -32,7 +32,7 @@ No reader follows a path outside the allowed roots.
 | requirement | `priority` | P0 to P4, or critical · high · medium · low |
 | requirement | `status` | proposed · accepted · implemented · verified · deprecated |
 | requirement | `owner`, `depends-on` | @name; ids |
-| acceptance | `verifies` | requirement ids; nested in a requirement, it verifies that one too |
+| acceptance | `verifies` | requirement ids, or `spec.smd#R1` for one in another document; nested in a requirement, it verifies that one too |
 | acceptance | `test` | relative path to the test file |
 | constraint | `scope` | section · document |
 | constraint | `applies-to` | ids of the blocks or headings it binds |
@@ -42,6 +42,7 @@ No reader follows a path outside the allowed roots.
 - Only people set `status`. Acceptance criteria say how to check a requirement, they are not proof that it passed, so never mark a requirement `verified` because it has them.
 - `requirement/id` and `acceptance/id` warn when the id is missing, and the fix adds the next free one (`R4` after `R3`). `acceptance/verifies` warns when a block verifies nothing, `acceptance/verifies-type` when `verifies` names something that isn't a requirement, and `link/missing-file` when `test` doesn't exist. `requirement/uncovered` (hint) lists accepted requirements no acceptance block verifies.
 - A constraint above the first heading applies to the whole document. Write `scope=document` there (`constraint/scope`).
+- Any id attribute, `:ref` and `:depends` can name a block of another document with its relative path, `verifies=spec.smd#R1`. The validator checks the file and the id as it checks links.
 
 ## Assumption and evidence
 

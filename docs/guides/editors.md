@@ -25,9 +25,11 @@ The VS Code extension is the full experience (live preview, agent view, tasks vi
 | Quick fixes for problems that have one | `textDocument/codeAction` (`quickfix`) | Lightbulb, `smd validate --fix` |
 | Outline: headings as a tree, with decisions, risks and API endpoints in their section | `textDocument/documentSymbol` | Outline view |
 | Symbol search across every `.smd` file in the workspace | `workspace/symbol` | Ctrl+T |
-| Hover: what a block or inline directive is, a preview of a linked section or document, the code a `file="…"` fence embeds | `textDocument/hover` | Hover |
+| Hover: what a block or inline directive is, a preview of a linked section or document, the code a `file="…"` fence embeds, the block an id in `verifies=R1` or `:ref[R1]` names | `textDocument/hover` | Hover |
 | Completion: block names after `:::`, attribute keys and values, front matter keys and values, inline directives, fence languages, Mermaid diagram types, link paths and `#anchors` | `textDocument/completion` | IntelliSense |
-| Go to definition: `#anchor` links, links to other files and their headings, reference links | `textDocument/definition` | F12 |
+| Go to definition: `#anchor` links, links to other files and their headings, reference links, block ids in id attributes, `:ref` and `:depends` (also `spec.smd#R1`) | `textDocument/definition` | F12 |
+| Find references: every link, id attribute, `:ref` and `:depends` that names a heading or a block id, across the workspace | `textDocument/references` | Shift+F12 |
+| Rename a heading or a block id, and every reference to it across the workspace | `textDocument/rename`, `textDocument/prepareRename` | F2 |
 | Format the document | `textDocument/formatting` | Format Document, `smd fmt` |
 | The rendered page, for a client's preview (since 2.2.0; not part of LSP) | `smd/renderHtml`, announced as `capabilities.experimental.smdRenderHtml` | `smd export --to html` |
 
@@ -35,7 +37,7 @@ Validation uses the same rules and config files as `smd validate`: the nearest `
 
 `smd/renderHtml` takes `{ textDocument: { uri }, text?, theme? }` and answers `{ html }`: the standalone page `smd export --to html` writes, from `text` (the client's current text, unsaved edits too) or else the open document, with includes and code embeds read from the document's folder. `theme` (`light` or `dark`) is the page's theme when the front matter names none. The [JetBrains plugin](#jetbrains-ides)'s preview uses it; an editor plugin elsewhere can show the page in a webview.
 
-Not in the server (VS Code only for now): a preview pane of its own (see `smd/renderHtml`), the agent view, refactorings (wrap in a block, convert a blockquote), find references and rename of headings, color swatches, folding and the tasks view.
+Not in the server (VS Code only for now): a preview pane of its own (see `smd/renderHtml`), the agent view, refactorings (wrap in a block, convert a blockquote), color swatches, folding and the tasks view.
 
 Technical details: stdio only (`--stdio`; `--socket`, `--pipe` and `--node-ipc` are refused), full document sync, UTF-16 positions by default (UTF-8 or UTF-32 when the client offers only those), logs on stderr.
 
