@@ -16,6 +16,7 @@ import { readTable } from './core/tableEdit';
 import { normalizeActor } from './core/review';
 import { blockTemplates, type Snippet } from './core/templates';
 import { renderOptions, themePreference } from './preview';
+import { studyBlockEditorMessage, studyRecord } from './study/session';
 import { openLink, revealLine, toggleTask } from './webviewActions';
 import { webviewShell } from './webviewShell';
 import snippets from '../snippets/smd.json';
@@ -257,9 +258,12 @@ class BlockEditorPanel implements vscode.Disposable {
     const message = readEditorMessage(raw);
     if (!message) return;
     switch (message.type) {
-      case 'toggleTask':
+      case 'toggleTask': {
+        const before = this.document.version;
         await toggleTask(this.document, message.line);
+        if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyRecord('task.toggle', { view: 'block-editor', line: message.line, applied: this.document.version !== before }, this.document.uri);
         return;
+      }
       case 'openLink':
         await openLink(this.document, message.href);
         return;
@@ -267,7 +271,8 @@ class BlockEditorPanel implements vscode.Disposable {
         await revealLine(this.document, Math.min(message.line, Math.max(0, this.document.lineCount - 1)));
         return;
       default:
-        await this.session.handle(message);
+        if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) await studyBlockEditorMessage(this.document, this.session, message, snippets as Record<string, Snippet>);
+        else await this.session.handle(message);
     }
   }
 

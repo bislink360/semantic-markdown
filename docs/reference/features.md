@@ -33,9 +33,9 @@ The short version of this guide; each item is described in full in the sections 
 - **[Block Editor (Preview)](#block-editor-preview):** the rendered document, edited one block's source at a time (opt-in through **Open With…**), with **Accept**, **Reject**, **Resolve** and **Rebase** on review blocks
 - **Validation** as you type, with **quick fixes** (`:::warnign` → `:::warning`, `flowchat` → `flowchart`, `blu` → `blue`), and Mermaid syntax errors on the exact line
 - **IntelliSense:** completions for blocks, directives, attributes, allowed values and front matter; paths and `#anchors` in links, `related:` and `file="…"` embeds; hover docs; color picker
-- **Go to definition** for `#anchor` and `other.smd#anchor` links, files and reference links
+- **Go to definition** for `#anchor` and `other.smd#anchor` links, files and reference links, and for block ids in `verifies=`, `depends-on=`, `:ref[…]` and the other id attributes, here and in another document (`spec.smd#R1`)
 - **Format Document** and format on save, with the same rules as `smd fmt`: container fences, attribute lists, table columns and blank lines
-- **Find references** (`Shift+F12`) and **rename** (`F2`) for headings: renaming a heading updates every link to its anchor across the workspace
+- **Find references** (`Shift+F12`) and **rename** (`F2`) for headings and block ids: renaming a heading updates every link to its anchor across the workspace, and renaming a block id (`{#R1}`) updates every id attribute, `:ref`, `:depends` and link that names it
 - **Refactorings** (`Ctrl+.`): wrap a selection in a callout, card, `:::details`, `:::agent` or `:::human`; change a callout's type; convert a `> **Warning:**` or `> [!WARNING]` blockquote into `:::warning`
 - **SMD Tasks view** in the Explorer: open tasks from every `.smd` in the workspace, grouped by owner, due date or document, overdue first, with checkboxes that update the file and an overdue badge
 - **Document status** in the status bar: click it to move a document from `draft` to `review` to `approved` (or `deprecated`, `archived`); only the front matter `status:` (and `updated:`) changes, as one undoable edit
@@ -68,6 +68,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd report <dir> --since <date\|git-ref> [-o status.smd]` | Draft a status report: tasks done and added since, open tasks (overdue and due this week first), decisions since, high-impact risks, linked to their sections |
 | `smd query "<selector>" <paths> [--json]` | Blocks by type and attributes, e.g. `risk[impact>=high]`, and by where they sit: `heading[title=Rollout] task`, `requirement > acceptance`, `risk:not([status=closed])` |
 | `smd query … --follow "*" [--direction in] [--depth 2]` | Also the blocks each match links to, as one-line pointers with their cost, and what it depends on in full (`depends-on`, `applies-to`, `include`) |
+| `smd read <file> --section … --follow "*"` | The same for what a read shows: after the view, the blocks it links to as pointers and what it depends on in full, counted in the budget ([below](#following-references-from-a-read)) |
 | `smd query … --constraints` | Also the documents' `:::agent` blocks and document-wide `:::constraint` blocks. Without it, a line says when a document has some |
 | `smd review <file>` · `smd review accept\|reject\|resolve … <item> --by @me` | Open comments and suggestions with their targets and whether each is stale; each review step is its own command ([below](#review-comments-and-suggestions-smd-review)) |
 | `smd trace <paths> [--uncovered]` | Each requirement with its status, acceptance criteria, task claims, evidence and acceptance by a person, kept apart; `smd agent --evidence` shows the evidence in the view ([below](#tracing-requirements-smd-trace)) |
@@ -387,6 +388,7 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 - **SMD Tasks view** (VS Code Explorer): open tasks from every `.smd` file in the workspace, grouped by owner, due date or document; see [section 13](#13-vs-code-editing-assistance).
 - **Problems panel:** open tasks past their due date show a `task/overdue` notice.
 - **`smd tasks docs/`** lists open tasks across every document, overdue first, then by priority. `--mine @api-team` filters by owner, `--json` gives machine-readable output, `--csv` and `--gantt` export (below).
+- **`--order deps`** lists each task after the tasks its `:depends[…]` names by `{#id}`, in the same file or as `plan.smd#T1` in another listed file, and keeps the priority order otherwise. A task that waits for a requirement or a question doesn't move. Tasks in a dependency cycle keep their order among themselves. The default, `--order priority`, is the order above. It applies to the text, `--json` and `--csv`.
 - **Tasks are what the preview shows with a checkbox.** A task-shaped line in code, in raw HTML or display math, or one that continues a paragraph (`- [ ] x` indented four spaces under a line of text) is text in the preview and on GitHub, so `smd tasks`, `smd meta`, outlines, the Tasks view and `task/overdue` leave it out too.
 
 ```text
@@ -406,6 +408,7 @@ docs/checkout.smd:73  [ ] Build the overflow line (depends on R2; BLOCKED by R2)
 - **`--csv`** for spreadsheets. RFC 4180: a header row, then one record per task with CRLF line endings, UTF-8 without a byte order mark (in Excel, open it with *Data → From Text/CSV*). Columns, always in this order: `file,line,done,text,owners,priority,due,overdue,section`. `line` is 1-based, as `smd tasks` prints it (`--json` and the library use zero-based lines). `done` and `overdue` are `true`/`false`, owners are joined with `;`. Fields with a comma, a quote or a line break are quoted, with quotes doubled.
   - **Formula guard:** a field that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`, so a spreadsheet shows it as text instead of running it as a formula. This includes owners: Excel reads `@maya` as a formula, so the cell is `'@maya;@li`. Use `--json` when a program, not a person, reads the export.
 - **`--gantt`** prints a Mermaid `gantt` chart: `dateFormat YYYY-MM-DD`, one `section` per document, and one milestone per task on its due date, named by its text and owners. Done tasks (with `--all`) are marked `done`, overdue ones `crit`. Tasks without a real `YYYY-MM-DD` due date are left out; stderr says how many. `--title "…"` sets the chart title (default `Tasks`).
+  - **Dependencies:** a task whose `:depends[…]` names charted tasks of its document comes after them in its section. When they are all due no later than it, it becomes a bar that starts `after` them and ends on its own due date, so the chart shows what it waits for. The tasks it waits for get a Mermaid id, their own `{#id}` when Mermaid can read it, else `task-1`, `task-2`… A task due before something it depends on stays a milestone on its date. A chart without such dependencies is unchanged.
 - **`--gantt --smd`** wraps the chart in a small `.smd` document with a `mermaid` fence, so `smd export --to html` or the preview draws it.
 
 ```text
@@ -421,6 +424,13 @@ gantt
   section docs/checkout.smd
     Server-side validation returns all field errors @api-team :crit, milestone, 2026-09-25, 0d
     Idempotent order creation @api-team :milestone, 2026-10-03, 0d
+```
+
+With `- [ ] Write the spec :due[2026-10-01] {#spec}` and `- [ ] Build it :due[2026-10-10] :depends[spec]`:
+
+```text
+    Write the spec :milestone, spec, 2026-10-01, 0d
+    Build it :after spec, 2026-10-10
 ```
 
 Characters Mermaid would misread in a name (`:`, `#`, `;`, `%`) become Mermaid entity codes such as `#58;`, which the chart shows as the character itself. So does the first letter of a name that starts with a Gantt keyword (`title`, `click`, `section`…) or a date.
@@ -542,10 +552,11 @@ The section-read tests pass.
 - **Preview.** Each tag is a panel with its kind, its id, pills that say their value in words as well as in colour, and its facts. Ids in `verifies`, `applies-to`, `supports`, `contradicts` and `depends-on` link to their blocks. An unvalidated assumption past its `review-by` date says "overdue". The exports (HTML, PDF, Word, Confluence, Notion) show the same panels.
 - **People set the states.** A requirement without `status` is `proposed`, and the agent view says so. Acceptance criteria say how to check a requirement. They don't prove that it passed, and no tool marks a requirement `verified` by itself. An acceptance block nested in a requirement verifies it.
 - **Evidence** records a check for or against a block. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` keeps the revision of each block it supports, as `R1@3f2a9c1b0d4e` ([revisions](spec.md#310-review-comments-and-suggestions)).
-- **Constraints for agents.** A constraint with `scope=document`, or one above the first heading, binds the whole document. `applies-to` names the blocks or headings it binds. `smd query --constraints` adds the document-wide ones to a result, and `--follow` brings the `applies-to` constraints of each match ([below](#selecting-by-tree-and-graph-smd-query)). `smd agent --section` and `smd read --section` show the constraints that apply from other sections under "Constraints that apply here", and the blocks the selected content depends on under "Dependencies of the selected content". A dependency that can't be shown makes the view say it is incomplete. `--max-tokens` keeps the sections those need.
+- **Constraints for agents.** A constraint with `scope=document`, or one above the first heading, binds the whole document. `applies-to` names the blocks or headings it binds. `smd query --constraints` adds the document-wide ones to a result, and `--follow` brings the `applies-to` constraints of each match ([below](#selecting-by-tree-and-graph-smd-query)). `smd agent --section` and `smd read --section` show the constraints that apply from other sections under "Constraints that apply here", and the blocks the selected content depends on under "Dependencies of the selected content", including one in another file (`depends-on=other.smd#R1`) that the host may read. A dependency that can't be shown makes the view say it is incomplete: one that is missing, outside what the host may read, or in an `{agent=skip}` section or `:::human` block of its file. `--max-tokens` keeps the sections those need.
 - **Budgets.** `smd agent --max-tokens` keeps a section with an accepted, implemented or verified requirement, or an unvalidated assumption, longer. `--brief` condenses a deprecated requirement to one line, `[requirement R7 (deprecated): Title — omitted, see L12]`.
 - **Catalog.** `smd index` counts the tags each document has under `counts.tags`, as `{"requirement": 3, "constraint": 1}`. Documents without tags have no `tags` key.
-- **Editor.** The outline and workspace symbols list each tag as `R1 — Title` with its state. Typing an id attribute offers the document's ids (requirement ids for `verifies`), and hovering a tag shows its defaults. The snippets are `requirement` (also `req`), `constraint`, `acceptance` (also `given`), `assumption` and `evidence`.
+- **Editor.** The outline and workspace symbols list each tag as `R1 — Title` with its state. Typing an id attribute offers the document's ids (requirement ids for `verifies`), and hovering a tag shows its defaults. Go to definition, hover, find references and rename work on block ids as they do on headings ([§13](#13-vs-code-editing-assistance)). The snippets are `requirement` (also `req`), `constraint`, `acceptance` (also `given`), `assumption` and `evidence`.
+- **Other documents.** An id attribute or `:ref` names a block of another document with its path, `verifies=spec.smd#R1` or `:ref[spec.smd#R1]`, so a test plan can verify the requirements of a separate spec. The path is relative to the document, to a `.smd` or `.md` file. `smd validate` checks it as it checks links: `link/missing-file` when the file does not exist, then `ref/unknown` (`figure/unknown-ref` for `:ref`) when no block there has the id, with a fix to the closest one, and `ref/ambiguous` when two do. The preview links it to that document as written, the agent view shows `spec.smd#R1` and `smd to-md` writes `[spec.smd#R1](spec.smd#R1)`. `smd trace` and `smd query --follow` follow it to the other document when it is among the files given.
 - **Validation.** A requirement or acceptance block without an id warns, and the fix adds the next free id in the document's own pattern (`R4` after `R3`). The other checks are in [§15](#15-validation-and-quick-fixes).
 - **Templates.** `spec` and `prd` write their requirements, acceptance criteria and constraints with these blocks ([§18](#18-templates)).
 - `.smd` tools 4.0.0 and earlier show each tag as a plain box with its title and a `container/unknown` warning.
@@ -605,7 +616,7 @@ No. C2 is a should, so R2's overflow line still applies.
 - **Question lifecycle.** A question with `status`, `owner`, `due`, `between` or `reason` has a state. It is `open`, `answered`, `incorporated` (the answer is in the document now) or `withdrawn` (with a `reason`). It is answered only when an answer exists, which is a `:::comment{kind=answer for=Q1}` anywhere in the document or a `kind=answer` comment nested in the question. `smd review answer` writes one and sets the state ([§17](#review-comments-and-suggestions-smd-review)). Without an answer, a written `answered` still shows and reads as `open`, with a `question/unanswered` warning.
 - The preview shows the state as a pill, with the owner and due date ("overdue" once it passes). `between=C2,R2` shows both blocks as conflicting links, and nothing picks a winner. The agent view writes `<question id="Q1" status="answered" …>` with the answer after it. A question without these attributes reads as before everywhere.
 - `smd query "question[status=open]"` finds the open questions, those without a status included, and `smd query question` still finds every one. Once a document uses the lifecycle, `smd index` counts only its open questions in `counts.questions`.
-- **Superseded decisions.** `supersedes=D1` names the decision D2 replaces. The preview and the agent view add "superseded by D2" to D1 (`superseded-by="D2"`), and `decision/supersedes` warns until D1 says `status=superseded`, with a fix that sets it.
+- **Superseded decisions.** `supersedes=D1` names the decision D2 replaces. The preview and the agent view add "superseded by D2" to D1 (`superseded-by="D2"`), `smd decisions` adds `(superseded by D2)` to its line and to the ADR index, `--json` has `supersededBy: ["D2"]`, and `decision/supersedes` warns until D1 says `status=superseded`, with a fix that sets it.
 - **Dependencies.** `depends-on=` on a requirement, constraint, decision, risk or assumption names what it needs, and `:depends[…]` does the same on a task ([§5](#5-tasks-with-owners-priorities-and-due-dates)). The preview links each id. `smd query --follow depends-on` includes those blocks in full. A chain that comes back to its start is `depends/cycle`, and an accepted decision that depends on a superseded one is `decision/depends-superseded`.
 
 ### Tracing requirements: `smd trace`
@@ -641,7 +652,7 @@ Requirements: 2. Covered by acceptance criteria: 2 of 2. With current passing ev
 - **claims** counts the tasks inside the requirement and the tasks that `:depends` on it, checked of total. They are claims, never evidence.
 - **evidence** counts the verification records that support it, as passing, failing, inconclusive and outdated, with their methods. A record is outdated when the requirement changed after the revision its `rev` holds (`evidence/stale`). A record without `rev` counts as current.
 - **acceptance** is a current `method=acceptance result=pass` record, with the person in its `by`.
-- Evidence supports requirements in its own document only, and the summary says so when several files are traced. The library has `traceRequirements`, `formatTrace`, `traceSummary` and `evidenceRecords`.
+- An acceptance criterion, task or evidence record in another of the files traced counts when it names the requirement with its path, as `verifies=spec.smd#R1`, and is listed with its file (`docs/test-plan.smd TC-01 (verifies)`; `file` in `--json`). An id without a path names a block of its own document, so the summary says so when several files are traced. The library has `traceRequirements`, `formatTrace`, `traceSummary` and `evidenceRecords`.
 - `smd tasks` ends with one more line on stderr, `Checked boxes are implementation claims, not verification: smd trace shows the evidence.`, and its stdout is unchanged.
 
 **Evidence in the agent view.** `smd agent <file> --evidence` (also `smd read`) shows, after each requirement and acceptance criterion in the view, the evidence that supports or contradicts it, in full and from any section.
@@ -754,6 +765,8 @@ docs/checkout.smd:139  2026-09-11  [rejected]  Build our own wallet integration 
 docs/adr-0007-event-bus.smd:44  2026-06-02  [superseded]  Add a retry queue in front of each HTTP consumer  @platform  — ADR-0007: Use a managed event bus for order events › Consequences
 ```
 
+When a later decision of the same document names one in `supersedes=`, its line says so after the title, as in `[superseded]  One shared cache  (superseded by D5, D7)`. A decision of another listed document that names it as `old.smd#D1` is shown by its path from the superseded decision's document, as in `(superseded by adr/new.smd#D7)`. The ADR index adds the same note after the struck-out decision, and `--json` gives the ids as `supersededBy`, a field that is only there when a decision names this one.
+
 - `--status` takes a comma-separated list (`accepted,proposed`) of `proposed`, `accepted`, `rejected`, `superseded`, `deprecated`, or `open` for `proposed`. A decision without a status is `proposed`. `--owner @name` keeps decisions whose `owner` includes that name.
 - `--json` prints one object per decision: `title`, `status`, `date`, `owner`, `path`, `line` and `endLine` (zero-based), `section`, `anchor` (the decision's `{#id}`, else its section's heading id), `document` (the document's title) and `adr`. `adr` is `true` for a document's own decision, as in an ADR: its first decision, when the document is tagged `adr` or the decision comes before any `##` section.
 - `--md` prints an ADR index: front matter and a table of date, status badge, decision, owner and document, with each decision linked to its section (an ADR's own decision to its document) and rejected, superseded and deprecated ones struck through. Links are relative to the `-o` file (to the working directory without `-o`), so the index passes `smd validate` and `smd fmt --check`; `--title` sets its title. Regenerate it instead of editing it.
@@ -828,6 +841,37 @@ docs/spec.smd:33-34  — Requirements  (applies-to from L33)
 - **Other files** are read only inside the files and folders given on the command line. A link to a file outside them is `denied`, and its content, or even whether it exists, stays unknown.
 - **JSON.** With `--follow` or `--constraints`, `--json` prints an object instead of the array. It has `matches` (each with `ancestors`, and with `--follow` its `neighbors`, `dependencies`, `unsatisfied` and `cut`), `constraints`, `edges`, `complete` and `tokens` (`shown`, `pointers`, `dependencies`).
 - **Library.** The npm package exports `queryDocuments`, `DocumentGraph`, `mandatoryClosure`, `followEdges`, `edgeTypes`, `dependencyProblems`, `formatQueryResult` and `queryResultJson`. The MCP `query` tool is unchanged.
+
+#### Following references from a read
+
+`smd read` takes the same `--follow`, `--direction` and `--depth`. It follows the edges of the content it shows, the selected sections or the whole document, and prints what it found after the view.
+
+```bash
+smd read docs/spec.smd --section "Requirements" --follow "*" --direction both
+```
+
+```text
+…the view of the Requirements section…
+
+Edges followed from this content (*; both; depth 1):
+  -> link        heading  Design  [L40]  ≈84 tokens
+  <- link        heading  Rollout  docs/rollout.smd [L5]  ≈60 tokens
+Dependencies along these edges (included in full):
+docs/terms.smd  (include from L31)
+A term means one thing.
+[smd] sections · agent view ≈620 tokens · file ≈1840 tokens
+[smd] followed: 2 neighbor(s) as pointers (≈144 tokens not read). 1 dependency included (≈6 tokens). ≈52 tokens added after the view.
+```
+
+- **Nothing twice.** Edges between parts of the content read are not neighbors. What the view already shows is not repeated: the selected sections, `:::agent` and `:::danger` blocks, "Constraints that apply here", "Dependencies of the selected content" and includes shown in place. A dependency the view already lists under "Not satisfied" is not listed again.
+- **Hidden stays hidden.** Edges written in `{agent=skip}` sections the read doesn't select, or in `:::human` blocks, are not followed, and a dependency inside them is not shown. The same goes for the `{agent=skip}` sections and `:::human` blocks of other files.
+- **Incomplete.** A mandatory dependency that is missing, ambiguous, denied, in a cycle or past the limits gets an "Unsatisfied dependency" line, and the part ends with `[incomplete: N mandatory dependencies are not satisfied along the followed edges]`. stderr says so too. `complete` in the provenance is false when the view itself lists a dependency under "Not satisfied", even though that one isn't listed again.
+- **One reader.** The view reads the files its dependencies name with the same reader as the followed edges, so a dependency in another file is either shown in the view or listed as not satisfied, never both.
+- **Budget.** The followed text counts toward `--max-tokens`: a document whose view fits but whose view and followed edges don't comes back as the outline, and an outline follows nothing. The stderr summary gives the pointers, the dependencies and the tokens added.
+- **Other files** are read only inside the document's folder. With `--direction in` or `both`, the `.smd` files in that folder are searched for edges that point at the content too.
+- **Provenance.** `--provenance` adds a `follow` object to the manifest (the edge types, direction and depth, each pointer, dependency and unsatisfied edge with one-based lines, and the hashes of the files the dependencies came from), maps the added lines in `sourceMap`, and lists unsatisfied edges as `dependency` omissions.
+- **Not with** `--outline` or `--view` (exit code 2). Unknown edge types and bad `--direction` or `--depth` values exit with 2 and the same messages as `smd query`. Without `--follow`, `smd read` prints the view alone, and the MCP `read` tool has no follow option.
+- **Library.** `readSmd(source, { file, sections, follow, direction, depth, readDocument, documents })` is the same read, with `READ_BUDGET` and `READ_MODES`. `readDocument` reads another file by path (other files are denied without it), `documents` adds documents whose edges point in, and `result.follow` holds the neighbors, dependencies, unsatisfied edges and token counts.
 
 ## 7. Developer blocks: APIs, code, embeds
 
@@ -1057,13 +1101,14 @@ An `:::agent` block inside a section marked `{agent=skip}` is omitted with the s
 |---|---|
 | Syntax highlighting | Blocks, attributes, directives, math and front matter |
 | Completions | After `:::` (blocks, with snippets for tabs/columns), `:` (directives), `{` (attributes), `=` (allowed values: colors, statuses, HTTP methods…), front matter keys and values, Mermaid types, front matter names with their values after `{{`. In links (`](…`, `[label]: …`), `related:` entries, `file="…"` embeds and `:::include{file="…"}`: relative files and folders, then after `#` the headings and ids of this or the linked document |
-| Hover | Documentation for blocks and directives; the definition of a glossary term; the value of a `{{variable}}` |
+| Hover | Documentation for blocks and directives; the definition of a glossary term; the value of a `{{variable}}`; on an id in `verifies=R1`, `:ref[R1]` or `:depends[R1]`, the block it names (kind, attributes, title and the first lines of its body), here or in another document |
 | Color picker | Swatches next to `color=`, `bg=`, `border=`, `accent:` |
 | Outline & folding | Headings in the Outline view; fold blocks, code and front matter |
-| Go to definition | `F12` or `Ctrl+Click` on `#anchor`, `other.smd#anchor`, a relative file, a `related:` entry or a `[text][label]` reference jumps to the heading, `{#id}` block, file or definition |
+| Go to definition | `F12` or `Ctrl+Click` on `#anchor`, `other.smd#anchor`, a relative file, a `related:` entry or a `[text][label]` reference jumps to the heading, `{#id}` block, file or definition. On an id in an id attribute (`verifies=R1,R2`, `depends-on=`, `applies-to=`, `supports=`, `supersedes=`, `for=`…), in `:ref[R1]` or in a task's `:depends[R1]`, it jumps to the block with that id, in another document for `spec.smd#R1`. An id two blocks give lists both |
 | Format Document | `Shift+Alt+F` or format on save applies the `smd fmt` rules: container fence colons by nesting level, canonical attribute lists, aligned tables, blank lines around blocks. Layout only; the rendered document never changes |
-| Find references | `Shift+F12` on a heading, or on the `#anchor` of a link, lists the heading and every link to it in the workspace's `.smd` and `.md` files |
-| Rename heading | `F2` on a heading renames it and updates every `#anchor` and `other.smd#anchor` link to it across the workspace, including the numbered anchors of later headings with the same text. Headings with an explicit `{#id}` keep their anchor, so links are left alone. Links by the heading's GitHub id (`#max_tokens`) follow it too |
+| Find references | `Shift+F12` on a heading, or on the `#anchor` of a link, lists the heading and every link, id attribute and `:ref` that names it in the workspace's `.smd` and `.md` files. On a block id, in its `{#R1}` or anywhere it is named, it lists the `{#R1}` and every id attribute, `:ref`, `:depends` and link that names it, in this document and as `spec.smd#R1` in others |
+| Rename heading | `F2` on a heading renames it and updates every `#anchor` and `other.smd#anchor` link to it across the workspace, including the numbered anchors of later headings with the same text, and every id attribute and `:ref` that names its id. Headings with an explicit `{#id}` keep their anchor, so links are left alone. Links by the heading's GitHub id (`#max_tokens`) follow it too |
+| Rename block id | `F2` on a block id, in its `{#R1}` or anywhere it is named, renames it and updates every id attribute (`verifies=R1,R2` becomes `verifies=R7,R2`), `:ref[R1]`, `:depends[R1]`, `#R1` link and `spec.smd#R1` across the workspace. Nothing else in the files changes, and line endings stay. The rename is refused, with the reason, for a name that can't be an id (letters, digits, `-` and `_`), an id the document already has, and a heading's id from its text (rename the heading). When two blocks give the id, only the `{#R1}` under the cursor is renamed, which tells them apart |
 | Refactorings | `Ctrl+.` with a selection wraps it in `:::note`, `:::tip`, `:::warning`, `:::danger`, `:::card`, `:::details`, `:::agent` or `:::human` (a selection that splits a code block or container isn't offered). On a callout's opening line: convert it to another callout type. In a blockquote that starts with `[!NOTE]`-style alerts or a bold label (`**Warning:**`, `**Tip**:`…): convert it to the matching callout |
 | SMD Tasks view | In the Explorer of any workspace with `.smd` files: the open tasks of every `.smd` file. **Group Tasks By…** in the view's title bar switches between owner (Unassigned last), due date (Overdue, Today, This week, Later, No due date) and document, and is remembered per workspace. Inside each group: overdue first, then priority, then due date. Each task shows its priority, due date and owners; hover for its section and file. Click to open it at its line; tick the checkbox to check it off in the file (saved unless it had unsaved changes). The eye button shows completed tasks too; the badge counts overdue tasks. Updates as you type, save, and create or delete files |
 | Document status | The status bar shows the front matter `status` of the active `.smd` file (`Draft`, `Review`, `Approved`, `Deprecated`, `Archived`, each with its icon), **No status** when there is none, and a warning for a value outside the five. Its tooltip says **Semantic Markdown spec v2** for a document with `smd: 2`. Click it, or run **Set Document Status…**, to pick a status: the usual next step (draft → review → approved → deprecated → archived) comes first, the current one is marked, and each says what it means to readers. Only the front matter changes, as one undoable edit that is not saved: the `status:` value is replaced in place (quotes and comments kept), or a `status:` line is added after `summary:` (else `title:`, else at the end); a file without front matter gets `smd: 2` and `status:` (since 2.0; `smd: 1` when spec v2 would show it differently, e.g. it has quotes the typographer curls, so its rules never change). An existing `updated:` is set to today (`smd.status.updateDate`). Front matter that does not parse is left alone |
@@ -1156,13 +1201,15 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | document-wide constraints over 500 tokens together | `constraint/size` (hint) | — |
 | an unvalidated `:::assumption` past `review-by`, or an accepted requirement that `depends-on` an invalid one | `assumption/overdue` (info), `assumption/invalid` | — |
 | `:::non-goals` written as prose, with no list item | `non-goals/list` (hint) | — |
-| `:::evidence` with neither `supports` nor `contradicts`, or without `rev` | `evidence/target`, `evidence/rev` (hint) | — |
+| `:::evidence` with neither `supports` nor `contradicts`, an empty `supports=`, or without `rev` | `evidence/unlinked` (info), `evidence/rev` (hint) | — |
+| `:::evidence{source="javascript:…"}`, or `commit=main` | `evidence/source` (the source is left out of every output), `evidence/commit` | — |
 | `:::evidence{rev=R1@…}` after R1 changed | `evidence/stale` | — (recheck R1, then record its new revision) |
 | `:::requirement{status=verified}` with no current passing evidence | `requirement/verified` | — |
 | `:::question{status=answered}` with no answer, `withdrawn` with no `reason`, open past `due` | `question/unanswered`, `question/reason`, `question/overdue` (info) | — |
 | `supersedes=D1` while D1 isn't `superseded` | `decision/supersedes` | sets `status=superseded` on D1 |
 | an accepted decision that `depends-on` a superseded one, or a `depends-on` chain back to its start | `decision/depends-superseded`, `depends/cycle` | — |
 | `verifies=R9`, `depends-on=R9`, `for=R9` with no such id | `ref/unknown` | → closest id |
+| `verifies=spec.smd#R9` or `:ref[spec.smd#R9]` when `spec.smd` is missing, or has no `R9` | `link/missing-file`, then `ref/unknown` (`figure/unknown-ref` for `:ref`) | → closest id in `spec.smd` |
 | `:::comment` with no `for`, or no `rev`, or whose target changed | `review/for`, `review/rev` (hint), `review/stale` | — |
 | an open comment or suggestion | `review/open` (hint; an error in a document with `status: approved`) | — |
 | `status=resolved` without `by` and `on` | `review/transition` | — |
@@ -1475,7 +1522,7 @@ smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human
                  --no-includes: a pointer per :::include instead of the included text
                  --evidence: the evidence of each requirement shown, in full
 smd agent <file> --view <name> [--inspect] · --views   an author's task view, or the list of them
-smd tasks <files|dirs> [--all] [--mine @name] [--json]
+smd tasks <files|dirs> [--all] [--mine @name] [--order priority|deps] [--json]
 smd tasks <files|dirs> [--all] [--mine @name] --csv [-o tasks.csv]                 spreadsheet export
 smd tasks <files|dirs> [--all] [--mine @name] --gantt [--smd] [--title "…"] [-o <file>]   Mermaid Gantt chart
 smd risks <files|dirs> [--status <list>] [--owner @name] [--all] [--json] [--html] [-o <file>]   risk register
@@ -1662,9 +1709,11 @@ Cursor, VS Code and Claude Desktop settings: [reference/agents.md](agents.md#mcp
 | Quick fixes (the `fix` of each problem that has one) | `textDocument/codeAction` |
 | Outline: headings as a tree, decisions, risks and APIs in their section | `textDocument/documentSymbol` |
 | Symbol search across the workspace's `.smd` files | `workspace/symbol` |
-| Hover: blocks, inline directives, link and embed previews | `textDocument/hover` |
+| Hover: blocks, inline directives, link and embed previews, and the block an id names | `textDocument/hover` |
 | Completion: blocks, attributes, front matter, directives, languages, link paths and anchors | `textDocument/completion` |
-| Go to definition for links and anchors | `textDocument/definition` |
+| Go to definition for links, anchors and block ids (`verifies=R1`, `:ref[spec.smd#R1]`) | `textDocument/definition` |
+| Find references for headings and block ids across the workspace's `.smd` files | `textDocument/references` |
+| Rename a heading or a block id, with every link, id attribute, `:ref` and `:depends` that names it | `textDocument/rename`, `textDocument/prepareRename` |
 | Formatting (as `smd fmt`) | `textDocument/formatting` |
 
 Positions are UTF-16 columns, as LSP specifies (UTF-8 or UTF-32 when the client offers only those). Setups for Neovim, Helix and Zed: [guides/editors.md](../guides/editors.md).
@@ -1924,7 +1973,7 @@ Optional context (pointers, not read):
 | `release-notes` | Highlights (card), Breaking changes (danger, migration steps), Deprecations (warning), Changes (Added/Changed/Fixed), Upgrade, Known issues, Upgrade rules (agent) |
 | `okrs` | Period and overall progress, Objectives with key-result tables (owner, baseline, target, progress, confidence), Initiatives, Risks, Scoring tip, Rules (agent) |
 | `onboarding` | Buddy and manager, Start-here tip, Day 1 setup (tasks, steps, code), Week 1, First 90 days (timeline), Key links, People to meet, Team history (agent-skip), Rules (agent) |
-| `test-plan` | Scope, Strategy (table), Environments (table), Test cases (table), Entry and exit criteria (columns), Risks, Schedule (timeline), Testing rules (agent) |
+| `test-plan` | Scope, Strategy (table), Environments (table), Test cases (acceptance blocks that verify the spec's requirements, `verifies=spec.smd#R1`), Results (table), Entry and exit criteria (columns), Risks, Schedule (timeline), Testing rules (agent). `smd validate` reports `spec.smd` as a missing file until the spec exists beside it |
 | `pr-description` | Links and risk, Summary, Changes, Testing, Risk and rollback (warning), Checklist, Screenshots (agent-skip), Review focus (agent) |
 | `spec` | Problem, Goals and non-goals, User stories, Requirements (`:::requirement` with ids and priorities), Acceptance criteria (`:::acceptance` with `verifies`), Constraints (`:::constraint{scope=document}`), Open questions, Rules for implementers (agent) |
 | `plan` | `related:` the spec; Approach (diagram), Decisions, Risks, Phases (steps), Testing, Open questions, Rules for following the plan (agent) |

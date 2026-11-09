@@ -32,7 +32,7 @@ No reader follows a path outside the allowed roots.
 | requirement | `priority` | P0 to P4, or critical · high · medium · low |
 | requirement | `status` | proposed · accepted · implemented · verified · deprecated |
 | requirement | `owner`, `depends-on` | @name; ids |
-| acceptance | `verifies` | requirement ids; nested in a requirement, it verifies that one too |
+| acceptance | `verifies` | requirement ids, or `spec.smd#R1` for one in another document; nested in a requirement, it verifies that one too |
 | acceptance | `test` | relative path to the test file |
 | constraint | `scope` | section · document |
 | constraint | `applies-to` | ids of the blocks or headings it binds |
@@ -42,6 +42,7 @@ No reader follows a path outside the allowed roots.
 - Only people set `status`. Acceptance criteria say how to check a requirement, they are not proof that it passed, so never mark a requirement `verified` because it has them.
 - `requirement/id` and `acceptance/id` warn when the id is missing, and the fix adds the next free one (`R4` after `R3`). `acceptance/verifies` warns when a block verifies nothing, `acceptance/verifies-type` when `verifies` names something that isn't a requirement, and `link/missing-file` when `test` doesn't exist. `requirement/uncovered` (hint) lists accepted requirements no acceptance block verifies.
 - A constraint above the first heading applies to the whole document. Write `scope=document` there (`constraint/scope`).
+- Any id attribute, `:ref` and `:depends` can name a block of another document with its relative path, `verifies=spec.smd#R1`. The validator checks the file and the id as it checks links.
 
 ## Assumption and evidence
 
@@ -61,10 +62,10 @@ What changes if it is wrong.
 | evidence | `supports`, `contradicts` | ids (one of them is needed) |
 | evidence | `method` | test · review · benchmark · manual · analysis · acceptance, or your own word |
 | evidence | `result` | pass · fail · inconclusive |
-| evidence | `commit`, `date`, `by`, `source` | hash; YYYY-MM-DD; @name; URL |
+| evidence | `commit`, `date`, `by`, `source` | 7 to 40 hex characters; YYYY-MM-DD; @name; an http(s) URL or a relative path |
 | evidence | `rev` | `id@revision` of what it supports, from `smd rev <file> <id>` |
 
-`method=acceptance` with a person in `by` records that a person accepted the result. `assumption/overdue` (info) says the review date passed, and `assumption/invalid` warns when an accepted requirement or decision `depends-on` an invalid assumption. `evidence/target` warns when evidence names nothing, and `evidence/rev` (hint) asks for `rev`.
+`method=acceptance` with a person in `by` records that a person accepted the result. `assumption/overdue` (info) says the review date passed, and `assumption/invalid` warns when an accepted requirement or decision `depends-on` an invalid assumption. `evidence/unlinked` (info) says evidence supports or contradicts nothing, including an empty `supports=""`, and `evidence/rev` (hint) asks for `rev`. A `source` that isn't an http(s) URL or a relative path (`javascript:`, `data:`) is left out of every output and reported as `evidence/source`. A `commit` that isn't 7 to 40 hex characters is `evidence/commit`, and no tool checks that the commit exists.
 
 ## Questions, decisions and dependencies
 
@@ -81,8 +82,8 @@ Both decisions are accepted and disagree.
 
 - A question is `open`, `answered`, `incorporated` or `withdrawn`. It is answered only when a `:::comment{kind=answer for=Q1}` exists in the document or inside the question. Without one, a written `answered` still reads as open and warns `question/unanswered`. A withdrawn question needs `reason` (`question/reason`), and an open question past `due` is `question/overdue`.
 - `between=` names the two blocks that disagree. Both stay shown and nothing picks a winner.
-- `supersedes=` on a decision names the one it replaces. Set the old one to `status=superseded` (`decision/supersedes` has a fix).
-- `depends-on=` works on requirements, constraints, decisions, risks and assumptions. On a task, write `:depends[R1]` (spec v2 only). `smd tasks` shows a task as blocked while a task it depends on is open, a requirement isn't implemented or verified, or a question is open. `smd query "task[depends=R1]"` finds them.
+- `supersedes=` on a decision names the one it replaces. Set the old one to `status=superseded` (`decision/supersedes` has a fix). `smd decisions` then shows "(superseded by D7)" next to the old one.
+- `depends-on=` works on requirements, constraints, decisions, risks and assumptions. On a task, write `:depends[R1]` (spec v2 only). `smd tasks` shows a task as blocked while a task it depends on is open, a requirement isn't implemented or verified, or a question is open. `smd query "task[depends=R1]"` finds them. `smd tasks --order deps` lists each task after the tasks it depends on, and `--gantt` starts a dated task after the dated tasks it depends on.
 
 ## Non-goals, examples, limitations and deprecated content
 

@@ -6,7 +6,7 @@ import { ABLATIONS, ablatedForRead, renderContext, renderDoc, smdRead, type Abla
 import { estimate, loadCorpus, type Corpus, type CorpusDoc } from './corpus';
 import { MD_READ_DESCRIPTION, MD_READ_SCHEMA, mdRead, type MdReadArgs } from './mdTool';
 import { parseAnswer, SYSTEM_PROMPT, toolMessage, wholeTextMessage } from './prompts';
-import { parseAnswers } from './score';
+import { checkMargin, parseAnswers } from './score';
 import type { AnswerRecord, Task } from './types';
 
 /**
@@ -74,6 +74,32 @@ export interface RunConfig {
   retries?: number;
   /** Per request (default 120000). */
   timeoutMs?: number;
+  /** Analysis settings that `score --config` reads. `run` ignores them. */
+  analysis?: AnalysisConfig;
+}
+
+/** Analysis settings for `score`. Nothing is required; no margin is set by default, so no verdict is given. */
+export interface AnalysisConfig {
+  /** Non-inferiority margin for correctness, a share (0.05 is 5 percentage points). The study owner sets it after the pilot. */
+  niMargin?: number;
+  /** Two-sided equivalence margin, a share. */
+  equivalenceMargin?: number;
+  /** The reference condition differences are taken against (default M1). */
+  baseline?: string;
+}
+
+/** Checks the analysis settings of a run config. */
+export function checkAnalysis(analysis: unknown): AnalysisConfig {
+  if (analysis === undefined) return {};
+  if (!analysis || typeof analysis !== 'object' || Array.isArray(analysis)) throw new Error('run config: "analysis" must be an object');
+  const a = analysis as Record<string, unknown>;
+  for (const k of Object.keys(a)) if (!['niMargin', 'equivalenceMargin', 'baseline'].includes(k)) throw new Error(`run config: analysis.${k} is not a setting (niMargin, equivalenceMargin, baseline)`);
+  if (a.baseline !== undefined && (typeof a.baseline !== 'string' || !a.baseline.trim())) throw new Error('run config: analysis.baseline must be a condition id');
+  return {
+    niMargin: checkMargin(a.niMargin, 'run config: analysis.niMargin'),
+    equivalenceMargin: checkMargin(a.equivalenceMargin, 'run config: analysis.equivalenceMargin'),
+    baseline: a.baseline as string | undefined,
+  };
 }
 
 export const DEFAULTS = { runs: 5, seed: 1, maxToolCalls: 8, concurrency: 2, retries: 5, timeoutMs: 120_000, maxOutputTokens: 1024, outputLimitField: 'max_tokens' };
@@ -104,6 +130,7 @@ export function checkConfig(config: RunConfig): RunConfig {
     for (const k of Object.keys(m.extraBody ?? {})) if (RESERVED_BODY.has(k)) throw new Error(`run config: extraBody of ${m.label} may not set "${k}"`);
   }
   for (const c of config.conditions ?? []) checkCondition(c);
+  checkAnalysis(config.analysis);
   return config;
 }
 

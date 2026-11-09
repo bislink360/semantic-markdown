@@ -3,6 +3,7 @@ import type { Options, Renderer, Token } from 'markdown-it';
 import katex from 'katex';
 import { attrsToStyle, escapeHtml, htmlAttrs, resolveColor, type Attrs } from './attrs';
 import { FigureCounter, type FigureNumber } from './figures';
+import { idHref, ownSupersededId, splitIdRef } from './idTarget';
 import { unknownContainerTitle } from './containers';
 import { asStringList } from './frontmatter';
 import { langFromPath, parseFenceInfo, sliceLines, type FenceInfo } from './fence';
@@ -309,7 +310,8 @@ interface TokenTags {
   /** Question ids with an answer, and the question tokens an answer sits in. */
   answered: Set<string>;
   answeredTokens: Set<Token>;
-  supersededBy: Map<string, string[]>;
+  /** Each decision's `supersedes` values as written, in document order, with the decision's id. */
+  supersedes: Array<{ written: string; by: string }>;
 }
 
 const tokenTags = new WeakMap<Token[], TokenTags>();
@@ -325,7 +327,7 @@ function tagsOf(part: Token[]): TokenTags {
   const tokens = documentTokens.get(part) ?? part;
   let tags = tokenTags.get(tokens);
   if (tags) return tags;
-  tags = { parent: new Map(), answered: new Set(), answeredTokens: new Set(), supersededBy: new Map() };
+  tags = { parent: new Map(), answered: new Set(), answeredTokens: new Set(), supersedes: [] };
   const stack: Token[] = [];
   for (const t of tokens) {
     if (t.type === 'container_smd_close') { stack.pop(); continue; }
@@ -338,7 +340,7 @@ function tagsOf(part: Token[]): TokenTags {
       for (const open of stack) if ((open.meta as ContainerMeta).name === 'question') tags.answeredTokens.add(open);
     }
     if (meta.name === 'decision' && meta.attrs.id) {
-      for (const id of idList(v.supersedes ?? '')) tags.supersededBy.set(id, [...(tags.supersededBy.get(id) ?? []), meta.attrs.id]);
+      for (const written of idList(v.supersedes ?? '')) tags.supersedes.push({ written, by: meta.attrs.id });
     }
     stack.push(t);
   }
@@ -446,7 +448,8 @@ function evidenceOpen(c: ContainerView): string {
     values.commit ? `<code>${escapeHtml(values.commit)}</code>` : '',
     values.date ? escapeHtml(values.date) : '',
     values.by ? escapeHtml(values.by) : '',
-    values.source ? (source ? `<a href="${escapeHtml(source)}">${escapeHtml(values.source)}</a>` : escapeHtml(values.source)) : '',
+    // A source the URL check refuses (javascript:, data:…) is left out, as a quote's cite is (R42, evidence/source).
+    source ? `<a href="${escapeHtml(source)}">${escapeHtml(values.source)}</a>` : '',
   ];
   return tagOpen(c, c.m['evidence.label'], [result ? pill('result', result, term(c.m, 'evidenceResult', result)) : ''], facts,
     result ? [`smd-evidence-${result.replace(/[^a-z0-9-]/g, '')}`] : []);
@@ -486,7 +489,7 @@ function deprecatedOpen(c: ContainerView): string {
 /** A decision's links to others: what it supersedes, what supersedes it, what it depends on. Empty without any. */
 function decisionLinks(c: ContainerView): string[] {
   const { values, id } = c.attrs;
-  const by = supersedersOf(c.tokens, id);
+  const by = supersedersOf(c.tokens, id, c.ctx.options(c.env).file);
   return [
     values.supersedes ? htmlLabel(c.m, 'tag.supersedes', { ids: idLinks(c, values.supersedes) }) : '',
     by ? htmlLabel(c.m, 'tag.supersededBy', { ids: idLinks(c, by) }) : '',
@@ -511,9 +514,14 @@ export function questionStateOf(tokens: Token[], idx: number): string | undefine
   return written || (answer ? 'answered' : 'open');
 }
 
-/** The ids of the decisions in `tokens` that supersede the decision with this id. */
-export function supersedersOf(tokens: Token[], id: string | undefined): string[] | undefined {
-  return id ? tagsOf(tokens).supersededBy.get(id) : undefined;
+/**
+ * The ids of the decisions in `tokens` that supersede the decision with this id, in document order. With `file`, the
+ * document's path, `supersedes=this.smd#D1` counts like `supersedes=D1`.
+ */
+export function supersedersOf(tokens: Token[], id: string | undefined, file?: string): string[] | undefined {
+  if (!id) return undefined;
+  const by = tagsOf(tokens).supersedes.filter((s) => ownSupersededId(s.written, file) === id).map((s) => s.by);
+  return by.length ? by : undefined;
 }
 
 /** The id of the requirement the container opened at `idx` sits in. */
@@ -648,11 +656,14 @@ function quoteCaption(c: ContainerView, href: string | undefined): string {
 /**
  * `:ref[id]`: the number of the figure with that id, linked to it. Any other block with the id (semantic tags RFC,
  * D4) shows the id as written, linked, with the block's title as its tooltip and accessible name; an id two blocks
- * give links to neither (R17). An unknown id is shown as written.
+ * give links to neither (R17). An id in another document (`other.smd#R1`, R19) is shown as written, linked to that
+ * document. An unknown id is shown as written.
  */
 export function renderRef(id: string, figure: FigureNumber | undefined, m: Messages = EN, block?: { count: number; title?: string }): string {
   const safe = escapeHtml(id);
   if (figure) return `<a class="smd-ref" href="#${safe}">${figureLabel(figure, m)}</a>`;
+  const other = block ? undefined : splitIdRef(id);
+  if (other?.path) return `<a class="smd-ref smd-ref-document" href="${escapeHtml(idHref(other))}">${safe}</a>`;
   if (block && block.count > 1) return `<span class="smd-ref smd-ref-ambiguous" title="${escapeHtml(m['ref.ambiguous'])}">${safe}</span>`;
   if (block) {
     const title = block.title ? ` title="${escapeHtml(block.title)}" aria-label="${escapeHtml(`${id}, ${block.title}`)}"` : '';

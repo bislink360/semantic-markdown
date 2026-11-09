@@ -1,0 +1,4 @@
+{
+  "maxRetries": 5,
+  "retryStatuses": ["4xx", "5xx"]
+}

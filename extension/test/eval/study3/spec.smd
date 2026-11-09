@@ -1,0 +1,24 @@
+---
+smd: 2
+title: Webhook retries
+summary: The Study 3 loop fixture's starting document. It tests the tooling and is not study data.
+---
+
+# Webhook retries
+
+## Requirements
+
+:::requirement{#R1 status=accepted} Retry failed deliveries
+A failed webhook delivery is retried up to 5 times.
+:::
+
+:::acceptance{#AC1 verifies=R1} Retries stop at the limit
+Given an endpoint that always answers 500, delivery is attempted 6 times in all.
+:::
+
+## Tasks
+
+- [x] Implement the retry loop :depends[R1] {#T1}
+- [x] Read the retry policy from retry.json {#T2}
+
+## Evidence

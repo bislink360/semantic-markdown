@@ -30,6 +30,8 @@ const ICONS: Record<OmissionKind, string> = {
 };
 
 export interface OmissionItem {
+  /** The omission's kind, as the provenance manifest names it. */
+  kind: OmissionKind;
   /** `$(person) :::human block`, with the section heading when there is one. */
   label: string;
   /** `L12–L20`, and the file when it isn't the document. */
@@ -58,7 +60,7 @@ function item(o: Omission, document: string): OmissionItem {
     label: `$(${ICONS[o.kind]}) ${LABELS[o.kind]}${o.heading ? `: ${o.heading}` : ''}`,
     description: [own ? lines : `${o.file} ${lines}`, extra].filter(Boolean).join(' · '),
     detail: `${capitalize(o.reason)}.${o.retrieve ? ` Shown by: ${o.retrieve}` : ''}`,
-    file: o.file, start: a - 1, end: b - 1, own,
+    kind: o.kind, file: o.file, start: a - 1, end: b - 1, own,
   };
 }
 

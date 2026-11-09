@@ -15,6 +15,9 @@ import {
 } from './core/links';
 import { encodeAnchor, headingAt, linksToAnchor, renameHeading } from './core/anchors';
 import { anchorNames, anchorOrAliasLine, headingAlias } from './core/headingAliases';
+import {
+  idDefinitionLines, idHover, idReferences, idUseAt, idUses, namingUses, renameIdEdits, useTarget, type IdDocument, type IdUse,
+} from './core/idRefs';
 import { blockquoteToCallout, containerAt, isCallout, wrapLines, type LineEdit } from './core/refactors';
 import { footnoteAt, footnoteLabelPrefix, footnoteLabels, footnoteText } from './core/footnotes';
 import { frontMatterProperty } from './core/frontmatterSchema';
@@ -492,8 +495,30 @@ class HoverProvider implements vscode.HoverProvider {
       const spec = own(INLINE_DIRECTIVES, name);
       if (spec) return new vscode.Hover(new vscode.MarkdownString(`**:${name}** — ${spec.description}\n\n\`${spec.example}\``), range);
     }
-    return footnoteHover(document, position) ?? glossaryHover(document, position) ?? linkHover(document, position) ?? embedHover(document, position);
+    return footnoteHover(document, position) ?? glossaryHover(document, position) ?? linkHover(document, position)
+      ?? blockIdHover(document, position) ?? embedHover(document, position);
   }
+}
+
+/**
+ * An id in an id attribute (`verifies=R1`), `:ref[R1]` or `:depends[R1]`, here or in another document (`other.smd#R1`):
+ * the text of a document it names, or undefined when it can't be read. Links have their own preview (linkHover).
+ */
+function idUseText(document: vscode.TextDocument, use: IdUse): { text: string; uri: vscode.Uri } | undefined {
+  if (!use.path) return { text: document.getText(), uri: document.uri };
+  if (document.uri.scheme !== 'file') return undefined;
+  const file = path.resolve(path.dirname(document.uri.fsPath), use.path);
+  const text = readDocument(file);
+  return text === undefined ? undefined : { text, uri: vscode.Uri.file(file) };
+}
+
+/** The block an id in an id attribute, `:ref` or `:depends` names: its kind, attributes, title and first lines (semantic tags R18). */
+function blockIdHover(document: vscode.TextDocument, position: vscode.Position): vscode.Hover | undefined {
+  const use = idUseAt(document.getText(), position.line, position.character);
+  if (!use || use.kind === 'definition' || use.kind === 'link') return undefined;
+  const target = idUseText(document, use);
+  const markdown = target && idHover(target.text, use.id, use.path ? path.basename(use.path) : undefined);
+  return markdown ? new vscode.Hover(new vscode.MarkdownString(markdown), new vscode.Range(position.line, use.start, position.line, use.endColumn)) : undefined;
 }
 
 /** A footnote reference `[^1]` previews its definition. */
@@ -744,7 +769,7 @@ class DefinitionProvider implements vscode.DefinitionProvider {
   provideDefinition(document: vscode.TextDocument, position: vscode.Position): vscode.LocationLink[] | undefined {
     const text = document.getText();
     const hit = linkAt(text, position.line, position.character);
-    if (!hit) return undefined;
+    if (!hit) return blockIdDefinition(document, position);
     const origin = new vscode.Range(position.line, hit.start, position.line, hit.end);
     const at = (uri: vscode.Uri, line: number): vscode.LocationLink[] => {
       const range = new vscode.Range(line, 0, line, 0);
@@ -774,8 +799,22 @@ class DefinitionProvider implements vscode.DefinitionProvider {
   }
 }
 
+/** An id in an id attribute, `:ref` or `:depends` jumps to the block that gives it, here or in another document (R18, R19). */
+function blockIdDefinition(document: vscode.TextDocument, position: vscode.Position): vscode.LocationLink[] | undefined {
+  const use = idUseAt(document.getText(), position.line, position.character);
+  if (!use || use.kind === 'definition') return undefined;
+  const target = idUseText(document, use);
+  const lines = target ? idDefinitionLines(target.text, use.id) : [];
+  if (!target || !lines.length) return undefined;
+  const origin = new vscode.Range(position.line, use.start, position.line, use.endColumn);
+  return lines.map((line) => {
+    const range = new vscode.Range(line, 0, line, 0);
+    return { originSelectionRange: origin, targetUri: target.uri, targetRange: range, targetSelectionRange: range };
+  });
+}
+
 // ---------------------------------------------------------------------------
-// Find references and rename for heading anchors, across the workspace
+// Find references and rename for heading anchors and block ids, across the workspace
 // ---------------------------------------------------------------------------
 
 interface WorkspaceDoc { uri: vscode.Uri; text: string }
@@ -818,8 +857,47 @@ function anchorAt(document: vscode.TextDocument, position: vscode.Position): { u
   return fs.existsSync(target) ? { uri: vscode.Uri.file(target), id: parts.anchor } : undefined;
 }
 
+/** The documents of the workspace as the core's id functions take them, with the paths written in them resolved. */
+interface IdWorkspace { docs: IdDocument[]; resolve: (from: string, rel: string) => string | undefined; uriOf: (key: string) => vscode.Uri }
+
+/** The workspace's documents for block ids, plus the documents the current one names outside it (`other.smd#R1`). */
+async function idWorkspace(document: vscode.TextDocument): Promise<IdWorkspace> {
+  const found = await workspaceDocuments(document);
+  if (document.uri.scheme === 'file') {
+    for (const rel of new Set(idUses(document.getText()).filter((u) => u.path).map((u) => u.path))) {
+      const file = path.resolve(path.dirname(document.uri.fsPath), rel);
+      if (found.some((d) => d.uri.scheme === 'file' && samePath(d.uri.fsPath, file))) continue;
+      const text = readDocument(file);
+      if (text !== undefined) found.push({ uri: vscode.Uri.file(file), text });
+    }
+  }
+  const byKey = new Map(found.map((d) => [d.uri.toString(), d.uri]));
+  const fold = (p: string) => (process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p));
+  const byPath = new Map(found.filter((d) => d.uri.scheme === 'file').map((d) => [fold(d.uri.fsPath), d.uri.toString()]));
+  return {
+    docs: found.map((d) => ({ key: d.uri.toString(), text: d.text })),
+    resolve: (from, rel) => {
+      if (!rel) return from;
+      const uri = byKey.get(from);
+      if (uri?.scheme !== 'file') return undefined;
+      const file = path.resolve(path.dirname(uri.fsPath), rel);
+      return byPath.get(fold(file)) ?? vscode.Uri.file(file).toString();
+    },
+    uriOf: (key) => byKey.get(key) ?? vscode.Uri.parse(key),
+  };
+}
+
+/** A block id under the cursor, in its `{#id}`, an id attribute, `:ref`, `:depends` or a link, and what it names. */
+function blockIdAt(document: vscode.TextDocument, position: vscode.Position, ws: IdWorkspace) {
+  const use = idUseAt(document.getText(), position.line, position.character);
+  const target = use && useTarget(document.uri.toString(), use, ws.resolve);
+  return use && target ? { use, target } : undefined;
+}
+
 class ReferenceProvider implements vscode.ReferenceProvider {
   async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext): Promise<vscode.Location[]> {
+    const use = idUseAt(document.getText(), position.line, position.character);
+    if (use && use.kind !== 'link') return blockIdReferences(document, position, context);
     const anchor = anchorAt(document, position);
     if (!anchor) return [];
     const docs = await workspaceDocuments(document);
@@ -838,19 +916,46 @@ class ReferenceProvider implements vscode.ReferenceProvider {
       for (const l of names.flatMap((name) => linksToAnchor(doc.text, name, (p) => pointsAt(doc.uri, p, anchor.uri)))) {
         locations.push(new vscode.Location(doc.uri, new vscode.Range(l.line, l.column, l.line, l.endColumn)));
       }
+      // Id attributes, `:ref` and `:depends` that name it.
+      for (const u of names.flatMap((name) => namingUses(doc.text, name, (p) => pointsAt(doc.uri, p, anchor.uri)))) {
+        locations.push(new vscode.Location(doc.uri, new vscode.Range(u.line, u.column, u.line, u.endColumn)));
+      }
     }
     return locations;
   }
 }
 
+/** Every place in the workspace that names the block id under the cursor, and with the declaration its `{#id}`. */
+async function blockIdReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext): Promise<vscode.Location[]> {
+  const ws = await idWorkspace(document);
+  const found = blockIdAt(document, position, ws);
+  if (!found) return [];
+  const target = ws.docs.find((d) => d.key === found.target.key);
+  const names = target ? anchorNames(target.text, found.target.id) : [found.target.id];
+  return names.flatMap((id) => idReferences(ws.docs, { key: found.target.key, id }, ws.resolve, context.includeDeclaration))
+    .map(({ key, use }) => new vscode.Location(ws.uriOf(key), new vscode.Range(use.line, use.column, use.line, use.endColumn)));
+}
+
 class RenameProvider implements vscode.RenameProvider {
-  prepareRename(document: vscode.TextDocument, position: vscode.Position): { range: vscode.Range; placeholder: string } {
+  async prepareRename(document: vscode.TextDocument, position: vscode.Position): Promise<{ range: vscode.Range; placeholder: string }> {
+    const use = idUseAt(document.getText(), position.line, position.character);
+    if (use) {
+      // Refused up front, with the reason: a heading's id from its text, an id two blocks give, an unknown id.
+      const checked = await renameBlockId(document, position, use.id);
+      if ('error' in checked) throw new Error(checked.error);
+      return { range: new vscode.Range(use.line, use.column, use.line, use.endColumn), placeholder: use.id };
+    }
     const heading = headingAt(document.getText(), position.line);
-    if (!heading) throw new Error('Rename a heading to update every link to it.');
+    if (!heading) throw new Error('Rename a heading or a block id ({#R1}, verifies=R1, :ref[R1]) to update every reference to it.');
     return { range: new vscode.Range(heading.line, heading.start, heading.line, heading.end), placeholder: heading.text };
   }
 
   async provideRenameEdits(document: vscode.TextDocument, position: vscode.Position, newName: string): Promise<vscode.WorkspaceEdit | undefined> {
+    if (idUseAt(document.getText(), position.line, position.character)) {
+      const renamed = await renameBlockId(document, position, newName.trim());
+      if ('error' in renamed) throw new Error(renamed.error);
+      return renamed.edit;
+    }
     const text = document.getText();
     const heading = headingAt(text, position.line);
     const renamed = heading && renameHeading(text, position.line, newName);
@@ -866,10 +971,27 @@ class RenameProvider implements vscode.RenameProvider {
           if (doc.uri.toString() === document.uri.toString() && headingRange.contains(new vscode.Position(l.line, l.column))) continue;
           edit.replace(doc.uri, new vscode.Range(l.line, l.column, l.line, l.endColumn), encodeAnchor(l.raw, to));
         }
+        // Id attributes, `:ref` and `:depends` that name the heading's old id.
+        for (const u of namingUses(doc.text, from, (p) => pointsAt(doc.uri, p, document.uri))) {
+          if (doc.uri.toString() === document.uri.toString() && headingRange.contains(new vscode.Position(u.line, u.column))) continue;
+          edit.replace(doc.uri, new vscode.Range(u.line, u.column, u.line, u.endColumn), to);
+        }
       }
     }
     return edit;
   }
+}
+
+/** The workspace edit that renames the block id under the cursor and every reference to it (R18), or why it can't. */
+async function renameBlockId(document: vscode.TextDocument, position: vscode.Position, newId: string): Promise<{ edit: vscode.WorkspaceEdit } | { error: string }> {
+  const ws = await idWorkspace(document);
+  const found = blockIdAt(document, position, ws);
+  if (!found) return { error: 'This id names a document that can\'t be read.' };
+  const result = renameIdEdits(ws.docs, found.target, newId, ws.resolve, { key: document.uri.toString(), line: position.line, column: position.character });
+  if ('error' in result) return result;
+  const edit = new vscode.WorkspaceEdit();
+  for (const e of result.edits) edit.replace(ws.uriOf(e.key), new vscode.Range(e.line, e.column, e.line, e.endColumn), e.newText);
+  return { edit };
 }
 
 // ---------------------------------------------------------------------------

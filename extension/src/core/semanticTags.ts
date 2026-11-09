@@ -2,6 +2,7 @@ import {
   closeContainers, closerColons, CONTAINER_CLOSE, CONTAINER_OPEN, displayMath, openerColons, parseContainerInfo,
 } from './containers';
 import { parseFrontMatter } from './frontmatter';
+import { ownSupersededId } from './idTarget';
 import { CONTAINERS, ID_ATTRIBUTES, idList } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { scanTasks } from './taskLines';
@@ -159,12 +160,18 @@ export function isLifecycleQuestion(question: TagBlock, answer: boolean): boolea
   return answer || QUESTION_LIFECYCLE.some((k) => question.values[k] !== undefined);
 }
 
-/** The decisions that supersede each decision, by id. */
-export function supersededBy(blocks: readonly TagBlock[]): Map<string, string[]> {
+/**
+ * The decisions that supersede each decision of the document, by id, in document order. With `file`, the document's
+ * path, `supersedes=this.smd#D1` counts like `supersedes=D1`.
+ */
+export function supersededBy(blocks: readonly TagBlock[], file?: string): Map<string, string[]> {
   const by = new Map<string, string[]>();
   for (const b of blocks) {
     if (b.name !== 'decision' || !b.id) continue;
-    for (const id of listed(b, 'supersedes')) by.set(id, [...(by.get(id) ?? []), b.id]);
+    for (const written of listed(b, 'supersedes')) {
+      const id = ownSupersededId(written, file);
+      if (id !== undefined) by.set(id, [...(by.get(id) ?? []), b.id]);
+    }
   }
   return by;
 }
@@ -177,11 +184,11 @@ export interface TagContext {
   supersededBy: ReadonlyMap<string, string[]>;
 }
 
-/** The context of a document's tags, or undefined when it has nothing this module reads. */
-export function tagContext(text: string): TagContext | undefined {
+/** The context of a document's tags, or undefined when it has nothing this module reads. `file`: see supersededBy. */
+export function tagContext(text: string, file?: string): TagContext | undefined {
   if (!mayHoldTags(text)) return undefined;
   const blocks = tagBlocks(text);
-  return { blocks, byLine: new Map(blocks.map((b) => [b.line, b])), answered: answeredQuestions(blocks), supersededBy: supersededBy(blocks) };
+  return { blocks, byLine: new Map(blocks.map((b) => [b.line, b])), answered: answeredQuestions(blocks), supersededBy: supersededBy(blocks, file) };
 }
 
 /** The ids `:depends[…]` lists on a line (spec v2 only), in order. */

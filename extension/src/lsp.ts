@@ -2,22 +2,26 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { checkMermaid, formatSmd, parseSmd, renderPage, validateSmd, type Diagnostic, type ValidateOptions } from './core';
-import { anchorOrAliasLine } from './core/headingAliases';
+import { encodeAnchor, headingAt, linksToAnchor, renameHeading } from './core/anchors';
+import { anchorNames, anchorOrAliasLine } from './core/headingAliases';
+import {
+  idDefinitionLines, idReferences, idUseAt, idUses as idUsesOf, namingUses, renameIdEdits, useTarget, type IdDocument, type IdTargetRef, type IdUse,
+} from './core/idRefs';
 import { isDocumentPath, linkAt, splitTarget } from './core/links';
 import type { MermaidParse } from './core/mermaid';
 import { documentSymbols, fuzzyMatch, type SmdSymbol } from './core/symbols';
 import { loadRuleConfig } from './config';
 import { loadMermaidParser } from './mermaidLoader';
 import { completionsAt, hoverAt, type AssistEnv, type FolderEntry } from './lspAssist';
-import { chooseEncoding, TextDocuments, type Position, type PositionEncoding, type Range, type TextDocument } from './lspDocuments';
+import { chooseEncoding, TextDocument, TextDocuments, type Position, type PositionEncoding, type Range } from './lspDocuments';
 import { frame, isObject, LspEndpoint, LspError, LSP_ERRORS, serveStream, type LspMessage } from './lspProtocol';
 import { collect, readerFor } from './workspace';
 
 /**
  * `smd lsp` (also `smd-language-server`): the editor features of the VS Code extension as a Language
  * Server, for Neovim, Helix, Zed and other LSP clients. Validation, quick fixes, outline, workspace
- * symbols, hover, completion, go to definition and formatting, from the same core as the extension
- * and the CLI. Rule settings come from the nearest smd.config.json / .smdrc, like `smd validate`.
+ * symbols, hover, completion, go to definition, find references, rename and formatting, from the same core as the
+ * extension and the CLI. Rule settings come from the nearest smd.config.json / .smdrc, like `smd validate`.
  */
 
 export interface LanguageServerOptions {
@@ -46,6 +50,13 @@ const TEXT_DOCUMENT_SYNC_FULL = 1;
 const TRIGGER_CHARACTERS = [':', '{', '=', '`', '(', '/', '#', '"', '^'];
 
 interface TextDocumentParams { textDocument: { uri: string }; position: Position }
+
+/** A document of the workspace for find references and rename: its URI and text, by its key (see pathKey). */
+interface WorkspaceText { uri: string; text: string }
+/** What the cursor names for find references and rename: a block id (semantic tags R18) or a heading. */
+type RenameTarget =
+  | { kind: 'id'; target: IdTargetRef; use: IdUse; self: string }
+  | { kind: 'heading'; target: IdTargetRef; line: number; start: number; end: number; text: string };
 interface Validation { version: number; diagnostics: Diagnostic[] }
 
 export class SmdLanguageServer {
@@ -77,6 +88,9 @@ export class SmdLanguageServer {
         'textDocument/hover': handle(this.hover),
         'textDocument/completion': handle(this.completion),
         'textDocument/definition': handle(this.definition),
+        'textDocument/references': handle(this.references),
+        'textDocument/prepareRename': handle(this.prepareRename),
+        'textDocument/rename': handle(this.rename),
         'textDocument/formatting': handle(this.formatting),
         'smd/renderHtml': handle(this.renderHtml),
       },
@@ -103,6 +117,9 @@ export class SmdLanguageServer {
     const general = isObject(p.capabilities) && isObject(p.capabilities.general) ? p.capabilities.general : {};
     this.encoding = chooseEncoding(general.positionEncodings);
     this.roots = workspaceRoots(p);
+    // A rename range and placeholder (prepareRename) only for clients that ask for them.
+    const textDocument = isObject(p.capabilities) && isObject(p.capabilities.textDocument) ? p.capabilities.textDocument : {};
+    const prepareRename = isObject(textDocument.rename) && textDocument.rename.prepareSupport === true;
     return {
       capabilities: {
         positionEncoding: this.encoding,
@@ -113,6 +130,8 @@ export class SmdLanguageServer {
         hoverProvider: true,
         completionProvider: { triggerCharacters: TRIGGER_CHARACTERS },
         definitionProvider: true,
+        referencesProvider: true,
+        renameProvider: prepareRename ? { prepareProvider: true } : true,
         documentFormattingProvider: true,
         // Not part of LSP: the `smd/renderHtml` request (see renderHtml), for clients with a preview.
         experimental: { smdRenderHtml: true },
@@ -291,7 +310,7 @@ export class SmdLanguageServer {
     if (!document) return null;
     const { line, column } = document.locate(params.position);
     const hit = linkAt(document.text, line, column);
-    if (!hit) return null;
+    if (!hit) return this.idDefinition(document, line, column);
     // A reference `[text][label]` jumps to its `[label]: …` definition.
     if (hit.reference) return location(document.uri, hit.link.line);
     const parts = splitTarget(hit.link.target);
@@ -315,6 +334,172 @@ export class SmdLanguageServer {
     return location(uri, (text === undefined ? undefined : anchorOrAliasLine(text, anchor)) ?? 0);
   }
 
+  /** An id in an id attribute, `:ref` or `:depends` (semantic tags R18): the block that gives it, here or in another document. */
+  private idDefinition(document: TextDocument, line: number, column: number) {
+    const use = idUseAt(document.text, line, column);
+    if (!use || use.kind === 'definition') return null;
+    let uri = document.uri;
+    let text: string | undefined = document.text;
+    if (use.path) {
+      const file = filePath(document.uri);
+      if (!file) return null;
+      const target = path.resolve(path.dirname(file), use.path);
+      text = this.readText(target);
+      uri = this.uriOf(target);
+    }
+    const lines = text === undefined ? [] : idDefinitionLines(text, use.id);
+    if (!lines.length) return null;
+    return lines.length === 1 ? location(uri, lines[0]) : lines.map((l) => location(uri, l));
+  }
+
+  // -------------------------------------------------------------------------
+  // Find references and rename: block ids and headings, across the workspace
+  // -------------------------------------------------------------------------
+
+  private references(params: TextDocumentParams & { context?: { includeDeclaration?: boolean } }) {
+    const document = this.documents.get(params.textDocument.uri);
+    if (!document) return null;
+    const { line, column } = document.locate(params.position);
+    const docs = this.workspaceTexts(document);
+    const found = this.renameTarget(document, line, column, docs);
+    if (!found) return null;
+    const declaration = params.context?.includeDeclaration !== false;
+    const target = docs.get(found.target.key);
+    const locations: Array<{ uri: string; range: Range }> = [];
+    if (found.kind === 'heading' && declaration) {
+      locations.push({ uri: document.uri, range: document.range(line, found.start, found.end) });
+    }
+    // Links to a heading by its GitHub id (`#foo_bar` for `#foobar`) are references too.
+    const names = target ? anchorNames(target.text, found.target.id) : [found.target.id];
+    for (const id of names) {
+      for (const { key, use } of idReferences(this.idDocuments(docs), { key: found.target.key, id }, this.resolver(docs), declaration && found.kind === 'id')) {
+        const doc = docs.get(key);
+        if (doc) locations.push({ uri: doc.uri, range: this.textDocument(doc).range(use.line, use.column, use.endColumn) });
+      }
+    }
+    return locations;
+  }
+
+  private prepareRename(params: TextDocumentParams) {
+    const document = this.documents.get(params.textDocument.uri);
+    if (!document) return null;
+    const { line, column } = document.locate(params.position);
+    const docs = this.workspaceTexts(document);
+    const found = this.renameTarget(document, line, column, docs);
+    if (!found) return null;
+    if (found.kind === 'heading') return { range: document.range(line, found.start, found.end), placeholder: found.text };
+    // Refused up front (a heading's id from its text, an id two blocks give, an unknown id), with the reason.
+    const check = renameIdEdits(this.idDocuments(docs), found.target, found.use.id, this.resolver(docs), { key: found.self, line, column });
+    if ('error' in check) throw new LspError(LSP_ERRORS.requestFailed, check.error);
+    return { range: document.range(found.use.line, found.use.column, found.use.endColumn), placeholder: found.use.id };
+  }
+
+  private rename(params: TextDocumentParams & { newName: string }) {
+    const document = this.documents.get(params.textDocument.uri);
+    if (!document || typeof params.newName !== 'string') return null;
+    const { line, column } = document.locate(params.position);
+    const docs = this.workspaceTexts(document);
+    const found = this.renameTarget(document, line, column, docs);
+    if (!found) throw new LspError(LSP_ERRORS.requestFailed, 'Rename a heading, or a block id ({#R1}, verifies=R1, :ref[R1]), to update every reference to it.');
+    const changes = new Map<string, Array<{ range: Range; newText: string }>>();
+    const add = (key: string, l: number, start: number, end: number, newText: string) => {
+      const doc = docs.get(key);
+      if (!doc) return;
+      changes.set(doc.uri, [...(changes.get(doc.uri) ?? []), { range: this.textDocument(doc).range(l, start, end), newText }]);
+    };
+    if (found.kind === 'heading') {
+      this.renameHeadingEdits(document, found, params.newName, docs, add);
+    } else {
+      const result = renameIdEdits(this.idDocuments(docs), found.target, params.newName.trim(), this.resolver(docs), { key: found.self, line, column });
+      if ('error' in result) throw new LspError(LSP_ERRORS.requestFailed, result.error);
+      for (const e of result.edits) add(e.key, e.line, e.column, e.endColumn, e.newText);
+    }
+    return { changes: Object.fromEntries(changes) };
+  }
+
+  /** Renaming a heading: its text, then every link, id attribute, `:ref` and `:depends` that names an anchor it changes. */
+  private renameHeadingEdits(
+    document: TextDocument, heading: Extract<RenameTarget, { kind: 'heading' }>, newText: string, docs: Map<string, WorkspaceText>,
+    add: (key: string, line: number, start: number, end: number, newText: string) => void,
+  ): void {
+    const { line } = heading;
+    const renamed = renameHeading(document.text, line, newText);
+    if (!renamed) return;
+    const self = heading.target.key;
+    add(self, line, heading.start, heading.end, renamed.lineText.slice(heading.start, renamed.lineText.length - (document.lines[line].length - heading.end)));
+    const resolve = this.resolver(docs);
+    for (const [key, doc] of docs) {
+      const pointsAt = (p: string) => resolve(key, p) === self;
+      // A link or `:ref` inside the renamed heading text is replaced along with it.
+      const inHeading = (l: number, column: number) => key === self && l === line && column >= heading.start && column < heading.end;
+      for (const { from, to } of renamed.changes) {
+        for (const l of linksToAnchor(doc.text, from, pointsAt)) {
+          if (!inHeading(l.line, l.column)) add(key, l.line, l.column, l.endColumn, encodeAnchor(l.raw, to));
+        }
+        for (const u of namingUses(doc.text, from, pointsAt)) if (!inHeading(u.line, u.column)) add(key, u.line, u.column, u.endColumn, to);
+      }
+    }
+  }
+
+  /** The block id under the cursor (in an id attribute, `:ref`, `:depends`, a link or its `{#id}`), else the heading on the line. */
+  private renameTarget(document: TextDocument, line: number, column: number, docs: Map<string, WorkspaceText>): RenameTarget | undefined {
+    const self = this.keyOf(document);
+    const use = idUseAt(document.text, line, column);
+    if (use) {
+      const target = useTarget(self, use, this.resolver(docs));
+      return target ? { kind: 'id', target, use, self } : undefined;
+    }
+    const heading = headingAt(document.text, line);
+    if (!heading) return undefined;
+    return { kind: 'heading', target: { key: self, id: heading.slug }, line, start: heading.start, end: heading.end, text: heading.text };
+  }
+
+  /** The .smd files under the workspace folders and the open documents (with their unsaved text), by key. */
+  private workspaceTexts(current: TextDocument): Map<string, WorkspaceText> {
+    const docs = new Map<string, WorkspaceText>();
+    for (const found of this.roots.flatMap((root) => collect(root))) {
+      const file = path.resolve(found);
+      const text = this.readText(file);
+      if (text !== undefined) docs.set(pathKey(file), { uri: this.uriOf(file), text });
+    }
+    for (const document of [...this.documents.all(), current]) docs.set(this.keyOf(document), { uri: document.uri, text: document.text });
+    // A document the current one names outside the workspace folders.
+    const file = filePath(current.uri);
+    if (file) {
+      for (const use of namedPaths(current.text)) {
+        const other = path.resolve(path.dirname(file), use);
+        if (docs.has(pathKey(other))) continue;
+        const text = this.readText(other);
+        if (text !== undefined) docs.set(pathKey(other), { uri: this.uriOf(other), text });
+      }
+    }
+    return docs;
+  }
+
+  private idDocuments(docs: Map<string, WorkspaceText>): IdDocument[] {
+    return [...docs].map(([key, doc]) => ({ key, text: doc.text }));
+  }
+
+  /** Paths written in a document, resolved to document keys; `''` is the document itself. */
+  private resolver(docs: Map<string, WorkspaceText>) {
+    return (from: string, rel: string): string | undefined => {
+      if (!rel) return from;
+      const uri = docs.get(from)?.uri;
+      const file = uri ? filePath(uri) : undefined;
+      return file ? pathKey(path.resolve(path.dirname(file), rel)) : undefined;
+    };
+  }
+
+  private keyOf(document: TextDocument): string {
+    const file = filePath(document.uri);
+    return file ? pathKey(file) : document.uri;
+  }
+
+  /** The open document for a workspace text, or one made for converting its positions. */
+  private textDocument(doc: WorkspaceText): TextDocument {
+    return this.documents.get(doc.uri) ?? new TextDocument(doc.uri, 0, doc.text, this.encoding);
+  }
+
   private formatting(params: { textDocument: { uri: string } }) {
     const document = this.documents.get(params.textDocument.uri);
     return document ? formattingEdits(document, formatSmd(document.text)) : null;
@@ -334,7 +519,7 @@ export class SmdLanguageServer {
     if (text === undefined) throw new LspError(LSP_ERRORS.invalidParams, `smd/renderHtml: ${uri} is not open and no text was sent`);
     const file = filePath(uri);
     const theme = params.theme === 'light' || params.theme === 'dark' ? params.theme : 'auto';
-    return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, today: this.options.today, reviewBlocks: 'shown' }, theme) };
+    return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, ...(file ? { file } : {}), today: this.options.today, reviewBlocks: 'shown' }, theme) };
   }
 
   // -------------------------------------------------------------------------
@@ -377,6 +562,11 @@ export class SmdLanguageServer {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** The paths of other documents an id use in `text` names. */
+function namedPaths(text: string): string[] {
+  return [...new Set(idUsesOf(text).filter((u) => u.path).map((u) => u.path))];
+}
 
 function toLspDiagnostic(document: TextDocument, d: Diagnostic) {
   return { range: document.range(d.line, d.column, d.endColumn), severity: SEVERITY[d.severity], code: d.code, source: 'smd', message: d.message };

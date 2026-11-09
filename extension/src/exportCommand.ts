@@ -37,12 +37,12 @@ function html(args: ExportArgs): number {
   const file = requireFile(args.positional[0]);
   const lang = langOption(option(args, '--lang'));
   if (lang === null) return fail(LANG_USAGE);
-  return write(option(args, '-o'), renderPage(read(file), { readFile: readerFor(file), lang, comments: comments(args) }));
+  return write(option(args, '-o'), renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args) }));
 }
 
 /** `--to md`, `smd to-md`: plain GitHub-flavored Markdown. */
 function markdown(args: ExportArgs): number {
-  return write(option(args, '-o'), smdToMarkdown(read(requireFile(args.positional[0])), { readFile: readerFor(args.positional[0]), comments: comments(args) }));
+  return write(option(args, '-o'), smdToMarkdown(read(requireFile(args.positional[0])), { readFile: readerFor(args.positional[0]), file: args.positional[0], comments: comments(args) }));
 }
 
 /** `--to pdf`, `smd pdf`: render the page and print it with a headless browser (pdf.ts); exit 2 when there is none. */
@@ -54,7 +54,7 @@ async function pdf(args: ExportArgs): Promise<number> {
     const out = option(args, '-o') ?? pdfPath(file);
     const lang = langOption(option(args, '--lang'));
     if (lang === null) return fail(LANG_USAGE);
-    const page = renderPage(read(file), { readFile: readerFor(file), lang, comments: comments(args) });
+    const page = renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args) });
     await exportPdf(file, page, out, options, { engine, warn: (message) => console.error(message) });
     console.error(`Wrote ${out} (printed with ${engine.name})`);
     return 0;
@@ -74,19 +74,19 @@ async function docx(args: ExportArgs): Promise<number> {
   const lang = langOption(option(args, '--lang'));
   if (lang === null) return fail(LANG_USAGE);
   const text = read(file);
-  if (args.flags.has('--html-only')) return write(option(args, '-o'), smdToPandocHtml(text, { readFile: readerFor(file), lang, comments: comments(args) }));
+  if (args.flags.has('--html-only')) return write(option(args, '-o'), smdToPandocHtml(text, { readFile: readerFor(file), file, lang, comments: comments(args) }));
   const out = option(args, '-o') ?? docxPath(file);
   const resourcePath = path.dirname(path.resolve(file));
   const referenceDoc = option(args, '--reference-doc');
   try {
     const engine = chooseDocxEngine({ explicit: option(args, '--pandoc'), engine: option(args, '--engine') });
     if (engine.name === 'builtin') {
-      const warnings = exportBuiltinDocx(text, { out, resourcePath, referenceDoc, readFile: readerFor(file), lang, comments: comments(args) });
+      const warnings = exportBuiltinDocx(text, { out, resourcePath, referenceDoc, readFile: readerFor(file), file, lang, comments: comments(args) });
       for (const warning of warnings) console.error(warning);
       console.error(`Wrote ${out} (written by the built-in writer)`);
       return 0;
     }
-    const page = smdToPandocHtml(text, { readFile: readerFor(file), lang, comments: comments(args) });
+    const page = smdToPandocHtml(text, { readFile: readerFor(file), file, lang, comments: comments(args) });
     const warnings = await exportDocx(engine.pandoc, page, { out, resourcePath, referenceDoc });
     if (warnings) console.error(warnings);
     console.error(`Wrote ${out} (converted with ${engine.pandoc})`);
@@ -104,7 +104,7 @@ function wiki(exporter: (text: string, options: ExportOptions) => string): Run {
     const lang = langOption(option(args, '--lang'));
     if (lang === null) return fail(LANG_USAGE);
     const source = requireFile(args.positional[0]);
-    return write(option(args, '-o'), exporter(read(source), { readFile: readerFor(source), lang, comments: comments(args) }));
+    return write(option(args, '-o'), exporter(read(source), { readFile: readerFor(source), file: source, lang, comments: comments(args) }));
   };
 }
 

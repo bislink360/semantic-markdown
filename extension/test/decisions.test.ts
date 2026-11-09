@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decisionLog, decisionLogMarkdown, formatSmd, isInactiveDecision, validateSmd } from '../src/core';
+import { decisionLine } from '../src/workspace';
 
 const adr = [
   '---', 'smd: 1', 'title: "ADR-0001: Use Postgres"', 'tags: [adr, data]', '---', '',
@@ -76,8 +77,79 @@ test('decisionLogMarkdown: a formatted, valid ADR index', () => {
   assert.match(decisionLogMarkdown([]), /\nNo decisions found\.\n$/);
 });
 
+const superseding = [
+  '---', 'smd: 2', 'title: Cache', '---', '', '## Decisions', '',
+  ':::decision{#D1 status=superseded date=2026-09-01} One shared cache', ':::', '',
+  ':::decision{#D5 status=superseded date=2026-09-15 supersedes=D1} A cache per region', ':::', '',
+  ':::decision{#D7 status=accepted date=2026-10-01 supersedes="D1,D5"} A cache per reader', ':::', '',
+  ':::decision{status=proposed supersedes=D7} No id, still names D7', ':::', '',
+].join('\n');
+
+test('R53: decisionLog names the decisions that supersede each one; others have no supersededBy', () => {
+  const log = decisionLog([{ path: 'cache.smd', text: superseding }]);
+  assert.deepEqual(log.map((d) => [d.anchor, d.supersededBy]), [['D7', undefined], ['D5', ['D7']], ['D1', ['D5', 'D7']], ['decisions', undefined]]);
+  assert.equal(Object.hasOwn(log[0], 'supersededBy'), false, 'the field is added only when a decision names this one');
+  // Ids resolve within a document: D1 elsewhere is another decision.
+  const other = decisionLog([{ path: 'cache.smd', text: superseding }, { path: 'other.smd', text: ':::decision{#D1} Elsewhere\n:::\n' }]);
+  assert.equal(other.find((d) => d.path === 'other.smd')?.supersededBy, undefined);
+  assert.ok(decisionLog(docs).every((d) => !Object.hasOwn(d, 'supersededBy')), 'documents without supersedes read as before');
+});
+
+test('R19, R53: a decision of another listed document that supersedes old.smd#D1 is named relative to old.smd', () => {
+  const old = ':::decision{#D1 status=superseded} One shared cache\n:::\n';
+  const next = ':::decision{#D7 status=accepted supersedes="../old.smd#D1,D3"} A cache per reader\n:::\n\n:::decision{#D3} Local\n:::\n';
+  const log = decisionLog([{ path: 'docs/old.smd', text: old }, { path: 'docs/adr/new.smd', text: next }]);
+  assert.deepEqual(log.find((d) => d.anchor === 'D1')?.supersededBy, ['adr/new.smd#D7']);
+  assert.deepEqual(log.find((d) => d.anchor === 'D3')?.supersededBy, ['D7']);
+  assert.equal(decisionLine(log.find((d) => d.anchor === 'D1')!), 'docs/old.smd:1  undated     [superseded]  One shared cache  (superseded by adr/new.smd#D7)  — old');
+  // Backslashes in a host's paths name the same file, and a document that isn't listed supersedes nothing.
+  assert.deepEqual(decisionLog([{ path: 'docs\\old.smd', text: old }, { path: 'docs\\adr\\new.smd', text: next }]).find((d) => d.anchor === 'D1')?.supersededBy, ['adr/new.smd#D7']);
+  assert.equal(decisionLog([{ path: 'docs/old.smd', text: old }]).find((d) => d.anchor === 'D1')?.supersededBy, undefined);
+});
+
+test('R19, R53: a decision that names its own document (supersedes=old.smd#D1) supersedes D1 like a bare id', () => {
+  const old = [
+    ':::decision{#D1 status=superseded} One shared cache', ':::', '',
+    ':::decision{#D3 status=superseded supersedes=old.smd#D1} A cache per region', ':::', '',
+    ':::decision{#D5 status=accepted supersedes="D1,./old.smd#D3"} A cache per reader', ':::', '',
+  ].join('\n');
+  const log = decisionLog([{ path: 'docs/old.smd', text: old }]);
+  assert.deepEqual(log.find((d) => d.anchor === 'D1')?.supersededBy, ['D3', 'D5'], 'bare ids, in document order');
+  assert.deepEqual(log.find((d) => d.anchor === 'D3')?.supersededBy, ['D5']);
+  // Another document's path still goes through the cross-document map, named relative to it.
+  const next = ':::decision{#D9 supersedes=old.smd#D1} Elsewhere\n:::\n';
+  const both = decisionLog([{ path: 'docs/old.smd', text: old }, { path: 'docs/new.smd', text: next }]);
+  assert.deepEqual(both.find((d) => d.anchor === 'D1' && d.path === 'docs/old.smd')?.supersededBy, ['D3', 'D5', 'new.smd#D9']);
+  assert.equal(both.find((d) => d.anchor === 'D9')?.supersededBy, undefined, 'old.smd#D1 in new.smd is not new.smd#D1');
+});
+
+test('R53: the text line and the ADR index say "superseded by D7"', () => {
+  const log = decisionLog([{ path: 'cache.smd', text: superseding }]);
+  assert.equal(decisionLine(log[2]), 'cache.smd:8  2026-09-01  [superseded]  One shared cache  (superseded by D5, D7)  — Cache › Decisions');
+  assert.equal(decisionLine(log[0]), 'cache.smd:14  2026-10-01  [accepted]  A cache per reader  — Cache › Decisions');
+  const md = decisionLogMarkdown(log);
+  assert.match(md, /~~\[One shared cache\]\(cache\.smd#D1\)~~ \(superseded by D5, D7\) +\|/);
+  assert.match(md, /\| \[A cache per reader\]\(cache\.smd#D7\) +\|/);
+  assert.equal(formatSmd(md), md);
+  assert.deepEqual(validateSmd(md, { fileExists: (p) => p === 'cache.smd', readFile: () => superseding }), []);
+});
+
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
+
+test('CLI: smd decisions shows and --json gives the successors of a superseded decision', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'smd-superseded-'));
+  try {
+    const file = join(dir, 'cache.smd');
+    writeFileSync(file, superseding);
+    const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'decisions', file, ...args], { encoding: 'utf8', stdio: 'pipe' });
+    assert.match(run(), /:8 {2}2026-09-01 {2}\[superseded\] {2}One shared cache {2}\(superseded by D5, D7\) {2}— Cache › Decisions\n/);
+    const json = JSON.parse(run('--json')) as Array<{ title: string; supersededBy?: string[] }>;
+    assert.deepEqual(json.map((d) => d.supersededBy ?? null), [null, ['D7'], ['D5', 'D7'], null]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 test('CLI: smd decisions lists, filters and writes an ADR index', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const samples = join(__dirname, 'samples');
   const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'decisions', samples, ...args], { encoding: 'utf8', stdio: 'pipe' });

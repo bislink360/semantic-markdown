@@ -6,6 +6,8 @@ Only `run` and `judge` call a model, and only with an explicit config file and k
 
 The fixture in `fixture/` only tests the harness. It is not study data (see `fixture/README.md`).
 
+`study3/` holds an offline run of the Study 3 feedback loop (an agent's question, a person's answer and rejection, retrieval since a checkpoint, incorporation and verification after a code change), driven by `test/study3Loop.test.ts` with a scripted agent. It is not study data either (see `study3/README.md`).
+
 ## Commands
 
 Run from `extension/`. The corpus defaults to `research/data/corpus/` in the repository. Relative paths are read from the folder you ran npm in.
@@ -18,7 +20,8 @@ npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
 npm run eval -- render [corpus] --out <dir> [--tokenizer o200k_base]
 npm run eval -- check [corpus] [--json] [--out <dir>]
 npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
-npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>]
+npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>] [--ni-margin 0.05] [--eq-margin 0.05] [--config run.json]
+npm run eval -- power [--accuracy 0.8] [--diff 0] [--ni-margin 0.05] [--eq-margin 0.05] [--docs 12,24,36] [--tasks 10] [--runs 1] [--icc 0.1] [--task-icc 0.3] [--doc-corr 0.5] [--task-corr 0.5] [--alpha 0.025] [--sims 1000] [--seed 1] [--method scorer|cluster|bootstrap] [--resamples 2000] [--pilot outcomes.json [--reference M1] [--condition S3]] [--out <dir>] [--json]
 npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit n] [--concurrency n]
 npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share 0.15 | --count 50] [--seed 1]
 npm run eval -- judge-agreement <judge-packets.jsonl> --judged <files> --human <files> [--out <dir>] [--json]
@@ -33,6 +36,7 @@ npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model
 - `check` prints the survival tables. With `--out` it also writes `survival.json` and `survival.md`.
 - `run` asks the models (see [Model runs](#model-runs)). It exits with 1 when an answer failed. With `--setup-probe` it sends only the setup probe (see [Token accounting](#token-accounting)).
 - `score` writes `outcomes.json`, `outcomes.csv`, `summary.json`, `summary.md`, `judge-packets.jsonl` and `judge-key.jsonl`. The summary pools every answer of a condition, so score one model at a time with `--model <label>` (it keeps records whose `model` is the label or starts with `<label>:`).
+- `power` simulates the power of the correctness comparison for a grid of sample sizes (see [Sample size and power](#sample-size-and-power)). With `--out` it writes `power.json` and `power.md`.
 - `tokens` reads a run folder and writes the token accounting (see [Token accounting](#token-accounting)). It exits with 1 when the folder holds no transcripts.
 - `judge`, `sample` and `judge-agreement` score qualification answers with a model judge and check it against people (see [Model judge](#model-judge)). `judge` exits with 1 when a packet failed.
 
@@ -198,6 +202,9 @@ npm run eval -- tokens runs/pilot --scored runs/pilot/scores/outcomes.json --mod
 | `seed` | run n sends `seed × 1000 + n` when the model has `sendSeed` (default 1) |
 | `maxToolCalls` | tool calls per answer (default 8) |
 | `concurrency`, `retries`, `timeoutMs` | defaults 2, 5 and 120000 |
+| `analysis.niMargin` | non-inferiority margin for `score --config`, a share (0.05 is 5 points). Not set by default |
+| `analysis.equivalenceMargin` | equivalence margin for `score --config`, a share. Not set by default |
+| `analysis.baseline` | the reference condition for `score --config` (default M1) |
 
 The key is read only from the named environment variable. It is never printed, logged or written, and neither is the `Authorization` header; error texts from the provider have the key removed before they are logged. A config with a field named like a secret (`apiKey`, `token`, `headers`, …) is refused. Temperature is never sent, so the provider default applies, as the protocol says, and `extraBody` may not set it or any field the runner sets.
 
@@ -293,6 +300,64 @@ Answers are JSON lines:
 Per-task outcomes go to `outcomes.json` and `outcomes.csv`. Per condition, `summary.md` reports correctness, the difference from the baseline, constraint violations and use of superseded options, each with a 95% interval from a seeded paired bootstrap. Each resample draws documents with replacement, then tasks within each drawn document, and uses the same draws for every condition. A unit is a (document, task) pair, scored as the mean over its runs.
 
 Provider token counts (`usage`) and estimates (characters / 4) are kept in separate fields and columns. `shownTokensEstimate` is only filled for conditions the renderer can reproduce.
+
+### Non-inferiority and equivalence
+
+H1 is a non-inferiority claim, and equivalence is a different claim, so the scorer reports them apart. Both use the correctness difference against the baseline (condition minus baseline, higher is better) and its paired bootstrap 95% interval, the same interval as the `vs M1` column, which stays as it was.
+
+| verdict | non-inferiority, margin m | equivalence, margin m |
+|-|-|-|
+| holds | lower bound above -m: `non-inferior` | interval inside (-m, m): `equivalent` |
+| fails | upper bound below -m: `inferior` | interval wholly below -m or above m: `not-equivalent` |
+| neither | the interval holds -m: `inconclusive` | otherwise: `inconclusive` |
+
+The 95% interval makes each one-sided test a 2.5% test, as the protocol says. Equivalence uses the same interval for both one-sided tests, which is stricter than the usual 90% interval.
+
+No margin is set by default, and then no verdict is given. The study owner sets the margins after the pilot, with `--ni-margin` and `--eq-margin`, or with `analysis.niMargin` and `analysis.equivalenceMargin` in a run config passed with `--config`. Flags win over the config. A margin is a share between 0 and 1. The verdicts are in `summary.json` (`nonInferiority`, `equivalence`) and in their own table in `summary.md`, and the settings record the margins used, null when none was.
+
+### Sample size and power
+
+`power` sizes the main run by simulation, as the protocol asks, before the pilot with planning values and after it with the pilot's estimates. It sends nothing anywhere and is deterministic for a seed (each row has its own stream, so a row does not change when the grid does).
+
+```sh
+npm run eval -- power --ni-margin 0.05 --diff 0 --docs 12,24,36 --tasks 10,25 --runs 5
+npm run eval -- power --diff -0.1 --docs 24 --tasks 25 --runs 5        # power to see a 10-point difference
+npm run eval -- power --pilot out/pilot/outcomes.json --reference M1 --condition S3 --ni-margin 0.05 --runs 5
+```
+
+The outcome model is logit-normal with tasks nested in documents. Each (document, task) unit is answered `--runs` times under the reference and the comparison, and its score is the mean of its answers, as in the scorer.
+
+```
+logit P(correct) = beta_c + u_dc + v_dtc
+u_dc ~ N(0, su2), corr(u_d0, u_d1) = doc corr      (document effect)
+v_dtc ~ N(0, sv2), corr(v_dt0, v_dt1) = task corr  (task effect)
+```
+
+| flag | meaning | default |
+|-|-|-|
+| `--accuracy` | marginal correctness under the reference | 0.8, or the pilot's |
+| `--diff` | true marginal difference, comparison minus reference | 0 |
+| `--ni-margin`, `--eq-margin` | margins, as in `score`. Without them only the difference column is filled | not set |
+| `--docs`, `--tasks` | the grid: documents, and tasks per document (comma lists) | 12,24,36 and 10 |
+| `--runs` | answers per unit and condition | 1 |
+| `--icc` | latent-scale share of variance between documents | 0.1, or the pilot's |
+| `--task-icc` | latent-scale share between tasks within a document (icc + task icc < 1, the rest is the logistic residual pi^2/3) | 0.3 |
+| `--doc-corr`, `--task-corr` | how alike a document's, or a task's, effect is under the two conditions. At 1 the effect cancels in the paired difference | 0.5 and 0.5 |
+| `--alpha` | one-sided level of each test; the interval is the two-sided 1 - 2 alpha one | 0.025 (the scorer's 95%) |
+| `--sims`, `--seed` | simulated data sets per row, and the seed | 1000 and 1 |
+| `--method` | how each data set is analysed, see below | `scorer` |
+
+The defaults are placeholders for planning, not estimates. The intercepts are set by quadrature so the marginal accuracies are exactly `accuracy` and `accuracy + diff`. Every simulated data set is analysed with the scorer's own interval, and power is the share of data sets that are non-inferior (lower bound above -margin), equivalent (inside the margins) or show a difference (the interval excludes 0). At `--diff 0` the difference column is the false positive rate. Each cell has its Monte Carlo standard error.
+
+Methods:
+
+- `scorer` (default) is a normal approximation with the exact variance of the scorer's two-stage bootstrap distribution, so it costs no resampling. For D documents, S_d the sum of a document's differences, n_d its tasks, w_d the variance of its differences and m the mean difference, the bootstrap variance of the mean is `[ (1/D) sum (S_d - m n_d)^2 + (1/D) sum n_d w_d ] / (D nbar^2)`.
+- `bootstrap` runs the scorer's `pairedBootstrap` on every data set. It is slow and is there to check `scorer`. On 400 data sets per setting the two agreed within Monte Carlo error: 12 documents by 10 tasks at a difference of -0.05 and a margin of 0.05 gave 0.020 and 0.018, and mean half-widths 0.142 and 0.141. 24 by 10 with 5 runs at 0 gave 0.343 and 0.350 (0.061 both). 8 by 25 with icc 0.3 and 3 runs at -0.1 gave a difference power of 0.343 and 0.380 (0.134 and 0.133). The unit tests check the intervals agree within 0.015 on simulated data.
+- `cluster` is a one-stage cluster-robust interval with documents as clusters, the D / (D - 1) correction and t with D - 1 degrees of freedom. It holds its nominal level: at the margin boundary (difference -0.05, margin 0.05, 24 by 10, default model) its non-inferiority power was 0.028 against 0.025 on 4000 data sets.
+
+The scorer's two-stage bootstrap is conservative. Drawing tasks again inside each drawn document counts within-document variance on top of the between-document variance that already holds it. In the boundary case above it rejected 0.8% of the time, not 2.5%, and its intervals were about a fifth wider than `cluster`'s. With few documents (8) the order turns, since `cluster` uses t with 7 degrees of freedom. So `scorer` gives the power of the analysis the scorer reports, and `cluster` shows what a calibrated interval would give. Which interval the confirmatory analysis uses is the study owner's decision.
+
+`--pilot` reads a scored pilot (`outcomes.json` from `score`) and estimates the reference's accuracy and the one-way ANOVA intra-class correlation of its unit scores within documents. The observed ICC is converted to the model's latent icc by quadrature at the given task icc and the pilot's runs per unit. They replace `--accuracy` and `--icc` unless those flags are given. `--condition` also reports the pilot's observed difference, as a description only, since pilot data is not part of the confirmatory analysis. Answers waiting for a judge are left out. The task icc and the two correlations are not estimated, so set them from the pilot by hand or keep the planning values.
 
 ### Judge packets
 

@@ -8,7 +8,7 @@ import { registerAgentView } from './agentViewUi';
 import { registerBlockEditor } from './blockEditor';
 import { registerEditorFeatures } from './editorFeatures';
 import { extendMarkdownIt } from './markdownPreview';
-import { PreviewManager, renderOptions } from './preview';
+import { docFile, PreviewManager, renderOptions } from './preview';
 import { registerStatusWorkflow } from './statusWorkflow';
 import { registerTasksView } from './tasksView';
 import { registerDocxExport } from './docxExport';
@@ -16,6 +16,7 @@ import { registerPdfExport } from './pdfExport';
 import { migrationPlan } from './core/migrate';
 import { migrationEdit, migrationReport, migrationSummary, planCounts } from './migrateReport';
 import { oldExtensionIsActive } from './renamed';
+import { registerStudy, stopStudy } from './study/session';
 
 const APPLY = 'Apply';
 /** What the preview says after its summary in the editor. */
@@ -39,6 +40,8 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
   registerDocxExport(context);
   registerPdfExport(context);
   registerBlockEditor(context);
+  // Study 2 session logging: only in a study build (never released), and off until a session is turned on.
+  if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) registerStudy(context);
 
   const activeSmd = (): vscode.TextDocument | undefined => {
     const doc = vscode.window.activeTextEditor?.document;
@@ -122,21 +125,21 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
         filters: { Markdown: ['md'] },
       });
       if (!target) return;
-      await vscode.workspace.fs.writeFile(target, Buffer.from(smdToMarkdown(doc.getText(), { readFile: readerFor(doc) }), 'utf8'));
+      await vscode.workspace.fs.writeFile(target, Buffer.from(smdToMarkdown(doc.getText(), { readFile: readerFor(doc), ...docFile(doc) }), 'utf8'));
       await vscode.window.showTextDocument(target, { viewColumn: vscode.ViewColumn.Beside });
     }),
 
     vscode.commands.registerCommand('smd.exportConfluence', async () => {
       const doc = activeSmd();
       if (!doc) return;
-      const xml = smdToConfluence(doc.getText(), { readFile: readerFor(doc) });
+      const xml = smdToConfluence(doc.getText(), { readFile: readerFor(doc), ...docFile(doc) });
       await exportBeside(doc, '.confluence.xml', { 'Confluence storage format': ['xml'] }, xml);
     }),
 
     vscode.commands.registerCommand('smd.exportNotion', async () => {
       const doc = activeSmd();
       if (!doc) return;
-      const requests = notionRequests(smdToNotion(doc.getText(), { readFile: readerFor(doc) }));
+      const requests = notionRequests(smdToNotion(doc.getText(), { readFile: readerFor(doc), ...docFile(doc) }));
       await exportBeside(doc, '.notion.json', { 'Notion API blocks': ['json'] }, `${JSON.stringify(requests, null, 2)}\n`);
     }),
 
@@ -196,7 +199,9 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
   return { extendMarkdownIt };
 }
 
-export function deactivate(): void {}
+export function deactivate(): void {
+  if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) stopStudy();
+}
 
 /** Save an export next to the document (the user picks the name), then open it beside the editor. */
 async function exportBeside(doc: vscode.TextDocument, ext: string, filters: Record<string, string[]>, content: string): Promise<void> {

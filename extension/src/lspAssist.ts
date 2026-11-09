@@ -12,6 +12,7 @@ import { frontMatterProperty } from './core/frontmatterSchema';
 import { anchorTargets, findLinks, isDocumentPath, linkAt, pathCompletionContext, splitTarget, type LinkCompletionContext } from './core/links';
 import { termHover } from './core/glossary';
 import { headingAlias } from './core/headingAliases';
+import { idHover as idHoverText, idUseAt } from './core/idRefs';
 import { documentPreview, embedPreview, sectionExcerpt } from './core/symbols';
 import { codeLines, lazyLineSet } from './core/parse';
 import { idChoices } from './core/semanticTags';
@@ -317,7 +318,19 @@ export interface AssistHover {
 export function hoverAt(text: string, line: number, column: number, env: AssistEnv = {}): AssistHover | undefined {
   const lineText = text.split(/\r?\n/)[line] ?? '';
   return variableHover(text, line, column, codeLineTest(text)) ?? containerHover(lineText, column) ?? directiveHover(lineText, column) ?? footnoteHover(text, line, column)
-    ?? termHover(text, line, column) ?? linkHover(text, line, column, env) ?? embedHover(lineText, env);
+    ?? termHover(text, line, column) ?? linkHover(text, line, column, env) ?? idHover(text, line, column, env) ?? embedHover(lineText, env);
+}
+
+/**
+ * An id in an id attribute (`verifies=R1`), `:ref[R1]` or `:depends[R1]` (semantic tags R18): the block it names, here
+ * or in another document (`other.smd#R1`, R19). Links have their own preview (linkHover).
+ */
+function idHover(text: string, line: number, column: number, env: AssistEnv): AssistHover | undefined {
+  const use = idUseAt(text, line, column);
+  if (!use || use.kind === 'definition' || use.kind === 'link') return undefined;
+  const target = use.path ? env.readDocument?.(use.path) : text;
+  const markdown = target === undefined ? undefined : idHoverText(target, use.id, use.path ? use.path.split('/').pop() : undefined);
+  return markdown === undefined ? undefined : { markdown, start: use.start, end: use.endColumn };
 }
 
 function containerHover(lineText: string, column: number): AssistHover | undefined {

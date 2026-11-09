@@ -24,6 +24,7 @@ export { getDocumentInfo, extractTasks } from './meta';
 export type { SmdDocumentInfo, TaskInfo, DecisionInfo, RiskInfo } from './meta';
 export { tasksToCsv, tasksToGantt, ganttDocument, ganttDate, TASK_CSV_COLUMNS } from './taskExport';
 export type { TaskExportRow, GanttOptions } from './taskExport';
+export { acyclicPrerequisites, orderByPrerequisites, taskPrerequisites } from './taskOrder';
 export { markdownToSmd, fillTemplate } from './fromMarkdown';
 export { agentView, outline, estimateTokens, inlineText } from './agentView';
 export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection, PinnedSelection } from './agentView';
@@ -48,6 +49,8 @@ export { evidenceRecords } from './evidence';
 export type { EvidenceRecord, EvidenceTarget, EvidenceFreshness } from './evidence';
 export { queryDocuments, formatQueryResult, queryResultSummary, queryResultJson, documentConstraints, constraintNote, pointerLine } from './graphQuery';
 export type { QueryDocumentsOptions, QueryDocumentsResult, FileMatch, ConstraintBlock, DocumentConstraints, MatchGraph, FormatOptions } from './graphQuery';
+export { readSmd, READ_BUDGET, READ_MODES } from './read';
+export type { ReadOptions, ReadResult, ReadMode, ReadFollow, FollowManifest, FollowNodeRef } from './read';
 export {
   taskViews, findTaskView, taskView, taskViewProblems, formatTaskViewInspection, formatTaskViewList, TaskViewError, VIEW_KEYS, VIEW_EVIDENCE,
 } from './taskViews';

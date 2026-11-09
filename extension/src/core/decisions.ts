@@ -1,8 +1,11 @@
 import { asStringList, parseFrontMatter } from './frontmatter';
 import { formatSmd } from './format';
+import { normalizePath, resolvePath } from './graph';
+import { splitIdRef } from './idTarget';
 import { parseSmd } from './parse';
 import { parseSelector, querySmd, type QueryMatch } from './query';
 import type { Heading } from './render';
+import { listed, supersededBy, tagBlocks } from './semanticTags';
 import { DECISION_STATUS, SMD_VERSION } from './spec';
 import { own } from './util';
 
@@ -40,6 +43,12 @@ export interface DecisionEntry {
    * or the decision comes before any `##` section.
    */
   adr: boolean;
+  /**
+   * The decisions whose `supersedes` names this one (semantic tags R53): ids of the same document in document order,
+   * then `other.smd#D7` for a decision of another listed document that names it as `this.smd#D1` (R19), written
+   * relative to this document. Only present when one does; undefined for a decision without an id.
+   */
+  supersededBy?: string[];
 }
 
 export interface DecisionLogMarkdownOptions {
@@ -63,27 +72,66 @@ const DECISIONS = parseSelector('decision');
 export function decisionLog(documents: Array<{ path: string; text: string }>, options: DecisionLogOptions = {}): DecisionEntry[] {
   const statuses = options.status?.map((s) => own(STATUS_ALIASES, s.trim().toLowerCase()) ?? s.trim().toLowerCase());
   const owner = options.owner === undefined ? undefined : normOwner(options.owner);
+  const across = successorsAcross(documents);
   return documents
-    .flatMap((d) => documentDecisions(d.path, d.text))
+    .flatMap((d) => documentDecisions(d.path, d.text, across))
     .filter((e) => (!statuses?.length || statuses.includes(e.status)) && (!owner || ownersOf(e).includes(owner)))
     .sort(compareDecisions);
 }
 
+/**
+ * The decisions of other documents that supersede one, keyed by the superseded decision's file and id, each written
+ * as the path from that file to the successor's, then `#id`.
+ */
+function successorsAcross(documents: ReadonlyArray<{ path: string; text: string }>): Map<string, string[]> {
+  const by = new Map<string, string[]>();
+  for (const d of documents) {
+    if (!/\bsupersedes\s*=/i.test(d.text)) continue;
+    for (const b of tagBlocks(d.text)) {
+      if (b.name !== 'decision' || !b.id) continue;
+      for (const written of listed(b, 'supersedes')) {
+        const { path, id } = splitIdRef(written);
+        if (!path) continue;
+        const target = resolvePath(d.path, path);
+        if (target === normalizePath(d.path)) continue; // this document: the same-document map has it
+        const key = `${target}\0${id}`;
+        by.set(key, [...(by.get(key) ?? []), `${relativePath(target, normalizePath(d.path))}#${b.id}`]);
+      }
+    }
+  }
+  return by;
+}
+
+/** The path from the file `from` to the file `to`, both normalized: `docs/a.smd` → `docs/adr/b.smd` is `adr/b.smd`. */
+function relativePath(from: string, to: string): string {
+  const fromDirs = from.split('/').slice(0, -1);
+  const toParts = to.split('/');
+  let common = 0;
+  while (common < fromDirs.length && common < toParts.length - 1 && fromDirs[common] === toParts[common]) common++;
+  return [...fromDirs.slice(common).map(() => '..'), ...toParts.slice(common)].join('/');
+}
+
 /** The decisions of one document, in document order. */
-function documentDecisions(path: string, text: string): DecisionEntry[] {
+function documentDecisions(path: string, text: string, across: ReadonlyMap<string, string[]> = new Map()): DecisionEntry[] {
   const data = parseFrontMatter(text).data;
   const headings = parseSmd(text).headings;
   const document = documentTitle(data, headings, path);
   const tagged = asStringList(data.tags).some((t) => t.toLowerCase() === 'adr');
+  const file = normalizePath(path);
+  const own = /\bsupersedes\s*=/i.test(text) ? supersededBy(tagBlocks(text), file) : undefined;
+  const successors = { get: (id: string) => [...(own?.get(id) ?? []), ...(across.get(`${file}\0${id}`) ?? [])] };
   return querySmd(text, DECISIONS, { lineRefs: false }).map((m, i) => {
     const heading = headingAbove(headings, m.line);
     const subject = i === 0 && (tagged || !heading || heading.level < 2);
-    return entryOf(m, { path, document, heading, adr: subject });
+    return entryOf(m, { path, document, heading, adr: subject, successors });
   });
 }
 
-function entryOf(m: QueryMatch, at: { path: string; document: string; heading?: Heading; adr: boolean }): DecisionEntry {
+interface EntryPlace { path: string; document: string; heading?: Heading; adr: boolean; successors?: { get(id: string): string[] | undefined } }
+
+function entryOf(m: QueryMatch, at: EntryPlace): DecisionEntry {
   const id = first(m.attrs.id);
+  const by = id ? at.successors?.get(id) : undefined;
   return {
     title: m.title,
     status: (first(m.attrs.status) ?? 'proposed').toLowerCase(),
@@ -96,6 +144,7 @@ function entryOf(m: QueryMatch, at: { path: string; document: string; heading?: 
     anchor: id ?? at.heading?.slug ?? null,
     document: at.document,
     adr: at.adr,
+    ...(by?.length ? { supersededBy: by } : {}),
   };
 }
 
@@ -190,11 +239,16 @@ function tableRow(e: DecisionEntry, href: string): string {
   const cells = [
     e.date ? escapeInline(e.date) : '—',
     decisionBadge(e.status),
-    isInactiveDecision(e.status) ? `~~${decision}~~` : decision,
+    (isInactiveDecision(e.status) ? `~~${decision}~~` : decision) + supersededNote(e),
     e.owner ? escapeInline(e.owner) : '—',
     `[${escapeInline(e.document)}](${linkTarget(href)})`,
   ];
   return `| ${cells.join(' | ')} |`;
+}
+
+/** ` (superseded by D7)` after a decision a later one supersedes (semantic tags R53), else nothing. */
+function supersededNote(e: DecisionEntry): string {
+  return e.supersededBy?.length ? ` (superseded by ${e.supersededBy.map(escapeInline).join(', ')})` : '';
 }
 
 /** The link to a decision: its section (or own id) in the document at `href`; the document itself for an ADR's own decision. */

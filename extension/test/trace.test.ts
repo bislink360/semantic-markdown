@@ -97,7 +97,27 @@ test('AF26: evidence supports requirements in its own document only, and the sum
   const evidence = `${V2}:::evidence{#E1 supports=R1 method=test result=pass}\nPassed.\n:::\n`;
   const result = traceRequirements([{ path: 'a.smd', text: reqs }, { path: 'b.smd', text: evidence }]);
   assert.equal(result.requirements[0].evidence.total, 0);
-  assert.match(formatTrace(result), /Evidence supports requirements in its own document only\.\n$/);
+  assert.match(formatTrace(result), /Evidence and acceptance criteria in another document count only when they name the requirement with its path \(spec\.smd#R1\)\.\n$/);
+});
+
+test('R19: acceptance criteria, tasks and evidence in another document trace to a requirement they name with its path', () => {
+  const spec = `${V2}:::requirement{#R1 status=accepted} Export\n:::\n\n:::requirement{#R2} Import\n:::\n`;
+  const plan = [
+    V2, ':::acceptance{#TC1 verifies=spec.smd#R1}', 'Given a report', ':::', '',
+    ':::evidence{#E1 supports=spec.smd#R1 method=test result=pass}', 'Passed.', ':::', '',
+    '- [x] Write the exporter :depends[spec.smd#R1] {#T1}', '',
+    ':::acceptance{#TC2 verifies=R1}', 'Names R1 of this document, which has none.', ':::', '',
+  ].join('\n');
+  const result = traceRequirements([{ path: 'docs/spec.smd', text: spec }, { path: 'docs/test-plan.smd', text: plan }]);
+  const r1 = result.requirements.find((r) => r.id === 'R1')!;
+  assert.deepEqual(r1.coverage, [{ title: '', line: 4, id: 'TC1', how: 'verifies', file: 'docs/test-plan.smd' }]);
+  assert.deepEqual(r1.claims.tasks.map((t) => [t.id, t.file, t.how, t.done]), [['T1', 'docs/test-plan.smd', 'depends', true]]);
+  assert.equal(r1.evidence.passing, 1);
+  assert.equal(r1.evidence.records[0].file, 'docs/test-plan.smd');
+  assert.match(formatTrace(result), /coverage {4}1 acceptance criterion: docs\/test-plan\.smd TC1 \(verifies\)/);
+  assert.equal(result.requirements.find((r) => r.id === 'R2')!.coverage.length, 0);
+  // Given alone, the plan's references to the spec are not followed: nothing is read that was not given.
+  assert.equal(traceRequirements([{ path: 'docs/spec.smd', text: spec }]).summary.covered, 0);
 });
 
 test('AF26/AF28: requirement/verified warns about verified without current passing verification', () => {

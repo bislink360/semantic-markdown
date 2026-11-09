@@ -64,6 +64,7 @@ What a feature or a study must achieve, before its RFC.
 | Document | For |
 |---|---|
 | [maintainers/publishing.md](maintainers/publishing.md) | Listings outside the Release workflow: the Claude Code plugin marketplace and the MCP Registry |
+| [maintainers/study-build.md](maintainers/study-build.md) | The Study 2 study build with session logging, which is never released |
 
 The pages in [gallery/](gallery/) are the sources of the screenshots in [images/](images/), and CI checks that they validate.
 

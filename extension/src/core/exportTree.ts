@@ -4,6 +4,7 @@ import { alertOf } from './alerts';
 import { isKnownContainer } from './containers';
 import { langFromPath, parseFenceInfo, sliceLines } from './fence';
 import { FigureCounter } from './figures';
+import { idHref, splitIdRef } from './idTarget';
 import { label, term, type MessageKey, type Messages } from './i18n';
 import { includeHref, includeLabel, includeProblemText, includeRequest } from './include';
 import { figureLabel, parentRequirementOf, PRIORITY_COLORS, progressLabel, questionStateOf, supersedersOf } from './markdownItHtml';
@@ -35,6 +36,8 @@ export interface ExportOptions {
   header?: boolean;
   /** Keep `:::comment` and `:::suggestion` blocks, which exports leave out by default. */
   comments?: boolean;
+  /** The document's path, so that `supersedes=this.smd#D1` counts like `supersedes=D1` (semantic tags R19, R53). */
+  file?: string;
 }
 
 /** exportTree's options: the public ones, and those only smd's own writers use. */
@@ -513,7 +516,8 @@ function evidence(c: ContainerCall): Block[] {
     factIf(values.commit, (v) => [text(v, { code: true })]),
     factIf(values.date, (v) => [dateOrText(v)]),
     factIf(values.by, (v) => [text(v)]),
-    factIf(values.source, (v) => [text(v, source ? { href: source } : {})]),
+    // A source the URL check refuses is left out (R42, evidence/source).
+    factIf(source && values.source, (v) => [text(v, { href: source })]),
   ]);
 }
 
@@ -553,7 +557,7 @@ function deprecated(c: ContainerCall): Block[] {
 function decisionLinks(c: ContainerCall): Inline[][] {
   const { values, id } = c.meta.attrs;
   const { m } = c.b;
-  const by = supersedersOf(c.b.tokens, id);
+  const by = supersedersOf(c.b.tokens, id, c.b.options.file);
   return [
     factIf(values.supersedes, (v) => [text(label(m, 'tag.supersedes', { ids: idText(v) }))]),
     by ? [text(label(m, 'tag.supersededBy', { ids: idText(by) }))] : [],
@@ -821,6 +825,8 @@ class InlineReader {
    */
   private ref(id: string): void {
     const figure = envFigures(this.b.parsed.env).get(id);
+    const other = figure ? undefined : splitIdRef(id);
+    if (other?.path) { this.text(id, { href: idHref(other) }); return; }
     if (!figure && (envBlockIds(this.b.parsed.env).get(id)?.count ?? 0) > 1) this.text(id);
     else this.text(figure ? figureLabel(figure, this.b.m) : id, { href: `#${id}` });
   }

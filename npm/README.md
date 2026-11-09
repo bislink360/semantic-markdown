@@ -65,7 +65,7 @@ The package also installs **`smd-language-server`**, the same as `smd lsp`: poin
 
 ```ts
 import {
-  renderSmd, renderPage, specVersion, LATEST_SPEC, validateSmd, applyFixes, agentView, outline,
+  renderSmd, renderPage, specVersion, LATEST_SPEC, validateSmd, applyFixes, agentView, outline, readSmd,
   smdToMarkdown, smdToConfluence, smdToNotion, notionRequests, smdToPandocHtml, markdownToSmd, getDocumentInfo, extractTasks,
   querySmd, indexEntry, smdIndex, diffSmd, formatSmd,
   decisionLog, decisionLogMarkdown, statusChanges, statusReportMarkdown, statusReport,
@@ -291,6 +291,15 @@ const o200k = getEncoding('o200k_base');
 const tokenizer = { name: 'o200k_base', count: (text: string) => o200k.encode(text).length };
 agentView(source, { tokenizer, maxTokens: 800 }).counted; // { tokenizer, tokens, originalTokens }
 outline(source, { tokenizer });                          // exact counts next to each estimate
+
+// `smd read` as a function: the whole view within the budget (default READ_BUDGET, 2000), else the outline.
+// With `follow`, the edges of what it shows come after the view: linked blocks as pointers with their cost,
+// what it depends-on, includes and the constraints that apply to it in full, and what could not be read.
+const read = readSmd(source, {
+  file: 'docs/spec.smd', sections: ['Requirements'], follow: '*', direction: 'both', depth: 1,
+  readDocument: (path) => ({ text: fs.readFileSync(path, 'utf8') }), // other files by path (sandbox it yourself)
+});
+read.follow          // { neighbors, dependencies, unsatisfied, complete, tokens: { shown, dependencies, pointers } }
 ```
 
 `maxTokens` never leaves out the header, text before the first `##` section, sections with `:::agent` instructions, or the requested `sections`. Sections with danger or warning callouts, accepted decisions, questions or open tasks are kept longest. OpenAI encodings are approximate for Claude models, which have no public tokenizer.

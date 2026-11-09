@@ -5,16 +5,13 @@ import {
 import { collect, graphReader, querySummary, read } from './workspace';
 
 /** `smd query`'s options. `follow`, `direction` and `depth` are as written on the command line. */
-export interface QueryFlags {
+export interface QueryFlags extends FollowFlags {
   json: boolean;
   titles: boolean;
   brief: boolean;
   lineRefs: boolean;
   today?: string;
   constraints?: boolean;
-  follow?: string;
-  direction?: string;
-  depth?: string;
 }
 
 export interface QueryOutput { code: number; stdout: string; stderr: string }
@@ -31,16 +28,13 @@ export function runQuery(selector: string | undefined, targets: string[], flags:
   let selectors: Selector[];
   try {
     selectors = parseSelector(selector);
-    if (flags.follow !== undefined) edgeTypes(flags.follow);
   } catch (e) {
-    if (e instanceof SelectorError || e instanceof EdgeTypeError) return fail(e.message);
+    if (e instanceof SelectorError) return fail(e.message);
     throw e;
   }
-  if (flags.follow === undefined && (flags.direction !== undefined || flags.depth !== undefined)) return fail('--direction and --depth go with --follow, e.g. --follow "*" --direction in.');
-  const direction = flags.direction ?? 'out';
-  if (direction !== 'out' && direction !== 'in' && direction !== 'both') return fail(`--direction takes out, in or both (got "${direction}").`);
-  const depth = flags.depth === undefined ? 1 : Number(flags.depth);
-  if (!Number.isInteger(depth) || depth < 1 || depth > 3) return fail(`--depth takes 1, 2 or 3 (got "${flags.depth}").`);
+  const graph = followOptions(flags);
+  if ('error' in graph) return fail(graph.error);
+  const { direction, depth } = graph;
 
   const roots = targets.length ? targets : ['.'];
   const files = roots.flatMap((t) => collect(t));
@@ -59,6 +53,31 @@ export function runQuery(selector: string | undefined, targets: string[], flags:
   }
   const stdout = flags.json ? JSON.stringify(queryResultJson(result), null, 2) + '\n' : formatQueryResult(result, { titles: flags.titles });
   return { code, stdout, stderr: `[smd] ${queryResultSummary(result, files.length)}\n` };
+}
+
+/** `--follow`, `--direction` and `--depth` as written on the command line, as `smd query` and `smd read` take them. */
+export interface FollowFlags {
+  follow?: string;
+  direction?: string;
+  depth?: string;
+}
+
+/** The follow options checked (exit code 2 on an error, with this message), with the defaults: out, depth 1. */
+export function followOptions(flags: FollowFlags): { direction: 'out' | 'in' | 'both'; depth: number } | { error: string } {
+  if (flags.follow !== undefined) {
+    try {
+      edgeTypes(flags.follow);
+    } catch (e) {
+      if (e instanceof EdgeTypeError) return { error: e.message };
+      throw e;
+    }
+  }
+  if (flags.follow === undefined && (flags.direction !== undefined || flags.depth !== undefined)) return { error: '--direction and --depth go with --follow, e.g. --follow "*" --direction in.' };
+  const direction = flags.direction ?? 'out';
+  if (direction !== 'out' && direction !== 'in' && direction !== 'both') return { error: `--direction takes out, in or both (got "${direction}").` };
+  const depth = flags.depth === undefined ? 1 : Number(flags.depth);
+  if (!Number.isInteger(depth) || depth < 1 || depth > 3) return { error: `--depth takes 1, 2 or 3 (got "${flags.depth}").` };
+  return { direction, depth };
 }
 
 /** The left-out constraints, one line per document, for --json output (where stdout stays an array). */

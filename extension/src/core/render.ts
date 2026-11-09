@@ -45,6 +45,8 @@ export interface RenderOptions {
    * matter. The document's own `smd` wins over it. Default 1.
    */
   spec?: SpecVersion;
+  /** The document's path, so that `supersedes=this.smd#D1` counts like `supersedes=D1` (semantic tags R19, R53). */
+  file?: string;
 }
 
 export interface Heading {
@@ -67,7 +69,7 @@ export interface RenderResult {
   spec?: SpecVersion;
 }
 
-export type ResolvedOptions = Required<Omit<RenderOptions, 'readFile' | 'lang' | 'spec'>> & Pick<RenderOptions, 'readFile'>;
+export type ResolvedOptions = Required<Omit<RenderOptions, 'readFile' | 'lang' | 'spec' | 'file'>> & Pick<RenderOptions, 'readFile' | 'file'>;
 
 export interface Env extends FigureEnv, VariableEnv, SpecEnv {
   lineOffset: number;
@@ -200,6 +202,7 @@ function parseTokens(text: string, fm: ParsedDocument, options: RenderOptions): 
     reviewBlocks: options.reviewBlocks ?? 'shown',
     readFile: options.readFile,
     today: options.today ?? new Date().toISOString().slice(0, 10),
+    ...(options.file === undefined ? {} : { file: options.file }),
   };
   const md = createMarkdownIt(opts);
   const data = fm.data;

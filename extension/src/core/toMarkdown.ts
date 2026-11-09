@@ -2,6 +2,7 @@ import { parseAttrs } from './attrs';
 import { closedBy, CONTAINER_CLOSE, CONTAINER_OPEN, parseContainerInfo, unknownContainerTitle, type ContainerInfo } from './containers';
 import { parseFenceInfo, sliceLines } from './fence';
 import { refDirective, type Figure, type FigureNumber } from './figures';
+import { idHref, splitIdRef } from './idTarget';
 import {
   containerEnd, hasIncludes, includeHref, includeLabel, includePath, includeRequest, innerScope, loadInclude, rootScope, type IncludeScope,
 } from './include';
@@ -30,6 +31,8 @@ export interface ToMarkdownOptions {
   readFile?: (relativePath: string) => string | undefined;
   /** Keep `:::comment` and `:::suggestion` blocks (as quotes). Left out by default, as every export leaves them out. */
   comments?: boolean;
+  /** The document's path, so that `supersedes=this.smd#D1` counts like `supersedes=D1` (semantic tags R19, R53). */
+  file?: string;
 }
 
 const TICK = '`';
@@ -58,7 +61,7 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
   const stack: Frame[] = [];
   // What the document's blocks say about each other (answers, supersedes), read on the first ask.
   let tags: TagContext | undefined | null = null;
-  const tagsHere = () => (tags === null ? (tags = tagContext(text)) : tags);
+  const tagsHere = () => (tags === null ? (tags = tagContext(text, options.file)) : tags);
   const prefix = () => stack.map((f) => f.prefix).join('');
   const emit = (line: string) => {
     const p = prefix();
@@ -423,7 +426,9 @@ function evidenceMarkdown(c: ContainerSource): ContainerMarkdown {
   if (result === 'pass') kind = 'TIP';
   else if (result === 'fail') kind = 'CAUTION';
   return tagAlert(kind, 'Evidence', c, [
-    v.supports ? `supports ${ids(v.supports)}` : '', v.contradicts ? `contradicts ${ids(v.contradicts)}` : '', v.method, v.result, v.commit, v.date, v.by, v.source,
+    v.supports ? `supports ${ids(v.supports)}` : '', v.contradicts ? `contradicts ${ids(v.contradicts)}` : '', v.method, v.result, v.commit, v.date, v.by,
+    // A source the URL check refuses is left out (R42, evidence/source).
+    quoteCite(v.source) ? v.source : '',
   ]);
 }
 
@@ -568,15 +573,17 @@ export function convertInline(
 }
 
 /**
- * `:ref[id]` → `[Figure 2](#id)`, or `[id](#id)` for another block that gives the id (D4); references to unknown or
- * ambiguous ids stay as written.
+ * `:ref[id]` → `[Figure 2](#id)`, or `[id](#id)` for another block that gives the id (D4), and `:ref[other.smd#id]` →
+ * `[other.smd#id](other.smd#id)` (R19); references to unknown or ambiguous ids stay as written.
  */
 function refLinks(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
-  if (!figures?.size && !blocks?.size) return s;
+  if (!figures?.size && !blocks?.size && !s.includes('#')) return s;
   return s.replace(refDirective(spec), (m, pre: string, raw: string) => {
     const id = raw.trim();
     const figure = figures?.get(id);
     if (figure) return `${pre}[${figure.label}](#${id})`;
+    const other = splitIdRef(id);
+    if (other.path) return `${pre}[${id}](${idHref(other)})`;
     return blocks?.has(id) ? `${pre}[${id}](#${id})` : m;
   });
 }

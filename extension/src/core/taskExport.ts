@@ -1,5 +1,6 @@
 import type { TaskInfo } from './meta';
 import { SMD_VERSION } from './spec';
+import { acyclicPrerequisites, orderByPrerequisites } from './taskOrder';
 
 /**
  * Task export: CSV for spreadsheets and a Mermaid Gantt chart of tasks with due dates, from the
@@ -45,14 +46,65 @@ export interface GanttOptions {
  * A Mermaid `gantt` chart: one section per file (in path order), one milestone per task with a
  * valid YYYY-MM-DD due date (by date, then line), named by its text and owners. Done tasks are
  * marked `done`, overdue ones `crit`. Tasks without a due date are left out (see `ganttDate`).
+ *
+ * A task whose `:depends[…]` names charted tasks, of its file or another, comes after them (semantic tags R49). When they are all
+ * due no later than it, it is a bar that starts `after` them and ends on its own due date, so the chart shows what it
+ * waits for. Tasks of a dependency cycle draw no "after" between them. A chart without such dependencies is the same as before.
  */
 export function tasksToGantt(rows: TaskExportRow[], options: GanttOptions = {}): string {
   const out = ['gantt', `  title ${ganttText(options.title?.trim() || 'Tasks')}`, '  dateFormat YYYY-MM-DD'];
-  for (const [file, tasks] of groupByFile(rows.filter((r) => ganttDate(r.due)))) {
+  const sections = groupByFile(rows.filter((r) => ganttDate(r.due))).map(([file, tasks]) => [file, orderByPrerequisites(tasks)] as const);
+  // Ids are numbered in chart order.
+  const links = ganttLinks(sections.flatMap(([, tasks]) => tasks));
+  for (const [file, tasks] of sections) {
     out.push(`  section ${ganttText(file || 'Tasks')}`);
-    for (const t of tasks) out.push(`    ${milestone(t)}`);
+    for (const t of tasks) out.push(`    ${ganttTask(t, links)}`);
   }
   return out.join('\n') + '\n';
+}
+
+/** The Mermaid id of each charted task another one depends on, and each task's charted prerequisites. */
+interface GanttLinks { ids: Map<TaskExportRow, string>; before: Map<TaskExportRow, TaskExportRow[]> }
+
+/** Words Mermaid reads in a task's data as a tag or a start, so they can't be ids. */
+const GANTT_WORDS = new Set(['after', 'until', 'active', 'done', 'crit', 'milestone', 'vert']);
+
+/** A task's own id when Mermaid can read it in `after` and no other charted task has it, else `task-N`. */
+function ganttLinks(rows: TaskExportRow[]): GanttLinks {
+  const before = new Map<TaskExportRow, TaskExportRow[]>();
+  acyclicPrerequisites(rows).forEach((p, i) => { if (p.length) before.set(rows[i], p.map((j) => rows[j])); });
+  const position = new Map(rows.map((r, i) => [r, i]));
+  const needed = [...new Set([...before.values()].flat())].sort((a, b) => position.get(a)! - position.get(b)!);
+  const count = new Map<string, number>();
+  for (const r of rows) if (r.id) count.set(r.id.toLowerCase(), (count.get(r.id.toLowerCase()) ?? 0) + 1);
+  const ids = new Map<TaskExportRow, string>();
+  const taken = new Set<string>();
+  for (const r of needed) {
+    const own = r.id && /^[a-z][\w-]*$/i.test(r.id) && !GANTT_WORDS.has(r.id.toLowerCase()) && count.get(r.id.toLowerCase()) === 1;
+    if (own) { ids.set(r, r.id!); taken.add(r.id!.toLowerCase()); }
+  }
+  let n = 0;
+  for (const r of needed) {
+    if (ids.has(r)) continue;
+    let id: string;
+    do id = `task-${++n}`; while (taken.has(id));
+    ids.set(r, id);
+  }
+  return { ids, before };
+}
+
+/**
+ * `Ship it @maya :crit, milestone, 2026-10-01, 0d`, with its id when another task depends on it, and
+ * `Write it :after spec, 2026-10-05` for a task that waits for charted tasks due no later than it.
+ */
+function ganttTask(t: TaskExportRow, links: GanttLinks): string {
+  const name = [t.text, ...t.assignees].filter(Boolean).join(' ') || `Task on line ${t.line + 1}`;
+  const id = links.ids.get(t);
+  const before = links.before.get(t) ?? [];
+  const after = before.length && before.every((p) => p.due! <= t.due!) ? `after ${before.map((p) => links.ids.get(p)).join(' ')}` : '';
+  const tags = [t.done ? 'done' : '', t.overdue ? 'crit' : '', after ? '' : 'milestone'].filter(Boolean);
+  const data = [...tags, ...(id ? [id] : []), ...(after ? [after, t.due!] : [t.due!, '0d'])];
+  return `${ganttTaskName(name)} :${data.join(', ')}`;
 }
 
 /** The chart wrapped in a small `.smd` document with a `mermaid` fence, for `smd render`. */
@@ -81,13 +133,6 @@ function groupByFile(rows: TaskExportRow[]): Array<[string, TaskExportRow[]]> {
   return [...groups.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([file, tasks]) => [file, [...tasks].sort(byDate)]);
-}
-
-/** `Ship it @maya :crit, milestone, 2026-10-01, 0d` */
-function milestone(t: TaskExportRow): string {
-  const name = [t.text, ...t.assignees].filter(Boolean).join(' ') || `Task on line ${t.line + 1}`;
-  const tags = [t.done ? 'done' : '', t.overdue ? 'crit' : '', 'milestone'].filter(Boolean);
-  return `${ganttTaskName(name)} :${tags.join(', ')}, ${t.due}, 0d`;
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   answeredQuestions, blocksById, enclosing, hasAnswer, listed, mayHoldTags, questionStatus, SETTLED_REQUIREMENT, tagBlocks, tagValue,
   verifiesOf, type TagBlock,
 } from './semanticTags';
+import { quoteCite } from './quote';
 import { idList } from './spec';
 import type { SpecVersion } from './specVersion';
 import { escapeRegExp } from './util';
@@ -242,15 +243,36 @@ function checkAssumptions(blocks: readonly TagBlock[], at: Place, push: Push, to
   }
 }
 
-/** `evidence/target` and `evidence/rev`. The stale check is evidence/stale. */
+/** A commit hash as `commit=` takes it: 7 to 40 hex characters. Whether the commit exists is not checked (R43). */
+const COMMIT_HASH = /^[0-9a-f]{7,40}$/i;
+
+/**
+ * `evidence/unlinked` (R41), `evidence/rev`, `evidence/source` (R42) and `evidence/commit` (R43).
+ * The stale check is evidence/stale. Ids that name no block are `ref/unknown`.
+ */
 function checkEvidence(blocks: readonly TagBlock[], at: Place, push: Push): void {
   for (const e of named(blocks, 'evidence')) {
     const [column, end] = at.line(e);
-    if (!listed(e, 'supports').length && !listed(e, 'contradicts').length) {
-      push(e.line, column, end, 'warning', 'evidence/target', 'This evidence names no block: add supports=<id> or contradicts=<id>.');
-    } else if (!e.values.rev) {
-      push(e.line, column, end, 'hint', 'evidence/rev',
-        'This evidence has no rev=, so a later change to what it supports can\'t be detected. Record the revision (smd rev <file> <id>).');
+    if (listed(e, 'supports').length || listed(e, 'contradicts').length) {
+      if (!e.values.rev) {
+        push(e.line, column, end, 'hint', 'evidence/rev',
+          'This evidence has no rev=, so a later change to what it supports can\'t be detected. Record the revision (smd rev <file> <id>).');
+      }
+    } else {
+      // Nothing listed, including an empty supports="" or contradicts="", which names no block (R41).
+      const empty = (['supports', 'contradicts'] as const).find((k) => e.values[k] !== undefined);
+      push(e.line, ...(empty ? at.attr(e, empty) : [column, end] as const), 'info', 'evidence/unlinked', empty
+        ? `This evidence's ${empty}= lists no id, so it neither supports nor contradicts anything and nothing counts it. Write the id it is about, e.g. ${empty}=R1.`
+        : 'This evidence neither supports nor contradicts anything, so nothing counts it. Add supports=<id> or contradicts=<id>.');
+    }
+    const { source, commit } = e.values;
+    if (source !== undefined && !quoteCite(source)) {
+      push(e.line, ...at.attr(e, 'source'), 'warning', 'evidence/source',
+        `source="${source}" is left out: it must be an http(s) URL or a relative path without spaces.`);
+    }
+    if (commit !== undefined && !COMMIT_HASH.test(commit.trim())) {
+      push(e.line, ...at.attr(e, 'commit'), 'warning', 'evidence/commit',
+        `commit="${commit}" is not a commit hash: write 7 to 40 hex characters, e.g. commit=3f2a9c1.`);
     }
   }
 }

@@ -1,10 +1,12 @@
 import { agentViewRanges, estimateTokens } from './agentView';
 import { parseFrontMatter } from './frontmatter';
 import { refDirective } from './figures';
+import { splitIdRef } from './idTarget';
 import { resolveId } from './ids';
 import { includeRequest } from './include';
 import { findLinks, splitTarget } from './links';
 import { parseSmd } from './parse';
+import { normalizePath, resolvePath } from './paths';
 import { documentBlocks, type DocumentBlock } from './query';
 import { findSection, sectionsOf } from './sections';
 import { EDGE_KINDS, ID_ATTRIBUTES, idList } from './spec';
@@ -15,7 +17,8 @@ import { suggest } from './util';
  * The reference graph of .smd documents (filtering G1 to G5, research contract "Edge semantics"). Edges are derived
  * from the source on every call and never stored: links to anchors and .smd files, `:ref[id]`, `related:`, `:::include`,
  * every id attribute (ID_ATTRIBUTES) and a task's `:depends[id]`. Each edge has a type from EDGE_KINDS and a direction,
- * from the block it is written in to what it names. Ids resolve with resolveId, so a duplicate id resolves to nothing.
+ * from the block it is written in to what it names. Ids resolve with resolveId, so a duplicate id resolves to nothing,
+ * and an id written `other.smd#R1` resolves in that document (semantic tags R19).
  *
  * A DocumentGraph only remembers what it read during one call. Files outside the documents it is given are read
  * through `readDocument`, which says when a file is missing or outside what the host allows (denied).
@@ -107,27 +110,7 @@ export function edgeTypes(names: string | readonly string[]): string[] {
   return types.filter((t) => out.has(t));
 }
 
-/** `a/./b/../c` → `a/c` and backslashes → `/`. Leading `..` and a drive or `/` root stay. */
-export function normalizePath(p: string): string {
-  const slashed = p.replace(/\\/g, '/');
-  const out: string[] = [];
-  for (const seg of slashed.split('/')) {
-    if (seg === '' || seg === '.') continue;
-    if (seg === '..' && out.length && out[out.length - 1] !== '..' && !/^[a-z]:$/i.test(out[out.length - 1])) out.pop();
-    else out.push(seg);
-  }
-  return (slashed.startsWith('/') ? '/' : '') + out.join('/');
-}
-
-const folderOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf('/')));
-const isAbsolute = (p: string) => /^(?:[a-z]:)?[\\/]/i.test(p);
-
-/** A link or include path written in document `from`, as a normalized path. */
-export function resolvePath(from: string, target: string): string {
-  if (isAbsolute(target)) return normalizePath(target);
-  const dir = folderOf(normalizePath(from));
-  return normalizePath(dir ? `${dir}/${target}` : target);
-}
+export { normalizePath, resolvePath };
 
 /** A node's key: its file and line, or its file for a whole document. */
 export const nodeKey = (n: GraphNode): string => (n.line === undefined ? `${n.file}#${n.type}${n.id ? `#${n.id}` : ''}` : `${n.file}:${n.line}`);
@@ -281,6 +264,13 @@ export class DocumentGraph {
       });
     };
     const inDoc = (id: string) => this.resolve(doc.path, id);
+    // An id as an id attribute, `:ref` or `:depends` writes it: in this document, or `other.smd#R1` in another (R19).
+    const idEdge = (type: string, from: GraphNode, line: number, written: string) => {
+      const target = splitIdRef(written);
+      if (!target.path) { add(type, from, line, written, doc.path, inDoc(written)); return; }
+      const file = resolvePath(doc.path, target.path);
+      add(type, from, line, written, file, this.resolve(file, target.id));
+    };
 
     // Links, related entries and includes (findLinks skips code).
     for (const link of findLinks(doc.text).links) {
@@ -303,7 +293,7 @@ export class DocumentGraph {
     }
 
     const bodyStart = parseFrontMatter(doc.text).bodyStartLine;
-    for (const ref of refsIn(doc.lines, bodyStart, doc.spec)) add('ref', sourceAt(ref.line), ref.line, ref.id, doc.path, inDoc(ref.id));
+    for (const ref of refsIn(doc.lines, bodyStart, doc.spec)) idEdge('ref', sourceAt(ref.line), ref.line, ref.id);
 
     for (const block of doc.blocks) {
       const from = toNode(doc.path, block);
@@ -318,13 +308,13 @@ export class DocumentGraph {
       if (block.type === 'task') {
         if (doc.spec < 2) continue;
         const raw = (doc.lines[block.line] ?? '').replace(/(`+)([\s\S]*?)\1/g, (m) => ' '.repeat(m.length));
-        for (const m of raw.matchAll(DEPENDS)) for (const id of idList(m[2])) add('depends-on', from, block.line, id, doc.path, inDoc(id));
+        for (const m of raw.matchAll(DEPENDS)) for (const id of idList(m[2])) idEdge('depends-on', from, block.line, id);
         continue;
       }
       for (const [key, names] of Object.entries(ID_ATTRIBUTES)) {
         const value = block.attrs[key];
         if (typeof value !== 'string' || !names.includes(block.type)) continue;
-        for (const id of idList(value)) add(key, from, block.line, id, doc.path, inDoc(id));
+        for (const id of idList(value)) idEdge(key, from, block.line, id);
       }
     }
     return edges.sort((a, b) => a.line - b.line);
@@ -390,6 +380,8 @@ export interface FollowOptions {
   shown?: ReadonlySet<string>;
   /** At most this many neighbors (default 100). */
   limit?: number;
+  /** Edges to leave alone, such as those written in content the caller hides. */
+  ignore?: (edge: GraphEdge) => boolean;
 }
 
 export interface Neighbor {
@@ -412,29 +404,33 @@ export const MAX_FOLLOW_DEPTH = 3;
 /**
  * The neighbors of `start` along edges of `types`, as pointers, breadth first up to `depth` hops. Edges that reach
  * something the start needs (mandatory edges in their own direction) are left out: mandatoryClosure includes them.
+ * `start` can be several nodes, such as the blocks of the sections a read shows: what lies inside any of them is
+ * not a neighbor, and each neighbor is listed once.
  */
-export function followEdges(graph: DocumentGraph, start: GraphNode, options: FollowOptions): { neighbors: Neighbor[]; cut: number } {
+export function followEdges(graph: DocumentGraph, start: GraphNode | readonly GraphNode[], options: FollowOptions): { neighbors: Neighbor[]; cut: number } {
+  const starts: readonly GraphNode[] = Array.isArray(start) ? start : [start as GraphNode];
+  const inStart = (node: GraphNode) => starts.some((s) => contains(s, node));
   const depth = Math.min(MAX_FOLLOW_DEPTH, Math.max(1, Math.trunc(options.depth ?? 1)));
   const directions: EdgeDirection[] = options.direction === 'both' ? ['out', 'in'] : [options.direction ?? 'out'];
   const types = new Set(options.types);
   const limit = options.limit ?? 100;
-  const seen = new Set([nodeKey(start)]);
+  const seen = new Set(starts.map(nodeKey));
   const listed = new Set<string>();
   // The depth a node was first listed at: deeper paths to it are not listed again.
   const firstDepth = new Map<string, number>();
   const neighbors: Neighbor[] = [];
   let cut = 0;
-  let frontier = [start];
+  let frontier = [...starts];
   for (let d = 1; d <= depth && frontier.length; d++) {
     const next: GraphNode[] = [];
     for (const via of frontier) {
       for (const direction of directions) {
         const edges = direction === 'out' ? graph.outgoing(via) : graph.incoming(via);
         for (const edge of edges) {
-          if (!types.has(edge.type) || (d === 1 && needs(edge, direction))) continue;
+          if (!types.has(edge.type) || (d === 1 && needs(edge, direction)) || options.ignore?.(edge)) continue;
           const node = direction === 'out' ? edge.to : edge.from;
           // An edge between places inside the node, or back into the start, is not a neighbor.
-          if (node && (contains(start, node) || (direction === 'out' && contains(via, node)))) continue;
+          if (node && (inStart(node) || (direction === 'out' && contains(via, node)))) continue;
           // Each neighbor once per relation, however many paths reach it.
           const what = node ? nodeKey(node) : `${edge.status}|${edge.file}|${edge.file === edge.from.file ? edge.target : edge.target.split('#')[1] ?? ''}`;
           const id = `${direction}|${edge.type}|${what}`;
@@ -469,6 +465,8 @@ export interface ClosureOptions {
   maxBlocks?: number;
   /** Nodes already shown in full (by key): not included again and not reported. */
   shown?: ReadonlySet<string>;
+  /** Edges to leave alone, such as those written in content the caller hides. */
+  ignore?: (edge: GraphEdge) => boolean;
 }
 
 export interface ClosureBlock {
@@ -528,7 +526,7 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
   const wantedOf = (node: GraphNode): Array<{ edge: GraphEdge; target?: GraphNode }> => [
     ...graph.outgoing(node).filter((e) => types.has(e.type) && needs(e, 'out')).map((edge) => ({ edge, target: edge.to })),
     ...(types.has('applies-to') ? graph.appliesTo(node).map((edge) => ({ edge, target: edge.from })) : []),
-  ];
+  ].filter(({ edge }) => !options.ignore?.(edge));
 
   // The fewest steps from any start to each node within the limit, breadth first over the same edges the walk follows.
   // Nodes already shown are not expanded, as the walk skips them. A node missing from `distance` is further away.
@@ -598,7 +596,9 @@ export interface DependencyProblem {
  */
 export function dependencyProblems(text: string, today?: string): DependencyProblem[] {
   const graph = new DocumentGraph([{ path: 'doc.smd', text }], { today });
-  const edges = graph.edgesOf('doc.smd').filter((e) => e.status === 'resolved' && e.to?.line !== undefined && (e.type === 'depends-on' || e.type === 'supersedes'));
+  // Edges into other documents (`other.smd#R1`) are left out: only this document is read.
+  const edges = graph.edgesOf('doc.smd').filter((e) => e.status === 'resolved' && e.to?.line !== undefined && !splitIdRef(e.target).path
+    && (e.type === 'depends-on' || e.type === 'supersedes'));
   const problems: DependencyProblem[] = [];
   const name = (n: GraphNode) => n.id ?? n.title;
   const keyOf = (e: GraphEdge) => (e.from.type === 'task' ? ':depends' : e.type);

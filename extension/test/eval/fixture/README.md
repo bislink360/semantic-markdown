@@ -8,6 +8,8 @@ The tool's developers wrote these documents, annotations, tasks and answers to e
 - `pagination/` is a short ADR with a rejected option, a limit, a negation and an open question.
 - `answers.jsonl` holds made-up answers for two conditions. No model wrote them.
 
+The Study 3 loop fixture is in `../study3/`, outside this folder, because every folder here is read as a corpus document.
+
 Run the harness on it from `extension/`:
 
 ```sh

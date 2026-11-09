@@ -1,5 +1,5 @@
 import { accepts, evidenceRecords, isAcceptance, supportFor, type EvidenceFreshness, type EvidenceRecord } from './evidence';
-import { DocumentGraph, nodeKey, type GraphDocument } from './graph';
+import { DocumentGraph, nodeKey, type GraphDocument, type GraphEdge } from './graph';
 import { documentBlocks, type DocumentBlock } from './query';
 
 /**
@@ -7,7 +7,8 @@ import { documentBlocks, type DocumentBlock } from './query';
  * columns, and nothing in one is inferred from another: its status as written, its coverage (acceptance criteria that
  * verify it), its claims (tasks in it or that depend on it), its evidence (verification records that support it) and
  * its human acceptance. A checked task is never evidence, and an acceptance criterion is never evidence. Ids resolve
- * within each document: evidence in another document can't support a requirement yet (R19).
+ * within each document, and an acceptance criterion, task or record in another of the documents counts when it names
+ * the requirement with its path, as in `verifies=spec.smd#R1` (R19).
  */
 
 export interface TraceCriterion {
@@ -16,6 +17,8 @@ export interface TraceCriterion {
   id?: string;
   /** Nested in the requirement, or standing alone with `verifies=`. */
   how: 'nested' | 'verifies';
+  /** The document it is in, when that is not the requirement's (`verifies=spec.smd#R1`). */
+  file?: string;
 }
 
 export interface TraceTask {
@@ -25,6 +28,8 @@ export interface TraceTask {
   done: boolean;
   /** Inside the requirement block, or naming it in `:depends[…]`. */
   how: 'inside' | 'depends';
+  /** The document it is in, when that is not the requirement's (`:depends[spec.smd#R1]`). */
+  file?: string;
 }
 
 export interface TraceRecord {
@@ -36,6 +41,8 @@ export interface TraceRecord {
   by?: string;
   date?: string;
   freshness: EvidenceFreshness;
+  /** The document it is in, when that is not the requirement's (`supports=spec.smd#R1`). */
+  file?: string;
 }
 
 export interface TraceRequirement {
@@ -95,73 +102,30 @@ function traceRecord(r: EvidenceRecord, id: string): TraceRecord {
   return out;
 }
 
+/** A document's blocks and evidence records, read once per trace. */
+interface TracedDocument { path: string; lines: readonly string[]; blocks: DocumentBlock[]; records: EvidenceRecord[] }
+
+/** A record that supports a requirement, with the id it names it by as written (`R1`, or `a.smd#R1` from another document). */
+interface Supporting { record: EvidenceRecord; as: string; file: string }
+
 /** The requirements of `documents`, each with its five columns, and the counts over all of them. */
 export function traceRequirements(documents: readonly GraphDocument[], options: TraceOptions = {}): TraceResult {
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const graph = new DocumentGraph(documents, { today });
-  const all: TraceRequirement[] = [];
+  const traced = new Map<string, TracedDocument>();
   for (const path of graph.paths) {
     const doc = graph.document(path);
     if (!('text' in doc)) continue;
     const blocks = documentBlocks(doc.text, today);
-    const records = evidenceRecords(doc.text, blocks);
-    const edges = graph.edgesOf(path).filter((e) => e.status === 'resolved' && e.to);
-    for (const req of blocks.filter((b) => b.type === 'requirement')) {
-      const id = str(req.attrs.id);
-      const key = `${path}:${req.line}`;
-      const pointing = (type: string) => edges.filter((e) => e.type === type && nodeKey(e.to!) === key);
-
-      const coverage: TraceCriterion[] = [];
-      const seen = new Set<number>();
-      const criterion = (b: DocumentBlock | undefined, how: TraceCriterion['how']) => {
-        if (!b || seen.has(b.line)) return;
-        seen.add(b.line);
-        const cid = str(b.attrs.id);
-        coverage.push({ title: b.title, line: b.line, ...(cid ? { id: cid } : {}), how });
-      };
-      for (const b of blocks) if (b.type === 'acceptance' && within(req, b.line)) criterion(b, 'nested');
-      for (const e of pointing('verifies')) criterion(blocks.find((b) => b.line === e.from.line && b.type === 'acceptance'), 'verifies');
-      coverage.sort((a, b) => a.line - b.line);
-
-      const tasks: TraceTask[] = [];
-      const task = (b: DocumentBlock | undefined, how: TraceTask['how']) => {
-        if (!b || tasks.some((t) => t.line === b.line)) return;
-        const tid = str(b.attrs.id);
-        tasks.push({ text: b.title, line: b.line, ...(tid ? { id: tid } : {}), done: b.attrs.done === 'true', how });
-      };
-      for (const b of blocks) if (b.type === 'task' && within(req, b.line)) task(b, 'inside');
-      for (const e of pointing('depends-on')) if (e.from.type === 'task') task(blocks.find((b) => b.line === e.from.line && b.type === 'task'), 'depends');
-      tasks.sort((a, b) => a.line - b.line);
-
-      // Records name requirements by id (resolved as the graph resolves it), so one without an id has none.
-      const supporting = pointing('supports');
-      const mine = id ? records.filter((r) => supporting.some((e) => e.from.line === r.line)) : [];
-      const verification = mine.filter((r) => !isAcceptance(r)).map((r) => traceRecord(r, id!));
-      const acceptance = mine.filter(isAcceptance).map((r) => traceRecord(r, id!));
-      const current = verification.filter((r) => r.freshness !== 'outdated');
-      const passing = current.filter((r) => r.result === 'pass').length;
-      const status = (str(req.attrs.status) ?? 'proposed').trim();
-      all.push({
-        file: path, line: req.line, ...(id ? { id } : {}), title: req.title || firstLine(doc.lines, req), status,
-        unsupportedVerified: status.toLowerCase() === 'verified' && !passing,
-        coverage,
-        claims: { checked: tasks.filter((t) => t.done).length, total: tasks.length, tasks },
-        evidence: {
-          passing,
-          failing: current.filter((r) => r.result === 'fail').length,
-          inconclusive: current.filter((r) => r.result === 'inconclusive').length,
-          outdated: verification.length - current.length,
-          unrecorded: current.filter((r) => !r.result).length,
-          total: verification.length,
-          methods: [...new Set(verification.map((r) => r.method ?? 'unstated'))],
-          records: verification,
-        },
-        acceptance: {
-          accepted: !!id && mine.some((r) => accepts(r, id)),
-          by: [...new Set(mine.filter((r) => accepts(r, id!)).map((r) => r.by ?? 'someone unnamed'))],
-          records: acceptance,
-        },
-      });
+    traced.set(path, { path, lines: doc.lines, blocks, records: evidenceRecords(doc.text, blocks) });
+  }
+  // Edges from every document: an acceptance criterion, task or record in another one names a requirement with its
+  // path (`verifies=spec.smd#R1`, R19).
+  const edges = graph.allEdges().filter((e) => e.status === 'resolved' && e.to);
+  const all: TraceRequirement[] = [];
+  for (const doc of traced.values()) {
+    for (const req of doc.blocks.filter((b) => b.type === 'requirement')) {
+      all.push(traceOne(doc, req, edges.filter((e) => nodeKey(e.to!) === `${doc.path}:${req.line}`), traced));
     }
   }
   const summary: TraceSummary = {
@@ -175,6 +139,76 @@ export function traceRequirements(documents: readonly GraphDocument[], options: 
   return { requirements: options.uncovered ? all.filter((r) => !r.coverage.length) : all, summary };
 }
 
+/** One requirement's five columns, from the edges that point at it. */
+function traceOne(doc: TracedDocument, req: DocumentBlock, pointingAt: readonly GraphEdge[], traced: ReadonlyMap<string, TracedDocument>): TraceRequirement {
+  const id = str(req.attrs.id);
+  const pointing = (type: string) => pointingAt.filter((e) => e.type === type);
+  const blockOf = (e: GraphEdge, type: string) => traced.get(e.from.file)?.blocks.find((b) => b.line === e.from.line && b.type === type);
+  const elsewhere = (file: string) => (file === doc.path ? {} : { file });
+  const order = (a: { file?: string; line: number }, b: { file?: string; line: number }) =>
+    (a.file ?? '').localeCompare(b.file ?? '') || a.line - b.line;
+
+  const coverage: TraceCriterion[] = [];
+  const seen = new Set<string>();
+  const criterion = (file: string, b: DocumentBlock | undefined, how: TraceCriterion['how']) => {
+    if (!b || seen.has(`${file}:${b.line}`)) return;
+    seen.add(`${file}:${b.line}`);
+    const cid = str(b.attrs.id);
+    coverage.push({ title: b.title, line: b.line, ...(cid ? { id: cid } : {}), how, ...elsewhere(file) });
+  };
+  for (const b of doc.blocks) if (b.type === 'acceptance' && within(req, b.line)) criterion(doc.path, b, 'nested');
+  for (const e of pointing('verifies')) criterion(e.from.file, blockOf(e, 'acceptance'), 'verifies');
+  coverage.sort(order);
+
+  const tasks: TraceTask[] = [];
+  const task = (file: string, b: DocumentBlock | undefined, how: TraceTask['how']) => {
+    if (!b || tasks.some((t) => t.line === b.line && (t.file ?? doc.path) === file)) return;
+    const tid = str(b.attrs.id);
+    tasks.push({ text: b.title, line: b.line, ...(tid ? { id: tid } : {}), done: b.attrs.done === 'true', how, ...elsewhere(file) });
+  };
+  for (const b of doc.blocks) if (b.type === 'task' && within(req, b.line)) task(doc.path, b, 'inside');
+  for (const e of pointing('depends-on')) if (e.from.type === 'task') task(e.from.file, blockOf(e, 'task'), 'depends');
+  tasks.sort(order);
+
+  // Records name requirements by id (resolved as the graph resolves it), so one without an id has none.
+  const mine: Supporting[] = [];
+  if (id) {
+    for (const e of pointing('supports')) {
+      const record = traced.get(e.from.file)?.records.find((r) => r.line === e.from.line);
+      if (record && !mine.some((m) => m.record === record)) mine.push({ record, as: e.target, file: e.from.file });
+    }
+    mine.sort((a, b) => order({ ...elsewhere(a.file), line: a.record.line }, { ...elsewhere(b.file), line: b.record.line }));
+  }
+  const record = (m: Supporting) => ({ ...traceRecord(m.record, m.as), ...elsewhere(m.file) });
+  const verification = mine.filter((m) => !isAcceptance(m.record)).map(record);
+  const acceptance = mine.filter((m) => isAcceptance(m.record)).map(record);
+  const accepted = mine.filter((m) => accepts(m.record, m.as));
+  const current = verification.filter((r) => r.freshness !== 'outdated');
+  const passing = current.filter((r) => r.result === 'pass').length;
+  const status = (str(req.attrs.status) ?? 'proposed').trim();
+  return {
+    file: doc.path, line: req.line, ...(id ? { id } : {}), title: req.title || firstLine(doc.lines, req), status,
+    unsupportedVerified: status.toLowerCase() === 'verified' && !passing,
+    coverage,
+    claims: { checked: tasks.filter((t) => t.done).length, total: tasks.length, tasks },
+    evidence: {
+      passing,
+      failing: current.filter((r) => r.result === 'fail').length,
+      inconclusive: current.filter((r) => r.result === 'inconclusive').length,
+      outdated: verification.length - current.length,
+      unrecorded: current.filter((r) => !r.result).length,
+      total: verification.length,
+      methods: [...new Set(verification.map((r) => r.method ?? 'unstated'))],
+      records: verification,
+    },
+    acceptance: {
+      accepted: accepted.length > 0,
+      by: [...new Set(accepted.map((m) => m.record.by ?? 'someone unnamed'))],
+      records: acceptance,
+    },
+  };
+}
+
 /** A block without a title by its first line of text, cut to 80 characters. */
 function firstLine(lines: readonly string[], b: DocumentBlock): string {
   const text = lines.slice(b.line + 1, b.endLine).map((l) => l.trim()).find((l) => l && !l.startsWith(':::')) ?? '';
@@ -182,7 +216,7 @@ function firstLine(lines: readonly string[], b: DocumentBlock): string {
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const name = (x: { id?: string; line: number }) => x.id ?? `L${x.line + 1}`;
+const name = (x: { id?: string; line: number; file?: string }) => `${x.file ? `${x.file} ` : ''}${x.id ?? `L${x.line + 1}`}`;
 
 function coverageText(r: TraceRequirement): string {
   if (!r.coverage.length) return `none: no acceptance criterion verifies ${r.id ?? 'this requirement'}`;
@@ -238,6 +272,6 @@ export function traceSummary(s: TraceSummary): string {
     `Accepted by a person: ${of(s.accepted)}.`,
     ...(s.unsupportedVerified ? [`Marked verified without current passing evidence: ${of(s.unsupportedVerified)}.`] : []),
     'Checked tasks are implementation claims, not verification.',
-    ...(s.documents > 1 ? ['Evidence supports requirements in its own document only.'] : []),
+    ...(s.documents > 1 ? ['Evidence and acceptance criteria in another document count only when they name the requirement with its path (spec.smd#R1).'] : []),
   ].join(' ');
 }

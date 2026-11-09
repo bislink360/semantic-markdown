@@ -155,6 +155,7 @@ All containers additionally accept the style attributes in §5. Attributes in **
 Unknown container names render as a plain `box` that keeps its title (§3), and produce a warning.
 A `risk` without `impact` has impact `medium`. Risk registers (`smd risks`, `:::risk-matrix`) score a risk as impact × likelihood, each ranked `low` 1, `medium` 2, `high` 3, `critical` 4; a missing or unknown likelihood also counts as `medium`, and a missing `status` means `open`.
 The attributes `verifies`, `applies-to`, `depends-on`, `supports`, `contradicts`, `supersedes`, `between` and `for` name blocks by id, one id or a comma-separated list (`verifies=R1,R2`). Each id must name exactly one block of the document (`ref/unknown`, `ref/ambiguous`, §7).
+An id may name a block of another document instead: a relative path to a `.smd`, `.md` or `.markdown` file, `#`, then the id, as in `verifies=spec.smd#R1` or `depends-on=../plan/tasks.smd#T3`. Any other text with a `#` is one id, as before. The validator checks it as it checks a link to another file (§7): only when it checks files, `link/missing-file` when the file does not exist, and when it can read the file, `ref/unknown` when no block there gives the id and `ref/ambiguous` when two do. `verifies` must name a requirement there too (`acceptance/verifies-type`). Rendered, the id is a link to that document as written (`<a class="smd-ref smd-ref-document" href="spec.smd#R1">spec.smd#R1</a>`), and the reference graph (`smd query --follow`, `smd trace`) resolves it in that document when it may read it.
 
 ### 3.2 Audience semantics
 
@@ -180,7 +181,7 @@ flowchart LR
 - **Numbering:** figures are numbered in document order, nested ones included, with one counter per `kind`: `figure` (the default; an unknown value also counts as `figure`) is labelled *Figure n*, `table` *Table n*, `listing` *Listing n*. Numbers are computed, never written, so they stay right when figures move.
 - **Rendering:** `<figure id="…" class="smd-figure smd-figure-{kind}">`, the content, then `<figcaption class="smd-figure-caption"><span class="smd-figure-label">Figure 1:</span> Caption</figcaption>`. The stylesheet shows a table's caption above it.
 - **References:** the inline directive `:ref[id]` (§4.2) stands for the label of the figure with that `{#id}`, e.g. *Figure 2*, linked to it: `<a class="smd-ref" href="#id">Figure 2</a>`. It may come before the figure and may appear in titles. An id that names no figure renders as written, marked `smd-ref-missing`, and is a `figure/unknown-ref` warning. When two figures share an id, references go to the first (`figure/duplicate-id`).
-- **References to other blocks** (since 3.1, semantic tags RFC D4): when no figure has the id, `:ref[id]` names the one block that gives it, a heading, task, container or raw HTML element (§4.2.3). It shows the id as written, linked, with the block's title as its tooltip and accessible name: `<a class="smd-ref" href="#R1" title="Export rules" aria-label="R1, Export rules">R1</a>`. The agent view shows `R1`, and `smd to-md` writes `[R1](#R1)`. An id two blocks give names neither: it renders as `<span class="smd-ref smd-ref-ambiguous">`, stays as written in the agent view and plain Markdown, and is a `ref/ambiguous` warning. A figure still wins over any other block with the same id.
+- **References to other blocks** (since 3.1, semantic tags RFC D4): when no figure has the id, `:ref[id]` names the one block that gives it, a heading, task, container or raw HTML element (§4.2.3). It shows the id as written, linked, with the block's title as its tooltip and accessible name: `<a class="smd-ref" href="#R1" title="Export rules" aria-label="R1, Export rules">R1</a>`. The agent view shows `R1`, and `smd to-md` writes `[R1](#R1)`. An id two blocks give names neither: it renders as `<span class="smd-ref smd-ref-ambiguous">`, stays as written in the agent view and plain Markdown, and is a `ref/ambiguous` warning. A figure still wins over any other block with the same id. `:ref[spec.smd#R1]` names a block of another document, as an id attribute does (§3.1): it renders as written, linked to that document, with the class `smd-ref smd-ref-document`; the agent view shows `spec.smd#R1` and `smd to-md` writes `[spec.smd#R1](spec.smd#R1)`. A missing file is `link/missing-file` and an id no block there gives is `figure/unknown-ref`.
 
 Why a directive and not a link: an empty-text link `[](#fig-checkout)` would be invisible in every renderer that doesn't know figures (GitHub, older `.smd` tools), and `[@fig-checkout]` could already appear in documents as plain text (a bracketed mention). `:ref[…]` follows the existing directive rules (a `:` after whitespace or opening punctuation), so no existing text changes meaning, and an older renderer shows it as the readable text `:ref[fig-checkout]`.
 
@@ -333,7 +334,7 @@ The section-read tests pass.
 - **Dependencies in views.** When a view shows a block with `depends-on`, or a task with `:depends`, it also shows what that block needs, transitively and at most 5 steps deep, under `Dependencies of the selected content:`. A cycle, a cut at the depth limit, or a missing, ambiguous, hidden or unread target is listed under `Not satisfied:`, and the view ends that list with `[incomplete: N mandatory dependencies are not satisfied]`. `smd agent` and `smd read` also warn on stderr.
 - **Budgets.** `--max-tokens` never leaves out a section with a document-scoped constraint. A section with a constraint whose `applies-to` target is kept, or with a dependency of kept content, goes only after what needs it. An omitted section that holds a constraint says `holds constraint`. Answered, incorporated and withdrawn questions are ordinary content, and open ones stay key content.
 - **`--constraints`** uses policy `constraints/2` in a document with a `:::constraint` (its own or an included one) and adds a pointer for each constraint that applies nowhere in the view. Documents without one keep `constraints/1`.
-- **Evidence.** `supports` or `contradicts` names what the record is about, and one of them is needed. `method` is free text, and `test`, `review`, `benchmark`, `manual`, `analysis` and `acceptance` are the known values. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` holds the revision (§3.10) of each supported block when the check ran, as `R1@3f2a9c1b0d4e`, or a bare revision when the record names one block. A record is outdated for a block once the block's revision differs from the one recorded (`evidence/stale`). A person rechecks the block and records the new revision, and no tool does it for them. A record without `rev` counts as current. Evidence supports blocks in its own document only.
+- **Evidence.** `supports` or `contradicts` names what the record is about. Evidence with neither is linked to nothing (`evidence/unlinked`). `source` is an http(s) URL or a relative path, checked as a quote's `cite` is, and any other value is left out of the preview, the exports and the agent view (`evidence/source`). `commit` is 7 to 40 hex characters (`evidence/commit`). `method` is free text, and `test`, `review`, `benchmark`, `manual`, `analysis` and `acceptance` are the known values. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` holds the revision (§3.10) of each supported block when the check ran, as `R1@3f2a9c1b0d4e`, or a bare revision when the record names one block. A record is outdated for a block once the block's revision differs from the one recorded (`evidence/stale`). A person rechecks the block and records the new revision, and no tool does it for them. A record without `rev` counts as current. Evidence supports blocks in its own document only.
 - **Verified requirements.** Passing verification evidence is a current record with `result=pass` and a method other than `acceptance`. A requirement that says `status=verified` without it is `requirement/verified`. A checked task and an acceptance criterion are never evidence. `smd trace` lists each requirement's status, coverage, task claims, evidence and acceptance by a person apart ([feature guide](features.md#tracing-requirements-smd-trace)).
 - **Rendering.** `<div class="smd-block smd-requirement smd-requirement-accepted" id="R1">`, then a head (`smd-block-head`) with the kind, the id, pills with text labels (priority, status, level, result) and facts (owner, scope, verifies, test, review-by, depends-on), then the title (`smd-block-title`) and the body (`smd-block-body`). The ids in id attributes are links, rendered as `:ref[id]` renders them (§3.3). An unvalidated assumption past its `review-by` date says "overdue" in words. Colour never carries the meaning alone, and the labels follow `lang` (§2.2). Exports (Confluence, Notion, Word) show each tag as a panel with its facts. The agent view is in §8a and plain Markdown in §8.
 
@@ -389,7 +390,7 @@ Added :since[1.6].
 - **Examples.** `kind=do` is a good example and `kind=dont` a bad one. Without `kind` an example is neutral. The agent view writes the kind on the tag, so a bad example is never read as guidance.
 - **Limitations.** A limitation says something does not work, does not hold or has not been checked, such as a known issue or a threat to validity. `affects` names the blocks it limits and is an id attribute (§3.3), with the edge kind `evidence`. A limitation that is not `resolved` is key content for `--max-tokens`.
 - **Deprecated content.** `since` is the version that deprecated it and `use` what to use instead. `smd query "deprecated[since=2.0]"` selects them.
-- **Version labels.** `:since[1.6]` renders `since 1.6` (`smd-since`), in spec v2 only (§4.2). In spec v1 it stays text and `smd migrate --to 2` escapes it.
+- **Version labels.** `:since[1.6]` renders `since 1.6` (`smd-since`), in spec v2 only (§4.2). In spec v1 it stays text and `smd migrate --to 2` escapes it. §11.3 shows this specification's own version notes written with `:::deprecated` and `:since`.
 - **Rendering.** The same panel as the other tags, with the class `smd-non-goals`, `smd-example smd-example-dont`, `smd-limitation smd-limitation-open` or `smd-deprecated`. The outline notes `non-goals`, `limitation` and `deprecated`. `.smd` tools 4.0.0 and earlier show the blocks as boxes with their title, and `:since[1.6]` in a spec v2 document as `1.6` with a `directive/unknown` warning.
 
 ### 3.10 Review comments and suggestions
@@ -474,8 +475,8 @@ The content, like CommonMark link text and a styled span's text (§4.1), may run
 | `priority` | required: `P0`–`P4` or `critical` `high` `medium` `low` | — | `:priority[P1]` |
 | `due` | required: `YYYY-MM-DD` | — | `:due[2026-10-15]` (overdue = red, ≤ 7 days = amber) |
 | `metric` | required: the value | `label` (recommended), `delta`, `trend` (`up` `down` `flat`), `good` (`up` `down`) | `:metric[42%]{label="Activation" delta="+3%" trend=up}` |
-| `ref` | required: the id of a `figure` or another block | — | `:ref[fig-checkout]` → *Figure 2*, linked; `:ref[R1]` → *R1*, linked (§3.3) |
-| `depends` | required: block ids, comma-separated. Spec v2 only, on a task | — | `:depends[R1,Q1]` → *depends on R1, Q1*, each linked (§3.9) |
+| `ref` | required: the id of a `figure` or another block, or `other.smd#id` for a block of another document | — | `:ref[fig-checkout]` → *Figure 2*, linked; `:ref[R1]` → *R1*, linked; `:ref[spec.smd#R1]` → *spec.smd#R1*, linked to that document (§3.3) |
+| `depends` | required: block ids, comma-separated, each may be `other.smd#id`. Spec v2 only, on a task | — | `:depends[R1,Q1]` → *depends on R1, Q1*, each linked (§3.9) |
 | `since` | required: a version. Spec v2 only | — | `:since[1.6]` → *since 1.6* (§3.9) |
 
 ### 4.2.1 Task metadata
@@ -756,10 +757,10 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `fence/unclosed` | error | Unclosed code fence (fix: add it at the end of the document, for an unindented fence) |
 | `link/missing-anchor` | warning | `[x](#id)` or `[x](../other.smd#id)` with no heading or element with that id (fix: closest id) |
 | `link/github-anchor` | info | `[x](#max_tokens)`: the anchor is the GitHub id of a heading whose own id differs (`#maxtokens`, §4.2.3). It works on GitHub but not in the rendered HTML (fix: the heading's id) |
-| `link/missing-file` | warning | Relative link, image, reference definition, HTML `href`/`src`, `related:` entry or `test=` path of an `acceptance` block does not exist |
+| `link/missing-file` | warning | Relative link, image, reference definition, HTML `href`/`src`, `related:` entry, `test=` path of an `acceptance` block, or the document an id names in an id attribute or `:ref` (`spec.smd#R1`) does not exist |
 | `link/undefined-reference` | warning | `[text][label]` or `[label][]` with no `[label]: …` definition |
-| `figure/unknown-ref` | warning | `:ref[id]` names no `figure` or other block in the document (fix: closest id) |
-| `ref/unknown` | warning | Since 3.1: an id in an id attribute (`verifies`, `applies-to`, `depends-on`, `supports`, `contradicts`, `supersedes`, `between`, `for`, §3.1) or in a task view's `mandatory` or `optional` (§8b) names no block of the document (fix: closest id). An id in another document (`other.smd#R1`) is reported too until references across documents exist |
+| `figure/unknown-ref` | warning | `:ref[id]` names no `figure` or other block in the document, or `:ref[other.smd#id]` none in that document (fix: closest id) |
+| `ref/unknown` | warning | Since 3.1: an id in an id attribute (`verifies`, `applies-to`, `depends-on`, `supports`, `contradicts`, `supersedes`, `between`, `for`, §3.1) or in a task view's `mandatory` or `optional` (§8b) names no block of the document (fix: closest id). An id attribute's id in another document (`other.smd#R1`) is checked in that document when files are checked, as links are (§3.1) |
 | `ref/ambiguous` | warning | Since 3.1: an id attribute or `:ref[id]` names an id two or more blocks give, so it names none of them (figures keep their first-match rule) |
 | `figure/duplicate-id` | warning | Two `figure` blocks share an `{#id}`; references go to the first |
 | `id/duplicate` | warning | Since 3.1: a block gives an id that an earlier block already gives (a heading's id or slug, a task's, container's or figure's `{#id}`, a raw HTML id), so links and feedback naming it resolve to neither (§4.2.1). Two figures get `figure/duplicate-id` instead |
@@ -794,7 +795,9 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `assumption/overdue` | info | An `unvalidated` assumption whose `review-by` date has passed |
 | `assumption/invalid` | warning | An accepted requirement (or one implemented or verified) or an accepted decision `depends-on` an `invalid` assumption |
 | `non-goals/list` | hint | A `non-goals` block with no list item, so an exclusion can read as a goal (§3.9) |
-| `evidence/target` | warning | An `evidence` block with neither `supports` nor `contradicts` |
+| `evidence/unlinked` | info | An `evidence` block with neither `supports` nor `contradicts`, or with them written empty (`supports=""`), so it supports or contradicts nothing. An id that names no block is `ref/unknown` |
+| `evidence/source` | warning | An `evidence` `source` that isn't an http(s) or relative URL, the check `quote/cite` makes. It is left out of every output |
+| `evidence/commit` | warning | An `evidence` `commit` that isn't 7 to 40 hex characters. No tool checks that the commit exists |
 | `evidence/stale` | warning | A block an `evidence` record supports changed after the revision its `rev` records, so the record needs a recheck before it counts as current. There is no fix |
 | `requirement/verified` | warning | A requirement says `status=verified` and no current passing evidence supports it (`result=pass`, a method other than `acceptance`, not outdated). A requirement without an id can't have any |
 | `progress/basis` | hint | A `:progress` value without a `basis` that says how it was found. Every spec version |
@@ -847,7 +850,7 @@ Tools must let users change these defaults. A `smd.config.json`, `.smdrc` or `.s
 | `:::tab Title` | **Title** paragraph followed by content |
 | `:::risk-matrix` | **Risk matrix** label and a table: impact rows × likelihood columns, risk titles in the cells |
 | `:::figure{#id} Caption` | `<a id="id"></a>`, the content, then a `**Figure 1:** Caption` paragraph |
-| `:ref[id]` | `[Figure 1](#id)` (an unknown id stays as written) |
+| `:ref[id]` | `[Figure 1](#id)`, `[R1](#R1)` for another block, `[spec.smd#R1](spec.smd#R1)` for a block of another document (an unknown id stays as written) |
 | `## Heading {#id}` | `## Heading`; when the heading's GitHub id differs from its id (`{#id}`, `## max_tokens`, `## 1.2.0 — 2026-03-01`), `<a id="id"></a>` on the line before it (inside the same blockquote; after a blank line when the line above is not blank; followed by a blank line for a setext heading), so links by either id work (§4.2.3). `smd from-md` drops such a line again when the heading below has that id |
 | `{{name}}` | The front matter value, written as it is (an undefined name, code and URLs stay as written) |
 | `:::include` | The included text, converted the same way, after an `<!-- included from … -->` comment (GitHub can't include); when the file can't be read, the fallback body, or a link to the file when the body is empty |
@@ -1085,7 +1088,7 @@ An included file (§3.4) is read with the version of the document that includes 
 
 ## 11. Deprecated
 
-What is deprecated still works, and is removed in a later major. What 1.10 deprecated is removed in 2.0 (§11.2); nothing in the document syntax is deprecated in 2.0. The CLI's older export command names are (§11.1).
+What is deprecated still works, and is removed in a later major. What 1.10 deprecated is removed in 2.0 (§11.2); nothing in the document syntax is deprecated in 2.0. The CLI's older export command names are (§11.1). §11.3 shows these notes as `:::deprecated` blocks.
 
 ### 11.1 Deprecated tool names
 
@@ -1107,3 +1110,63 @@ Deprecated in 1.10, with a hint (or a note in the message), and removed in Seman
 | `priority` on `:::agent` | 1.10 | No meaning was agreed and no tool read it: it is an unknown attribute, the warning `attrs/unknown`, reported on the attribute. The block renders as before | `smd validate --fix` or `smd migrate --to 2` removes it (with the braces when nothing else is in them) |
 | The `deprecated/agent-priority` diagnostic code | 1.10 | The problem is reported as `attrs/unknown`. A rule setting or suppression comment that names the code (or `deprecated/*`) gets a `rules/unknown` warning that says so, and sets or silences nothing | Name `attrs/unknown` instead (the comment's quick fix does it) |
 | The `figure/kind` diagnostic code | 1.10 | An invalid `kind` on a `figure` is an `attrs/value` error, as on every other container. A rule setting or suppression comment that names `figure/kind` gets a `rules/unknown` warning that says the code was merged into `attrs/value`, and sets or silences nothing | Fix the `kind` (the `attrs/value` quick fix offers the closest value), or name `attrs/value` |
+
+### 11.3 Version notes as tags
+
+A spec v2 document marks what it deprecates with `:::deprecated` and what a version added with `:since` (§3.9), so tools can find them: `smd query "deprecated[since=2.0]"` lists the blocks, and the agent view and plain Markdown keep the version on each. This specification can't do that in its own text. It is a plain `.md` file: GitHub shows the `:::` lines as text, and the website renders it without `smd: 2`, where `:since[1.6]` stays text (§4.2). Its version notes stay prose, and the example below shows them as tags.
+
+The notes that convert are the deprecations (§11.1, §11.2), which become `:::deprecated` blocks, and the notes that say when a feature arrived (since 1.6, since 3.1…), which become `:since` labels. The notes about how older tools read a document (*Tools before 1.10 render…*, *Older renderers (1.5 and earlier)…*) and about a rule's severity in each version (*a hint in 1.10, an error since 2.0*) stay prose: they describe more than one version, and a tag holds one. The prose in the sections above stays the record of each version.
+
+```markdown
+---
+smd: 2
+---
+
+## Deprecated tool names
+
+:::deprecated{since=2.0 use="`smd export <file> --to html`"} `smd render <file>`
+An alias with the same options, output and exit codes, and no warning. It may be removed in 3.0.
+:::
+
+:::deprecated{since=2.0 use="`smd export <file> --to md`"} `smd to-md <file>`
+An alias, as `smd render`. It may be removed in 3.0.
+:::
+
+:::deprecated{since=2.0 use="`smd export <file> --to pdf`"} `smd pdf <file>`
+An alias, as `smd render`. It may be removed in 3.0.
+:::
+
+:::deprecated{since=2.0 use="`smd export <file> --to docx`"} `smd docx <file>`
+An alias, as `smd render`. It may be removed in 3.0.
+:::
+
+## Removed in 2.0
+
+:::deprecated{since=1.10 use="`smd validate --fix` or `smd migrate --to 2`, which remove it"} `priority` on `:::agent`
+Deprecated with a hint, and removed in 2.0: an unknown attribute (`attrs/unknown`).
+:::
+
+:::deprecated{since=1.10 use="`attrs/unknown`"} The `deprecated/agent-priority` diagnostic code
+Removed in 2.0. A rule setting or suppression comment that names it gets `rules/unknown`.
+:::
+
+:::deprecated{since=1.10 use="`attrs/value`"} The `figure/kind` diagnostic code
+Removed in 2.0. A rule setting or suppression comment that names it gets `rules/unknown`.
+:::
+
+## Additions
+
+GitHub-compatible (GFM) footnotes :since[1.6].
+
+Front matter variables, `{{version}}` in the text :since[1.6].
+
+Localized labels with `lang` :since[1.6].
+
+A GitHub alert renders as a callout :since[1.10].
+
+A task takes an id as a trailing `{#id}` :since[3.1].
+
+`:ref[id]` and id attributes point at other blocks :since[3.1].
+```
+
+The example validates with no warning. `smd query "deprecated[since=2.0]"` returns the four aliases and `deprecated[since=1.10]` the three removals. The agent view shows each as `<deprecated since="2.0" use="…"> title` and each label as `(since 1.6)`, and plain Markdown each block as a `> [!WARNING]` that starts with `**Deprecated** · since 2.0 · use …`.

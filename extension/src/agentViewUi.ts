@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { agentView, parseSmd, type AgentViewOptions } from './core';
 import { readerFor } from './files';
 import { briefOnlyItems, omissionItems, omissionSummary, type OmissionItem } from './omissionPanel';
+import { studyRecord } from './study/session';
 
 const SCHEME = 'smd-agent';
 
@@ -68,6 +69,7 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
     const target = await vscode.workspace.openTextDocument(AgentViewProvider.uriFor(doc.uri, brief));
     await vscode.languages.setTextDocumentLanguage(target, 'markdown');
     await vscode.window.showTextDocument(target, { viewColumn: vscode.ViewColumn.Beside, preview: true, preserveFocus: true });
+    if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyRecord('agentview.open', { view: brief ? 'agent-brief' : 'agent' }, doc.uri);
   };
 
   const copy = async (options: AgentViewOptions, what: string) => {
@@ -109,6 +111,11 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
       ...section('Agent view', omissionItems(full)),
       ...section('Also condensed in the brief view', briefOnlyItems(full, brief)),
     ];
+    if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) {
+      const counts: Record<string, number> = {};
+      for (const o of full.omissions) counts[o.kind] = (counts[o.kind] ?? 0) + 1;
+      studyRecord('omissions.open', { view: 'omissions', count: full.omissions.length, counts }, doc.uri);
+    }
     if (!picks.length) {
       vscode.window.showInformationMessage('The agent view leaves nothing out of this document.');
       return;
@@ -117,6 +124,11 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
       placeHolder: `What agents don't see in full (≈${full.size.tokens} tokens, brief ≈${brief.size.tokens}). Choose one to go to its lines.`,
       matchOnDescription: true, matchOnDetail: true,
     });
+    if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) {
+      const o = chosen?.omission;
+      if (o) studyRecord('omissions.choose', { view: 'omissions', kind: o.kind, line: o.start, lineEnd: o.end, own: o.own }, doc.uri);
+      else studyRecord('omissions.dismiss', { view: 'omissions' }, doc.uri);
+    }
     if (chosen?.omission) await reveal(doc, chosen.omission);
   };
 

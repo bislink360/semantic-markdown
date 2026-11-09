@@ -1,6 +1,7 @@
 import { keepsTies, mandatoryPlan, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan } from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
+import type { DocumentRead } from './graph';
 import {
   omissionOrder, omissionPointer, omittableSections, withOmitted, type BudgetResult, type BudgetSection, type Tokenizer,
 } from './budget';
@@ -8,6 +9,7 @@ import { constraintBlock, type ConstraintPointer, type ConstraintView } from './
 import { closedBy, closerColons, CONTAINER_CLOSE, CONTAINER_OPEN, isKnownContainer, parseContainerInfo, type ContainerInfo } from './containers';
 import { parseFenceInfo, sliceLines } from './fence';
 import { refDirective, type Figure, type FigureNumber } from './figures';
+import { splitIdRef } from './idTarget';
 import { findFootnotes, type FootnoteDefinition } from './footnotes';
 import { parseFrontMatter, asStringList, unreadFrontMatter } from './frontmatter';
 import {
@@ -77,6 +79,12 @@ export interface AgentViewOptions {
   includes?: boolean;
   /** Reads code embeds and includes, relative to the document. */
   readFile?: (relativePath: string) => string | undefined;
+  /**
+   * Reads a document that a dependency names in another file (`depends-on=other.smd#R1`), relative to this one, for
+   * the dependencies the view carries (semantic tags R19). Default: through `readFile`, a file it can't read being
+   * outside what the host allows.
+   */
+  readDocument?: (relativePath: string) => DocumentRead;
   today?: string;
   /**
    * Shrink the view to at most this many tokens: condense it as `brief` does, then omit whole sections
@@ -191,6 +199,13 @@ const semanticTag = (tag: string, keys: string[], shown: Record<string, string> 
   line: `<${tag}${tagAttrs(id, { ...shown, ...values }, keys)}>${titleAfter(title)}`, close: `</${tag}>`,
 });
 
+/** Evidence, without a `source` the URL check refuses (`javascript:`…): it is left out, as a quote's cite is (R42). */
+function evidenceHead(source: HeadSource): ContainerHead {
+  const { source: url, ...rest } = source.values;
+  const values = url !== undefined && quoteCite(url) ? source.values : rest;
+  return semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])({ ...source, values });
+}
+
 /** An acceptance block lists the requirement it sits in first in `verifies`. */
 function acceptanceHead(source: HeadSource): ContainerHead {
   const verifies = [...new Set([...(source.requirement ? [source.requirement] : []), ...idList(source.values.verifies ?? '')])].join(',');
@@ -259,7 +274,7 @@ const CONTAINER_HEADS = new Map<string, (c: HeadSource) => ContainerHead>([
   ['constraint', semanticTag('constraint', ['scope', 'applies-to', 'level', 'owner', 'depends-on'], { level: 'must' })],
   ['acceptance', acceptanceHead],
   ['assumption', semanticTag('assumption', ['status', 'owner', 'review-by', 'depends-on'], { status: 'unvalidated' })],
-  ['evidence', semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])],
+  ['evidence', evidenceHead],
   // Phase 3 (RFC D10, D11). A bad example says so on its tag, so it is never copied as guidance (R58).
   ['non-goals', semanticTag('non-goals', [])],
   ['example', semanticTag('example', ['kind'])],
@@ -510,12 +525,18 @@ export function agentView(text: string, viewOptions: AgentViewOptions = {}): Age
   });
 }
 
+/** A document reader from a file reader: a file it can't read is outside what the host allows. */
+const documentReader = (readFile: (relativePath: string) => string | undefined) => (path: string): DocumentRead => {
+  const text = readFile(path);
+  return text === undefined ? { status: 'denied' } : { text };
+};
+
 /** The constraints and dependencies a view must carry (see applicability.ts); undefined for a document with none. */
 function mandatoryOf(text: string, scope: ViewScope, options: AgentViewOptions): MandatoryPlan | undefined {
   return mandatoryPlan({
     text, lines: scope.lines, bodyStart: scope.bodyStart, sections: scope.sections, selected: scope.selected, skipped: scope.skipped,
     inScope: scope.inScope, includeHuman: !!options.includeHuman, includes: options.includes !== false, readFile: options.readFile,
-    file: options.file ?? '<file>',
+    readDocument: options.readDocument ?? (options.readFile && documentReader(options.readFile)), file: options.file ?? '<file>',
   });
 }
 
@@ -1066,7 +1087,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const stack: Frame[] = [];
   // What the document's blocks say about each other (answers, supersedes), read on the first question or decision.
   let tags: TagContext | undefined | null = null;
-  const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'))) : tags);
+  const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'), options.file)) : tags);
   const inAgent = () => stack.some((f) => f.name === 'agent');
   // `:::non-goals` is kept wherever `:::agent` is: outside the selected sections and whole in a condensed block (R57).
   const inKept = () => stack.some((f) => f.name === 'agent' || f.name === 'non-goals');
@@ -1564,15 +1585,16 @@ function styledText(line: string, read: TextContext, math?: ReadonlyArray<[numbe
 }
 
 /**
- * `:ref[id]` → `Figure 2 (id)`, or the id for another block that gives it (D4); references to unknown or ambiguous ids
- * stay as written.
+ * `:ref[id]` → `Figure 2 (id)`, or the id for another block that gives it (D4), and `:ref[other.smd#id]` →
+ * `other.smd#id` (R19); references to unknown or ambiguous ids stay as written.
  */
 function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
-  if (!figures?.size && !blocks?.size) return s;
+  if (!figures?.size && !blocks?.size && !s.includes('#')) return s;
   return s.replace(refDirective(spec), (m, pre: string, raw: string) => {
     const id = raw.trim();
     const figure = figures?.get(id);
     if (figure) return `${pre}${figure.label} (${id})`;
+    if (splitIdRef(id).path) return `${pre}${id}`;
     return blocks?.has(id) ? `${pre}${id}` : m;
   });
 }

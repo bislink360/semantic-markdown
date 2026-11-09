@@ -848,7 +848,7 @@
             "info",
             "hint"
           ],
-          "description": "Link to a relative file that does not exist"
+          "description": "Link to a relative file that does not exist, or a document an id names (other.smd#R1) that does not exist"
         },
         "link/undefined-reference": {
           "enum": [
@@ -878,7 +878,7 @@
             "info",
             "hint"
           ],
-          "description": ":ref[id] names no :::figure or other block in this document"
+          "description": ":ref[id] names no :::figure or other block in this document (or in the document :ref[other.smd#id] names)"
         },
         "ref/unknown": {
           "enum": [
@@ -888,7 +888,7 @@
             "info",
             "hint"
           ],
-          "description": "An id attribute (verifies, applies-to) names an id no block of this document gives"
+          "description": "An id attribute (verifies, applies-to) names an id no block of this document (or of the document other.smd#R1 names) gives"
         },
         "ref/ambiguous": {
           "enum": [
@@ -1290,7 +1290,7 @@
           ],
           "description": "A :::non-goals block with no list item, so an exclusion can read as a goal"
         },
-        "evidence/target": {
+        "evidence/unlinked": {
           "enum": [
             "off",
             "error",
@@ -1298,7 +1298,27 @@
             "info",
             "hint"
           ],
-          "description": "A :::evidence block with neither supports nor contradicts"
+          "description": "A :::evidence block with neither supports nor contradicts, so it is linked to nothing"
+        },
+        "evidence/source": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence source is not an http(s) or relative URL; it is left out"
+        },
+        "evidence/commit": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence commit is not 7 to 40 hex characters"
         },
         "evidence/rev": {
           "enum": [
