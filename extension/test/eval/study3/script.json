@@ -1,0 +1,42 @@
+{
+  "note": "The scripted agent and person of the Study 3 loop fixture. No model wrote this and no person answered it: the tool's developers did, to exercise the tooling.",
+  "agent": "@agent",
+  "reviewer": "@maya",
+  "dates": {
+    "baseline": "2026-11-02",
+    "question": "2026-11-03",
+    "review": "2026-11-04",
+    "incorporate": "2026-11-05",
+    "fix": "2026-11-06"
+  },
+  "question": {
+    "id": "Q1",
+    "trigger": "4xx",
+    "block": [
+      ":::question{#Q1 owner=@maya} Are 4xx responses retried?",
+      "R1 says a failed delivery is retried, but not whether a 4xx response counts as failed. Retrying a 400 cannot succeed.",
+      ":::"
+    ],
+    "task": "- [ ] Stop retrying responses that cannot succeed :depends[Q1] {#T3}"
+  },
+  "guess": {
+    "target": "R1",
+    "text": "A failed webhook delivery is retried up to 5 times. Every response other than 2xx counts as failed."
+  },
+  "answer": {
+    "question": "Q1",
+    "text": "No. A 4xx response is final and is not retried, except 429 Too Many Requests, which is retried like a 5xx."
+  },
+  "rejection": {
+    "reason": "It guesses the answer to Q1, and the guess is wrong: a 4xx is final."
+  },
+  "reopen": "T1",
+  "incorporation": {
+    "target": "R1",
+    "text": "A failed webhook delivery is retried up to 5 times. A 4xx response is final and is not retried, except 429, which is retried."
+  },
+  "code": [
+    { "label": "first change, forgets 429", "retryStatuses": ["5xx"], "verdict": "fail" },
+    { "label": "fix, retries 429", "retryStatuses": ["5xx", "429"], "verdict": "pass" }
+  ]
+}

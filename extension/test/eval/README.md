@@ -6,6 +6,8 @@ Only `run` and `judge` call a model, and only with an explicit config file and k
 
 The fixture in `fixture/` only tests the harness. It is not study data (see `fixture/README.md`).
 
+`study3/` holds an offline run of the Study 3 feedback loop (an agent's question, a person's answer and rejection, retrieval since a checkpoint, incorporation and verification after a code change), driven by `test/study3Loop.test.ts` with a scripted agent. It is not study data either (see `study3/README.md`).
+
 ## Commands
 
 Run from `extension/`. The corpus defaults to `research/data/corpus/` in the repository. Relative paths are read from the folder you ran npm in.
