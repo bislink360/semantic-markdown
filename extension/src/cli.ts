@@ -11,7 +11,7 @@ import {
 } from './core';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
-import { runQuery, type QueryFlags } from './queryCommand';
+import { followOptions, runQuery, type QueryFlags } from './queryCommand';
 import { REVIEW_HELP, runReview } from './reviewCommand';
 import { runTaskView } from './taskViewCommand';
 import { runUpdates } from './updatesCommand';
@@ -22,7 +22,7 @@ import { EXPORT_HELP, runExport } from './exportCommand';
 import { fail, langOption, LANG_USAGE, requireFile, write } from './cliIo';
 import { loadRuleConfig, readConfigFile, type LoadedConfig } from './config';
 import { runMcpServer } from './mcp';
-import { readDocument, READ_BUDGET, type ReadMode } from './readView';
+import { readDocument, READ_BUDGET, type ReadMode, type ReadResult } from './readView';
 import { MCP_SERVER_NAME, McpConfigError, mcpConfigFor, mergeMcpConfig, type McpConfigSpec } from './agentSetup';
 import { runSavings } from './savings';
 import { runLanguageServer } from './lsp';
@@ -50,9 +50,15 @@ const HELP = `smd — Semantic Markdown tool (spec v${LATEST_SPEC})
 Reading (token-efficient, for agents):
   smd read <file.smd> [--max-tokens <n>] [--section "<heading>"]... [--exact] [--brief] [--outline | --full]
            [--no-lines] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
+           [--follow <types|*> [--direction out|in|both] [--depth 1-3]]
       Start here. The whole agent view when it fits n tokens (default ${READ_BUDGET}), else the outline,
       so one call replaces outline + agent. --section reads only those sections. --tokenizer counts
       the view with that encoding to decide. --constraints and --provenance as on agent.
+      --follow       after the view, the edges of the content read, as on query: neighbors as pointers
+                     with their cost, include, applies-to and depends-on targets in full, and what is
+                     unsatisfied ("[incomplete: …]"). What the view shows isn't repeated, and it counts
+                     toward n. Other files are read only in the document's folder, which --direction in
+                     also searches. Not with --outline or --view; an outline follows nothing.
   smd savings <files|dirs...> [--json]
       Tokens an agent saves by reading the agent view instead of the raw files, per document and in
       total, as a number and a percentage.
@@ -689,14 +695,26 @@ function readCommand(file: string, args: Args, today?: string): number {
   const sections = args.values.get('--section');
   const manifest = provenanceTarget(args);
   if (manifest === null) return fail(PROVENANCE_USAGE);
+  const follow = args.values.get('--follow')?.[0];
+  const graph = followOptions({ follow, direction: args.values.get('--direction')?.[0], depth: args.values.get('--depth')?.[0] });
+  if ('error' in graph) return fail(graph.error);
+  const taskView = args.values.has('--view') || flags.has('--views');
+  if (follow !== undefined && taskView) return fail('--follow goes with smd read without --view: a task view follows the edges its author declared.');
+  if (follow !== undefined && mode === 'outline') return fail('--follow follows the edges of the content read, so it does not go with --outline.');
   // A task view is read as smd agent reads it: its own budget, or --max-tokens as the agent's.
-  if (args.values.has('--view') || flags.has('--views')) {
+  if (taskView) {
     return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => printTaskView(file, args, { maxTokens, tokenizer, today }, manifest));
   }
+  // Other files are read only inside the document's folder, which `in` also searches for edges that point here.
+  const folder = path.dirname(file);
+  const others = follow !== undefined && graph.direction !== 'out'
+    ? collect(folder).filter((f) => path.resolve(f) !== path.resolve(file)).map((f) => ({ path: f, text: read(f) }))
+    : undefined;
   return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => {
     const result = readDocument(read(file), {
       mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
       readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined,
+      ...(follow !== undefined ? { follow, ...graph, readDocument: graphReader([folder]), ...(others ? { documents: others } : {}) } : {}),
     });
     if (result.missingSections.length) {
       console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd read ${file} --outline" to list sections.`);
@@ -707,8 +725,24 @@ function readCommand(file: string, args: Args, today?: string): number {
     const exact = result.counted ? ` (${result.counted.tokens} ${result.counted.tokenizer})` : '';
     console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens${exact} · file ≈${result.fileTokens} tokens`);
     if (result.shown !== 'outline') warnIncomplete(result.mandatory);
+    if (follow !== undefined) for (const line of followLines(result)) console.error(line);
     return 0;
   });
+}
+
+/** What `smd read --follow` added, after the size line: as `smd query --follow` sums it up. */
+function followLines(result: ReadResult): string[] {
+  const f = result.follow;
+  if (!f) return ['[smd] --follow: no edges followed, since this is the outline. Read sections with --section, or use --full.'];
+  const unit = result.counted ? `${result.counted.tokenizer} tokens` : 'tokens';
+  const approx = result.counted ? '' : '≈';
+  const parts = [`[smd] followed: ${f.neighbors.length} neighbor(s) as pointers (≈${f.tokens.pointers} tokens not read).`];
+  if (f.dependencies.length) parts.push(`${f.dependencies.length} dependenc${f.dependencies.length === 1 ? 'y' : 'ies'} included (≈${f.tokens.dependencies} tokens).`);
+  parts.push(`${approx}${f.tokens.shown} ${unit} added after the view.`);
+  const lines = [parts.join(' ')];
+  const n = f.unsatisfied.length;
+  if (n) lines.push(`[smd] warning: incomplete, ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied along the followed edges (listed after the view)`);
+  return lines;
 }
 
 /** `--provenance <file>`: undefined when not given, null when it has no file name. */

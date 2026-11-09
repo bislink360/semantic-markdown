@@ -1,5 +1,6 @@
 import type { AgentViewResult, ResolvedSection } from './agentView';
 import type { MandatoryContext } from './applicability';
+import type { FollowManifest } from './read';
 import type { ConstraintView } from './constraints';
 import type { Section } from './sections';
 import { sha256Hex } from './sha256';
@@ -134,6 +135,8 @@ export interface Provenance {
   view?: TaskViewReport;
   /** Only for a document with constraints or dependencies: what the view must carry and what it could not (see applicability.ts). */
   mandatory?: MandatoryContext;
+  /** A read with `follow` (`smd read --follow`): the edges followed, the pointers and dependencies added, and what is unsatisfied. */
+  follow?: FollowManifest;
 }
 
 /** Add an omission; HTML comments on neighbouring lines become one. */
