@@ -4,6 +4,7 @@ import { alertOf } from './alerts';
 import { isKnownContainer } from './containers';
 import { langFromPath, parseFenceInfo, sliceLines } from './fence';
 import { FigureCounter } from './figures';
+import { idHref, splitIdRef } from './idTarget';
 import { label, term, type MessageKey, type Messages } from './i18n';
 import { includeHref, includeLabel, includeProblemText, includeRequest } from './include';
 import { figureLabel, parentRequirementOf, PRIORITY_COLORS, progressLabel, questionStateOf, supersedersOf } from './markdownItHtml';
@@ -821,6 +822,8 @@ class InlineReader {
    */
   private ref(id: string): void {
     const figure = envFigures(this.b.parsed.env).get(id);
+    const other = figure ? undefined : splitIdRef(id);
+    if (other?.path) { this.text(id, { href: idHref(other) }); return; }
     if (!figure && (envBlockIds(this.b.parsed.env).get(id)?.count ?? 0) > 1) this.text(id);
     else this.text(figure ? figureLabel(figure, this.b.m) : id, { href: `#${id}` });
   }

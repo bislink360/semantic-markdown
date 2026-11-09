@@ -7,6 +7,7 @@ owners: ["@qa-owner"]
 tags: [test-plan, qa]
 updated: {{today}}
 toc: true
+related: [spec.smd]
 ---
 
 ## Scope
@@ -37,11 +38,33 @@ toc: true
 
 ## Test cases
 
-| ID    | Scenario           | Expected result             | Priority      | Status                       |
-| ----- | ------------------ | --------------------------- | ------------- | ---------------------------- |
-| TC-01 | Happy path         | The user completes the task | :priority[P0] | :status[Not run]{color=gray} |
-| TC-02 | Invalid input      | A clear error, no data lost | :priority[P1] | :status[Not run]{color=gray} |
-| TC-03 | Dependency is down | Graceful fallback           | :priority[P2] | :status[Not run]{color=gray} |
+Each case verifies a requirement of the spec (`spec.smd`) by its ID, written `spec.smd#R1`. Point `spec.smd` at the spec this plan tests.
+
+:::acceptance{#TC-01 verifies=spec.smd#R1} Happy path
+Given a user with access
+When they complete the task
+Then the result is saved and shown
+:::
+
+:::acceptance{#TC-02 verifies=spec.smd#R1} Invalid input
+Given the same user
+When they submit invalid input
+Then they see a clear error and no data is lost
+:::
+
+:::acceptance{#TC-03 verifies=spec.smd#R2} Dependency is down
+Given a dependency that does not respond
+When the user starts the task
+Then a fallback keeps the task working
+:::
+
+## Results
+
+| Case  | Priority      | Status                       |
+| ----- | ------------- | ---------------------------- |
+| TC-01 | :priority[P0] | :status[Not run]{color=gray} |
+| TC-02 | :priority[P1] | :status[Not run]{color=gray} |
+| TC-03 | :priority[P2] | :status[Not run]{color=gray} |
 
 ## Entry and exit criteria
 
@@ -77,5 +100,5 @@ How we reduce it.
 :::agent Rules for writing and running tests
 - Name automated tests after their case ID (TC-01) so results map back to this plan.
 - Update the Status column only from an actual run; never mark a case passed without one.
-- Add a case to the table for every new scenario you test.
+- Add an acceptance block for every new scenario you test, with verifies naming the requirement it checks (spec.smd#R1), and a row in Results.
 :::
