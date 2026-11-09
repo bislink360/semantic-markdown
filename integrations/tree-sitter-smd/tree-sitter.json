@@ -17,7 +17,7 @@
   ],
   "metadata": {
     "version": "1.7.0",
-    "license": "MIT",
+    "license": "Apache-2.0",
     "description": "Semantic Markdown (.smd) grammar for tree-sitter: the syntax .smd adds to Markdown",
     "authors": [
       {

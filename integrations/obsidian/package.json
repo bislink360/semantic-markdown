@@ -2,7 +2,7 @@
   "name": "semantic-markdown-obsidian",
   "private": true,
   "description": "Semantic Markdown (.smd) syntax in Obsidian notes. Built with the extension's toolchain: run `npm ci` in extension/ first.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "node scripts/typecheck.mjs"

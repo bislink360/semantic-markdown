@@ -14,7 +14,7 @@
 <p align="center">
   <a href="https://github.com/bislink360/semantic-markdown/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/bislink360/semantic-markdown?label=release&color=4f46e5"></a>
   <a href="docs/reference/compatibility.md"><img alt="Spec: smd v2, stable" src="https://img.shields.io/badge/spec-smd%20v2%20stable-7c3aed"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-22c55e"></a>
+  <a href="LICENSE"><img alt="License: Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-22c55e"></a>
 </p>
 
 <p align="center">
@@ -208,4 +208,4 @@ Press **F5** in `extension/` to launch an Extension Development Host with the te
 
 ## License
 
-[MIT](LICENSE)
+Copyright 2026 bislink360. Licensed under the [Apache License, Version 2.0](LICENSE).

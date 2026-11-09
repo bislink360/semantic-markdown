@@ -75,4 +75,4 @@ python -m build                                              # sdist and wheel i
 
 ## License
 
-MIT
+Apache 2.0, like the rest of the repository. See [LICENSE](LICENSE).

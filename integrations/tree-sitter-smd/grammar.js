@@ -1,7 +1,7 @@
 /**
  * @file Tree-sitter grammar for Semantic Markdown (.smd): the syntax .smd adds to Markdown.
  * @author Roshan Alwis
- * @license MIT
+ * @license Apache-2.0
  *
  * This grammar is the host language of a .smd buffer. It parses only what Semantic Markdown adds
  * (docs/reference/spec.md): front matter, `:::name{attrs} Title` … `:::` containers, fenced code and `$$` math
