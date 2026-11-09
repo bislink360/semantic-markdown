@@ -101,7 +101,7 @@ export function chooseDocxEngine(options: ChooseDocxEngineOptions = {}): DocxEng
   return pandoc ? { name: 'pandoc', pandoc } : { name: 'builtin' };
 }
 
-export interface BuiltinDocxOptions extends Pick<DocxWriterOptions, 'readFile' | 'lang' | 'agentBlocks' | 'comments'> {
+export interface BuiltinDocxOptions extends Pick<DocxWriterOptions, 'readFile' | 'lang' | 'agentBlocks' | 'comments' | 'file'> {
   /** The .docx to write. */
   out: string;
   /** The document's folder: images are read relative to it, as Pandoc's --resource-path finds them. */
@@ -121,6 +121,7 @@ export function exportBuiltinDocx(text: string, options: BuiltinDocxOptions): st
     lang: options.lang,
     agentBlocks: options.agentBlocks,
     comments: options.comments,
+    file: options.file,
     styles,
     readBinary: (rel) => readImage(options.resourcePath, rel),
     deflate: (data) => deflateRawSync(data),

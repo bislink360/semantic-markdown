@@ -39,6 +39,8 @@ export interface SmdRenderOptions {
   reviewBlocks?: 'shown' | 'hidden';
   today?: string;
   readFile?: ReadFile;
+  /** The document's path (see RenderOptions.file). */
+  file?: string;
 }
 
 /** What the rules read at render time; renderSmd and markdown-it hosts fill it differently. */

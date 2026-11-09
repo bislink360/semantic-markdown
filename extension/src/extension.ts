@@ -8,7 +8,7 @@ import { registerAgentView } from './agentViewUi';
 import { registerBlockEditor } from './blockEditor';
 import { registerEditorFeatures } from './editorFeatures';
 import { extendMarkdownIt } from './markdownPreview';
-import { PreviewManager, renderOptions } from './preview';
+import { docFile, PreviewManager, renderOptions } from './preview';
 import { registerStatusWorkflow } from './statusWorkflow';
 import { registerTasksView } from './tasksView';
 import { registerDocxExport } from './docxExport';
@@ -125,21 +125,21 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
         filters: { Markdown: ['md'] },
       });
       if (!target) return;
-      await vscode.workspace.fs.writeFile(target, Buffer.from(smdToMarkdown(doc.getText(), { readFile: readerFor(doc) }), 'utf8'));
+      await vscode.workspace.fs.writeFile(target, Buffer.from(smdToMarkdown(doc.getText(), { readFile: readerFor(doc), ...docFile(doc) }), 'utf8'));
       await vscode.window.showTextDocument(target, { viewColumn: vscode.ViewColumn.Beside });
     }),
 
     vscode.commands.registerCommand('smd.exportConfluence', async () => {
       const doc = activeSmd();
       if (!doc) return;
-      const xml = smdToConfluence(doc.getText(), { readFile: readerFor(doc) });
+      const xml = smdToConfluence(doc.getText(), { readFile: readerFor(doc), ...docFile(doc) });
       await exportBeside(doc, '.confluence.xml', { 'Confluence storage format': ['xml'] }, xml);
     }),
 
     vscode.commands.registerCommand('smd.exportNotion', async () => {
       const doc = activeSmd();
       if (!doc) return;
-      const requests = notionRequests(smdToNotion(doc.getText(), { readFile: readerFor(doc) }));
+      const requests = notionRequests(smdToNotion(doc.getText(), { readFile: readerFor(doc), ...docFile(doc) }));
       await exportBeside(doc, '.notion.json', { 'Notion API blocks': ['json'] }, `${JSON.stringify(requests, null, 2)}\n`);
     }),
 

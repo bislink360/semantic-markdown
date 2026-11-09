@@ -1087,7 +1087,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const stack: Frame[] = [];
   // What the document's blocks say about each other (answers, supersedes), read on the first question or decision.
   let tags: TagContext | undefined | null = null;
-  const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'))) : tags);
+  const tagsHere = () => (tags === null ? (tags = tagContext(lines.join('\n'), options.file)) : tags);
   const inAgent = () => stack.some((f) => f.name === 'agent');
   // `:::non-goals` is kept wherever `:::agent` is: outside the selected sections and whole in a condensed block (R57).
   const inKept = () => stack.some((f) => f.name === 'agent' || f.name === 'non-goals');

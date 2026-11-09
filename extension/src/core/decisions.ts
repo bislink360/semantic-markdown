@@ -5,7 +5,7 @@ import { splitIdRef } from './idTarget';
 import { parseSmd } from './parse';
 import { parseSelector, querySmd, type QueryMatch } from './query';
 import type { Heading } from './render';
-import { listed, tagBlocks } from './semanticTags';
+import { listed, supersededBy, tagBlocks } from './semanticTags';
 import { DECISION_STATUS, SMD_VERSION } from './spec';
 import { own } from './util';
 
@@ -102,24 +102,6 @@ function successorsAcross(documents: ReadonlyArray<{ path: string; text: string 
   return by;
 }
 
-/**
- * The decisions of one document that supersede another of its decisions, by id, in document order. `supersedes=D1`
- * and `supersedes=this.smd#D1` (a path that resolves to this document) count alike; other paths are left to
- * successorsAcross.
- */
-function successorsWithin(blocks: ReturnType<typeof tagBlocks>, file: string): Map<string, string[]> {
-  const by = new Map<string, string[]>();
-  for (const b of blocks) {
-    if (b.name !== 'decision' || !b.id) continue;
-    for (const written of listed(b, 'supersedes')) {
-      const { path, id } = splitIdRef(written);
-      if (path && resolvePath(file, path) !== file) continue;
-      by.set(id, [...(by.get(id) ?? []), b.id]);
-    }
-  }
-  return by;
-}
-
 /** The path from the file `from` to the file `to`, both normalized: `docs/a.smd` → `docs/adr/b.smd` is `adr/b.smd`. */
 function relativePath(from: string, to: string): string {
   const fromDirs = from.split('/').slice(0, -1);
@@ -136,7 +118,7 @@ function documentDecisions(path: string, text: string, across: ReadonlyMap<strin
   const document = documentTitle(data, headings, path);
   const tagged = asStringList(data.tags).some((t) => t.toLowerCase() === 'adr');
   const file = normalizePath(path);
-  const own = /\bsupersedes\s*=/i.test(text) ? successorsWithin(tagBlocks(text), file) : undefined;
+  const own = /\bsupersedes\s*=/i.test(text) ? supersededBy(tagBlocks(text), file) : undefined;
   const successors = { get: (id: string) => [...(own?.get(id) ?? []), ...(across.get(`${file}\0${id}`) ?? [])] };
   return querySmd(text, DECISIONS, { lineRefs: false }).map((m, i) => {
     const heading = headingAbove(headings, m.line);

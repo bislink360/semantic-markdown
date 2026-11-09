@@ -36,6 +36,8 @@ export interface ExportOptions {
   header?: boolean;
   /** Keep `:::comment` and `:::suggestion` blocks, which exports leave out by default. */
   comments?: boolean;
+  /** The document's path, so that `supersedes=this.smd#D1` counts like `supersedes=D1` (semantic tags R19, R53). */
+  file?: string;
 }
 
 /** exportTree's options: the public ones, and those only smd's own writers use. */
@@ -555,7 +557,7 @@ function deprecated(c: ContainerCall): Block[] {
 function decisionLinks(c: ContainerCall): Inline[][] {
   const { values, id } = c.meta.attrs;
   const { m } = c.b;
-  const by = supersedersOf(c.b.tokens, id);
+  const by = supersedersOf(c.b.tokens, id, c.b.options.file);
   return [
     factIf(values.supersedes, (v) => [text(label(m, 'tag.supersedes', { ids: idText(v) }))]),
     by ? [text(label(m, 'tag.supersededBy', { ids: idText(by) }))] : [],

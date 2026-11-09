@@ -55,10 +55,14 @@ export class PreviewManager implements vscode.Disposable {
   }
 }
 
+/** A saved document's path, for views that name the document itself (`supersedes=this.smd#D1`); nothing for an untitled one. */
+export const docFile = (document: vscode.TextDocument): { file?: string } => (document.uri.scheme === 'file' ? { file: document.uri.fsPath } : {});
+
 export function renderOptions(document?: vscode.TextDocument): RenderOptions {
   const config = vscode.workspace.getConfiguration('smd.preview');
   return {
     readFile: document ? readerFor(document) : undefined,
+    ...(document ? docFile(document) : {}),
     allowHtml: config.get<boolean>('allowHtml', true),
     agentBlocks: config.get<'collapsed' | 'expanded' | 'hidden'>('showAgentBlocks', 'collapsed'),
   };

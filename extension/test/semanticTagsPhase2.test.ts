@@ -207,6 +207,28 @@ test('R53: a view that shows a superseded decision adds superseded-by, and decis
   assert.match(smdToMarkdown(SUPERSEDES), /^> \*\*Decision D3 \(accepted · superseded by D7\): Use files\*\*$/m);
 });
 
+test('R19, R53: with the document\'s path, every view counts supersedes=this.smd#D3 like supersedes=D3', () => {
+  const own = v2(':::decision{#D3 status=superseded} Use files\n:::\n\n:::decision{#D5 supersedes=./adr.smd#D3} Use a cache\n:::\n\n:::decision{#D7 supersedes="D3,other.smd#D5"} Use a database\n:::');
+  const file = 'docs/adr.smd';
+  const exported = (options: { file?: string }) => JSON.stringify(exportTree(own, options));
+  // Bare ids and paths to this document alike, in document order; other.smd#D5 is another document's D5.
+  assert.match(agentView(own, { file }).text, /^<decision id="D3" status="superseded" superseded-by="D5,D7"> Use files$/m);
+  assert.doesNotMatch(agentView(own, { file }).text, /id="D5"[^>]*superseded-by/);
+  assert.match(renderSmd(own, { file }).html, /superseded by <a class="smd-ref" href="#D5"[^>]*>D5<\/a>, <a class="smd-ref" href="#D7"/);
+  assert.match(smdToMarkdown(own, { file }), /^> \*\*Decision D3 \(superseded · superseded by D5, D7\): Use files\*\*$/m);
+  assert.match(exported({ file }), /superseded by D5, D7/);
+  // A backslashed or absolute path names the same file.
+  assert.match(agentView(own, { file: 'C:\\work\\docs\\adr.smd' }).text, /superseded-by="D5,D7"/);
+  // Without the path a view can't tell, so only the bare id counts, as before.
+  assert.match(agentView(own).text, /^<decision id="D3" status="superseded" superseded-by="D7"> Use files$/m);
+  assert.match(smdToMarkdown(own), /superseded by D7\): Use files/);
+  assert.match(exported({}), /superseded by D7"/);
+  // A different file named adr.smd elsewhere is not this one.
+  const elsewhere = renderSmd(own, { file: 'docs/sub/other.smd' }).html;
+  assert.match(elsewhere, /superseded by <a class="smd-ref" href="#D7"/);
+  assert.doesNotMatch(elsewhere, /superseded by <a class="smd-ref" href="#D5">/);
+});
+
 // --- Dependencies --------------------------------------------------------------------------------------------------
 
 const TASKS = v2([

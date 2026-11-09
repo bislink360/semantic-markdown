@@ -174,7 +174,7 @@ function homeOf(sources: SiteSource[]): string | undefined {
 function buildPage(source: SiteSource, outputs: Map<string, string>, linker: Linker, options: SiteOptions, assets: Set<string>): BuiltPage {
   const output = outputs.get(source.path)!;
   const result = renderSmd(source.text, {
-    readFile: options.readFile?.(source.path), today: options.today, lang: options.lang, reviewBlocks: options.comments ? 'shown' : 'hidden',
+    readFile: options.readFile?.(source.path), file: source.path, today: options.today, lang: options.lang, reviewBlocks: options.comments ? 'shown' : 'hidden',
   });
   const rewritten = rewriteLinks(result.html, source.path, output, { pages: outputs, linker });
   rewritten.assets.forEach((a) => assets.add(a));

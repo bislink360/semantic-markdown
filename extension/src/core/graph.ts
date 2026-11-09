@@ -6,6 +6,7 @@ import { resolveId } from './ids';
 import { includeRequest } from './include';
 import { findLinks, splitTarget } from './links';
 import { parseSmd } from './parse';
+import { normalizePath, resolvePath } from './paths';
 import { documentBlocks, type DocumentBlock } from './query';
 import { findSection, sectionsOf } from './sections';
 import { EDGE_KINDS, ID_ATTRIBUTES, idList } from './spec';
@@ -109,27 +110,7 @@ export function edgeTypes(names: string | readonly string[]): string[] {
   return types.filter((t) => out.has(t));
 }
 
-/** `a/./b/../c` → `a/c` and backslashes → `/`. Leading `..` and a drive or `/` root stay. */
-export function normalizePath(p: string): string {
-  const slashed = p.replace(/\\/g, '/');
-  const out: string[] = [];
-  for (const seg of slashed.split('/')) {
-    if (seg === '' || seg === '.') continue;
-    if (seg === '..' && out.length && out[out.length - 1] !== '..' && !/^[a-z]:$/i.test(out[out.length - 1])) out.pop();
-    else out.push(seg);
-  }
-  return (slashed.startsWith('/') ? '/' : '') + out.join('/');
-}
-
-const folderOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf('/')));
-const isAbsolute = (p: string) => /^(?:[a-z]:)?[\\/]/i.test(p);
-
-/** A link or include path written in document `from`, as a normalized path. */
-export function resolvePath(from: string, target: string): string {
-  if (isAbsolute(target)) return normalizePath(target);
-  const dir = folderOf(normalizePath(from));
-  return normalizePath(dir ? `${dir}/${target}` : target);
-}
+export { normalizePath, resolvePath };
 
 /** A node's key: its file and line, or its file for a whole document. */
 export const nodeKey = (n: GraphNode): string => (n.line === undefined ? `${n.file}#${n.type}${n.id ? `#${n.id}` : ''}` : `${n.file}:${n.line}`);

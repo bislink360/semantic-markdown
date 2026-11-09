@@ -31,6 +31,8 @@ export interface ToMarkdownOptions {
   readFile?: (relativePath: string) => string | undefined;
   /** Keep `:::comment` and `:::suggestion` blocks (as quotes). Left out by default, as every export leaves them out. */
   comments?: boolean;
+  /** The document's path, so that `supersedes=this.smd#D1` counts like `supersedes=D1` (semantic tags R19, R53). */
+  file?: string;
 }
 
 const TICK = '`';
@@ -59,7 +61,7 @@ export function smdToMarkdown(text: string, options: ToMarkdownOptions = {}): st
   const stack: Frame[] = [];
   // What the document's blocks say about each other (answers, supersedes), read on the first ask.
   let tags: TagContext | undefined | null = null;
-  const tagsHere = () => (tags === null ? (tags = tagContext(text)) : tags);
+  const tagsHere = () => (tags === null ? (tags = tagContext(text, options.file)) : tags);
   const prefix = () => stack.map((f) => f.prefix).join('');
   const emit = (line: string) => {
     const p = prefix();
