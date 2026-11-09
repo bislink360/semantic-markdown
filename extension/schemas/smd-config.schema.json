@@ -1290,6 +1290,16 @@
           ],
           "description": "A :::non-goals block with no list item, so an exclusion can read as a goal"
         },
+        "evidence/unlinked": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence block with neither supports nor contradicts, so it is linked to nothing"
+        },
         "evidence/target": {
           "enum": [
             "off",
@@ -1298,7 +1308,27 @@
             "info",
             "hint"
           ],
-          "description": "A :::evidence block with neither supports nor contradicts"
+          "description": "A :::evidence block whose supports or contradicts is written but lists no id"
+        },
+        "evidence/source": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence source is not an http(s) or relative URL; it is left out"
+        },
+        "evidence/commit": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A :::evidence commit is not 7 to 40 hex characters"
         },
         "evidence/rev": {
           "enum": [

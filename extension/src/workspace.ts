@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
-  checkMermaid, extractTasks, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type DocumentRead, type MermaidParse, type QueryMatch,
-  type QueryOptions, type RuleSettings, type Selector, type StatusChanges, type TaskInfo,
+  checkMermaid, extractTasks, orderByPrerequisites, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type DocumentRead, type MermaidParse,
+  type QueryMatch, type QueryOptions, type RuleSettings, type Selector, type StatusChanges, type TaskInfo,
 } from './core';
 import { compareTasks } from './taskGroups';
 
@@ -116,9 +116,18 @@ export async function diagnose(text: string, file: string, options: DiagnoseOpti
   return found.sort((a, b) => a.line - b.line || a.column - b.column);
 }
 
-export interface TaskFilter { all: boolean; mine?: string; today?: string }
+export interface TaskFilter {
+  all: boolean;
+  mine?: string;
+  today?: string;
+  /** `deps` puts each task after the tasks it depends on, else in the priority order (the default, `priority`). */
+  order?: 'priority' | 'deps';
+}
 
-/** Tasks in `files` (open ones unless `all`), overdue first, then by priority and due date. `name` labels each file. */
+/**
+ * Tasks in `files` (open ones unless `all`), overdue first, then by priority and due date; with `order: 'deps'`, each
+ * after the tasks its `:depends[…]` names. `name` labels each file.
+ */
 export function taskRows(files: string[], filter: TaskFilter, name = (file: string) => file): TaskRow[] {
   const { all, mine, today } = filter;
   const rows: TaskRow[] = [];
@@ -129,7 +138,8 @@ export function taskRows(files: string[], filter: TaskFilter, name = (file: stri
       rows.push({ ...t, file: name(file) });
     }
   }
-  return rows.sort(compareTasks);
+  rows.sort(compareTasks);
+  return filter.order === 'deps' ? orderByPrerequisites(rows) : rows;
 }
 
 /** `docs/plan.smd:12  [ ] [P0] Ship it @maya (due 2026-10-01) {#ship}  — Section`: the id as the task's line writes it. */
@@ -188,10 +198,14 @@ function titleLine(r: QueryRow): string {
   return parts.filter(Boolean).join('  ');
 }
 
-/** `docs/adr-7.smd:12  2026-09-18  [accepted]  Use EventBridge  @platform  — ADR-0007 › Context` */
+/**
+ * `docs/adr-7.smd:12  2026-09-18  [accepted]  Use EventBridge  @platform  — ADR-0007 › Context`, with
+ * `(superseded by D7)` after the title when a later decision supersedes it (semantic tags R53).
+ */
 export function decisionLine(d: DecisionEntry): string {
   const where = d.section && !d.adr ? `${d.document} › ${d.section}` : d.document;
-  const bits = [(d.date ?? 'undated').padEnd(10), `[${d.status}]`, d.title, d.owner ?? '', `— ${where}`];
+  const successors = d.supersededBy?.length ? `(superseded by ${d.supersededBy.join(', ')})` : '';
+  const bits = [(d.date ?? 'undated').padEnd(10), `[${d.status}]`, d.title, successors, d.owner ?? '', `— ${where}`];
   return `${d.path}:${d.line + 1}  ${bits.filter(Boolean).join('  ')}`;
 }
 

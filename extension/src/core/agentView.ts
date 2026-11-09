@@ -191,6 +191,13 @@ const semanticTag = (tag: string, keys: string[], shown: Record<string, string> 
   line: `<${tag}${tagAttrs(id, { ...shown, ...values }, keys)}>${titleAfter(title)}`, close: `</${tag}>`,
 });
 
+/** Evidence, without a `source` the URL check refuses (`javascript:`…): it is left out, as a quote's cite is (R42). */
+function evidenceHead(source: HeadSource): ContainerHead {
+  const { source: url, ...rest } = source.values;
+  const values = url !== undefined && quoteCite(url) ? source.values : rest;
+  return semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])({ ...source, values });
+}
+
 /** An acceptance block lists the requirement it sits in first in `verifies`. */
 function acceptanceHead(source: HeadSource): ContainerHead {
   const verifies = [...new Set([...(source.requirement ? [source.requirement] : []), ...idList(source.values.verifies ?? '')])].join(',');
@@ -259,7 +266,7 @@ const CONTAINER_HEADS = new Map<string, (c: HeadSource) => ContainerHead>([
   ['constraint', semanticTag('constraint', ['scope', 'applies-to', 'level', 'owner', 'depends-on'], { level: 'must' })],
   ['acceptance', acceptanceHead],
   ['assumption', semanticTag('assumption', ['status', 'owner', 'review-by', 'depends-on'], { status: 'unvalidated' })],
-  ['evidence', semanticTag('evidence', ['supports', 'contradicts', 'method', 'result', 'commit', 'date', 'by', 'source', 'rev'])],
+  ['evidence', evidenceHead],
   // Phase 3 (RFC D10, D11). A bad example says so on its tag, so it is never copied as guidance (R58).
   ['non-goals', semanticTag('non-goals', [])],
   ['example', semanticTag('example', ['kind'])],

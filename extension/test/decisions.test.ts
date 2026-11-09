@@ -1,10 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decisionLog, decisionLogMarkdown, formatSmd, isInactiveDecision, validateSmd } from '../src/core';
+import { decisionLine } from '../src/workspace';
 
 const adr = [
   '---', 'smd: 1', 'title: "ADR-0001: Use Postgres"', 'tags: [adr, data]', '---', '',
@@ -76,8 +77,51 @@ test('decisionLogMarkdown: a formatted, valid ADR index', () => {
   assert.match(decisionLogMarkdown([]), /\nNo decisions found\.\n$/);
 });
 
+const superseding = [
+  '---', 'smd: 2', 'title: Cache', '---', '', '## Decisions', '',
+  ':::decision{#D1 status=superseded date=2026-09-01} One shared cache', ':::', '',
+  ':::decision{#D5 status=superseded date=2026-09-15 supersedes=D1} A cache per region', ':::', '',
+  ':::decision{#D7 status=accepted date=2026-10-01 supersedes="D1,D5"} A cache per reader', ':::', '',
+  ':::decision{status=proposed supersedes=D7} No id, still names D7', ':::', '',
+].join('\n');
+
+test('R53: decisionLog names the decisions that supersede each one; others have no supersededBy', () => {
+  const log = decisionLog([{ path: 'cache.smd', text: superseding }]);
+  assert.deepEqual(log.map((d) => [d.anchor, d.supersededBy]), [['D7', undefined], ['D5', ['D7']], ['D1', ['D5', 'D7']], ['decisions', undefined]]);
+  assert.equal(Object.hasOwn(log[0], 'supersededBy'), false, 'the field is added only when a decision names this one');
+  // Ids resolve within a document: D1 elsewhere is another decision.
+  const other = decisionLog([{ path: 'cache.smd', text: superseding }, { path: 'other.smd', text: ':::decision{#D1} Elsewhere\n:::\n' }]);
+  assert.equal(other.find((d) => d.path === 'other.smd')?.supersededBy, undefined);
+  assert.ok(decisionLog(docs).every((d) => !Object.hasOwn(d, 'supersededBy')), 'documents without supersedes read as before');
+});
+
+test('R53: the text line and the ADR index say "superseded by D7"', () => {
+  const log = decisionLog([{ path: 'cache.smd', text: superseding }]);
+  assert.equal(decisionLine(log[2]), 'cache.smd:8  2026-09-01  [superseded]  One shared cache  (superseded by D5, D7)  — Cache › Decisions');
+  assert.equal(decisionLine(log[0]), 'cache.smd:14  2026-10-01  [accepted]  A cache per reader  — Cache › Decisions');
+  const md = decisionLogMarkdown(log);
+  assert.match(md, /~~\[One shared cache\]\(cache\.smd#D1\)~~ \(superseded by D5, D7\) +\|/);
+  assert.match(md, /\| \[A cache per reader\]\(cache\.smd#D7\) +\|/);
+  assert.equal(formatSmd(md), md);
+  assert.deepEqual(validateSmd(md, { fileExists: (p) => p === 'cache.smd', readFile: () => superseding }), []);
+});
+
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
+
+test('CLI: smd decisions shows and --json gives the successors of a superseded decision', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'smd-superseded-'));
+  try {
+    const file = join(dir, 'cache.smd');
+    writeFileSync(file, superseding);
+    const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'decisions', file, ...args], { encoding: 'utf8', stdio: 'pipe' });
+    assert.match(run(), /:8 {2}2026-09-01 {2}\[superseded\] {2}One shared cache {2}\(superseded by D5, D7\) {2}— Cache › Decisions\n/);
+    const json = JSON.parse(run('--json')) as Array<{ title: string; supersededBy?: string[] }>;
+    assert.deepEqual(json.map((d) => d.supersededBy ?? null), [null, ['D7'], ['D5', 'D7'], null]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 test('CLI: smd decisions lists, filters and writes an ADR index', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const samples = join(__dirname, 'samples');
   const run = (...args: string[]) => execFileSync(process.execPath, [cli, 'decisions', samples, ...args], { encoding: 'utf8', stdio: 'pipe' });

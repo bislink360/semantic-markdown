@@ -423,7 +423,9 @@ function evidenceMarkdown(c: ContainerSource): ContainerMarkdown {
   if (result === 'pass') kind = 'TIP';
   else if (result === 'fail') kind = 'CAUTION';
   return tagAlert(kind, 'Evidence', c, [
-    v.supports ? `supports ${ids(v.supports)}` : '', v.contradicts ? `contradicts ${ids(v.contradicts)}` : '', v.method, v.result, v.commit, v.date, v.by, v.source,
+    v.supports ? `supports ${ids(v.supports)}` : '', v.contradicts ? `contradicts ${ids(v.contradicts)}` : '', v.method, v.result, v.commit, v.date, v.by,
+    // A source the URL check refuses is left out (R42, evidence/source).
+    quoteCite(v.source) ? v.source : '',
   ]);
 }
 
