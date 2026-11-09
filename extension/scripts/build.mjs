@@ -1,11 +1,15 @@
 // Bundles the extension and CLI with esbuild and copies browser vendor files into media/vendor.
 import * as esbuild from 'esbuild';
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isStudyBuild, STUDY_PAGE_SCRIPT, studyDefine } from './study-build.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const watch = process.argv.includes('--watch');
+// A Study 2 study build (--study or SMD_STUDY_BUILD=1): session logging compiled in, never released.
+const study = isStudyBuild();
+if (study) console.warn('\n*** STUDY BUILD: Study 2 session logging is compiled in. Never publish or release this build. ***\n');
 
 // Vendor assets loaded by the preview webview.
 const vendor = join(root, 'media', 'vendor');
@@ -33,6 +37,7 @@ const common = {
     __SMD_RUNTIME__: JSON.stringify(readFileSync(join(root, 'media', 'runtime.js'), 'utf8')),
     __SMD_SITE_CSS__: JSON.stringify(readFileSync(join(root, 'media', 'site.css'), 'utf8')),
     __SMD_SITE_JS__: JSON.stringify(readFileSync(join(root, 'media', 'site.js'), 'utf8')),
+    ...studyDefine(study),
   },
   minify: !watch,
   logLevel: 'info',
@@ -70,14 +75,34 @@ const builds = [
   },
 ];
 
+// The preview's study page script exists only in a study build; any other build deletes a stale one, so a package
+// made after a study build doesn't carry it.
+const studyPage = join(root, ...STUDY_PAGE_SCRIPT.split('/'));
+if (study) {
+  builds.push({
+    entryPoints: [join(root, 'src', 'webview', 'studyCues.ts')],
+    outfile: studyPage,
+    bundle: true,
+    platform: 'browser',
+    format: 'iife',
+    target: ['es2022'],
+    minify: !watch,
+    legalComments: 'none',
+    logLevel: 'info',
+  });
+} else {
+  rmSync(studyPage, { force: true });
+}
+
 if (watch) {
   for (const options of builds) await (await esbuild.context(options)).watch();
 } else {
   await Promise.all(builds.map((options) => esbuild.build(options)));
 }
 
-// Keep the repository's skills self-contained: each skill ships the bundled CLI.
-if (!watch) {
+// Keep the repository's skills self-contained: each skill ships the bundled CLI. Not from a study build, whose
+// outputs are never committed.
+if (!watch && !study) {
   for (const skill of ['semantic-markdown-reader', 'semantic-markdown-writer']) {
     const dir = join(root, '..', 'skills', skill, 'scripts');
     mkdirSync(dir, { recursive: true });

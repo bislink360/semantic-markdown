@@ -1067,6 +1067,11 @@ export class BlockEditorSession {
     return next;
   }
 
+  /** The zero-based first line of the block a key names in the document now, if it can still be found. */
+  lineOf(key: string): number | undefined {
+    return this.locate(key)?.start;
+  }
+
   /** Render the document as it is now and send it to the page. */
   update(): void {
     this.options.post(this.render());

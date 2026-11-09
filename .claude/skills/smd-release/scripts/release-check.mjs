@@ -15,6 +15,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { cmpSemver, pickBaseTag, releaseTags } from './base-tag.mjs';
 
 // ---------------------------------------------------------------------------
@@ -91,9 +92,22 @@ if (!/pkg\.version/.test(cliSrc)) review.push('The CLI no longer reports its ver
 // 3. Build and test the working tree
 // ---------------------------------------------------------------------------
 log('building working tree…');
+// The Study 2 study build (session logging) is never released: refuse to build one here.
+const study = await import(pathToFileURL(join(EXT, 'scripts', 'study-build.mjs')).href).catch(() => null);
+if (study && process.env[study.STUDY_BUILD_ENV]) {
+  console.error(`${study.STUDY_BUILD_ENV} is set: that makes a study build, which is never released. Unset it and run again.`);
+  process.exit(2);
+}
 run('npm', ['run', 'build'], EXT);
 if (npmPkg) run('npm', ['run', 'build:npm'], EXT);
 const NEW_CLI = join(EXT, 'dist', 'cli.js');
+if (study) {
+  const bundle = readFileSync(join(EXT, 'dist', 'extension.js'), 'utf8');
+  const found = study.STUDY_MARKERS.filter((marker) => bundle.includes(marker));
+  const page = existsSync(join(EXT, ...study.STUDY_PAGE_SCRIPT.split('/')));
+  if (found.length || page) failures.push(`The extension bundle includes the study build's logging (${[...found, ...(page ? [study.STUDY_PAGE_SCRIPT] : [])].join(', ')}). Rebuild without --study or SMD_STUDY_BUILD.`);
+  else passed.push('No study logging in the extension bundle');
+}
 
 if (!flag('--skip-tests')) {
   log('typecheck + unit tests…');

@@ -16,6 +16,7 @@ import { registerPdfExport } from './pdfExport';
 import { migrationPlan } from './core/migrate';
 import { migrationEdit, migrationReport, migrationSummary, planCounts } from './migrateReport';
 import { oldExtensionIsActive } from './renamed';
+import { registerStudy, stopStudy } from './study/session';
 
 const APPLY = 'Apply';
 /** What the preview says after its summary in the editor. */
@@ -39,6 +40,8 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
   registerDocxExport(context);
   registerPdfExport(context);
   registerBlockEditor(context);
+  // Study 2 session logging: only in a study build (never released), and off until a session is turned on.
+  if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) registerStudy(context);
 
   const activeSmd = (): vscode.TextDocument | undefined => {
     const doc = vscode.window.activeTextEditor?.document;
@@ -196,7 +199,9 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
   return { extendMarkdownIt };
 }
 
-export function deactivate(): void {}
+export function deactivate(): void {
+  if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) stopStudy();
+}
 
 /** Save an export next to the document (the user picks the name), then open it beside the editor. */
 async function exportBeside(doc: vscode.TextDocument, ext: string, filters: Record<string, string[]>, content: string): Promise<void> {
