@@ -390,6 +390,8 @@ export interface FollowOptions {
   shown?: ReadonlySet<string>;
   /** At most this many neighbors (default 100). */
   limit?: number;
+  /** Edges to leave alone, such as those written in content the caller hides. */
+  ignore?: (edge: GraphEdge) => boolean;
 }
 
 export interface Neighbor {
@@ -412,29 +414,33 @@ export const MAX_FOLLOW_DEPTH = 3;
 /**
  * The neighbors of `start` along edges of `types`, as pointers, breadth first up to `depth` hops. Edges that reach
  * something the start needs (mandatory edges in their own direction) are left out: mandatoryClosure includes them.
+ * `start` can be several nodes, such as the blocks of the sections a read shows: what lies inside any of them is
+ * not a neighbor, and each neighbor is listed once.
  */
-export function followEdges(graph: DocumentGraph, start: GraphNode, options: FollowOptions): { neighbors: Neighbor[]; cut: number } {
+export function followEdges(graph: DocumentGraph, start: GraphNode | readonly GraphNode[], options: FollowOptions): { neighbors: Neighbor[]; cut: number } {
+  const starts: readonly GraphNode[] = Array.isArray(start) ? start : [start as GraphNode];
+  const inStart = (node: GraphNode) => starts.some((s) => contains(s, node));
   const depth = Math.min(MAX_FOLLOW_DEPTH, Math.max(1, Math.trunc(options.depth ?? 1)));
   const directions: EdgeDirection[] = options.direction === 'both' ? ['out', 'in'] : [options.direction ?? 'out'];
   const types = new Set(options.types);
   const limit = options.limit ?? 100;
-  const seen = new Set([nodeKey(start)]);
+  const seen = new Set(starts.map(nodeKey));
   const listed = new Set<string>();
   // The depth a node was first listed at: deeper paths to it are not listed again.
   const firstDepth = new Map<string, number>();
   const neighbors: Neighbor[] = [];
   let cut = 0;
-  let frontier = [start];
+  let frontier = [...starts];
   for (let d = 1; d <= depth && frontier.length; d++) {
     const next: GraphNode[] = [];
     for (const via of frontier) {
       for (const direction of directions) {
         const edges = direction === 'out' ? graph.outgoing(via) : graph.incoming(via);
         for (const edge of edges) {
-          if (!types.has(edge.type) || (d === 1 && needs(edge, direction))) continue;
+          if (!types.has(edge.type) || (d === 1 && needs(edge, direction)) || options.ignore?.(edge)) continue;
           const node = direction === 'out' ? edge.to : edge.from;
           // An edge between places inside the node, or back into the start, is not a neighbor.
-          if (node && (contains(start, node) || (direction === 'out' && contains(via, node)))) continue;
+          if (node && (inStart(node) || (direction === 'out' && contains(via, node)))) continue;
           // Each neighbor once per relation, however many paths reach it.
           const what = node ? nodeKey(node) : `${edge.status}|${edge.file}|${edge.file === edge.from.file ? edge.target : edge.target.split('#')[1] ?? ''}`;
           const id = `${direction}|${edge.type}|${what}`;
@@ -469,6 +475,8 @@ export interface ClosureOptions {
   maxBlocks?: number;
   /** Nodes already shown in full (by key): not included again and not reported. */
   shown?: ReadonlySet<string>;
+  /** Edges to leave alone, such as those written in content the caller hides. */
+  ignore?: (edge: GraphEdge) => boolean;
 }
 
 export interface ClosureBlock {
@@ -528,7 +536,7 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
   const wantedOf = (node: GraphNode): Array<{ edge: GraphEdge; target?: GraphNode }> => [
     ...graph.outgoing(node).filter((e) => types.has(e.type) && needs(e, 'out')).map((edge) => ({ edge, target: edge.to })),
     ...(types.has('applies-to') ? graph.appliesTo(node).map((edge) => ({ edge, target: edge.from })) : []),
-  ];
+  ].filter(({ edge }) => !options.ignore?.(edge));
 
   // The fewest steps from any start to each node within the limit, breadth first over the same edges the walk follows.
   // Nodes already shown are not expanded, as the walk skips them. A node missing from `distance` is further away.

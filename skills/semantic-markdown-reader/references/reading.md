@@ -9,6 +9,7 @@ A document with `smd: 2` in its front matter follows the spec v2 rules (no `smd`
 ## One document
 
 - `smd read FILE [--max-tokens N]` (default 2000): the whole agent view when it fits, else the outline and a hint to read sections.
+- `smd read FILE --section "Heading" --follow "*"` adds, after the view, what the content links to as pointers with their cost (`--direction in` what links to it, `--depth 2` two hops), and in full what it `depends-on`, `include`s and the constraints that `applies-to` it. `[incomplete: …]` after them means a dependency could not be read: don't treat the result as complete. Other files are read only in the document's folder.
 - `smd outline FILE` (≈100–300 tokens): title, status, summary, and every section with its line range and token cost. It flags open tasks, decisions, risks, APIs and `AGENT INSTRUCTIONS`.
 - `smd agent FILE` is the full agent view. `--section "Heading"` (repeatable) matches heading text or id, includes subsections, and always appends `:::agent` instructions from elsewhere in the file.
 - `--brief` condenses diagrams, long code, `:::details` and completed tasks into pointers with line numbers.

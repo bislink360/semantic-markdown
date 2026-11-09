@@ -68,6 +68,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd report <dir> --since <date\|git-ref> [-o status.smd]` | Draft a status report: tasks done and added since, open tasks (overdue and due this week first), decisions since, high-impact risks, linked to their sections |
 | `smd query "<selector>" <paths> [--json]` | Blocks by type and attributes, e.g. `risk[impact>=high]`, and by where they sit: `heading[title=Rollout] task`, `requirement > acceptance`, `risk:not([status=closed])` |
 | `smd query … --follow "*" [--direction in] [--depth 2]` | Also the blocks each match links to, as one-line pointers with their cost, and what it depends on in full (`depends-on`, `applies-to`, `include`) |
+| `smd read <file> --section … --follow "*"` | The same for what a read shows: after the view, the blocks it links to as pointers and what it depends on in full, counted in the budget ([below](#following-references-from-a-read)) |
 | `smd query … --constraints` | Also the documents' `:::agent` blocks and document-wide `:::constraint` blocks. Without it, a line says when a document has some |
 | `smd review <file>` · `smd review accept\|reject\|resolve … <item> --by @me` | Open comments and suggestions with their targets and whether each is stale; each review step is its own command ([below](#review-comments-and-suggestions-smd-review)) |
 | `smd trace <paths> [--uncovered]` | Each requirement with its status, acceptance criteria, task claims, evidence and acceptance by a person, kept apart; `smd agent --evidence` shows the evidence in the view ([below](#tracing-requirements-smd-trace)) |
@@ -828,6 +829,36 @@ docs/spec.smd:33-34  — Requirements  (applies-to from L33)
 - **Other files** are read only inside the files and folders given on the command line. A link to a file outside them is `denied`, and its content, or even whether it exists, stays unknown.
 - **JSON.** With `--follow` or `--constraints`, `--json` prints an object instead of the array. It has `matches` (each with `ancestors`, and with `--follow` its `neighbors`, `dependencies`, `unsatisfied` and `cut`), `constraints`, `edges`, `complete` and `tokens` (`shown`, `pointers`, `dependencies`).
 - **Library.** The npm package exports `queryDocuments`, `DocumentGraph`, `mandatoryClosure`, `followEdges`, `edgeTypes`, `dependencyProblems`, `formatQueryResult` and `queryResultJson`. The MCP `query` tool is unchanged.
+
+#### Following references from a read
+
+`smd read` takes the same `--follow`, `--direction` and `--depth`. It follows the edges of the content it shows, the selected sections or the whole document, and prints what it found after the view.
+
+```bash
+smd read docs/spec.smd --section "Requirements" --follow "*" --direction both
+```
+
+```text
+…the view of the Requirements section…
+
+Edges followed from this content (*; both; depth 1):
+  -> link        heading  Design  [L40]  ≈84 tokens
+  <- link        heading  Rollout  docs/rollout.smd [L5]  ≈60 tokens
+Dependencies along these edges (included in full):
+docs/terms.smd  (include from L31)
+A term means one thing.
+[smd] sections · agent view ≈620 tokens · file ≈1840 tokens
+[smd] followed: 2 neighbor(s) as pointers (≈144 tokens not read). 1 dependency included (≈6 tokens). ≈52 tokens added after the view.
+```
+
+- **Nothing twice.** Edges between parts of the content read are not neighbors. What the view already shows is not repeated: the selected sections, `:::agent` and `:::danger` blocks, "Constraints that apply here", "Dependencies of the selected content" and includes shown in place. A dependency the view already lists under "Not satisfied" is not listed again.
+- **Hidden stays hidden.** Edges written in `{agent=skip}` sections the read doesn't select, or in `:::human` blocks, are not followed, and a dependency inside them is not shown.
+- **Incomplete.** A mandatory dependency that is missing, ambiguous, denied, in a cycle or past the limits gets an "Unsatisfied dependency" line, and the part ends with `[incomplete: N mandatory dependencies are not satisfied along the followed edges]`. stderr says so too.
+- **Budget.** The followed text counts toward `--max-tokens`: a document whose view fits but whose view and followed edges don't comes back as the outline, and an outline follows nothing. The stderr summary gives the pointers, the dependencies and the tokens added.
+- **Other files** are read only inside the document's folder. With `--direction in` or `both`, the `.smd` files in that folder are searched for edges that point at the content too.
+- **Provenance.** `--provenance` adds a `follow` object to the manifest (the edge types, direction and depth, each pointer, dependency and unsatisfied edge with one-based lines, and the hashes of the files the dependencies came from), maps the added lines in `sourceMap`, and lists unsatisfied edges as `dependency` omissions.
+- **Not with** `--outline` or `--view` (exit code 2). Unknown edge types and bad `--direction` or `--depth` values exit with 2 and the same messages as `smd query`. Without `--follow`, `smd read` prints what it did before, and the MCP `read` tool is unchanged.
+- **Library.** `readSmd(source, { file, sections, follow, direction, depth, readDocument, documents })` is the same read, with `READ_BUDGET` and `READ_MODES`. `readDocument` reads another file by path (other files are denied without it), `documents` adds documents whose edges point in, and `result.follow` holds the neighbors, dependencies, unsatisfied edges and token counts.
 
 ## 7. Developer blocks: APIs, code, embeds
 

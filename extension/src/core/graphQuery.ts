@@ -157,7 +157,7 @@ export function formatQueryResult(result: QueryDocumentsResult, options: FormatO
   const hint = options.constraintsHint ?? 'Add --constraints to include them.';
   const parts: string[] = [];
   result.matches.forEach((m, i) => {
-    const extra = result.graph ? graphLines(result.graph[i], m) : [];
+    const extra = result.graph ? graphLines(result.graph[i], m.file) : [];
     if (options.titles) parts.push([titleLine(m), ...extra].join('\n'));
     else parts.push(`${location(m)}\n${m.text}\n${extra.length ? `${extra.join('\n')}\n` : ''}`);
     const last = result.matches[i + 1]?.file !== m.file;
@@ -188,20 +188,36 @@ function constraintCount(blocks: readonly ConstraintBlock[]): string {
   return bits.join(' and ');
 }
 
-/** Pointers, then the dependencies in full, then what is unsatisfied. */
-function graphLines(g: MatchGraph, match: FileMatch): string[] {
-  const out = treeOrder(g.neighbors).map((n) => pointerLine(n, match.file));
+/** How graphLines labels its parts: `smd query`'s by default. */
+export interface GraphLineLabels {
+  /** The line above the dependencies included in full. */
+  dependencies: string;
+  /** The last line when something is unsatisfied, given how many. */
+  incomplete: (count: number) => string;
+}
+
+const QUERY_LABELS: GraphLineLabels = {
+  dependencies: 'Dependencies (mandatory edges, included in full):',
+  incomplete: () => 'This match is shown without all it depends on: the result is incomplete.',
+};
+
+/**
+ * What following edges found, as lines: pointers (each one's own neighbors indented under it), then the dependencies
+ * in full, then what is unsatisfied. `file` is the document the edges start in; other files are named.
+ */
+export function graphLines(g: MatchGraph, file: string, labels: GraphLineLabels = QUERY_LABELS): string[] {
+  const out = treeOrder(g.neighbors).map((n) => pointerLine(n, file));
   if (g.cut) out.push(`  … ${g.cut} more neighbor${g.cut === 1 ? '' : 's'} not listed`);
   if (g.dependencies.length) {
-    out.push('Dependencies (mandatory edges, included in full):');
+    out.push(labels.dependencies);
     for (const d of g.dependencies) {
       const where = d.node.line === undefined ? d.node.file : `${d.node.file}:${d.node.line + 1}${(d.node.endLine ?? d.node.line) > d.node.line ? `-${(d.node.endLine ?? d.node.line) + 1}` : ''}`;
       const section = d.node.section ? `  — ${d.node.section}` : '';
-      out.push(`${where}${section}  (${d.edge.type} from ${edgePlace(d.edge, match.file)})`, d.text || '(empty)');
+      out.push(`${where}${section}  (${d.edge.type} from ${edgePlace(d.edge, file)})`, d.text || '(empty)');
     }
   }
-  for (const u of g.unsatisfied) out.push(`Unsatisfied dependency: ${u.edge.type} "${u.edge.target}" from ${edgePlace(u.edge, match.file)} ${unsatisfiedReason(u)}`);
-  if (g.unsatisfied.length) out.push('This match is shown without all it depends on: the result is incomplete.');
+  for (const u of g.unsatisfied) out.push(`Unsatisfied dependency: ${u.edge.type} "${u.edge.target}" from ${edgePlace(u.edge, file)} ${unsatisfiedReason(u)}`);
+  if (g.unsatisfied.length) out.push(labels.incomplete(g.unsatisfied.length));
   return out;
 }
 
