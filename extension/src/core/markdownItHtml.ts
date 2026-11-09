@@ -3,7 +3,7 @@ import type { Options, Renderer, Token } from 'markdown-it';
 import katex from 'katex';
 import { attrsToStyle, escapeHtml, htmlAttrs, resolveColor, type Attrs } from './attrs';
 import { FigureCounter, type FigureNumber } from './figures';
-import { idHref, splitIdRef } from './idTarget';
+import { idHref, ownSupersededId, splitIdRef } from './idTarget';
 import { unknownContainerTitle } from './containers';
 import { asStringList } from './frontmatter';
 import { langFromPath, parseFenceInfo, sliceLines, type FenceInfo } from './fence';
@@ -13,7 +13,6 @@ import {
 } from './include';
 import { progressState, type ProgressState, type TaskCount } from './progress';
 import { quoteCite } from './quote';
-import { ownSupersededId } from './semanticTags';
 import { CALLOUT_TYPES, idList, STATUS_VALUES } from './spec';
 import type { ReviewItem } from './review';
 import { CLOSED_STATES, hasReviewBlocks, readReviewItems, type ReviewType } from './reviewKinds';

@@ -2,8 +2,7 @@ import {
   closeContainers, closerColons, CONTAINER_CLOSE, CONTAINER_OPEN, displayMath, openerColons, parseContainerInfo,
 } from './containers';
 import { parseFrontMatter } from './frontmatter';
-import { splitIdRef } from './idTarget';
-import { normalizePath, resolvePath } from './paths';
+import { ownSupersededId } from './idTarget';
 import { CONTAINERS, ID_ATTRIBUTES, idList } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { scanTasks } from './taskLines';
@@ -159,16 +158,6 @@ export function questionStatus(question: TagBlock, answer: boolean): string {
 /** Whether a question uses the lifecycle (an attribute of it, or an answer), so the views show its state. */
 export function isLifecycleQuestion(question: TagBlock, answer: boolean): boolean {
   return answer || QUESTION_LIFECYCLE.some((k) => question.values[k] !== undefined);
-}
-
-/**
- * The id of this document that a `supersedes` value names: a bare id, or `path#id` whose path resolves to `file`, the
- * document's own path (semantic tags R19, R53). Undefined for another document's id, or a path when `file` is unknown.
- */
-export function ownSupersededId(written: string, file?: string): string | undefined {
-  const { path, id } = splitIdRef(written);
-  if (!path) return id;
-  return file !== undefined && resolvePath(file, path) === normalizePath(file) ? id : undefined;
 }
 
 /**

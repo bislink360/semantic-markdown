@@ -1,3 +1,5 @@
+import { normalizePath, resolvePath } from './paths';
+
 /**
  * An id as an id attribute (`verifies=R1`) or `:ref[R1]` writes it: the id of a block of this document, or of a block
  * of another document, `other.smd#R1` (semantic tags R19). Only a relative path to a document (`.smd`, `.md`,
@@ -24,3 +26,13 @@ export function splitIdRef(raw: string): IdTarget {
 
 /** The href of an id in another document, for rendered links: the path as written, then `#id`. */
 export const idHref = (target: IdTarget): string => `${target.path}#${target.id}`;
+
+/**
+ * The id of this document that a `supersedes` value names: a bare id, or `path#id` whose path resolves to `file`, the
+ * document's own path (semantic tags R19, R53). Undefined for another document's id, or a path when `file` is unknown.
+ */
+export function ownSupersededId(written: string, file?: string): string | undefined {
+  const { path, id } = splitIdRef(written);
+  if (!path) return id;
+  return file !== undefined && resolvePath(file, path) === normalizePath(file) ? id : undefined;
+}
