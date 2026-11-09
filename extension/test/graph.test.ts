@@ -196,6 +196,36 @@ test('mandatoryClosure is reusable on its own, and the same source gives the sam
   assert.equal(again(), again());
 });
 
+test('the closure depth limit counts the fewest steps, so a long path walked first does not cut a near dependency', () => {
+  // The walk reaches R9 through R2 to R5 (5 steps) before R1's own edge to R9 (1 step). R10 is 2 steps from R1.
+  const text = [
+    '---', 'smd: 2', 'title: Paths', '---', '## Requirements', '',
+    ':::requirement{#R1 depends-on=R2,R9} Start', ':::',
+    ':::requirement{#R2 depends-on=R3} Two', ':::',
+    ':::requirement{#R3 depends-on=R4} Three', ':::',
+    ':::requirement{#R4 depends-on=R5} Four', ':::',
+    ':::requirement{#R5 depends-on=R9} Five', ':::',
+    ':::requirement{#R9 depends-on=R10} Nine', ':::',
+    ':::requirement{#R10} Ten', ':::',
+    '',
+  ].join('\n');
+  const paths: GraphDocument[] = [{ path: 'p.smd', text }];
+  const graph = new DocumentGraph(paths, { today: TODAY });
+  const r1 = graph.edgesOf('p.smd').find((e) => e.from.id === 'R1')!.from;
+  const closure = mandatoryClosure(graph, [r1], { types: ['depends-on'] });
+  assert.deepEqual(closure.blocks.map((b) => `${b.node.id}@${b.depth}`), ['R2@1', 'R3@2', 'R4@3', 'R5@4', 'R9@1', 'R10@2']);
+  assert.deepEqual(closure.unsatisfied, []);
+  assert.equal(closure.complete, true);
+  // A dependency that is further than the limit by every path is still cut and reported.
+  const short = mandatoryClosure(graph, [r1], { types: ['depends-on'], maxDepth: 1 });
+  assert.deepEqual(short.blocks.map((b) => `${b.node.id}@${b.depth}`), ['R2@1', 'R9@1']);
+  assert.deepEqual(short.unsatisfied.map((u) => `${u.kind}:${u.edge.target}@${u.depth}`), ['depth:R3@2', 'depth:R10@2']);
+  // The query and the section view agree.
+  const result = queryDocuments(paths, 'requirement[id=R1]', { follow: 'depends-on', today: TODAY });
+  assert.equal(result.complete, true);
+  assert.doesNotMatch(formatQueryResult(result), /Unsatisfied dependency/);
+});
+
 // ---------------------------------------------------------------------------
 // G7: the validator rules
 // ---------------------------------------------------------------------------
