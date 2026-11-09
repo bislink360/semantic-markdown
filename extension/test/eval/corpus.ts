@@ -6,8 +6,8 @@ import type { AnnotationFile, AnnotationItem, CorpusConfig, Evidence, Span, Task
 
 export const DOC_FILES = ['doc.md', 'doc.smd', 'annotations.json', 'tasks.json'] as const;
 
-/** `research/corpus/` in the repository. */
-export const DEFAULT_CORPUS = path.join(__dirname, '..', '..', '..', 'research', 'corpus');
+/** `research/data/corpus/` in the repository. */
+export const DEFAULT_CORPUS = path.join(__dirname, '..', '..', '..', 'research', 'data', 'corpus');
 
 /** Used when corpus.json gives no `today`. */
 export const DEFAULT_TODAY = '2026-01-01';

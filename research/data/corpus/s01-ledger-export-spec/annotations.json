@@ -1,0 +1,27 @@
+{
+  "guide": "research/docs/annotation-guide.smd 0.2",
+  "items": [
+    { "id": "no-draft-invoices", "kind": "negation", "md": [13, 13], "smd": [18, 18], "evidence": ["Draft invoices are never exported"], "annotator": "ai-annotator-a" },
+    { "id": "voided-reversal-only-if-exported", "kind": "constraint", "md": [13, 13], "smd": [18, 18], "evidence": ["exported once more as a reversal entry", "only if it had been exported before it was voided"], "annotator": "ai-annotator-a", "notes": "Prose-only conditional rule." },
+    { "id": "support-impersonation-exception", "kind": "negation", "md": [15, 15], "smd": [20, 20], "evidence": ["Account owners and users with the Bookkeeper role can start an export", "except for support staff"], "annotator": "ai-annotator-a", "notes": "Exception to the role rule. The role rule itself is carried as context evidence." },
+    { "id": "one-entity-per-export", "kind": "negation", "md": [17, 17], "smd": [22, 22], "evidence": ["There is no combined export across entities"], "annotator": "ai-annotator-a" },
+    { "id": "out-of-scope-api-and-push", "kind": "negation", "md": [19, 19], "smd": [24, 24], "evidence": ["a public API endpoint for exports", "not planned before 2027"], "annotator": "ai-annotator-a" },
+    { "id": "mapping-rules-max", "kind": "limit", "md": [23, 23], "smd": [28, 28], "evidence": ["up to 200 mapping rules"], "annotator": "ai-annotator-a" },
+    { "id": "unmapped-to-suspense", "kind": "fact", "md": [25, 25], "smd": [30, 30], "evidence": ["suspense account 9999"], "annotator": "ai-annotator-a" },
+    { "id": "tax-lines-not-remappable", "kind": "negation", "md": [25, 25], "smd": [30, 30], "evidence": ["Tax lines are the exception", "cannot be remapped here"], "annotator": "ai-annotator-a" },
+    { "id": "mapping-change-future-only", "kind": "constraint", "md": [27, 27], "smd": [32, 32], "evidence": ["Changing a mapping affects future exports only", "not rebuilt"], "annotator": "ai-annotator-a", "notes": "Prose-only rule. Could also read as a negation (built files are not rebuilt)." },
+    { "id": "rounding-line-threshold", "kind": "limit", "md": [31, 31], "smd": [36, 36], "evidence": ["at most 0.05, the export adds a rounding line on account 8990"], "annotator": "ai-annotator-a" },
+    { "id": "rounding-over-limit-fails", "kind": "constraint", "md": [31, 31], "smd": [36, 36], "evidence": ["more than 0.05, the export stops with an error"], "annotator": "ai-annotator-a" },
+    { "id": "no-import-tracking", "kind": "negation", "md": [35, 35], "smd": [40, 40], "evidence": ["does not track which lines a customer has already imported"], "annotator": "ai-annotator-a" },
+    { "id": "csv-comma-separator", "kind": "constraint", "md": [45, 45], "smd": [50, 50], "evidence": ["uses a comma as separator even for accounts in countries that normally use a semicolon"], "annotator": "ai-annotator-a", "notes": "Prose-only format rule." },
+    { "id": "ledgerline-v3-unsupported", "kind": "negation", "md": [47, 47], "smd": [52, 52], "evidence": ["version 2.1 of that schema", "Version 3 is not supported"], "annotator": "ai-annotator-a" },
+    { "id": "export-size-limits", "kind": "limit", "md": [67, 67], "smd": [72, 72], "evidence": ["at most 12 months and at most 50,000 ledger lines"], "annotator": "ai-annotator-a" },
+    { "id": "export-rate-limit", "kind": "limit", "md": [67, 67], "smd": [72, 72], "evidence": ["5 exports per hour"], "annotator": "ai-annotator-a" },
+    { "id": "file-retention", "kind": "limit", "md": [67, 67], "smd": [72, 72], "evidence": ["available for download for 7 days"], "annotator": "ai-annotator-a" },
+    { "id": "no-full-card-numbers", "kind": "constraint", "md": [69, 69], "smd": [75, 75], "evidence": ["must never contain a customer's full card number or bank account number", "only the last four digits"], "annotator": "ai-annotator-a", "notes": "Called-out constraint (Important)." },
+    { "id": "on-demand-replaces-monthly", "kind": "decision-status", "md": [73, 75], "smd": [80, 82], "evidence": ["On-demand exports (decided 2026-08-03)", "replaces the monthly schedule decided in May"], "annotator": "ai-annotator-a", "notes": "The superseded monthly schedule is stated at lines 100-102 under Decisions and reads authoritative there ('There is no on-demand export'), with no superseded marker." },
+    { "id": "job-timeout", "kind": "limit", "md": [87, 87], "smd": [94, 94], "evidence": ["has not finished after 15 minutes is cancelled"], "annotator": "ai-annotator-a" },
+    { "id": "no-auto-retry", "kind": "negation", "md": [96, 96], "smd": [103, 103], "evidence": ["Failed jobs are not retried automatically"], "annotator": "ai-annotator-a" },
+    { "id": "invoice-pdfs-open", "kind": "open-question", "md": [106, 108], "smd": [113, 115], "evidence": ["Should exports include the invoice PDFs", "exports contain ledger data only", "download PDFs separately from the invoice list"], "annotator": "ai-annotator-a" }
+  ]
+}

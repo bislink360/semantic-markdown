@@ -8,7 +8,7 @@ The fixture in `fixture/` only tests the harness. It is not study data (see `fix
 
 ## Commands
 
-Run from `extension/`. The corpus defaults to `research/corpus/` in the repository. Relative paths are read from the folder you ran npm in.
+Run from `extension/`. The corpus defaults to `research/data/corpus/` in the repository. Relative paths are read from the folder you ran npm in.
 
 ```sh
 npm run eval -- validate [corpus] [--json]
@@ -138,7 +138,7 @@ The validator stays strict: an item without an `smd` span is an error. `map-span
 The annotation guide asks a second annotator to annotate a quarter of the documents. Put the two files in each document folder under any names and pass them:
 
 ```sh
-npm run eval -- agreement research/corpus --a annotations.a1.json --b annotations.a2.json --out <dir>
+npm run eval -- agreement research/data/corpus --a annotations.a1.json --b annotations.a2.json --out <dir>
 ```
 
 Only `md` spans are read, so the files need no `smd` spans. Folders with only one of the two files are listed as skipped.
@@ -156,7 +156,7 @@ Agreement is reported on the files before adjudication, as the guide says.
 The guide's marker comparison has a second marker mark a document again from its `doc.md`, without seeing the first marking. Put each re-marked file at `<dir>/<doc>/doc.smd` and run
 
 ```sh
-npm run eval -- compare-marks research/corpus --other <dir> --out <dir>
+npm run eval -- compare-marks research/data/corpus --other <dir> --out <dir>
 ```
 
 Both markings are placed on `doc.md` lines through the same line alignment `map-spans` uses, so the two `.smd` files may differ in layout. A mark is a container (its name, and `status` for a decision) or a heading marked `{agent=skip}`. `:::include` blocks are left out, because a re-marker cannot know which passages are shared, and so is inline task syntax.
@@ -168,10 +168,10 @@ Both markings are placed on `doc.md` lines through the same line alignment `map-
 ## Model runs
 
 ```sh
-npm run eval -- run research/corpus --config run.json --out runs/pilot --dry-run
-EVAL_MODEL_A_KEY=... npm run eval -- run research/corpus --config run.json --out runs/pilot --docs s01-ledger-export-spec --runs 3
-npm run eval -- score research/corpus runs/pilot/answers.jsonl --out runs/pilot/scores --model model-a
-EVAL_MODEL_A_KEY=... npm run eval -- run research/corpus --config run.json --out runs/pilot --setup-probe
+npm run eval -- run research/data/corpus --config run.json --out runs/pilot --dry-run
+EVAL_MODEL_A_KEY=... npm run eval -- run research/data/corpus --config run.json --out runs/pilot --docs s01-ledger-export-spec --runs 3
+npm run eval -- score research/data/corpus runs/pilot/answers.jsonl --out runs/pilot/scores --model model-a
+EVAL_MODEL_A_KEY=... npm run eval -- run research/data/corpus --config run.json --out runs/pilot --setup-probe
 npm run eval -- tokens runs/pilot --scored runs/pilot/scores/outcomes.json --model model-a
 ```
 
@@ -307,7 +307,7 @@ npm run eval -- judge out/score/judge-packets.jsonl --config run.json --model ju
 npm run eval -- judge out/score/judge-packets.jsonl --config run.json --model judge-a --out out/judge
 npm run eval -- sample out/score/judge-packets.jsonl --out out/human --share 0.15
 npm run eval -- judge-agreement out/score/judge-packets.jsonl --judged out/judge/judged.jsonl --human out/human/human.jsonl --out out/agree
-npm run eval -- score ../research/corpus out/run/answers.jsonl --out out/final --judged out/judge/judged.jsonl,out/human/human.jsonl,out/agree/rescored.jsonl
+npm run eval -- score ../research/data/corpus out/run/answers.jsonl --out out/final --judged out/judge/judged.jsonl,out/human/human.jsonl,out/agree/rescored.jsonl
 ```
 
 - `judge` sends each packet to one model from a run config (the same format as `run`; pick it with `--model` when the config lists several). The judge gets a fixed system prompt, the question, the rubric, the annotated passages and the answer, and no tool. It must give `true` or `false` for every rubric criterion and for `violation`. `correct` is the share of criteria met, worked out by the harness, not taken from the judge. Verdicts go to `judged.jsonl`, which `score --judged` reads. A reply that is not valid, or a failed request, goes to `judge-errors.jsonl` and is tried again on the next call, and packets already in `judged.jsonl` are skipped. Every request is kept in `judge-transcripts/`. `--dry-run` sends nothing, reads no key, and writes the first request and a cost estimate to `judge-dry-run/`.

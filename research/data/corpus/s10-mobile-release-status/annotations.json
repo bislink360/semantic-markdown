@@ -1,0 +1,21 @@
+{
+  "guide": "research/docs/annotation-guide.smd 0.2",
+  "items": [
+    { "id": "release-date-moved", "kind": "decision-status", "md": [65, 65], "smd": [77, 77], "evidence": ["the store release moves to Wednesday 2026-11-11", "This replaces the 2026-11-04 date agreed in week 42"], "annotator": "ai-annotator-b", "notes": "The superseded 2026-11-04 date reads authoritative in Release plan (line 23, 'the date does not move without the release board') and in the gantt chart (line 33)." },
+    { "id": "crash-free-gate", "kind": "limit", "md": [17, 17], "smd": [22, 22], "evidence": ["gate is 99.6%"], "annotator": "ai-annotator-b" },
+    { "id": "rollout-hold-at-20", "kind": "constraint", "md": [41, 41], "smd": [48, 48], "evidence": ["must not move past 20% until the crash-free sessions rate has stayed at or above 99.6% for 48 hours in a row"], "annotator": "ai-annotator-b" },
+    { "id": "ios-tap-to-pay-off", "kind": "constraint", "md": [43, 43], "smd": [51, 51], "evidence": ["The tap-to-pay flow must stay switched off for iOS in 4.12"], "annotator": "ai-annotator-b" },
+    { "id": "no-offline-purchase", "kind": "negation", "md": [45, 45], "smd": [54, 54], "evidence": ["Offline ticket purchase is not supported in 4.12"], "annotator": "ai-annotator-b" },
+    { "id": "offline-pass-renewal", "kind": "negation", "md": [45, 45], "smd": [54, 54], "evidence": ["except for monthly pass holders, who can renew a pass offline"], "annotator": "ai-annotator-b", "notes": "Exception to the online-only purchase rule." },
+    { "id": "offline-display-72h", "kind": "limit", "md": [45, 45], "smd": [54, 54], "evidence": ["shown offline for up to 72 hours"], "annotator": "ai-annotator-b" },
+    { "id": "max-tickets-6", "kind": "limit", "md": [45, 45], "smd": [54, 54], "evidence": ["at most 6 tickets in one purchase"], "annotator": "ai-annotator-b", "notes": "Also the default of max_tickets_per_purchase in the feature flags (line 84)." },
+    { "id": "qr-refresh-30s", "kind": "limit", "md": [45, 45], "smd": [54, 54], "evidence": ["refreshes every 30 seconds"], "annotator": "ai-annotator-b" },
+    { "id": "download-size-85mb", "kind": "limit", "md": [47, 47], "smd": [56, 56], "evidence": ["has to stay under 85 MB on both platforms"], "annotator": "ai-annotator-b" },
+    { "id": "beta-min-users", "kind": "limit", "md": [37, 37], "smd": [44, 44], "evidence": ["at least 1,000 active beta users for a full 48 hours before a store submission"], "annotator": "ai-annotator-b", "notes": "Prose-only submission precondition; limit chosen over constraint because it bounds a count and a duration." },
+    { "id": "no-prod-card-tests", "kind": "constraint", "md": [57, 57], "smd": [66, 66], "evidence": ["We do not run payment tests against production cards, even for the small-value smoke test"], "annotator": "ai-annotator-b", "notes": "Prose-only rule phrased as a negation; kept as constraint because it is a must-not about what the team does, not a statement about what the product supports." },
+    { "id": "gate-reader-timeout", "kind": "limit", "md": [59, 59], "smd": [68, 68], "evidence": ["times out a tap after 1.5 seconds"], "annotator": "ai-annotator-b" },
+    { "id": "board-approval-by-message", "kind": "constraint", "md": [67, 67], "smd": [80, 80], "evidence": ["approve the 11-11 submission by message on 2026-11-10", "if both blockers are closed by then"], "annotator": "ai-annotator-b" },
+    { "id": "android-9-support", "kind": "open-question", "md": [71, 71], "smd": [85, 85], "evidence": ["whether 4.12 still supports Android 9", "the build keeps Android 9 as the minimum version", "tap-to-pay is hidden on Android 9 devices"], "annotator": "ai-annotator-b" },
+    { "id": "split-release-rejected", "kind": "decision-status", "md": [98, 100], "smd": [113, 115], "evidence": ["whether to ship 4.12 on 11-04 without tap-to-pay at all and add it in 4.12.1", "the vote to move to 11-11"], "annotator": "ai-annotator-b", "notes": "Rejected option recorded only in the meeting notes meant for the team; the current option is the one-week slip in Decisions this week." }
+  ]
+}
