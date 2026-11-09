@@ -157,8 +157,9 @@ test('lifecycle: initialize first, shutdown then exit', () => {
   assert.equal(init.serverInfo.version, '9.9.9');
   assert.deepEqual(Object.keys(init.capabilities).sort((a, b) => a.localeCompare(b)), [
     'codeActionProvider', 'completionProvider', 'definitionProvider', 'documentFormattingProvider', 'documentSymbolProvider',
-    'experimental', 'hoverProvider', 'positionEncoding', 'textDocumentSync', 'workspaceSymbolProvider',
+    'experimental', 'hoverProvider', 'positionEncoding', 'referencesProvider', 'renameProvider', 'textDocumentSync', 'workspaceSymbolProvider',
   ]);
+  assert.equal(init.capabilities.renameProvider, true, 'no prepareRename for a client that does not ask for it');
   assert.deepEqual(init.capabilities.textDocumentSync, { openClose: true, change: 1 });
   assert.deepEqual(init.capabilities.experimental, { smdRenderHtml: true });
   assert.equal(c.request('initialize', {}).error?.code, -32600);
@@ -168,7 +169,7 @@ test('lifecycle: initialize first, shutdown then exit', () => {
   c.notify('workspace/didChangeConfiguration', { settings: {} });
   c.server.endpoint.receive({ jsonrpc: '2.0', id: 99, result: null });
   assert.equal(c.sent.length, before, 'cancellation, unknown notifications and responses get no answer');
-  assert.deepEqual(c.request('textDocument/references', {}).error, { code: -32601, message: 'Method not found: textDocument/references' });
+  assert.deepEqual(c.request('textDocument/codeLens', {}).error, { code: -32601, message: 'Method not found: textDocument/codeLens' });
   assert.deepEqual(c.request('$/unknown').error?.code, -32601);
 
   c.server.endpoint.receiveBody('{oops');
@@ -389,6 +390,65 @@ test('definition: anchors, other documents and reference links', () => {
   assert.equal(filePath(otherUri)?.toLowerCase(), filePath(OTHER_URI)?.toLowerCase());
   c.open(otherUri, OTHER);
   assert.equal(definition(link.indexOf('other.smd') + 1).uri, otherUri);
+});
+
+test('R18, R19: block ids: definition, hover, references and rename, here and in another document', () => {
+  const dir = join(root, 'ids');
+  mkdirSync(dir, { recursive: true });
+  const specFile = join(dir, 'spec.smd');
+  const testsFile = join(dir, 'tests.smd');
+  const spec = ['---', 'smd: 2', '---', '', ':::requirement{#REQ-7 status=accepted} Export reports', 'Users export CSV.', ':::', '',
+    ':::acceptance{#ACC-7 verifies=REQ-7}', ':::', '', 'See :ref[REQ-7].', ''].join('\n');
+  const tests = ['---', 'smd: 2', '---', '', ':::acceptance{#TC-7 verifies=spec.smd#REQ-7}', ':::', '',
+    '- [ ] Test it :depends[spec.smd#REQ-7] {#T-7}', ''].join('\n');
+  writeFileSync(specFile, spec);
+  writeFileSync(testsFile, tests);
+  const c = ready({ textDocument: { rename: { prepareSupport: true } } });
+  const specUri = uriOf(specFile);
+  const testsUri = uriOf(testsFile);
+  c.open(testsUri, tests);
+  const col = tests.split('\n')[4].indexOf('REQ-7');
+  const start = (n: number) => ({ start: { line: n, character: 0 }, end: { line: n, character: 0 } });
+
+  assert.deepEqual(c.result('textDocument/definition', c.at(testsUri, 4, col + 1)), { uri: specUri, range: start(4) });
+  assert.deepEqual(c.result('textDocument/definition', c.at(testsUri, 7, tests.split('\n')[7].indexOf('REQ-7'))), { uri: specUri, range: start(4) });
+  const hover = c.result('textDocument/hover', c.at(testsUri, 4, col + 1));
+  assert.match(hover.contents.value, /^\*\*REQ-7\*\* · :::requirement `status=accepted` in spec\.smd — Export reports\n\nUsers export CSV\.$/);
+
+  const where = (locations: Array<{ uri: string; range: Diag['range'] }>) =>
+    locations.map((l) => `${l.uri === specUri ? 'spec' : l.uri === testsUri ? 'tests' : l.uri}:${l.range.start.line}:${l.range.start.character}`).sort();
+  const refs = c.result('textDocument/references', { ...c.at(testsUri, 4, col), context: { includeDeclaration: true } });
+  assert.deepEqual(where(refs), ['spec:11:9', 'spec:4:16', 'spec:8:30', `tests:4:${col}`, `tests:7:${tests.split('\n')[7].indexOf('REQ-7')}`]);
+  const noDeclaration = c.result('textDocument/references', { ...c.at(testsUri, 4, col), context: { includeDeclaration: false } });
+  assert.equal(noDeclaration.length, 4);
+
+  assert.deepEqual(c.result('textDocument/prepareRename', c.at(testsUri, 4, col + 2)), {
+    range: { start: { line: 4, character: col }, end: { line: 4, character: col + 5 } }, placeholder: 'REQ-7',
+  });
+  assert.equal(c.result('textDocument/prepareRename', c.at(testsUri, 7, 3)), null, "nothing to rename on a task's text");
+  const edit = c.result('textDocument/rename', { ...c.at(testsUri, 4, col), newName: 'EXP-1' });
+  assert.deepEqual(Object.keys(edit.changes).sort(), [specUri, testsUri].sort());
+  assert.equal(applyEdits(spec, edit.changes[specUri]), spec.replaceAll('REQ-7', 'EXP-1'));
+  assert.equal(applyEdits(tests, edit.changes[testsUri]), tests.replaceAll('REQ-7', 'EXP-1'));
+
+  const refused = c.request('textDocument/rename', { ...c.at(testsUri, 4, col), newName: 'ACC-7' });
+  assert.equal(refused.error?.code, -32803);
+  assert.match(refused.error?.message ?? '', /"ACC-7" is already an id/);
+});
+
+test('R18: renaming a heading in the language server updates links, id attributes and :ref that name its id', () => {
+  const c = ready({ textDocument: { rename: { prepareSupport: true } } });
+  const uri = uriOf(join(root, 'docs', 'heading-rename.smd'));
+  const text = ['---', 'smd: 2', '---', '', '## Export', '', ':::constraint{#C-9 applies-to=export} Fast', ':::', '', 'See :ref[export] and [it](#export).', ''].join('\n');
+  c.open(uri, text);
+  assert.deepEqual(c.result('textDocument/prepareRename', c.at(uri, 4, 4)), {
+    range: { start: { line: 4, character: 3 }, end: { line: 4, character: 9 } }, placeholder: 'Export',
+  });
+  const edit = c.result('textDocument/rename', { ...c.at(uri, 4, 4), newName: 'Export rules' });
+  assert.equal(applyEdits(text, edit.changes[uri]), text.replace('## Export', '## Export rules').replaceAll('export]', 'export-rules]')
+    .replace('applies-to=export', 'applies-to=export-rules').replace('(#export)', '(#export-rules)'));
+  const refs = c.result('textDocument/references', { ...c.at(uri, 4, 4), context: { includeDeclaration: true } });
+  assert.deepEqual(refs.map((r: { range: Diag['range'] }) => r.range.start.line).sort(), [4, 6, 9, 9]);
 });
 
 test('GitHub ids of headings: definition, hover and completion treat them as the heading', () => {

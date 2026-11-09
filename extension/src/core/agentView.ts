@@ -8,6 +8,7 @@ import { constraintBlock, type ConstraintPointer, type ConstraintView } from './
 import { closedBy, closerColons, CONTAINER_CLOSE, CONTAINER_OPEN, isKnownContainer, parseContainerInfo, type ContainerInfo } from './containers';
 import { parseFenceInfo, sliceLines } from './fence';
 import { refDirective, type Figure, type FigureNumber } from './figures';
+import { splitIdRef } from './idTarget';
 import { findFootnotes, type FootnoteDefinition } from './footnotes';
 import { parseFrontMatter, asStringList, unreadFrontMatter } from './frontmatter';
 import {
@@ -1571,15 +1572,16 @@ function styledText(line: string, read: TextContext, math?: ReadonlyArray<[numbe
 }
 
 /**
- * `:ref[id]` → `Figure 2 (id)`, or the id for another block that gives it (D4); references to unknown or ambiguous ids
- * stay as written.
+ * `:ref[id]` → `Figure 2 (id)`, or the id for another block that gives it (D4), and `:ref[other.smd#id]` →
+ * `other.smd#id` (R19); references to unknown or ambiguous ids stay as written.
  */
 function refText(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
-  if (!figures?.size && !blocks?.size) return s;
+  if (!figures?.size && !blocks?.size && !s.includes('#')) return s;
   return s.replace(refDirective(spec), (m, pre: string, raw: string) => {
     const id = raw.trim();
     const figure = figures?.get(id);
     if (figure) return `${pre}${figure.label} (${id})`;
+    if (splitIdRef(id).path) return `${pre}${id}`;
     return blocks?.has(id) ? `${pre}${id}` : m;
   });
 }

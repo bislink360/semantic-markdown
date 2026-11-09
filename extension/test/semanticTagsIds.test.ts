@@ -109,12 +109,14 @@ test('AC1 (R13, R16): an id in verifies that names nothing warns ref/unknown wit
   assert.match(applyFixes(text, [unknown]).text, /verifies="R1, R1"/);
 });
 
-test('R16: applies-to names any block, and a reference to another document is reported until R19', () => {
+test('R16, R19: applies-to names any block, and a reference to another document is checked there, only when files are', () => {
   const text = v2('## Rules {#R1}\n\n:::constraint{applies-to=R1,other.smd#R2}\nx\n:::');
-  const found = codes(text, /^ref\//);
+  assert.deepEqual(codes(text, /^ref\//), []);
+  const other = v2(':::requirement{#R3} Other\n:::');
+  const found = validateSmd(text, { fileExists: () => true, readFile: () => other }).filter((d) => d.code.startsWith('ref/'));
   assert.equal(found.length, 1);
-  assert.match(found[0].message, /"other\.smd#R2".*not read yet/);
-  assert.equal(found[0].fix, undefined);
+  assert.match(found[0].message, /No block with id "R2" in "other\.smd"/);
+  assert.equal(found[0].fix?.replacement, 'R3');
 });
 
 test('AC3 (R17): an id attribute naming a duplicate id warns ref/ambiguous next to id/duplicate', () => {

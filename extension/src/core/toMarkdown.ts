@@ -2,6 +2,7 @@ import { parseAttrs } from './attrs';
 import { closedBy, CONTAINER_CLOSE, CONTAINER_OPEN, parseContainerInfo, unknownContainerTitle, type ContainerInfo } from './containers';
 import { parseFenceInfo, sliceLines } from './fence';
 import { refDirective, type Figure, type FigureNumber } from './figures';
+import { idHref, splitIdRef } from './idTarget';
 import {
   containerEnd, hasIncludes, includeHref, includeLabel, includePath, includeRequest, innerScope, loadInclude, rootScope, type IncludeScope,
 } from './include';
@@ -570,15 +571,17 @@ export function convertInline(
 }
 
 /**
- * `:ref[id]` → `[Figure 2](#id)`, or `[id](#id)` for another block that gives the id (D4); references to unknown or
- * ambiguous ids stay as written.
+ * `:ref[id]` → `[Figure 2](#id)`, or `[id](#id)` for another block that gives the id (D4), and `:ref[other.smd#id]` →
+ * `[other.smd#id](other.smd#id)` (R19); references to unknown or ambiguous ids stay as written.
  */
 function refLinks(s: string, figures: ReadonlyMap<string, FigureNumber> | undefined, spec: SpecVersion, blocks?: ReadonlySet<string>): string {
-  if (!figures?.size && !blocks?.size) return s;
+  if (!figures?.size && !blocks?.size && !s.includes('#')) return s;
   return s.replace(refDirective(spec), (m, pre: string, raw: string) => {
     const id = raw.trim();
     const figure = figures?.get(id);
     if (figure) return `${pre}[${figure.label}](#${id})`;
+    const other = splitIdRef(id);
+    if (other.path) return `${pre}[${id}](${idHref(other)})`;
     return blocks?.has(id) ? `${pre}[${id}](#${id})` : m;
   });
 }

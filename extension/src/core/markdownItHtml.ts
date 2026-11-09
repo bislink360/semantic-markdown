@@ -3,6 +3,7 @@ import type { Options, Renderer, Token } from 'markdown-it';
 import katex from 'katex';
 import { attrsToStyle, escapeHtml, htmlAttrs, resolveColor, type Attrs } from './attrs';
 import { FigureCounter, type FigureNumber } from './figures';
+import { idHref, splitIdRef } from './idTarget';
 import { unknownContainerTitle } from './containers';
 import { asStringList } from './frontmatter';
 import { langFromPath, parseFenceInfo, sliceLines, type FenceInfo } from './fence';
@@ -649,11 +650,14 @@ function quoteCaption(c: ContainerView, href: string | undefined): string {
 /**
  * `:ref[id]`: the number of the figure with that id, linked to it. Any other block with the id (semantic tags RFC,
  * D4) shows the id as written, linked, with the block's title as its tooltip and accessible name; an id two blocks
- * give links to neither (R17). An unknown id is shown as written.
+ * give links to neither (R17). An id in another document (`other.smd#R1`, R19) is shown as written, linked to that
+ * document. An unknown id is shown as written.
  */
 export function renderRef(id: string, figure: FigureNumber | undefined, m: Messages = EN, block?: { count: number; title?: string }): string {
   const safe = escapeHtml(id);
   if (figure) return `<a class="smd-ref" href="#${safe}">${figureLabel(figure, m)}</a>`;
+  const other = block ? undefined : splitIdRef(id);
+  if (other?.path) return `<a class="smd-ref smd-ref-document" href="${escapeHtml(idHref(other))}">${safe}</a>`;
   if (block && block.count > 1) return `<span class="smd-ref smd-ref-ambiguous" title="${escapeHtml(m['ref.ambiguous'])}">${safe}</span>`;
   if (block) {
     const title = block.title ? ` title="${escapeHtml(block.title)}" aria-label="${escapeHtml(`${id}, ${block.title}`)}"` : '';

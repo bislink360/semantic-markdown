@@ -13,6 +13,8 @@ import { checkIncludes, documentIds, includedFigureIds, includedTermIds } from '
 import { aliasedHeading } from './headingAliases';
 import { parseFenceInfo, sliceLines } from './fence';
 import { figureTargets, findRefs, type Figure, type FigureRef } from './figures';
+import { splitIdRef, type IdTarget } from './idTarget';
+import { tagBlocks } from './semanticTags';
 import { compareVersions, findChangelogs, isIsoDate, parseVersion, versionKey, versionLabel, type ChangelogEntry, type Version } from './changelog';
 import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
@@ -230,9 +232,11 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkTablePipes(text, lines, push);
   checkLinks(text, pushText, options);
   checkIncludes(text, (line, column, endColumn, code, message, severity = 'warning', fix) => push(line, column, endColumn, severity, code, message, fix), options);
-  checkFigures(text, lines, fm.bodyStartLine, pushText, () => includedFigureIds(text, options.readFile));
+  // Documents that id attributes and `:ref` name (`other.smd#R1`), each read once.
+  const others = otherDocuments(options);
+  checkFigures(text, lines, fm.bodyStartLine, pushText, { included: () => includedFigureIds(text, options.readFile), others });
   checkDuplicateIds(text, lines, pushText);
-  checkIdAttributes(text, idAttrBlocks, pushText);
+  checkIdAttributes(text, idAttrBlocks, pushText, others);
   checkDependencies(text, lines, idAttrBlocks, pushText, options.today);
   if (hasReviewBlocks(text)) checkReview(text, lines, fm.data, push);
   checkSemanticTags(text, lines, pushText, { today: options.today, fileExists: options.fileExists, spec });
@@ -951,9 +955,12 @@ function missingAnchor(
 /**
  * Figure ids and `:ref[id]` references; `included` lists the ids of figures brought in by `:::include`. A reference
  * names a figure first (the first with the id, as released), else the one block that gives the id (D4). An id two
- * blocks give names neither: `ref/ambiguous` (R17).
+ * blocks give names neither: `ref/ambiguous` (R17). `:ref[other.smd#id]` names a block of another document (R19).
  */
-function checkFigures(text: string, lines: string[], bodyStart: number, push: Push, included: () => Set<string>): void {
+function checkFigures(
+  text: string, lines: string[], bodyStart: number, push: Push, from: { included: () => Set<string>; others: OtherDocuments },
+): void {
+  const { included, others } = from;
   const { figures, spec } = parseSmd(text);
   const targets = figureTargets(figures);
   for (const f of figures) {
@@ -963,6 +970,11 @@ function checkFigures(text: string, lines: string[], bodyStart: number, push: Pu
   let fromIncludes: Set<string> | undefined;
   const owners = idOwners(text);
   for (const ref of findRefs(lines, bodyStart, spec)) {
+    const target = splitIdRef(ref.id);
+    if (target.path) {
+      otherDocumentRef(ref, target, lines[ref.line] ?? '', others, push);
+      continue;
+    }
     if (targets.has(ref.id)) continue;
     const blocks = owners.get(ref.id);
     if (blocks?.length === 1) continue;
@@ -1010,9 +1022,9 @@ interface IdAttrBlock { line: number; raw: string; info: ContainerInfo }
 /**
  * Every id an id attribute names (`verifies=R1,R2`, `applies-to=C1`) is the id of exactly one block of this document:
  * `ref/unknown` when it names nothing (R16), with a fix to the closest id, and `ref/ambiguous` when two blocks give it
- * (R17). An id in another document (`other.smd#R1`) names nothing here until references across documents exist (R19).
+ * (R17). An id in another document (`other.smd#R1`) is checked in that document, as links are (R19).
  */
-function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: Push): void {
+function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: Push, others: OtherDocuments): void {
   if (!blocks.length) return;
   const owners = idOwners(text);
   const known = [...owners.keys()];
@@ -1022,6 +1034,11 @@ function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: P
       if (value === undefined || !names.includes(info.name)) continue;
       for (const id of idList(value)) {
         const [column, end] = idColumns(raw, key, id);
+        const target = splitIdRef(id);
+        if (target.path) {
+          otherDocumentAttr({ target, written: id, key, name: info.name, at: { line, column, end }, others, push });
+          continue;
+        }
         const found = owners.get(id);
         if (found && found.length > 1) ambiguousRef(id, found, key, { line, column, end }, push);
         else if (!found) unknownIdAttr(id, key, info.name, known, { line, column, end }, push);
@@ -1108,10 +1125,103 @@ function idColumns(raw: string, key: string, id: string): [number, number] {
 
 function unknownIdAttr(id: string, key: string, name: string, known: string[], at: { line: number; column: number; end: number }, push: Push): void {
   const hint = id.includes('#') ? undefined : suggest(id, known);
-  const elsewhere = id.includes('#') ? ' References to other documents are not read yet.' : '';
+  const elsewhere = id.includes('#') ? ' To name a block of another document, write the path of a .smd or .md file before the id, as in other.smd#R1.' : '';
   push(at.line, at.column, at.end, 'warning', 'ref/unknown',
     `No block with id "${id}" in this document, so ${key} on ":::${name}" names nothing${hint ? ` — did you mean "${hint}"?` : '.'}${elsewhere}`,
     hint ? { line: at.line, column: at.column, endColumn: at.end, replacement: hint, title: `Change to "${hint}"` } : undefined);
+}
+
+/** Where a diagnostic goes: a zero-based line and columns. */
+interface Place { line: number; column: number; end: number }
+
+/** What a path to another document holds, as the validator may read it: undefined when files aren't checked. */
+type OtherDocuments = (path: string) => { exists: false } | { exists: true; text?: string } | undefined;
+
+/**
+ * Other documents that id attributes and `:ref` name (R19), read as links read them: nothing without `fileExists`, and
+ * their text only through `readFile` (the files the host allows). Each is read once per validation.
+ */
+function otherDocuments(options: ValidateOptions): OtherDocuments {
+  const read = new Map<string, { exists: false } | { exists: true; text?: string }>();
+  return (path) => {
+    if (!options.fileExists) return undefined;
+    let found = read.get(path);
+    if (!found) {
+      found = options.fileExists(path) ? { exists: true, text: options.readFile?.(path) } : { exists: false };
+      read.set(path, found);
+    }
+    return found;
+  };
+}
+
+/** An id in another document as written (`other.smd#R1`), where it is written and how to report it. */
+interface OtherDocumentId {
+  target: IdTarget;
+  written: string;
+  /** `verifies on ":::acceptance"`, `:ref[other.smd#R1]`. */
+  where: string;
+  /** The whole reference as written. */
+  at: Place;
+  others: OtherDocuments;
+  push: Push;
+}
+
+/**
+ * An id in another document (R19), checked with the reader links use: `link/missing-file` when the file does not
+ * exist, and once it can be read, `unknown` when no block there gives the id (with the ids there and where the id
+ * itself is written) and `ref/ambiguous` when two do. Returns the other document and the line of the one block that
+ * gives the id, when it resolves to one.
+ */
+function checkOtherDocumentId(ref: OtherDocumentId, unknown: (ids: string[], idAt: Place) => void): { text: string; line: number } | undefined {
+  const { target, written, where, at, push } = ref;
+  const other = ref.others(target.path);
+  if (!other) return undefined;
+  if (!other.exists) {
+    push(at.line, at.column, at.end, 'warning', 'link/missing-file', `"${target.path}" does not exist (named in ${where}).`);
+    return undefined;
+  }
+  if (other.text === undefined) return undefined;
+  const owners = idOwners(other.text);
+  const found = owners.get(target.id);
+  if (found && found.length > 1) {
+    push(at.line, at.column, at.end, 'warning', 'ref/ambiguous',
+      `"${written}" in ${where} is the id of ${found.length} blocks in "${target.path}" (lines ${listLines(found)}), so it names none of them. Give each block its own id.`);
+    return undefined;
+  }
+  if (found) return { text: other.text, line: found[0].line };
+  const parsed = parseSmd(other.text);
+  if (parsed.ids.has(target.id) || figureTargets(parsed.figures).has(target.id)) return undefined;
+  const idColumn = at.column + written.length - target.id.length;
+  unknown([...owners.keys()], { line: at.line, column: idColumn, end: idColumn + target.id.length });
+  return undefined;
+}
+
+/** An id attribute's id in another document (R19): see checkOtherDocumentId. `verifies` must name a requirement there too. */
+function otherDocumentAttr(ref: Omit<OtherDocumentId, 'where'> & { key: string; name: string }): void {
+  const { target, key, name, at, push } = ref;
+  const resolved = checkOtherDocumentId({ ...ref, where: `${key} on ":::${name}"` }, (ids, idAt) => {
+    const hint = suggest(target.id, ids);
+    push(at.line, at.column, at.end, 'warning', 'ref/unknown',
+      `No block with id "${target.id}" in "${target.path}", so ${key} on ":::${name}" names nothing${hint ? ` — did you mean "${hint}"?` : '.'}`,
+      hint ? { line: idAt.line, column: idAt.column, endColumn: idAt.end, replacement: hint, title: `Change to "${target.path}#${hint}"` } : undefined);
+  });
+  if (!resolved || key !== 'verifies' || name !== 'acceptance') return;
+  const block = tagBlocks(resolved.text).find((b) => b.line === resolved.line && b.id === target.id);
+  if (block?.name === 'requirement') return;
+  const what = block ? `a :::${block.name}` : 'not a requirement';
+  push(at.line, at.column, at.end, 'warning', 'acceptance/verifies-type', `verifies names "${ref.written}", which is ${what}. An acceptance block verifies requirements.`);
+}
+
+/** `:ref[other.smd#id]` (R19): see checkOtherDocumentId. An unknown id keeps the code of `:ref`, `figure/unknown-ref`. */
+function otherDocumentRef(ref: FigureRef, target: IdTarget, raw: string, others: OtherDocuments, push: Push): void {
+  const column = raw.indexOf(ref.id, ref.column + ':ref['.length);
+  const at = column < 0 ? { line: ref.line, column: ref.column, end: ref.endColumn } : { line: ref.line, column, end: column + ref.id.length };
+  checkOtherDocumentId({ target, written: ref.id, where: `:ref[${ref.id}]`, at, others, push }, (ids, idAt) => {
+    const hint = suggest(target.id, ids);
+    push(ref.line, ref.column, ref.endColumn, 'warning', 'figure/unknown-ref',
+      `No block with id "${target.id}" in "${target.path}"${hint ? ` — did you mean "${hint}"?` : '.'} Give a block there that id with {#${target.id}}.`,
+      hint ? { line: idAt.line, column: idAt.column, endColumn: idAt.end, replacement: hint, title: `Change to ":ref[${target.path}#${hint}]"` } : undefined);
+  });
 }
 
 /** An id two or more blocks give, named by `where` (`:ref` or an id attribute): it resolves to none of them (R17). */

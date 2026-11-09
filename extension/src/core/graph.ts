@@ -1,6 +1,7 @@
 import { agentViewRanges, estimateTokens } from './agentView';
 import { parseFrontMatter } from './frontmatter';
 import { refDirective } from './figures';
+import { splitIdRef } from './idTarget';
 import { resolveId } from './ids';
 import { includeRequest } from './include';
 import { findLinks, splitTarget } from './links';
@@ -15,7 +16,8 @@ import { suggest } from './util';
  * The reference graph of .smd documents (filtering G1 to G5, research contract "Edge semantics"). Edges are derived
  * from the source on every call and never stored: links to anchors and .smd files, `:ref[id]`, `related:`, `:::include`,
  * every id attribute (ID_ATTRIBUTES) and a task's `:depends[id]`. Each edge has a type from EDGE_KINDS and a direction,
- * from the block it is written in to what it names. Ids resolve with resolveId, so a duplicate id resolves to nothing.
+ * from the block it is written in to what it names. Ids resolve with resolveId, so a duplicate id resolves to nothing,
+ * and an id written `other.smd#R1` resolves in that document (semantic tags R19).
  *
  * A DocumentGraph only remembers what it read during one call. Files outside the documents it is given are read
  * through `readDocument`, which says when a file is missing or outside what the host allows (denied).
@@ -281,6 +283,13 @@ export class DocumentGraph {
       });
     };
     const inDoc = (id: string) => this.resolve(doc.path, id);
+    // An id as an id attribute, `:ref` or `:depends` writes it: in this document, or `other.smd#R1` in another (R19).
+    const idEdge = (type: string, from: GraphNode, line: number, written: string) => {
+      const target = splitIdRef(written);
+      if (!target.path) { add(type, from, line, written, doc.path, inDoc(written)); return; }
+      const file = resolvePath(doc.path, target.path);
+      add(type, from, line, written, file, this.resolve(file, target.id));
+    };
 
     // Links, related entries and includes (findLinks skips code).
     for (const link of findLinks(doc.text).links) {
@@ -303,7 +312,7 @@ export class DocumentGraph {
     }
 
     const bodyStart = parseFrontMatter(doc.text).bodyStartLine;
-    for (const ref of refsIn(doc.lines, bodyStart, doc.spec)) add('ref', sourceAt(ref.line), ref.line, ref.id, doc.path, inDoc(ref.id));
+    for (const ref of refsIn(doc.lines, bodyStart, doc.spec)) idEdge('ref', sourceAt(ref.line), ref.line, ref.id);
 
     for (const block of doc.blocks) {
       const from = toNode(doc.path, block);
@@ -318,13 +327,13 @@ export class DocumentGraph {
       if (block.type === 'task') {
         if (doc.spec < 2) continue;
         const raw = (doc.lines[block.line] ?? '').replace(/(`+)([\s\S]*?)\1/g, (m) => ' '.repeat(m.length));
-        for (const m of raw.matchAll(DEPENDS)) for (const id of idList(m[2])) add('depends-on', from, block.line, id, doc.path, inDoc(id));
+        for (const m of raw.matchAll(DEPENDS)) for (const id of idList(m[2])) idEdge('depends-on', from, block.line, id);
         continue;
       }
       for (const [key, names] of Object.entries(ID_ATTRIBUTES)) {
         const value = block.attrs[key];
         if (typeof value !== 'string' || !names.includes(block.type)) continue;
-        for (const id of idList(value)) add(key, from, block.line, id, doc.path, inDoc(id));
+        for (const id of idList(value)) idEdge(key, from, block.line, id);
       }
     }
     return edges.sort((a, b) => a.line - b.line);
@@ -606,7 +615,9 @@ export interface DependencyProblem {
  */
 export function dependencyProblems(text: string, today?: string): DependencyProblem[] {
   const graph = new DocumentGraph([{ path: 'doc.smd', text }], { today });
-  const edges = graph.edgesOf('doc.smd').filter((e) => e.status === 'resolved' && e.to?.line !== undefined && (e.type === 'depends-on' || e.type === 'supersedes'));
+  // Edges into other documents (`other.smd#R1`) are left out: only this document is read.
+  const edges = graph.edgesOf('doc.smd').filter((e) => e.status === 'resolved' && e.to?.line !== undefined && !splitIdRef(e.target).path
+    && (e.type === 'depends-on' || e.type === 'supersedes'));
   const problems: DependencyProblem[] = [];
   const name = (n: GraphNode) => n.id ?? n.title;
   const keyOf = (e: GraphEdge) => (e.from.type === 'task' ? ':depends' : e.type);
