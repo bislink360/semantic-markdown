@@ -4,6 +4,7 @@ import { renderSmd, type RenderOptions } from './core';
 import { escapeHtml } from './core/attrs';
 import { readerFor } from './files';
 import { PreviewSync, readPosition } from './previewSync';
+import { studyPageMessage, studyRecord, studyRendered } from './study/session';
 import { openLink, revealLine, toggleTask } from './webviewActions';
 import { webviewShell } from './webviewShell';
 
@@ -106,6 +107,8 @@ class Preview {
   ) {
     const docDir = vscode.Uri.file(path.dirname(document.uri.fsPath));
     const roots = [vscode.Uri.joinPath(context.extensionUri, 'media'), docDir, ...(vscode.workspace.workspaceFolders ?? []).map((f) => f.uri)];
+    // A study build's preview also loads its study page script (dist/webview/study-cues.js).
+    if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) roots.push(vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview'));
     this.panel = vscode.window.createWebviewPanel(
       'smd.preview',
       `Preview ${path.basename(document.fileName)}`,
@@ -127,6 +130,7 @@ class Preview {
       clearTimeout(this.timer);
       onDispose();
     });
+    if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyRecord('preview.open', { view: 'preview' }, document.uri);
   }
 
   scheduleUpdate(changes: readonly vscode.TextDocumentContentChangeEvent[] = []): void {
@@ -174,6 +178,11 @@ class Preview {
     const media = (...p: string[]) => webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', ...p)).toString();
     const base = webview.asWebviewUri(vscode.Uri.file(path.dirname(this.document.uri.fsPath))).toString().replace(/\/$/, '');
     const result = renderSmd(this.document.getText(), renderOptions(this.document));
+    // A study build's preview also runs the study page script (src/webview/studyCues.ts).
+    const study: string[] = [];
+    if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) {
+      study.push(webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview', 'study-cues.js')).toString());
+    }
     return webviewShell({
       cspSource: webview.cspSource,
       lang: result.lang ?? 'en',
@@ -182,7 +191,7 @@ class Preview {
       styles: [media('vendor', 'katex', 'katex.min.css'), media('smd.css')],
       bodyClass: 'smd-body',
       body: `<main id="smd-root" data-smd-sync="${escapeHtml(JSON.stringify(this.sync.snapshot(this.document.version)))}">${result.html}</main>`,
-      scripts: [media('vendor', 'mermaid.min.js'), media('runtime.js')],
+      scripts: [media('vendor', 'mermaid.min.js'), media('runtime.js'), ...study],
     });
   }
 
@@ -206,19 +215,30 @@ class Preview {
           reused: msg.reused ?? 0, top: msg.top ?? 0, renders: (this.lastStatus?.renders ?? 0) + 1,
           restore: msg.restore,
         };
+        if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyRendered(this.document, 'preview');
         break;
       case 'position':
         this.onPosition(msg);
         break;
       case 'toggleTask':
-        if (typeof msg.line === 'number') await toggleTask(this.document, msg.line);
+        if (typeof msg.line === 'number') {
+          const before = this.document.version;
+          await toggleTask(this.document, msg.line);
+          if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyRecord('task.toggle', { view: 'preview', line: msg.line, applied: this.document.version !== before }, this.document.uri);
+        }
         break;
       case 'revealLine':
-        if (typeof msg.line === 'number') await revealLine(this.document, msg.line);
+        if (typeof msg.line === 'number') {
+          await revealLine(this.document, msg.line);
+          if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyRecord('reveal', { view: 'preview', line: msg.line }, this.document.uri);
+        }
         break;
       case 'openLink':
         if (msg.href) await openLink(this.document, msg.href);
         break;
+      default:
+        // The study page script's cue events (a study build only).
+        if (typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__) studyPageMessage(msg, this.document.uri, 'preview');
     }
   }
 }
