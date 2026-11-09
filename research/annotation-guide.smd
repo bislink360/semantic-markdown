@@ -9,9 +9,6 @@ version: 0.2
 created: 2026-11-06
 updated: 2026-11-06
 related:
-  - study-1-agent-evaluation.smd
-  - token-accounting.smd
-  - evidence-matrix.smd
   - ../docs/requirements/research-interaction.smd
 ---
 
