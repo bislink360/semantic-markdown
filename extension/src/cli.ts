@@ -88,11 +88,15 @@ Reading (token-efficient, for agents):
       blocks in full with what they depend on, its optional blocks as pointers, within its budget. Flags
       on top are recorded as the agent's choice. --inspect explains the view for people instead of
       printing it. --views lists the views. smd read --view does the same.
-  smd tasks <files|dirs...> [--all] [--mine @name] [--json | --csv | --gantt [--smd] [--title "…"]] [-o <file>]
+  smd tasks <files|dirs...> [--all] [--mine @name] [--order priority|deps] [--json | --csv | --gantt [--smd] [--title "…"]]
+            [-o <file>]
       Open tasks across documents with owner, priority and due date (overdue first).
+      --order   deps lists each task after the tasks its :depends[…] names (in the same file), else in the
+                default priority order; tasks in a dependency cycle keep their order
       --csv     CSV for spreadsheets (1-based lines, owners joined with ";", formula-like cells prefixed with ')
       --gantt   Mermaid gantt chart: a section per document, a milestone per task with a due date
-                (done tasks "done", overdue ones "crit"); --all includes done tasks
+                (done tasks "done", overdue ones "crit"); --all includes done tasks. A task that
+                :depends on charted tasks comes after them, as a bar from "after" them to its due date
       --smd     wrap the chart in a .smd document, e.g. smd tasks docs --gantt --smd -o timeline.smd
   smd risks <files|dirs...> [--status open,mitigated,accepted,closed] [--owner @name] [--all] [--json]
             [--html] [-o <file>]
@@ -260,7 +264,7 @@ const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
-  '--follow', '--direction', '--depth', '--view',
+  '--follow', '--direction', '--depth', '--view', '--order',
   '--text', '--by', '--reason', '--kind',
 ]);
 
@@ -556,7 +560,9 @@ function tasks(targets: string[], args: Args, today?: string): number {
   const files = targets.flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
   const all = args.flags.has('--all');
-  const rows = taskRows(files, { all, mine: args.values.get('--mine')?.[0], today });
+  const order = args.values.get('--order')?.[0] ?? 'priority';
+  if (order !== 'priority' && order !== 'deps') return fail(`--order is priority (the default) or deps, not "${order}".`);
+  const rows = taskRows(files, { all, mine: args.values.get('--mine')?.[0], today, order });
   const out = args.values.get('-o')?.[0];
   if (format === '--json') return write(out, JSON.stringify(rows, null, 2) + '\n');
   if (format === '--gantt') return taskGantt(rows, args, out);
