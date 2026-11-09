@@ -3,6 +3,7 @@ import { formatSmd } from './format';
 import { parseSmd } from './parse';
 import { parseSelector, querySmd, type QueryMatch } from './query';
 import type { Heading } from './render';
+import { supersededBy, tagBlocks } from './semanticTags';
 import { DECISION_STATUS, SMD_VERSION } from './spec';
 import { own } from './util';
 
@@ -40,6 +41,11 @@ export interface DecisionEntry {
    * or the decision comes before any `##` section.
    */
   adr: boolean;
+  /**
+   * The ids of the decisions of the same document whose `supersedes` names this one, in document order (semantic tags
+   * R53). Only present when one does; undefined for a decision without an id.
+   */
+  supersededBy?: string[];
 }
 
 export interface DecisionLogMarkdownOptions {
@@ -75,15 +81,19 @@ function documentDecisions(path: string, text: string): DecisionEntry[] {
   const headings = parseSmd(text).headings;
   const document = documentTitle(data, headings, path);
   const tagged = asStringList(data.tags).some((t) => t.toLowerCase() === 'adr');
+  const successors = /\bsupersedes\s*=/i.test(text) ? supersededBy(tagBlocks(text)) : undefined;
   return querySmd(text, DECISIONS, { lineRefs: false }).map((m, i) => {
     const heading = headingAbove(headings, m.line);
     const subject = i === 0 && (tagged || !heading || heading.level < 2);
-    return entryOf(m, { path, document, heading, adr: subject });
+    return entryOf(m, { path, document, heading, adr: subject, successors });
   });
 }
 
-function entryOf(m: QueryMatch, at: { path: string; document: string; heading?: Heading; adr: boolean }): DecisionEntry {
+interface EntryPlace { path: string; document: string; heading?: Heading; adr: boolean; successors?: ReadonlyMap<string, string[]> }
+
+function entryOf(m: QueryMatch, at: EntryPlace): DecisionEntry {
   const id = first(m.attrs.id);
+  const by = id ? at.successors?.get(id) : undefined;
   return {
     title: m.title,
     status: (first(m.attrs.status) ?? 'proposed').toLowerCase(),
@@ -96,6 +106,7 @@ function entryOf(m: QueryMatch, at: { path: string; document: string; heading?: 
     anchor: id ?? at.heading?.slug ?? null,
     document: at.document,
     adr: at.adr,
+    ...(by?.length ? { supersededBy: by } : {}),
   };
 }
 
@@ -190,11 +201,16 @@ function tableRow(e: DecisionEntry, href: string): string {
   const cells = [
     e.date ? escapeInline(e.date) : '—',
     decisionBadge(e.status),
-    isInactiveDecision(e.status) ? `~~${decision}~~` : decision,
+    (isInactiveDecision(e.status) ? `~~${decision}~~` : decision) + supersededNote(e),
     e.owner ? escapeInline(e.owner) : '—',
     `[${escapeInline(e.document)}](${linkTarget(href)})`,
   ];
   return `| ${cells.join(' | ')} |`;
+}
+
+/** ` (superseded by D7)` after a decision a later one supersedes (semantic tags R53), else nothing. */
+function supersededNote(e: DecisionEntry): string {
+  return e.supersededBy?.length ? ` (superseded by ${e.supersededBy.map(escapeInline).join(', ')})` : '';
 }
 
 /** The link to a decision: its section (or own id) in the document at `href`; the document itself for an ADR's own decision. */

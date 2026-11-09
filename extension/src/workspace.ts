@@ -198,10 +198,14 @@ function titleLine(r: QueryRow): string {
   return parts.filter(Boolean).join('  ');
 }
 
-/** `docs/adr-7.smd:12  2026-09-18  [accepted]  Use EventBridge  @platform  — ADR-0007 › Context` */
+/**
+ * `docs/adr-7.smd:12  2026-09-18  [accepted]  Use EventBridge  @platform  — ADR-0007 › Context`, with
+ * `(superseded by D7)` after the title when a later decision supersedes it (semantic tags R53).
+ */
 export function decisionLine(d: DecisionEntry): string {
   const where = d.section && !d.adr ? `${d.document} › ${d.section}` : d.document;
-  const bits = [(d.date ?? 'undated').padEnd(10), `[${d.status}]`, d.title, d.owner ?? '', `— ${where}`];
+  const successors = d.supersededBy?.length ? `(superseded by ${d.supersededBy.join(', ')})` : '';
+  const bits = [(d.date ?? 'undated').padEnd(10), `[${d.status}]`, d.title, successors, d.owner ?? '', `— ${where}`];
   return `${d.path}:${d.line + 1}  ${bits.filter(Boolean).join('  ')}`;
 }
 
