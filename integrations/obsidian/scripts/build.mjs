@@ -38,7 +38,7 @@ export function buildOptions(outfile = join(pluginRoot, 'main.js')) {
     minify: true,
     sourcemap: false,
     logLevel: 'warning',
-    banner: { js: `/* Semantic Markdown for Obsidian ${version} (MIT). Source: https://github.com/bislink360/semantic-markdown/tree/main/integrations/obsidian */` },
+    banner: { js: `/* Semantic Markdown for Obsidian ${version} (Apache-2.0). Source: https://github.com/bislink360/semantic-markdown/tree/main/integrations/obsidian */` },
     loader: { '.md': 'text', '.smd': 'text' },
     define: { __SMD_PKG_VERSION__: JSON.stringify(version) },
   };

@@ -5,7 +5,7 @@ summary: Markdown that people and AI agents both read well. Callouts, decisions,
 accent: indigo
 ---
 
-:badge[spec v2, stable]{color=indigo} :badge[MIT]{color=green} :badge[Node.js 22+]{color=gray}
+:badge[spec v2, stable]{color=indigo} :badge[Apache 2.0]{color=green} :badge[Node.js 22+]{color=gray}
 
 **Semantic Markdown (`.smd`) is Markdown plus a small, validated vocabulary** (`:::warning`, `:::decision`, `:::risk`, tasks with owners and due dates, Mermaid diagrams, `:::agent` instructions) with a CLI, a VS Code extension, an MCP server and agent skills that let an agent read only what it needs.
 
@@ -111,4 +111,4 @@ Won usability testing on completion rate.
 
 ---
 
-[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](reference/compatibility.md) · MIT licence <!-- smd-disable-line link/missing-file -->
+[GitHub](https://github.com/bislink360/semantic-markdown) · [Releases](https://github.com/bislink360/semantic-markdown/releases) · [Discussions](https://github.com/bislink360/semantic-markdown/discussions) · [Compatibility policy](reference/compatibility.md) · Apache 2.0 licence <!-- smd-disable-line link/missing-file -->

@@ -410,4 +410,4 @@ People read this; agents skip it.
 - **AI agent skills** for Claude and other agents: [skills guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/agent-setup.md)
 - [Feature guide](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/features.md) · [Specification](https://github.com/bislink360/semantic-markdown/blob/main/docs/reference/spec.md)
 
-Author: **Roshan Alwis** · License: MIT
+Author: **Roshan Alwis** · License: Apache 2.0

@@ -190,4 +190,4 @@ There is no release asset for the grammar, and no npm or crates.io package. Neov
 
 ## License
 
-MIT, like the rest of the repository.
+Apache 2.0, like the rest of the repository.
