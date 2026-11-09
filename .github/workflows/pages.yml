@@ -50,6 +50,13 @@ jobs:
         run: node dist/cli.js build ../_site_src --md --out ../_site --title "Semantic Markdown" --url https://bislink360.github.io/semantic-markdown/
       - name: Build the playground into /playground/
         run: node scripts/build-playground.mjs --out ../_site/playground
+      # `smd build` only copies files a page links to. Files in site/public/ (the Google Search Console and Bing
+      # Webmaster Tools verification files) are served at the site root exactly as they are.
+      - name: Copy site/public/ to the site root
+        run: |
+          if [ -d ../site/public ]; then
+            cp -R ../site/public/. ../_site/
+          fi
       - name: List the site
         working-directory: _site
         run: find . -type f | sort
