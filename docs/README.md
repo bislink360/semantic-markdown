@@ -65,7 +65,13 @@ What a feature or a study must achieve, before its RFC.
 |---|---|
 | [maintainers/publishing.md](maintainers/publishing.md) | Listings outside the Release workflow: the Claude Code plugin marketplace and the MCP Registry |
 
-The Study 1 corpus and its annotation guide are in [research/](../research/). The pages in [gallery/](gallery/) are the sources of the screenshots in [images/](images/), and CI checks that they validate.
+The pages in [gallery/](gallery/) are the sources of the screenshots in [images/](images/), and CI checks that they validate.
+
+## Research workspace
+
+The [Study 1 corpus](../research/corpus/) and [annotation guide](../research/annotation-guide.smd) are available in this checkout. The full workspace adds the research protocols, experiment runner, paper, and retained evidence. Request `semantic-markdown-research-2026-11-08-v1.zip` from the research maintainer and extract it at the root of a fresh checkout. Open `research/README.md` for the layout and restore instructions.
+
+From the restored checkout, run `node research/experiment/run.mjs --paper` to replay the paper with its pinned tool and frozen 618-task corpus.
 
 ## Naming and placing documents
 
