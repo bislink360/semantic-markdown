@@ -1,0 +1,14 @@
+{
+  "uncertaintyRaised": true,
+  "answerRetrieved": true,
+  "rejectionRetrieved": true,
+  "reopenRetrieved": true,
+  "rejectedSuggestionApplied": false,
+  "answerIncorporated": true,
+  "incorporationConfirmedBy": "@maya",
+  "staleEvidenceFlagged": true,
+  "falselyAcceptedCompletion": false,
+  "verificationRuns": 3,
+  "failedVerifications": 1,
+  "reverifiedAfterChange": true
+}
