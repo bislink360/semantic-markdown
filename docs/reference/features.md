@@ -387,6 +387,7 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 - **SMD Tasks view** (VS Code Explorer): open tasks from every `.smd` file in the workspace, grouped by owner, due date or document; see [section 13](#13-vs-code-editing-assistance).
 - **Problems panel:** open tasks past their due date show a `task/overdue` notice.
 - **`smd tasks docs/`** lists open tasks across every document, overdue first, then by priority. `--mine @api-team` filters by owner, `--json` gives machine-readable output, `--csv` and `--gantt` export (below).
+- **`--order deps`** lists each task after the tasks its `:depends[…]` names by `{#id}` in the same file, and keeps the priority order otherwise. A task that waits for a requirement or a question doesn't move. Tasks in a dependency cycle keep their order among themselves. The default, `--order priority`, is the order above. It applies to the text, `--json` and `--csv`.
 - **Tasks are what the preview shows with a checkbox.** A task-shaped line in code, in raw HTML or display math, or one that continues a paragraph (`- [ ] x` indented four spaces under a line of text) is text in the preview and on GitHub, so `smd tasks`, `smd meta`, outlines, the Tasks view and `task/overdue` leave it out too.
 
 ```text
@@ -406,6 +407,7 @@ docs/checkout.smd:73  [ ] Build the overflow line (depends on R2; BLOCKED by R2)
 - **`--csv`** for spreadsheets. RFC 4180: a header row, then one record per task with CRLF line endings, UTF-8 without a byte order mark (in Excel, open it with *Data → From Text/CSV*). Columns, always in this order: `file,line,done,text,owners,priority,due,overdue,section`. `line` is 1-based, as `smd tasks` prints it (`--json` and the library use zero-based lines). `done` and `overdue` are `true`/`false`, owners are joined with `;`. Fields with a comma, a quote or a line break are quoted, with quotes doubled.
   - **Formula guard:** a field that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`, so a spreadsheet shows it as text instead of running it as a formula. This includes owners: Excel reads `@maya` as a formula, so the cell is `'@maya;@li`. Use `--json` when a program, not a person, reads the export.
 - **`--gantt`** prints a Mermaid `gantt` chart: `dateFormat YYYY-MM-DD`, one `section` per document, and one milestone per task on its due date, named by its text and owners. Done tasks (with `--all`) are marked `done`, overdue ones `crit`. Tasks without a real `YYYY-MM-DD` due date are left out; stderr says how many. `--title "…"` sets the chart title (default `Tasks`).
+  - **Dependencies:** a task whose `:depends[…]` names charted tasks of its document comes after them in its section. When they are all due no later than it, it becomes a bar that starts `after` them and ends on its own due date, so the chart shows what it waits for. The tasks it waits for get a Mermaid id, their own `{#id}` when Mermaid can read it, else `task-1`, `task-2`… A task due before something it depends on stays a milestone on its date. A chart without such dependencies is unchanged.
 - **`--gantt --smd`** wraps the chart in a small `.smd` document with a `mermaid` fence, so `smd export --to html` or the preview draws it.
 
 ```text
@@ -421,6 +423,13 @@ gantt
   section docs/checkout.smd
     Server-side validation returns all field errors @api-team :crit, milestone, 2026-09-25, 0d
     Idempotent order creation @api-team :milestone, 2026-10-03, 0d
+```
+
+With `- [ ] Write the spec :due[2026-10-01] {#spec}` and `- [ ] Build it :due[2026-10-10] :depends[spec]`:
+
+```text
+    Write the spec :milestone, spec, 2026-10-01, 0d
+    Build it :after spec, 2026-10-10
 ```
 
 Characters Mermaid would misread in a name (`:`, `#`, `;`, `%`) become Mermaid entity codes such as `#58;`, which the chart shows as the character itself. So does the first letter of a name that starts with a Gantt keyword (`title`, `click`, `section`…) or a date.
@@ -605,7 +614,7 @@ No. C2 is a should, so R2's overflow line still applies.
 - **Question lifecycle.** A question with `status`, `owner`, `due`, `between` or `reason` has a state. It is `open`, `answered`, `incorporated` (the answer is in the document now) or `withdrawn` (with a `reason`). It is answered only when an answer exists, which is a `:::comment{kind=answer for=Q1}` anywhere in the document or a `kind=answer` comment nested in the question. `smd review answer` writes one and sets the state ([§17](#review-comments-and-suggestions-smd-review)). Without an answer, a written `answered` still shows and reads as `open`, with a `question/unanswered` warning.
 - The preview shows the state as a pill, with the owner and due date ("overdue" once it passes). `between=C2,R2` shows both blocks as conflicting links, and nothing picks a winner. The agent view writes `<question id="Q1" status="answered" …>` with the answer after it. A question without these attributes reads as before everywhere.
 - `smd query "question[status=open]"` finds the open questions, those without a status included, and `smd query question` still finds every one. Once a document uses the lifecycle, `smd index` counts only its open questions in `counts.questions`.
-- **Superseded decisions.** `supersedes=D1` names the decision D2 replaces. The preview and the agent view add "superseded by D2" to D1 (`superseded-by="D2"`), and `decision/supersedes` warns until D1 says `status=superseded`, with a fix that sets it.
+- **Superseded decisions.** `supersedes=D1` names the decision D2 replaces. The preview and the agent view add "superseded by D2" to D1 (`superseded-by="D2"`), `smd decisions` adds `(superseded by D2)` to its line and to the ADR index, `--json` has `supersededBy: ["D2"]`, and `decision/supersedes` warns until D1 says `status=superseded`, with a fix that sets it.
 - **Dependencies.** `depends-on=` on a requirement, constraint, decision, risk or assumption names what it needs, and `:depends[…]` does the same on a task ([§5](#5-tasks-with-owners-priorities-and-due-dates)). The preview links each id. `smd query --follow depends-on` includes those blocks in full. A chain that comes back to its start is `depends/cycle`, and an accepted decision that depends on a superseded one is `decision/depends-superseded`.
 
 ### Tracing requirements: `smd trace`
@@ -753,6 +762,8 @@ docs/adr-0007-event-bus.smd:11  2026-09-18  [accepted]  Publish order events to 
 docs/checkout.smd:139  2026-09-11  [rejected]  Build our own wallet integration  @maya  — Checkout Redesign › Decisions
 docs/adr-0007-event-bus.smd:44  2026-06-02  [superseded]  Add a retry queue in front of each HTTP consumer  @platform  — ADR-0007: Use a managed event bus for order events › Consequences
 ```
+
+When a later decision of the same document names one in `supersedes=`, its line says so after the title, as in `[superseded]  One shared cache  (superseded by D5, D7)`. The ADR index adds the same note after the struck-out decision, and `--json` gives the ids as `supersededBy`, a field that is only there when a decision names this one.
 
 - `--status` takes a comma-separated list (`accepted,proposed`) of `proposed`, `accepted`, `rejected`, `superseded`, `deprecated`, or `open` for `proposed`. A decision without a status is `proposed`. `--owner @name` keeps decisions whose `owner` includes that name.
 - `--json` prints one object per decision: `title`, `status`, `date`, `owner`, `path`, `line` and `endLine` (zero-based), `section`, `anchor` (the decision's `{#id}`, else its section's heading id), `document` (the document's title) and `adr`. `adr` is `true` for a document's own decision, as in an ADR: its first decision, when the document is tagged `adr` or the decision comes before any `##` section.
@@ -1156,7 +1167,8 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | document-wide constraints over 500 tokens together | `constraint/size` (hint) | — |
 | an unvalidated `:::assumption` past `review-by`, or an accepted requirement that `depends-on` an invalid one | `assumption/overdue` (info), `assumption/invalid` | — |
 | `:::non-goals` written as prose, with no list item | `non-goals/list` (hint) | — |
-| `:::evidence` with neither `supports` nor `contradicts`, or without `rev` | `evidence/target`, `evidence/rev` (hint) | — |
+| `:::evidence` with neither `supports` nor `contradicts`, an empty `supports=`, or without `rev` | `evidence/unlinked` (info), `evidence/target`, `evidence/rev` (hint) | — |
+| `:::evidence{source="javascript:…"}`, or `commit=main` | `evidence/source` (the source is left out of every output), `evidence/commit` | — |
 | `:::evidence{rev=R1@…}` after R1 changed | `evidence/stale` | — (recheck R1, then record its new revision) |
 | `:::requirement{status=verified}` with no current passing evidence | `requirement/verified` | — |
 | `:::question{status=answered}` with no answer, `withdrawn` with no `reason`, open past `due` | `question/unanswered`, `question/reason`, `question/overdue` (info) | — |
@@ -1475,7 +1487,7 @@ smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human
                  --no-includes: a pointer per :::include instead of the included text
                  --evidence: the evidence of each requirement shown, in full
 smd agent <file> --view <name> [--inspect] · --views   an author's task view, or the list of them
-smd tasks <files|dirs> [--all] [--mine @name] [--json]
+smd tasks <files|dirs> [--all] [--mine @name] [--order priority|deps] [--json]
 smd tasks <files|dirs> [--all] [--mine @name] --csv [-o tasks.csv]                 spreadsheet export
 smd tasks <files|dirs> [--all] [--mine @name] --gantt [--smd] [--title "…"] [-o <file>]   Mermaid Gantt chart
 smd risks <files|dirs> [--status <list>] [--owner @name] [--all] [--json] [--html] [-o <file>]   risk register
