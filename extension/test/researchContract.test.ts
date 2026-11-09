@@ -222,6 +222,25 @@ test('C04: warnings, skipped sections and :::human blocks stay out of a section 
   for (const word of ['WARN_TEXT', 'SKIP_DANGER', 'HUMAN_DANGER']) assert.doesNotMatch(view, new RegExp(word));
 });
 
+test('audience exclusion: a :::agent block under an {agent=skip} heading stays out of every section view', () => {
+  const doc = edges([
+    '## A', '', 'A text.', '',
+    '## Hidden {agent=skip}', '', ':::agent', 'SKIP_AGENT', ':::', '',
+    '## B', '', ':::agent', 'KEPT_AGENT', ':::', '',
+  ]);
+  const views = [
+    agentView(doc, { sections: ['A'] }).text,
+    agentView(doc, { sections: ['A'], brief: true }).text,
+    agentView(doc, { sections: ['A'], constraints: true }).text,
+    readDocument(doc, { sections: ['A'] }).text,
+  ];
+  for (const view of views) {
+    assert.doesNotMatch(view, /SKIP_AGENT/);
+    assert.match(view, /Document-wide agent instructions:[\s\S]*KEPT_AGENT/, 'other agent blocks are still collected');
+  }
+  assert.match(agentView(doc, { sections: ['Hidden'] }).text, /SKIP_AGENT/, 'selecting the skipped section still shows it');
+});
+
 test('C04: a danger inside the selected sections is shown in place, not repeated in the head', () => {
   const view = agentView(scoped, { readFile: riskyRead, sections: ['A'] }).text;
   once(view, 'ROOT_DANGER');

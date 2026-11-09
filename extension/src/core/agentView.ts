@@ -384,7 +384,9 @@ function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTrace
   let constraints = '';
   let constraintView: ConstraintView | undefined;
   if (selected) {
-    const outside = transform(lines, bodyStart, (l) => !inScope(l), { ...options, onlyAgentBlocks: true, trace: traces.external });
+    // Sections marked {agent=skip} stay out here too: an excluded heading hides its :::agent blocks like its dangers.
+    const inSkipped = (line: number) => scope.skipped.some((s) => line >= s.start && line <= s.end);
+    const outside = transform(lines, bodyStart, (l) => !inScope(l) && !inSkipped(l), { ...options, onlyAgentBlocks: true, trace: traces.external });
     if (outside.trim()) external = `Document-wide agent instructions:\n${outside.trim()}\n\n`;
     footnotes = outsideFootnotes(scope, { ...options, trace: traces.footnotes });
     // The constraints pass shows the dangers itself, with the pointers that go with them.
