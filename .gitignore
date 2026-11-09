@@ -49,5 +49,9 @@ _site/
 # Local output and research material (not committed), except the Study 1 corpus and its annotation guide
 output/
 research/*
-!research/corpus/
-!research/annotation-guide.smd
+!research/data/
+research/data/*
+!research/data/corpus/
+!research/docs/
+research/docs/*
+!research/docs/annotation-guide.smd

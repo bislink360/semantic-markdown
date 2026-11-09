@@ -31,7 +31,7 @@ import { validateCorpus, validationText } from './validate';
  *   npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share 0.15 | --count 50] [--seed 1]
  *   npm run eval -- judge-agreement <judge-packets.jsonl> --judged <file> --human <file> [--out <dir>] [--json]
  *
- * The corpus defaults to research/corpus/. Relative paths are read from the folder npm was run in.
+ * The corpus defaults to research/data/corpus/. Relative paths are read from the folder npm was run in.
  */
 
 const USAGE = `Usage:

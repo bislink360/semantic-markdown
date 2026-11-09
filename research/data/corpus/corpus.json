@@ -1,0 +1,21 @@
+{
+  "version": "0.2-draft",
+  "today": "2026-11-01",
+  "guide": "research/docs/annotation-guide.smd 0.2",
+  "frozen": false,
+  "freezeRecord": {
+    "note": "Not frozen. People verify every mark, item and task first; then the guide commit, the tool commit and the executable version are added here.",
+    "secondAnnotatorDraw": {
+      "seed": 20261106,
+      "method": "seededRandom from extension/test/eval/score.ts, Fisher-Yates shuffle of p01..p12, s01..s12, first 6, sorted",
+      "documents": ["p03", "p12", "s03", "s07", "s08", "s12"]
+    },
+    "markerComparisonDraw": {
+      "method": "the same shuffle over each marker's 12 documents, first 4, sorted",
+      "remarkedBySecondMarker": { "seed": 20261107, "documents": ["s02", "s03", "s09", "s10"] },
+      "remarkedByFirstMarker": { "seed": 20261108, "documents": ["p01", "p02", "p03", "p06"] }
+    },
+    "agreementBeforeResolution": { "report": "_agreement/agreement.md", "itemF1": 0.79, "kindKappa": 0.905, "itemsA": 240, "itemsB": 302, "matched": 214 },
+    "markerComparison": { "report": "_marker-comparison/marker-comparison.md", "share": 0.864, "marksA": 94, "marksB": 105, "exact": 86 }
+  }
+}
