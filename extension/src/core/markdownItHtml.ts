@@ -446,7 +446,8 @@ function evidenceOpen(c: ContainerView): string {
     values.commit ? `<code>${escapeHtml(values.commit)}</code>` : '',
     values.date ? escapeHtml(values.date) : '',
     values.by ? escapeHtml(values.by) : '',
-    values.source ? (source ? `<a href="${escapeHtml(source)}">${escapeHtml(values.source)}</a>` : escapeHtml(values.source)) : '',
+    // A source the URL check refuses (javascript:, data:…) is left out, as a quote's cite is (R42, evidence/source).
+    source ? `<a href="${escapeHtml(source)}">${escapeHtml(values.source)}</a>` : '',
   ];
   return tagOpen(c, c.m['evidence.label'], [result ? pill('result', result, term(c.m, 'evidenceResult', result)) : ''], facts,
     result ? [`smd-evidence-${result.replace(/[^a-z0-9-]/g, '')}`] : []);

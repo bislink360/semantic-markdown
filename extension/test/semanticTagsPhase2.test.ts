@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   agentView, applyFixes, extractTasks, indexEntry, querySmd, renderSmd, smdToMarkdown, validateSmd,
 } from '../src/core';
+import { exportTree } from '../src/core/exportTree';
 import { taskLine, taskSummary } from '../src/workspace';
 
 /**
@@ -52,8 +53,21 @@ test('R40: an unvalidated assumption is key content under a budget; a validated 
 
 // --- Evidence ------------------------------------------------------------------------------------------------------
 
-test('evidence/target warns without supports or contradicts; evidence/rev hints without rev', () => {
-  assert.equal(found(v2(':::evidence{#E1 method=test result=pass} Run\n:::'), 'evidence/target').length, 1);
+test('R41: evidence linked to nothing is info evidence/unlinked; an empty supports= is evidence/target; evidence/rev hints without rev', () => {
+  const unlinked = found(v2(':::evidence{#E1 method=test result=pass} Run\n:::'), 'evidence/unlinked');
+  assert.equal(unlinked.length, 1);
+  assert.equal(unlinked[0].severity, 'info');
+  assert.deepEqual(found(v2(':::evidence{#E1 method=test result=pass} Run\n:::'), 'evidence/target'), [], 'evidence/unlinked replaces the warning');
+  const empty = found(v2(':::evidence{#E1 supports="" result=pass} Run\n:::'), 'evidence/target');
+  assert.equal(empty.length, 1);
+  assert.equal(empty[0].severity, 'warning');
+  assert.equal(v2(':::evidence{#E1 supports="" result=pass} Run\n:::').split('\n')[empty[0].line].slice(empty[0].column, empty[0].endColumn), 'supports=""');
+  assert.deepEqual(found(v2(':::evidence{#E1 supports="" result=pass} Run\n:::'), 'evidence/unlinked'), []);
+  // An id that names no block is ref/unknown, not evidence/unlinked.
+  const unknown = v2(':::evidence{#E1 supports=R9 rev=R9@3f2a9c1b0d4e} Run\n:::');
+  assert.equal(found(unknown, 'ref/unknown').length, 1);
+  assert.deepEqual([...found(unknown, 'evidence/unlinked'), ...found(unknown, 'evidence/target')], []);
+  assert.deepEqual(found(v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 contradicts=R1 rev=R1@3f2a9c1b0d4e} Run\n:::'), 'evidence/unlinked'), []);
   const noRev = found(v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 result=pass} Run\n:::'), 'evidence/rev');
   assert.equal(noRev.length, 1);
   assert.equal(noRev[0].severity, 'hint');
@@ -61,14 +75,48 @@ test('evidence/target warns without supports or contradicts; evidence/rev hints 
 });
 
 test('evidence shows its result and targets on every surface; contradicts renders as a conflicting link', () => {
-  const text = v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 contradicts=R1 method=test result=fail commit=1a2b3c4 by=@ci source="javascript:alert(1)"} CI run\n:::');
+  const text = v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 contradicts=R1 method=test result=fail commit=1a2b3c4 by=@ci source="https://ci.example.com/run/42"} CI run\n:::');
   const html = renderSmd(text).html;
   assert.match(html, /<span class="smd-pill smd-pill-result smd-pill-result-fail">fail<\/span>/);
   assert.match(html, /contradicts <a class="smd-ref smd-conflict" href="#R1"/);
-  assert.doesNotMatch(html, /href="javascript:/, 'a source that is not http(s) or relative is not a link');
-  assert.match(agentView(text).text, /^<evidence id="E1" supports="R1" contradicts="R1" method="test" result="fail" commit="1a2b3c4" by="@ci" source="javascript:alert\(1\)"> CI run$/m);
-  assert.match(smdToMarkdown(text), /^> \[!CAUTION\]\n> \*\*Evidence E1\*\* · supports R1 · contradicts R1 · test · fail · 1a2b3c4 · @ci/m);
+  assert.match(html, /<a href="https:\/\/ci.example.com\/run\/42">https:\/\/ci.example.com\/run\/42<\/a>/);
+  assert.match(agentView(text).text, /^<evidence id="E1" supports="R1" contradicts="R1" method="test" result="fail" commit="1a2b3c4" by="@ci" source="https:\/\/ci.example.com\/run\/42"> CI run$/m);
+  assert.match(smdToMarkdown(text), /^> \[!CAUTION\]\n> \*\*Evidence E1\*\* · supports R1 · contradicts R1 · test · fail · 1a2b3c4 · @ci · https:\/\/ci.example.com\/run\/42$/m);
   assert.equal(querySmd(text, 'evidence[supports=R1][result=fail]').length, 1);
+  assert.deepEqual(validateSmd(text).filter((d) => d.code === 'evidence/source' || d.code === 'evidence/commit'), []);
+});
+
+test('AC11 (R42): source="javascript:alert(1)" on evidence renders with no link, is left out of every output, and is evidence/source', () => {
+  const text = v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 result=pass by=@ci source="javascript:alert(1)" rev=R1@3f2a9c1b0d4e} CI run\n:::');
+  const diags = found(text, 'evidence/source');
+  assert.equal(diags.length, 1);
+  assert.equal(diags[0].severity, 'warning');
+  assert.equal(text.split('\n')[diags[0].line].slice(diags[0].column, diags[0].endColumn), 'source="javascript:alert(1)"');
+  const html = renderSmd(text).html;
+  assert.match(html, /smd-pill-result-pass/, 'the document renders');
+  assert.doesNotMatch(html, /javascript/);
+  assert.doesNotMatch(agentView(text).text, /javascript|source=/);
+  assert.match(agentView(text).text, /^<evidence id="E1" supports="R1" result="pass" by="@ci" rev="R1@3f2a9c1b0d4e"> CI run$/m);
+  assert.doesNotMatch(smdToMarkdown(text), /javascript/);
+  assert.doesNotMatch(JSON.stringify(exportTree(text)), /javascript/);
+  // The same check as :::quote{cite}: http(s) and relative URLs pass, other schemes, `//host` and spaces don't.
+  const check = (source: string) => found(v2(`:::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 source="${source}"} Run\n:::`), 'evidence/source').length;
+  assert.deepEqual(['https://ci.example.com/1', 'http://x.test', 'logs/run-42.txt', '../ci/run.log', '#R1'].map(check), [0, 0, 0, 0, 0]);
+  assert.deepEqual(['data:text/html,x', 'JAVASCRIPT:alert(1)', '//evil.example', 'file:///etc/passwd', 'CI run 42', ''].map(check), [1, 1, 1, 1, 1, 1]);
+  const relative = v2(':::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 source=logs/run.txt} Run\n:::');
+  assert.match(renderSmd(relative).html, /<a href="logs\/run.txt">logs\/run.txt<\/a>/);
+  assert.match(JSON.stringify(exportTree(relative)), /"href":"logs\/run.txt"/);
+});
+
+test('R43: a commit that is not 7 to 40 hex characters is evidence/commit; existence is not checked', () => {
+  const check = (commit: string) => found(v2(`:::requirement{#R1} X\n:::\n\n:::evidence{#E1 supports=R1 commit="${commit}"} Run\n:::`), 'evidence/commit');
+  assert.deepEqual(['1a2b3c4', 'DEADBEEF', 'a'.repeat(40), '0000000'].map((c) => check(c).length), [0, 0, 0, 0]);
+  assert.deepEqual(['1a2b3c', 'a'.repeat(41), 'main', 'v1.2.0', '1a2b3c4g', ''].map((c) => check(c).length), [1, 1, 1, 1, 1, 1]);
+  const [d] = check('main');
+  assert.equal(d.severity, 'warning');
+  assert.match(d.message, /7 to 40 hex characters/);
+  // Still shown as written: the value is not a link and not dropped.
+  assert.match(agentView(v2(':::evidence{#E1 commit=main} Run\n:::')).text, /commit="main"/);
 });
 
 // --- Questions -----------------------------------------------------------------------------------------------------

@@ -513,7 +513,8 @@ function evidence(c: ContainerCall): Block[] {
     factIf(values.commit, (v) => [text(v, { code: true })]),
     factIf(values.date, (v) => [dateOrText(v)]),
     factIf(values.by, (v) => [text(v)]),
-    factIf(values.source, (v) => [text(v, source ? { href: source } : {})]),
+    // A source the URL check refuses is left out (R42, evidence/source).
+    factIf(source && values.source, (v) => [text(v, { href: source })]),
   ]);
 }
 
