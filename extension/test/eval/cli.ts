@@ -7,9 +7,10 @@ import { agreement, agreementText, type PairsFile } from './agreement';
 import { compareMarks, marksText } from './marks';
 import { DEFAULT_CORPUS, loadCorpus } from './corpus';
 import { accountRun, byTaskCsv, tokenReportText } from './accounting';
-import { defaultDeps, probeSetup, runEval, type RunConfig, type RunDeps } from './runner';
+import { checkAnalysis, defaultDeps, probeSetup, runEval, type RunConfig, type RunDeps } from './runner';
 import { judgeAgreement, judgeAgreementText, parseJudged, parsePackets, runJudge, samplePackets, scoringSheet } from './judge';
-import { outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord, type Outcome } from './score';
+import { checkMargin, outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord, type Outcome } from './score';
+import { DEFAULT_MODEL, estimatePilot, POWER_DEFAULTS, POWER_METHODS, powerReport, powerText, type PowerMethod, type PowerModel, type PowerReport } from './power';
 import { mapCorpus, spanReportText, spansOk } from './spans';
 import { survival, survivalText } from './survival';
 import { validateCorpus, validationText } from './validate';
@@ -26,7 +27,8 @@ import { validateCorpus, validationText } from './validate';
  *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
  *   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
  *   npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
- *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>]
+ *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>] [--ni-margin 0.05] [--eq-margin 0.05] [--config <run.json>]
+ *   npm run eval -- power [--accuracy 0.8] [--diff 0] [--ni-margin 0.05] [--eq-margin 0.05] [--docs 12,24] [--tasks 10] [--runs 1] [--icc 0.1] [--task-icc 0.3] [--doc-corr 0.5] [--task-corr 0.5] [--alpha 0.025] [--sims 1000] [--seed 1] [--method scorer|cluster|bootstrap] [--pilot outcomes.json --reference M1 [--condition S3]] [--out <dir>] [--json]
  *   npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit n] [--concurrency n]
  *   npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share 0.15 | --count 50] [--seed 1]
  *   npm run eval -- judge-agreement <judge-packets.jsonl> --judged <file> --human <file> [--out <dir>] [--json]
@@ -42,7 +44,8 @@ const USAGE = `Usage:
   npm run eval -- agreement [corpus] --a <file> --b <file> [--pairs <file>] [--json] [--out <dir>]
   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs <a,b>] [--tasks <a,b>] [--conditions <a,b>] [--runs <n>] [--limit <n>] [--concurrency <n>]
-  npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <files>] [--model <label>]
+  npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <files>] [--model <label>] [--ni-margin <share>] [--eq-margin <share>] [--config <run.json>]
+  npm run eval -- power [--accuracy <0..1>] [--diff <share>] [--ni-margin <share>] [--eq-margin <share>] [--docs <n,n>] [--tasks <n,n>] [--runs <n>] [--icc <0..1>] [--task-icc <0..1>] [--doc-corr <-1..1>] [--task-corr <-1..1>] [--alpha <one-sided>] [--sims <n>] [--seed <n>] [--method scorer|cluster|bootstrap] [--resamples <n>] [--pilot <outcomes.json> [--reference <condition>] [--condition <condition>]] [--out <dir>] [--json]
   npm run eval -- tokens <run dir> [--out <dir>] [--scored <outcomes.json>] [--model <label>] [--seed <n>] [--resamples <n>] [--baseline <condition>] [--json]
   npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit <n>] [--concurrency <n>]
   npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share <0..1> | --count <n>] [--seed <n>]
@@ -52,6 +55,7 @@ const USAGE = `Usage:
 const VALUE_FLAGS = new Set([
   '--out', '--tokenizer', '--seed', '--resamples', '--baseline', '--judged', '--model',
   '--a', '--b', '--pairs', '--scored', '--other', '--config', '--docs', '--tasks', '--conditions', '--runs', '--limit', '--concurrency', '--human', '--share', '--count',
+  '--ni-margin', '--eq-margin', '--accuracy', '--diff', '--icc', '--task-icc', '--doc-corr', '--task-corr', '--alpha', '--sims', '--method', '--pilot', '--reference', '--condition',
 ]);
 
 interface Parsed { command?: string; positional: string[]; flags: Map<string, string | true> }
@@ -203,9 +207,14 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       const records = only ? parsed.records.filter((r) => r.model === only || r.model?.startsWith(`${only}:`)) : parsed.records;
       const judgedFiles = stringFlag(flags, '--judged');
       const judged = judgedFiles ? readJudged(judgedFiles) : undefined;
+      // Flags override the run config's "analysis"; without either, no margin is set and no verdict is given.
+      const configFile = stringFlag(flags, '--config');
+      const analysis = configFile ? checkAnalysis((readJsonFile(configFile) as RunConfig).analysis) : {};
       const result = scoreAnswers(corpus, records, {
         seed: numberFlag(flags, '--seed'), resamples: numberFlag(flags, '--resamples'),
-        baseline: typeof flags.get('--baseline') === 'string' ? flags.get('--baseline') as string : undefined, judged,
+        baseline: stringFlag(flags, '--baseline') ?? analysis.baseline, judged,
+        niMargin: numberValue(flags, '--ni-margin') ?? analysis.niMargin,
+        equivalenceMargin: numberValue(flags, '--eq-margin') ?? analysis.equivalenceMargin,
       });
       result.problems.unshift(...problems);
       write(path.join(out, 'outcomes.json'), JSON.stringify(result.outcomes, null, 2) + '\n');
@@ -215,6 +224,16 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       write(path.join(out, 'judge-packets.jsonl'), jsonl(result.packets));
       write(path.join(out, 'judge-key.jsonl'), jsonl(result.key));
       log(summaryText(result));
+      return 0;
+    }
+    case 'power': {
+      const report = powerCommand(flags);
+      const text = powerText(report);
+      if (out) {
+        write(path.join(out, 'power.json'), JSON.stringify(report, null, 2) + '\n');
+        write(path.join(out, 'power.md'), text);
+      }
+      log(flags.has('--json') ? JSON.stringify(report, null, 2) + '\n' : text);
       return 0;
     }
     case 'judge': {
@@ -288,6 +307,45 @@ function readJudged(files: string): JudgedRecord[] {
 }
 
 const readPackets = (file: string) => parsePackets(fs.readFileSync(resolvePath(file), 'utf8'));
+
+/** Whole numbers from a comma-separated flag. */
+const integerList = (flags: Parsed['flags'], name: string, fallback: number[]) => {
+  const list = listFlag(flags, name);
+  if (!list) return fallback;
+  return list.map((s) => {
+    const n = Number(s);
+    if (!Number.isInteger(n) || n < 1) throw new Error(`${name} takes whole numbers, e.g. 12,24,36`);
+    return n;
+  });
+};
+
+/** The power command's model and settings from its flags, with pilot estimates where a flag does not set the value. */
+function powerCommand(flags: Parsed['flags']): PowerReport {
+  const method = (stringFlag(flags, '--method') ?? POWER_DEFAULTS.method) as PowerMethod;
+  if (!POWER_METHODS.includes(method)) throw new Error(`--method is one of ${POWER_METHODS.join(', ')}`);
+  const taskIcc = numberValue(flags, '--task-icc') ?? DEFAULT_MODEL.taskIcc;
+  const pilotFile = stringFlag(flags, '--pilot');
+  const pilot = pilotFile
+    ? { ...estimatePilot(readJsonFile(pilotFile) as Outcome[], stringFlag(flags, '--reference') ?? 'M1', taskIcc, stringFlag(flags, '--condition')), file: pilotFile }
+    : undefined;
+  const model: PowerModel = {
+    accuracy: numberValue(flags, '--accuracy') ?? pilot?.accuracy ?? DEFAULT_MODEL.accuracy,
+    diff: numberValue(flags, '--diff') ?? DEFAULT_MODEL.diff,
+    icc: numberValue(flags, '--icc') ?? pilot?.icc ?? DEFAULT_MODEL.icc,
+    taskIcc,
+    docCorr: numberValue(flags, '--doc-corr') ?? DEFAULT_MODEL.docCorr,
+    taskCorr: numberValue(flags, '--task-corr') ?? DEFAULT_MODEL.taskCorr,
+    runs: numberFlag(flags, '--runs') ?? DEFAULT_MODEL.runs,
+  };
+  const niMargin = numberValue(flags, '--ni-margin');
+  const equivalenceMargin = numberValue(flags, '--eq-margin');
+  return powerReport(model, integerList(flags, '--docs', [12, 24, 36]), integerList(flags, '--tasks', [10]), {
+    niMargin: niMargin === undefined ? undefined : checkMargin(niMargin, '--ni-margin'),
+    equivalenceMargin: equivalenceMargin === undefined ? undefined : checkMargin(equivalenceMargin, '--eq-margin'),
+    alpha: numberValue(flags, '--alpha'), sims: numberFlag(flags, '--sims'), seed: numberFlag(flags, '--seed'), method,
+    resamples: numberFlag(flags, '--resamples'),
+  }, pilot);
+}
 
 const numberValue = (flags: Parsed['flags'], name: string) => {
   const v = stringFlag(flags, name);

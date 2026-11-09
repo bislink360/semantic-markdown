@@ -68,9 +68,50 @@ export interface ScoreOptions {
   /** The condition differences are taken against (default M1 when present). */
   baseline?: string;
   judged?: JudgedRecord[];
+  /**
+   * Non-inferiority margin for correctness against the baseline, as a share (0.05 is 5 percentage points). Not set by
+   * default: the study owner sets it after the pilot, and without it no verdict is given.
+   */
+  niMargin?: number;
+  /** Two-sided equivalence margin, as a share. Not set by default. */
+  equivalenceMargin?: number;
 }
 
 export interface Interval { mean: number; ci: [number, number]; n: number }
+
+/**
+ * Non-inferiority of a condition against the baseline, on the paired difference (condition minus baseline, higher is
+ * better) and its 95% interval: `non-inferior` when the lower bound is above -margin, `inferior` when the upper bound
+ * is below -margin, `inconclusive` when the interval holds -margin.
+ */
+export type NonInferiorityVerdict = 'non-inferior' | 'inferior' | 'inconclusive';
+/** Equivalence (two one-sided tests on the same 95% interval): inside (-margin, margin), wholly outside it, or neither. */
+export type EquivalenceVerdict = 'equivalent' | 'not-equivalent' | 'inconclusive';
+
+export interface MarginTest<V extends string> { margin: number; verdict: V; diff: number; ci: [number, number] }
+
+/** The non-inferiority verdict for a difference interval (condition minus reference) and a margin > 0. */
+export function nonInferiorityVerdict(ci: readonly [number, number], margin: number): NonInferiorityVerdict {
+  if (ci[0] > -margin) return 'non-inferior';
+  if (ci[1] < -margin) return 'inferior';
+  return 'inconclusive';
+}
+
+/** The equivalence verdict for a difference interval and a two-sided margin > 0. */
+export function equivalenceVerdict(ci: readonly [number, number], margin: number): EquivalenceVerdict {
+  if (ci[0] > -margin && ci[1] < margin) return 'equivalent';
+  if (ci[1] < -margin || ci[0] > margin) return 'not-equivalent';
+  return 'inconclusive';
+}
+
+/** Checks a margin: a share strictly between 0 and 1, or undefined. */
+export function checkMargin(value: unknown, name: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value >= 1) {
+    throw new Error(`${name} must be a share between 0 and 1 (0.05 is 5 percentage points)`);
+  }
+  return value;
+}
 
 export interface ConditionSummary {
   condition: string;
@@ -83,6 +124,10 @@ export interface ConditionSummary {
   usedSuperseded: Interval | null;
   /** Correctness minus the baseline's, over units both have. */
   vsBaseline?: Interval & { baseline: string };
+  /** Only when a non-inferiority margin is set: the verdict on vsBaseline. */
+  nonInferiority?: MarginTest<NonInferiorityVerdict>;
+  /** Only when an equivalence margin is set. */
+  equivalence?: MarginTest<EquivalenceVerdict>;
   editPlan: { precision: number; recall: number; n: number } | null;
   pendingJudge: number;
   tokens: {
@@ -103,7 +148,12 @@ export interface ScoreResult {
   /** Packet id to the answer it came from, kept apart from the packets so judges stay blind. */
   key: Array<{ packet: string; doc: string; task: string; condition: string; run: string; model?: string; seed?: string }>;
   problems: string[];
-  settings: { seed: number; resamples: number; baseline?: string; editPlanMinPrecision: number };
+  settings: {
+    seed: number; resamples: number; baseline?: string; editPlanMinPrecision: number;
+    /** Null when not set: no verdict is given. */
+    niMargin: number | null;
+    equivalenceMargin: number | null;
+  };
 }
 
 /** Lower case, marks removed, digit group commas dropped, outer punctuation and a leading article removed. */
@@ -246,11 +296,13 @@ const docOfUnit = (unit: string) => unit.split('\u0000')[0];
 /**
  * Seeded paired bootstrap over (document, task) units: each resample draws documents with replacement, then tasks
  * within each drawn document, and uses the same draws for every condition. `values`: condition → unit → value.
+ * `level` is the interval's coverage (default 0.95, percentile interval).
  */
 export function pairedBootstrap(
-  values: Map<string, Map<string, number>>, options: { seed?: number; resamples?: number; baseline?: string } = {},
+  values: Map<string, Map<string, number>>, options: { seed?: number; resamples?: number; baseline?: string; level?: number } = {},
 ): Map<string, { estimate: Interval; diff?: Interval }> {
   const seed = options.seed ?? DEFAULT_SEED;
+  const tail = (1 - (options.level ?? 0.95)) / 2;
   const resamples = options.resamples ?? DEFAULT_RESAMPLES;
   const units = [...new Set([...values.values()].flatMap((m) => [...m.keys()]))].sort((a, b) => a.localeCompare(b));
   const docs = [...new Set(units.map(docOfUnit))];
@@ -286,7 +338,7 @@ export function pairedBootstrap(
   }
   const interval = (sample: number[], point: number, n: number): Interval => {
     const sorted = [...sample].sort((x, y) => x - y);
-    return { mean: point, ci: [quantile(sorted, 0.025), quantile(sorted, 0.975)], n };
+    return { mean: point, ci: [quantile(sorted, tail), quantile(sorted, 1 - tail)], n };
   };
   const out = new Map<string, { estimate: Interval; diff?: Interval }>();
   for (const c of conditions) {
@@ -389,7 +441,11 @@ export function scoreAnswers(corpus: Corpus, records: AnswerRecord[], options: S
   packets.sort((a, b) => order.get(a.packet)! - order.get(b.packet)!);
   const conditions = [...new Set(outcomes.map((o) => o.condition))];
   const baseline = options.baseline ?? (conditions.includes('M1') ? 'M1' : undefined);
-  const settings = { seed: options.seed ?? DEFAULT_SEED, resamples: options.resamples ?? DEFAULT_RESAMPLES, baseline, editPlanMinPrecision: EDIT_PLAN_MIN_PRECISION };
+  const settings: ScoreResult['settings'] = {
+    seed: options.seed ?? DEFAULT_SEED, resamples: options.resamples ?? DEFAULT_RESAMPLES, baseline, editPlanMinPrecision: EDIT_PLAN_MIN_PRECISION,
+    niMargin: checkMargin(options.niMargin, 'the non-inferiority margin') ?? null,
+    equivalenceMargin: checkMargin(options.equivalenceMargin, 'the equivalence margin') ?? null,
+  };
   return { outcomes, summary: summarise(outcomes, settings), packets, key, problems, settings };
 }
 
@@ -421,7 +477,12 @@ function summarise(outcomes: Outcome[], settings: ScoreResult['settings']): Cond
         answerEstimateMean: meanOf(own.map((o) => o.answerTokensEstimate))!,
       },
     };
-    if (c?.diff && settings.baseline) s.vsBaseline = { ...c.diff, baseline: settings.baseline };
+    if (c?.diff && settings.baseline) {
+      s.vsBaseline = { ...c.diff, baseline: settings.baseline };
+      const { mean: diff, ci } = c.diff;
+      if (settings.niMargin !== null) s.nonInferiority = { margin: settings.niMargin, verdict: nonInferiorityVerdict(ci, settings.niMargin), diff, ci };
+      if (settings.equivalenceMargin !== null) s.equivalence = { margin: settings.equivalenceMargin, verdict: equivalenceVerdict(ci, settings.equivalenceMargin), diff, ci };
+    }
     return s;
   });
 }
@@ -468,6 +529,33 @@ export function summaryText(r: ScoreResult): string {
       fmt(c.tokens.shownEstimateMean, 0), fmt(c.tokens.answerEstimateMean, 0),
     ].join(' | ')} |`);
   }
+  out.push('', ...marginText(r));
   if (r.problems.length) out.push('', '## Problems', '', ...r.problems.map((p) => `- ${p}`));
   return out.join('\n') + '\n';
+}
+
+/** The non-inferiority and equivalence section: verdicts when a margin is set, and a line saying so when not. */
+function marginText(r: ScoreResult): string[] {
+  const s = r.settings;
+  const out = ['## Non-inferiority and equivalence', ''];
+  if (!s.baseline) return [...out, 'No baseline condition, so no comparison (pass --baseline).'];
+  if (s.niMargin === null && s.equivalenceMargin === null) {
+    return [...out, 'No margin set, so no verdict. The study owner sets it after the pilot: --ni-margin and --eq-margin, or "analysis" in a run config passed with --config.'];
+  }
+  const pts = (m: number | null) => (m === null ? 'not set' : `${fmt(m * 100, 1)} points`);
+  out.push(
+    `Correctness difference (condition minus ${s.baseline}) with its paired bootstrap 95% interval. Non-inferior when the lower bound is above -margin, `
+      + 'inferior when the upper bound is below it, inconclusive otherwise. Equivalent when the interval is inside (-margin, margin), '
+      + 'not equivalent when it is wholly outside, inconclusive otherwise.',
+    '',
+    `Non-inferiority margin: ${pts(s.niMargin)}. Equivalence margin: ${pts(s.equivalenceMargin)}.`,
+    '',
+    '| condition | difference [95% CI] | non-inferiority | equivalence |',
+    '|-|-|-|-|',
+  );
+  for (const c of r.summary) {
+    if (c.condition === s.baseline) continue;
+    out.push(`| ${c.condition} | ${fmtInterval(c.vsBaseline)} | ${c.nonInferiority?.verdict ?? '-'} | ${c.equivalence?.verdict ?? '-'} |`);
+  }
+  return out;
 }
