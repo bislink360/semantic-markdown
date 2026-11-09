@@ -11,7 +11,6 @@ toc: true
 related:
   - ../reference/spec.md
   - tree-and-graph-filtering.smd
-  - ../../implementation-changes.smd
   - ../rfcs/collaboration.smd
   - ../../skills/semantic-markdown-writer/assets/templates/spec.smd
 ---
@@ -24,7 +23,7 @@ Semantic Markdown has tags for decisions, risks, questions, APIs and tasks, but 
 - The spec template writes a constraint as `:::warning Constraint`. A hard rule and a caveat look the same to tools and to agents.
 - Non-goals are a bold paragraph, so a budgeted agent view can drop them. Agents then build things nobody asked for.
 - The implementation review (C04) found that reading one section leaves out dangers and accepted decisions from other sections. No syntax says which constraints apply to the whole document.
-- The review findings in `implementation-changes.smd` start each one with a bold "Evidence" paragraph. Nothing links that evidence to the claim it supports.
+- The implementation review's findings start each one with a bold "Evidence" paragraph. Nothing links that evidence to the claim it supports.
 - Blocks other than figures can't be referred to by id, so there is no way to trace a task or test back to the requirement it serves.
 
 ## Goals and non-goals
@@ -212,7 +211,7 @@ Check against MCP read logs from the pilot.
 ## Evidence block
 
 ```text
-:::evidence{#E1 supports=R25 method=reproduced commit=750ef2e date=2026-11-05 source="implementation-changes.smd"}
+:::evidence{#E1 supports=R25 method=reproduced commit=750ef2e date=2026-11-05}
 Reading only "Requirements" kept the external :::agent block but left out the danger block.
 :::
 ```
@@ -409,7 +408,7 @@ In tools before the release, priority, status and scope don't show. Mitigation i
 
 ## Background {agent=skip}
 
-On 2026-11-06 we compared the current vocabulary with the templates, `implementation-changes.smd` and `docs/reference/spec.md`. The spec, PRD and test-plan templates fake requirements, acceptance criteria, constraints and non-goals with tables, bold text and warning callouts. SPEC.md writes version notes such as "since 1.6" and "Tools before 1.10" dozens of times as prose.
+On 2026-11-06 we compared the current vocabulary with the templates, the implementation review and `docs/reference/spec.md`. The spec, PRD and test-plan templates fake requirements, acceptance criteria, constraints and non-goals with tables, bold text and warning callouts. SPEC.md writes version notes such as "since 1.6" and "Tools before 1.10" dozens of times as prose.
 
 We also reviewed a list of nine proposed tags built around three ideas, what must hold, what is believed and what supports it. Five of them became the core set. `claim` folded into `evidence` links, `dependency` became an attribute, and `conflict` and `limitation` were deferred.
 

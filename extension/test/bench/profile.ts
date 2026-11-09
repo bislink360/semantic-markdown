@@ -264,7 +264,7 @@ export function includeComposite(target: number): ProfileDoc {
 
 function documents(): { docs: ProfileDoc[]; temp: string[] } {
   const docs = [
-    ...['docs/rfcs/collaboration.smd', 'docs/rfcs/spec-v2.smd', 'implementation-changes.smd'].map((f) => path.join(repo, f)).filter((f) => fs.existsSync(f)),
+    ...['docs/rfcs/collaboration.smd', 'docs/rfcs/spec-v2.smd'].map((f) => path.join(repo, f)).filter((f) => fs.existsSync(f)),
     ...fs.readdirSync(samplesDir).filter((f) => f.endsWith('.smd')).sort().map((f) => path.join(samplesDir, f)),
   ].map(smdFile);
   for (const target of [8000, 20000, 50000]) docs.push({ name: `composite ≈${target / 1000}k`, text: composite(target), dir: samplesDir });
