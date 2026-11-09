@@ -107,6 +107,22 @@ test('R19, R53: a decision of another listed document that supersedes old.smd#D1
   assert.equal(decisionLog([{ path: 'docs/old.smd', text: old }]).find((d) => d.anchor === 'D1')?.supersededBy, undefined);
 });
 
+test('R19, R53: a decision that names its own document (supersedes=old.smd#D1) supersedes D1 like a bare id', () => {
+  const old = [
+    ':::decision{#D1 status=superseded} One shared cache', ':::', '',
+    ':::decision{#D3 status=superseded supersedes=old.smd#D1} A cache per region', ':::', '',
+    ':::decision{#D5 status=accepted supersedes="D1,./old.smd#D3"} A cache per reader', ':::', '',
+  ].join('\n');
+  const log = decisionLog([{ path: 'docs/old.smd', text: old }]);
+  assert.deepEqual(log.find((d) => d.anchor === 'D1')?.supersededBy, ['D3', 'D5'], 'bare ids, in document order');
+  assert.deepEqual(log.find((d) => d.anchor === 'D3')?.supersededBy, ['D5']);
+  // Another document's path still goes through the cross-document map, named relative to it.
+  const next = ':::decision{#D9 supersedes=old.smd#D1} Elsewhere\n:::\n';
+  const both = decisionLog([{ path: 'docs/old.smd', text: old }, { path: 'docs/new.smd', text: next }]);
+  assert.deepEqual(both.find((d) => d.anchor === 'D1' && d.path === 'docs/old.smd')?.supersededBy, ['D3', 'D5', 'new.smd#D9']);
+  assert.equal(both.find((d) => d.anchor === 'D9')?.supersededBy, undefined, 'old.smd#D1 in new.smd is not new.smd#D1');
+});
+
 test('R53: the text line and the ADR index say "superseded by D7"', () => {
   const log = decisionLog([{ path: 'cache.smd', text: superseding }]);
   assert.equal(decisionLine(log[2]), 'cache.smd:8  2026-09-01  [superseded]  One shared cache  (superseded by D5, D7)  — Cache › Decisions');
