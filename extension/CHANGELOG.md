@@ -42,6 +42,7 @@
 - **Older `.smd` tools (4.0.0 and earlier) show the new blocks as plain boxes** with their title and a `container/unknown` warning, and show review blocks in every export.
 
 ### Fixed
+- **An `:::agent` block under a heading marked `{agent=skip}` no longer reaches section views.** `smd agent --section`, `smd read --section` and the MCP `read` tool with `sections` listed it under "Document-wide agent instructions", in plain, brief and `--constraints` views, although the section was excluded. Dangers in skipped sections were already left out. Selecting the skipped section itself still shows the block.
 - **A dependency within 5 hops is no longer cut when a longer path reaches it first.** The closure depth limit in `smd query --follow`, section views, task views and `mandatoryClosure` counts the fewest steps from the match, not the steps of the path the walk happens to take. Before, a block reached first through a long chain could have its own near dependencies reported as `depth` and left out, and the result was marked incomplete. A dependency's `depth` in `--json` and the library is now its fewest steps. Results without such a path are unchanged.
 
 ## 4.0.1 — 2026-11-07
