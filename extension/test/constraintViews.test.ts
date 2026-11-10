@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { agentView } from '../src/core';
+import { agentView, readSmd, type DocumentRead } from '../src/core';
+import { CLOSURE_LIMITS } from '../src/core/graph';
 import { readDocument } from '../src/readView';
 
 /**
@@ -251,9 +252,12 @@ test('R29: under a budget a section with an applying constraint stays, and a sec
   assert.match(r.text, /\[section omitted: ## Local rule, L\d+-L\d+, ≈\d+ tokens, holds constraint — /);
   assert.match(r.text, /doc149/);
   assert.match(r.text, /link149/);
-  // With its target gone too, the linked constraint may go.
+  // With its target unknown, the linked constraint is unplaced and stays, and the view says why (research contract,
+  // 2026-11-10). Before that decision it could be omitted, which let a mistyped target switch the rule off.
   const unlinked = agentView(doc.replace('applies-to=R1', 'applies-to=R7'), { maxTokens: 50 });
-  assert.ok(unlinked.budget?.omitted.some((o) => o.heading === 'Linked rule'));
+  assert.ok(!unlinked.budget?.omitted.some((o) => o.heading === 'Linked rule'));
+  assert.match(unlinked.text, /link149/);
+  assert.equal(unlinked.mandatory?.complete, false);
 });
 
 test('AF15: under a budget the section of a dependency of kept content stays', () => {
@@ -345,4 +349,213 @@ test('AC-C (AF17): an include the host denies grants nothing: its text is not sh
   assert.ok(r.provenance?.omissions.some((o) => o.kind === 'dependency' && o.lines[0] === 25));
   // Whole views report it too.
   assert.equal(agentView(ACC, { readFile: accRead }).mandatory?.complete, false);
+});
+
+// Constraints and dependencies bring each other in, in rounds (research contract "Scope and applicability", AF15).
+
+/** R1 under Work, R2 to Rn under Prerequisites, and rules C1 to Cn: Ck applies to Rk and depends on Rk+1. */
+const chain = (n: number) => [
+  '---', 'smd: 2', 'title: Chain', '---', '',
+  '## Work', '', ':::requirement{#R1} Do the work', 'R1_BODY', ':::', '',
+  '## Prerequisites', '',
+  ...Array.from({ length: n - 1 }, (_, i) => [`:::requirement{#R${i + 2}} Prerequisite ${i + 2}`, `R${i + 2}_BODY`, ':::', '']).flat(),
+  '## Rules', '',
+  ...Array.from({ length: n }, (_, i) => [`:::constraint{#C${i + 1} applies-to=R${i + 1}${i + 1 < n ? ` depends-on=R${i + 2}` : ''}} Rule ${i + 1}`, `C${i + 1}_BODY`, ':::', '']).flat(),
+].join('\n');
+const ids = (n: number, letter: string, from = 1) => Array.from({ length: n - from + 1 }, (_, i) => `${letter}${i + from}`);
+
+test('AF15: a rule on a dependency that another rule added applies too, however long the chain', () => {
+  for (const n of [3, 6]) {
+    const r = agentView(chain(n), { sections: ['Work'] });
+    assert.deepEqual(r.mandatory?.constraints.map((c) => c.id), ids(n, 'C'), `${n} rules`);
+    assert.deepEqual(r.mandatory?.dependencies.map((d) => d.id).sort(), ids(n, 'R', 2).sort(), `${n - 1} dependencies`);
+    assert.equal(r.mandatory?.complete, true);
+    for (const id of [...ids(n, 'C'), ...ids(n, 'R')]) assert.equal(count(r.text, `${id}_BODY`), 1, `${id} is shown once`);
+    // The head blocks keep their order: the rules, then the dependencies, then the section.
+    const at = (word: string) => r.text.indexOf(word);
+    assert.ok(at('Constraints that apply here:') < at(`C${n}_BODY`) && at(`C${n}_BODY`) < at('Dependencies of the selected content:'));
+    assert.ok(at('Dependencies of the selected content:') < at(`R${n}_BODY`) && at(`R${n}_BODY`) < at('## Work'));
+  }
+  // A read that follows edges carries the last rule as well, and repeats nothing.
+  const followed = readSmd(chain(3), { sections: ['Work'], follow: '*' });
+  assert.equal(count(followed.text, 'C3_BODY'), 1);
+  assert.equal(followed.mandatory?.complete, true);
+});
+
+test('AF15/AF20: a chain past the block limit is cut there, reported, and makes the view incomplete', () => {
+  const r = agentView(chain(CLOSURE_LIMITS.blocks + 3), { sections: ['Work'] });
+  assert.equal(r.mandatory?.dependencies.length, CLOSURE_LIMITS.blocks);
+  assert.equal(r.mandatory?.complete, false);
+  assert.ok(r.mandatory?.unsatisfied.some((u) => u.kind === 'limit'));
+  assert.match(r.text, /\[incomplete: 1 mandatory dependency is not satisfied\]/);
+});
+
+const BASE = [
+  '---', 'smd: 2', 'title: Base', '---', '',
+  '## Shared', '',
+  ':::requirement{#B1} Shared base', 'B1_BODY', ':::', '',
+  ':::requirement{#B2} Second base', 'B2_BODY', ':::', '',
+  '## Elsewhere', '',
+  ':::requirement{#B9} Unrelated base', 'B9_BODY', ':::', '',
+  '## Rules', '',
+  ':::constraint{#X1 applies-to=B1 depends-on=B2} Rule on the base', 'X1_BODY', ':::', '',
+  ':::constraint{#X2 applies-to=B2} Rule on the second base', 'X2_BODY', ':::', '',
+  ':::constraint{#X3 applies-to=B9} Rule on the unrelated base', 'X3_BODY', ':::', '',
+  '## Private {agent=skip}', '',
+  ':::constraint{#X4 applies-to=B1} Skipped rule', 'X4_BODY', ':::', '',
+  '## People', '',
+  '::::human', ':::constraint{#X5 applies-to=B1} Human rule', 'X5_BODY', ':::', '::::', '',
+].join('\n');
+const SPEC = [
+  '---', 'smd: 2', 'title: Spec', '---', '',
+  '## Work', '', ':::requirement{#R1 depends-on=base.smd#B1} Do the work', 'R1_BODY', ':::', '',
+  '## Rules', '',
+  ':::constraint{#C1 applies-to=base.smd#B1} Local rule on the base', 'C1_BODY', ':::', '',
+  ':::constraint{#C2 applies-to=base.smd#B9} Local rule on the unrelated base', 'C2_BODY', ':::', '',
+  '## Other', '', 'Other text.', '',
+].join('\n');
+const baseReader = (p: string): DocumentRead => (p === 'base.smd' ? { text: BASE } : { status: 'missing' });
+
+test('R19/AF15: a dependency read from another document brings the rules that name it, from that document and this one', () => {
+  const r = agentView(SPEC, { file: 'docs/spec.smd', sections: ['Work'], readDocument: baseReader });
+  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.file, c.applies]), [
+    ['C1', 'docs/spec.smd', 'applies-to'], ['X1', 'base.smd', 'applies-to'], ['X2', 'base.smd', 'applies-to'],
+  ]);
+  // X1 depends on B2, so B2 is a dependency, and X2 on B2 applies in turn.
+  assert.deepEqual(r.mandatory?.dependencies.map((d) => d.id).sort(), ['B1', 'B2']);
+  assert.equal(r.mandatory?.complete, true);
+  assert.match(r.text, /Constraints that apply here:\n<constraint id="C1"[^\n]*\nC1_BODY\n<\/constraint>\n<included file="base\.smd">\n<constraint id="X1"[^\n]*\nX1_BODY\n<\/constraint>\n<\/included>\n<included file="base\.smd">\n<constraint id="X2"[^\n]*\nX2_BODY\n<\/constraint>\n<\/included>\n\nDependencies of the selected content:/);
+  for (const body of ['C1_BODY', 'X1_BODY', 'X2_BODY', 'B1_BODY', 'B2_BODY']) assert.equal(count(r.text, body), 1, body);
+  // Rules on blocks the view did not read, and rules for people only, stay out.
+  assert.doesNotMatch(r.text, /C2_BODY|X3_BODY|X4_BODY|X5_BODY|B9_BODY/);
+});
+
+test('R19: a section that reads nothing from the other document carries none of its rules', () => {
+  const r = agentView(SPEC, { file: 'docs/spec.smd', sections: ['Other'], readDocument: baseReader });
+  assert.deepEqual(r.mandatory?.constraints ?? [], []);
+  assert.doesNotMatch(r.text, /X\d_BODY|C\d_BODY/);
+});
+
+// A dependency the view adds is content of the view: it brings the rules of its own section and, from another
+// document, that document's document-wide rules (research contract "Scope and applicability", decided 2026-11-10).
+
+const HOME = [
+  '---', 'smd: 2', 'title: Home', '---', '',
+  '## Work', '', ':::requirement{#R1 depends-on=R2} Do the work', 'R1_BODY', ':::', '',
+  '## Prerequisites {#prereqs}', '',
+  ':::requirement{#R2} Prerequisite', 'R2_BODY', ':::', '',
+  ':::constraint{#S1} Rule for the whole prerequisites section', 'S1_BODY', ':::', '',
+  '### Detail', '', 'Detail text.', '',
+  '## Rules', '',
+  ':::constraint{#S2 applies-to=prereqs} Rule naming the prerequisites heading', 'S2_BODY', ':::', '',
+  ':::constraint{#S3} Rule for the rules section only', 'S3_BODY', ':::', '',
+  '## Notes {agent=skip}', '',
+  ':::requirement{#R9} Hidden prerequisite', 'R9_BODY', ':::', '',
+  ':::constraint{#S9} Rule beside a hidden prerequisite', 'S9_BODY', ':::', '',
+  '## Other', '', ':::requirement{#R5 depends-on=R9} Needs the hidden one', 'R5_BODY', ':::', '',
+].join('\n');
+
+test('AF15 (2026-11-10): a dependency brings the section rules of the section it sits in, and rules on a heading above it', () => {
+  const r = agentView(HOME, { sections: ['Work'] });
+  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies]), [['S1', 'section'], ['S2', 'applies-to']]);
+  assert.deepEqual(r.mandatory?.dependencies.map((d) => d.id), ['R2']);
+  assert.equal(r.mandatory?.complete, true);
+  for (const body of ['S1_BODY', 'S2_BODY', 'R2_BODY']) assert.equal(count(r.text, body), 1, body);
+  // A section rule elsewhere stays out.
+  assert.doesNotMatch(r.text, /S3_BODY/);
+  // The selected section's own view is unchanged when it adds nothing.
+  assert.deepEqual(agentView(HOME, { sections: ['Rules'] }).mandatory?.constraints ?? [], []);
+});
+
+test('AF13/AF15 (2026-11-10): a dependency hidden from agents brings no rule of its section and leaves the view incomplete', () => {
+  const r = agentView(HOME, { sections: ['Other'] });
+  assert.doesNotMatch(r.text, /S9_BODY|R9_BODY/);
+  assert.equal(r.mandatory?.complete, false);
+  assert.ok(r.mandatory?.unsatisfied.some((u) => u.kind === 'hidden' && u.target === 'R9'));
+});
+
+const LIB = [
+  '---', 'smd: 2', 'title: Library', '---', '',
+  ':::constraint{#L0} Above the first heading', 'L0_BODY', ':::', '',
+  '## Shared', '',
+  ':::requirement{#B1} Shared base', 'B1_BODY', ':::', '',
+  ':::constraint{#L1} Rule for the shared section', 'L1_BODY', ':::', '',
+  '## Policy', '',
+  ':::constraint{#L2 scope=document} Library-wide rule', 'L2_BODY', ':::', '',
+  ':::constraint{#L3} Rule for the policy section only', 'L3_BODY', ':::', '',
+  '## Private {agent=skip}', '',
+  ':::constraint{#L4 scope=document} Skipped library-wide rule', 'L4_BODY', ':::', '',
+].join('\n');
+const USER = [
+  '---', 'smd: 2', 'title: User', '---', '',
+  '## Work', '', ':::requirement{#R1 depends-on=lib.smd#B1} Do the work', 'R1_BODY', ':::', '',
+  '## Other', '', 'Other text.', '',
+].join('\n');
+const libReader = (p: string): DocumentRead => (p === 'lib.smd' ? { text: LIB } : { status: 'missing' });
+
+test('R19/AF15 (2026-11-10): a dependency from another document brings its section rules and that document\'s document-wide rules', () => {
+  const r = agentView(USER, { file: 'user.smd', sections: ['Work'], readDocument: libReader });
+  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.file, c.applies]), [
+    ['L0', 'lib.smd', 'document'], ['L1', 'lib.smd', 'section'], ['L2', 'lib.smd', 'document'],
+  ]);
+  for (const body of ['L0_BODY', 'L1_BODY', 'L2_BODY', 'B1_BODY']) assert.equal(count(r.text, body), 1, body);
+  assert.doesNotMatch(r.text, /L3_BODY|L4_BODY/);
+  assert.equal(r.mandatory?.complete, true);
+  // A section that reads nothing from the library carries none of its rules.
+  assert.deepEqual(agentView(USER, { file: 'user.smd', sections: ['Other'], readDocument: libReader }).mandatory?.constraints ?? [], []);
+});
+
+// A constraint whose applies-to names nothing is unplaced: shown in every read, and every read is incomplete until an
+// author fixes the target (research contract, decided 2026-11-10, option A).
+
+const TYPO = [
+  '---', 'smd: 2', 'title: Typo', '---', '',
+  '## Work', '', ':::requirement{#R1} Do the work', 'R1_BODY', ':::', '',
+  '## Rules', '',
+  ':::constraint{#C9 applies-to=R99} Rule with a mistyped target', 'C9_BODY', ':::', '',
+  ':::constraint{#C8 applies-to=R1,R98 level=should} Rule with one good and one bad target', 'C8_BODY', ':::', '',
+  '## Other', '', 'Other text.', '',
+  '## Notes {agent=skip}', '',
+  ':::constraint{#C7 applies-to=R97} Skipped rule with a bad target', 'C7_BODY', ':::', '',
+].join('\n');
+
+test('NV-06: a constraint whose applies-to names nothing is shown in every section read and makes it incomplete', () => {
+  for (const section of ['Work', 'Other']) {
+    const r = agentView(TYPO, { sections: [section], file: 'typo.smd' });
+    assert.equal(count(r.text, 'C9_BODY'), 1, `${section}: C9 shown once`);
+    assert.equal(count(r.text, 'C8_BODY'), 1, `${section}: C8 shown once`);
+    assert.equal(r.mandatory?.complete, false, section);
+    assert.match(r.text, /- C9 applies to R99 \[L14\]: no block has this id, so the constraint is shown in every read/);
+    assert.match(r.text, /- C8 applies to R98 \[L18\]: no block has this id, so the constraint is shown in every read/);
+    // A rule for people only stays out, typo or not.
+    assert.doesNotMatch(r.text, /C7_BODY|R97/);
+  }
+  const work = agentView(TYPO, { sections: ['Work'], file: 'typo.smd' });
+  // C8 also names R1, which Work shows, so it applies for that reason. C9 applies only because its target is unknown.
+  assert.deepEqual(work.mandatory?.constraints.map((c) => [c.id, c.applies]), [['C9', 'unplaced'], ['C8', 'applies-to']]);
+  assert.deepEqual(agentView(TYPO, { sections: ['Other'] }).mandatory?.constraints.map((c) => [c.id, c.applies]), [['C9', 'unplaced'], ['C8', 'unplaced']]);
+  assert.deepEqual(work.mandatory?.unsatisfied.map((u) => [u.kind, u.via, u.target]), [['unresolved-target', 'C9', 'R99'], ['unresolved-target', 'C8', 'R98']]);
+});
+
+test('NV-06: a whole view reports an unresolved target, and a budget never omits the section that holds the rule', () => {
+  const whole = agentView(TYPO, { file: 'typo.smd' });
+  assert.equal(count(whole.text, 'C9_BODY'), 1);
+  assert.equal(whole.mandatory?.complete, false);
+  assert.match(whole.text, /- C9 applies to R99 \[L14\]/);
+  const tight = agentView(TYPO, { file: 'typo.smd', maxTokens: 1 });
+  assert.match(tight.text, /C9_BODY/);
+  assert.match(tight.text, /C8_BODY/);
+});
+
+test('NV-06: a target in another document that cannot be read is unresolved, and a resolved one is not', () => {
+  const doc = TYPO.replace('applies-to=R99', 'applies-to=gone.smd#X1');
+  const missing = agentView(doc, { file: 'typo.smd', sections: ['Other'], readDocument: () => ({ status: 'missing' }) });
+  assert.match(missing.text, /- C9 applies to gone\.smd#X1 \[L14\]: no block has this id, so the constraint is shown in every read/);
+  const denied = agentView(doc, { file: 'typo.smd', sections: ['Other'], readDocument: () => ({ status: 'denied' }) });
+  assert.match(denied.text, /- C9 applies to gone\.smd#X1 \[L14\]: outside what the host allows, so the constraint is shown in every read/);
+  // Once the target exists, the rule is placed again: it leaves reads that do not show its target.
+  const fixed = TYPO.replace('applies-to=R99', 'applies-to=R1').replace('applies-to=R1,R98', 'applies-to=R1');
+  const other = agentView(fixed, { sections: ['Other'] });
+  assert.doesNotMatch(other.text, /C9_BODY|C8_BODY/);
+  assert.equal(other.mandatory?.complete, true);
 });
