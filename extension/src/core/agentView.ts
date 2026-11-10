@@ -429,7 +429,11 @@ function pickedText(scope: ViewScope, options: TransformOptions, picks: Mandator
  * before the dangers (semantic tags D6). A whole-document view shows them in place.
  */
 function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace): string {
-  const text = pickedText(scope, options, scope.mandatory!.applying, trace);
+  const plan = scope.mandatory!;
+  const parts = [pickedText(scope, options, plan.applying, trace)];
+  // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
+  for (const extra of plan.applyingExtra) parts.push(`<included file="${extra.file}">\n${extra.text.trim()}\n</included>`);
+  const text = parts.filter(Boolean).join('\n');
   return text ? `Constraints that apply here:\n${text}\n\n` : '';
 }
 
