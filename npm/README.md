@@ -66,7 +66,7 @@ The package also installs **`smd-language-server`**, the same as `smd lsp`: poin
 ```ts
 import {
   renderSmd, renderPage, specVersion, LATEST_SPEC, validateSmd, applyFixes, agentView, outline, readSmd,
-  smdToMarkdown, smdToConfluence, smdToNotion, notionRequests, smdToPandocHtml, markdownToSmd, getDocumentInfo, extractTasks,
+  smdToMarkdown, smdToConfluence, smdToNotion, notionRequests, smdToPandocHtml, markdownToSmd, madrToSmd, specKitTasksToSmd, getDocumentInfo, extractTasks,
   querySmd, indexEntry, smdIndex, diffSmd, formatSmd,
   decisionLog, decisionLogMarkdown, statusChanges, statusReportMarkdown, statusReport,
   riskRegister, riskRegisterText, renderRiskPage, buildSite,
@@ -313,6 +313,8 @@ smdToMarkdown(source);                    // GitHub-flavored Markdown
 smdToConfluence(source, { readFile });    // Confluence storage format (XHTML with built-in macros); raw HTML reduced to text
 notionRequests(smdToNotion(source));      // Notion blocks, cut into PATCH /v1/blocks/{id}/children bodies (within Notion's limits)
 markdownToSmd(markdown, 'Fallback title'); // add front matter, GitHub alerts → callouts
+madrToSmd(adr, '0005-use-postgres');      // { text, warnings }: a MADR record as a :::decision (smd from-md --from madr)
+specKitTasksToSmd(tasks, 'tasks');        // { text, warnings }: a Spec Kit tasks.md with {#T001} ids and :depends
 smdToPandocHtml(source);                  // HTML for `pandoc -f html -t docx` (what `smd export --to docx` converts; no docx writer here)
 formatSmd(source);                        // the `smd fmt` layout: fence colons, attribute order, tables, blank lines
 

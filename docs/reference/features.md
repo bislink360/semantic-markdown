@@ -86,6 +86,7 @@ The short version of this guide; each item is described in full in the sections 
 | `… --to docx [--engine builtin|pandoc] [--reference-doc house.docx]` | Word document (Word, LibreOffice, Google Docs) with real headings, lists, tables, footnotes and links, written by smd with nothing to install, or converted by [Pandoc](https://pandoc.org/installing.html) when you have it (Word equations too); also **Export to Word (.docx)** in VS Code and the JetBrains plugin |
 | `… --to confluence` · `notion` | A page for your wiki: Confluence storage format (callouts, code, expands, tasks and statuses as built-in macros) or Notion API blocks cut into request bodies. It only writes the file: no network, no credentials ([mapping](#confluence-and-notion-smd-export)) |
 | `smd from-md` · `meta` | Upgrade Markdown to `.smd`; a document's full JSON summary |
+| `smd from-md <file> --from madr\|spec-kit` | Import a MADR decision record as a `:::decision`, or a GitHub Spec Kit `tasks.md` with task ids and `:depends`, keeping every line of text ([details](#import-from-madr-and-spec-kit-smd-from-md---from)) |
 | `smd build <dir> --out site` | Static docs site: a page per doc, sidebar, breadcrumbs, search, backlinks and a task/decision/risk dashboard |
 | `smd mcp [--root <dir>] [--allow-write] [--allow-suggest]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision`, `--allow-suggest` adds `suggest` ([setup](agents.md#mcp-server)) |
 | `smd lsp --stdio` | Language server for Neovim, Helix, Zed and other LSP editors: diagnostics, quick fixes, outline, hover, completion, go to definition, formatting (also `smd-language-server`; [setup](../guides/editors.md)) |
@@ -1326,9 +1327,34 @@ Every export of a document is one command, **`smd export <file> --to <format> [-
 | **Export to Confluence (Storage Format)** / `smd export --to confluence` | A Confluence page body: callouts, code, expands, task lists and statuses as Confluence's own macros (below) |
 | **Export to Notion (JSON)** / `smd export --to notion` | Notion API blocks, cut into the request bodies the API takes (below) |
 | **Convert Markdown File to .smd** / `smd from-md` | Adds front matter (`smd: 2` since 2.0) and turns GitHub alerts into callouts |
+| `smd from-md --from madr` · `--from spec-kit` | The same, for a file another tool wrote: a MADR decision record or a Spec Kit `tasks.md` (below) |
 | `smd build <dir> --out site` | A static docs site: every document as a page, with navigation, search, backlinks and a dashboard |
 
 **Older names.** The commands before 2.0 still work, with the same options, output and exit codes: `smd render` is `smd export --to html`, `smd to-md` is `--to md`, `smd pdf` is `--to pdf` and `smd docx` is `--to docx`. They are deprecated and may be removed in a later major release ([spec §11](spec.md#11-deprecated)). `smd build` stays its own command: it writes a folder from many documents, not one file.
+
+### Import from MADR and Spec Kit: `smd from-md --from`
+
+Decision records and task lists that other tools wrote can become `.smd` documents with one command, one file at a time. Each import converts the prose as `smd from-md` does, keeps every line of text it doesn't map, and prints a warning on stderr for anything it kept as text instead of mapping. The exit code stays 0.
+
+```bash
+smd from-md docs/decisions/0005-use-postgres.md --from madr -o docs/decisions/0005-use-postgres.smd
+smd from-md specs/001-photo-albums/tasks.md --from spec-kit -o specs/001-photo-albums/tasks.smd
+```
+
+**`--from madr`** reads a [MADR](https://adr.github.io/madr/) record: MADR 3 and 4 front matter (`status`, `date`, `decision-makers` or `deciders`) or MADR 2's bullets after the title (`* Status:`, `* Deciders:`, `* Date:`).
+
+- The record's `# title` becomes the document's `title` and the title of a `:::decision` block. The block wraps the text of the "Decision Outcome" section (`Chosen option: …`) up to its first subsection, or comes first in the body when there is no such section.
+- `status` (`proposed`, `accepted`, `rejected`, `deprecated` or `superseded`, in any case) becomes the decision's `status`, the date its `date` when it is `YYYY-MM-DD`, and the decision makers its `owner` and the document's `owners`. The document's `status` follows the decision's: `approved` for accepted, `review` for proposed, `deprecated` for deprecated and superseded, `archived` for rejected, `draft` without one. It gets `tags: [adr]` and `updated` from the date (else today, or `--today`).
+- A status with more text keeps it as the decision's first line, so `superseded by [ADR-0005](0005-use-kafka.md)` gives `status=superseded` and the line "Superseded by [ADR-0005](0005-use-kafka.md)". `superseded-by` is never written: the successor says `supersedes=` ([spec §3.9](spec.md#39-semantic-tags-requirements-constraints-acceptance-assumptions-evidence)), which you add when both records are `.smd`.
+- An unknown status is kept as written (a `Status: …` line in the decision, or MADR 2's bullet where it was), the decision gets no status, and a warning says so. A date that isn't `YYYY-MM-DD`, MADR's `consulted` and `informed`, and other keys stay in the front matter as written.
+
+**`--from spec-kit`** reads a [GitHub Spec Kit](https://github.com/github/spec-kit) `tasks.md`. Every line stays as written, including the phase headings, `[P]` markers, story labels such as `[US1]`, file paths and checked boxes (`[X]`), so Spec Kit's own commands still find their tasks.
+
+- A task whose text starts with an id such as `T001` gets that id as `{#T001}` at the end of its line, in the same case, so `smd tasks`, `smd query "task[id=T001]"` and links can name it.
+- A note in a task that it depends on other tasks of the file, as a plain list of ids such as `(depends on T012, T013)` or `Depends on: T014`, also gets `:depends[T012,T013]`, so `smd tasks` shows it as blocked until they are checked and `--order deps` lists it after them. A note that names an id no other task has, a range (`T012-T014`) or more words is left as text, with a warning. So is a second task with the same id, which gets no `{#id}`.
+- The `# Tasks: …` heading becomes the `title`, with `status: draft` and `updated`; Spec Kit's `description` stays in the front matter. The phase-level "Dependencies & Execution Order" section stays prose.
+
+The library exports the same conversions as `madrToSmd(text, fallbackTitle, { today })` and `specKitTasksToSmd(…)`, each returning `{ text, warnings }`.
 
 ### Publish a docs site: `smd build`
 
@@ -1561,6 +1587,7 @@ smd export <file> --to confluence|notion [-o <file>]   Confluence storage format
 smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--today YYYY-MM-DD]
                  static docs site: pages, sidebar, search, backlinks, dashboard (section 16)
 smd from-md <file.md> [-o out.smd]
+smd from-md <file.md> --from madr|spec-kit [-o out.smd] [--today YYYY-MM-DD]   import a MADR decision record or a Spec Kit tasks.md
 smd init <file> [--template <name>] [--title "…"]
 smd init --agent claude|cursor|copilot|agents [--dir <project>]   set up an agent in a project: skills or rules,
                  .smd/smd.cjs, the MCP server config and the AGENTS.md snippet (re-run to update; MCP configs are merged)

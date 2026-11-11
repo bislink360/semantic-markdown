@@ -26,6 +26,7 @@ npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--m
 npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share 0.15 | --count 50] [--seed 1]
 npm run eval -- judge-agreement <judge-packets.jsonl> --judged <files> --human <files> [--out <dir>] [--json]
 npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
+npm run eval -- outline-use <run dir> [--out <dir>] [--model <label>] [--json]
 ```
 
 - `validate` exits with 1 when there are errors. Warnings and the similarity number do not fail it.
@@ -38,6 +39,7 @@ npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model
 - `score` writes `outcomes.json`, `outcomes.csv`, `summary.json`, `summary.md`, `judge-packets.jsonl` and `judge-key.jsonl`. The summary pools every answer of a condition, so score one model at a time with `--model <label>` (it keeps records whose `model` is the label or starts with `<label>:`).
 - `power` simulates the power of the correctness comparison for a grid of sample sizes (see [Sample size and power](#sample-size-and-power)). With `--out` it writes `power.json` and `power.md`.
 - `tokens` reads a run folder and writes the token accounting (see [Token accounting](#token-accounting)). It exits with 1 when the folder holds no transcripts.
+- `outline-use` reads a run folder's S3 transcripts and logs, per episode, each section the agent asked for after an outline, the cost the outline showed for it and where that cost ranks among the outline's sections, whether the agent passed `maxTokens`, and whether its messages mention tokens or cost. It writes `outline-use/episodes.jsonl`, `outline-use.json` and `outline-use.md`, and exits with 1 when the folder holds no S3 transcripts. It is descriptive. Agents choose sections for relevance, so it shows what they chose, not whether the costs caused it (Study 1, "Outline cost use").
 - `judge`, `sample` and `judge-agreement` score qualification answers with a model judge and check it against people (see [Model judge](#model-judge)). `judge` exits with 1 when a packet failed.
 
 `--tokenizer` needs the optional `js-tiktoken` package. Without it every count is an estimate (characters / 4).
