@@ -55,10 +55,11 @@ interface MadrStatus { status?: string; note?: string }
  */
 function madrStatus(raw: string): MadrStatus {
   const text = raw.trim();
-  const m = /^([a-z]+)\b\s*(.*)$/i.exec(text);
-  const word = m?.[1].toLowerCase();
+  const m = /^([a-z]+)(.*)$/i.exec(text);
+  // The word must end there: `accepted2` or `accepted_x` is not the status `accepted`.
+  const word = m && !/^\w/.test(m[2]) ? m[1].toLowerCase() : undefined;
   if (!m || !word || !DECISION_STATUSES.includes(word)) return { note: `Status: ${text}` };
-  return m[2] ? { status: word, note: text[0].toUpperCase() + text.slice(1) } : { status: word };
+  return m[2].trim() ? { status: word, note: text[0].toUpperCase() + text.slice(1) } : { status: word };
 }
 
 /** A list of people from a front matter value (`Alice, Bob` or a YAML list), as written. */
@@ -76,7 +77,14 @@ function scalar(value: unknown): string | undefined {
 interface MadrMeta { status?: MadrStatus; statusText?: string; date?: string; deciders: string[] }
 
 /** MADR 2's header bullets: `* Status: accepted`, `* Deciders: Alice, Bob`, `* Date: 2020-01-01`. */
-const MADR2_BULLET = /^\s{0,3}[*+-]\s+(status|deciders|decision-makers|date)\s*:\s*(.*?)\s*(?:<!--.*?-->)?\s*$/i;
+const MADR2_BULLET = /^\s{0,3}[*+-]\s+(status|deciders|decision-makers|date)\s*:(.*)$/i;
+
+/** A MADR 2 bullet's value, trimmed and without a trailing `<!-- … -->` comment. */
+function bulletValue(raw: string): string {
+  const value = raw.trim();
+  const open = value.endsWith('-->') ? value.indexOf('<!--') : -1;
+  return open >= 0 ? value.slice(0, open).trim() : value;
+}
 
 /**
  * Convert a MADR decision record (MADR 2, 3 or 4) to `.smd`. The record's H1 is the title of the document and of
@@ -155,8 +163,9 @@ function madr2Header(lines: string[], meta: MadrMeta, warnings: string[]): strin
   while (i < lines.length && !lines[i].trim()) i++;
   const drop = new Set<number>();
   for (let j = i; j < lines.length && MADR2_BULLET.test(lines[j]); j++) {
-    const [, key, value] = MADR2_BULLET.exec(lines[j]) ?? [];
+    const [, key, raw] = MADR2_BULLET.exec(lines[j]) ?? [];
     const name = key.toLowerCase();
+    const value = bulletValue(raw ?? '');
     if (!value) continue;
     if (name === 'status' && !meta.statusText) {
       meta.statusText = value;
@@ -220,8 +229,52 @@ function bodyHeadings(lines: readonly string[]): Array<{ level: number; text: st
 
 /** A Spec Kit task id at the start of a task's text: `T001`. */
 const SPEC_KIT_ID = /^(T\d+)\b/;
-/** "depends on T012, T013" in a task's text (also "depends on: …", "and", "&"), and what follows the list. */
-const DEPENDS_NOTE = /\bdepends\s+on\s*:?\s+(T\d+(?:\s*(?:,\s*(?:and\s+)?|and\s+|&\s*)T\d+)*)(.?)/i;
+/** Where a "depends on" note can start. */
+const DEPENDS_HEAD = /\bdepends\s+on\b/gi;
+
+/**
+ * "depends on T012, T013" in a task's text (also "depends on: …", "and", "&"): where the note starts, the ids it lists,
+ * and the character right after the list ('' at the end of the line). A scanner rather than one regular expression, so
+ * a long line costs linear time.
+ */
+export function dependsNote(text: string): { index: number; ids: string[]; next: string } | undefined {
+  const isSpace = (c: string | undefined) => c !== undefined && /\s/.test(c);
+  for (const head of text.matchAll(DEPENDS_HEAD)) {
+    let i = head.index + head[0].length;
+    const skip = () => { const from = i; while (isSpace(text[i])) i++; return i > from; };
+    const spaced = skip();
+    if (text[i] === ':') { i++; if (!skip()) continue; } else if (!spaced) continue;
+    const id = () => { const m = /^T\d+/i.exec(text.slice(i, i + 32)); if (m) i += m[0].length; return m?.[0]; };
+    const first = id();
+    if (!first) continue;
+    const ids = [first];
+    for (;;) {
+      const before = i;
+      skip();
+      let joined = false;
+      if (text[i] === ',') {
+        i++;
+        skip();
+        const and = /^and\s+/i.exec(text.slice(i, i + 16));
+        if (and) i += and[0].length;
+        joined = true;
+      } else if (text[i] === '&') {
+        i++;
+        skip();
+        joined = true;
+      } else {
+        const and = /^and\s+/i.exec(text.slice(i, i + 16));
+        if (and) { i += and[0].length; joined = true; }
+      }
+      const next = joined ? id() : undefined;
+      if (!next) { i = before; break; }
+      ids.push(next);
+    }
+    const after = text[i];
+    return { index: head.index, ids, next: after === undefined || after === '\n' || after === '\r' ? '' : after };
+  }
+  return undefined;
+}
 
 /**
  * Convert a GitHub Spec Kit `tasks.md` to `.smd`. Every line stays as written; each task whose text starts with an
@@ -266,11 +319,11 @@ export function specKitTasksToSmd(md: string, fallbackTitle: string, options: Im
 
 /** The task ids a task's "depends on" note names, when it is a plain list of tasks of the file; else undefined. */
 function taskDepends(id: string, text: string, tasks: ReadonlyMap<string, number>, warnings: string[]): string[] | undefined {
-  const m = DEPENDS_NOTE.exec(text);
+  const m = dependsNote(text);
   if (!m) return undefined;
-  const ids = m[1].split(/\s*(?:,|&|\band\b)\s*/i).map((s) => s.trim()).filter(Boolean);
+  const ids = m.ids;
   // A list ends the note: a range (T012-T015) or more words after it leave what it means open.
-  if (m[2] && !/[).;]/.test(m[2])) {
+  if (m.next && !/[).;]/.test(m.next)) {
     const note = text.slice(m.index).trim();
     warnings.push(`task ${id}: "${note.length > 60 ? `${note.slice(0, 59)}…` : note}" is not a plain list of task ids, kept as text.`);
     return undefined;
@@ -315,10 +368,10 @@ function sourceParts(md: string, warnings: string[]): SourceParts {
 function takeTitle(lines: string[]): { title?: string; lines: string[] } {
   const first = bodyHeadings(lines)[0];
   if (first?.level !== 1) return { lines };
-  const atx = /^\s{0,3}#\s+(.*?)(?:\s+#+)?\s*$/.exec(lines[first.line]);
+  const atx = /^\s{0,3}#\s+(.*)$/.exec(lines[first.line]);
   const setext = !atx && /^\s{0,3}=+\s*$/.test(lines[first.line + 1] ?? '');
   if (!atx && !setext) return { lines };
-  const title = (atx ? atx[1] : lines[first.line]).trim();
+  const title = atx ? atxText(atx[1]) : lines[first.line].trim();
   const rest = [...lines.slice(0, first.line), ...lines.slice(first.line + (setext ? 2 : 1))];
   let i = first.line;
   while (i < rest.length && !rest[i].trim()) rest.splice(i, 1);
@@ -327,12 +380,20 @@ function takeTitle(lines: string[]): { title?: string; lines: string[] } {
   return { title: title || undefined, lines: rest };
 }
 
+/** An ATX heading's text without its optional closing `#` sequence, which needs a space before it. */
+function atxText(raw: string): string {
+  const text = raw.trimEnd();
+  let end = text.length;
+  while (end > 0 && text[end - 1] === '#') end--;
+  return (end < text.length && end > 0 && /\s/.test(text[end - 1]) ? text.slice(0, end) : text).trim();
+}
+
 /** The source's front matter lines without the keys in `drop`, each with its nested lines. */
 function keptFrontMatter(lines: readonly string[], drop: ReadonlySet<string>): string[] {
   const kept: string[] = [];
   let skipping = false;
   for (const line of lines) {
-    const key = /^([^\s#:][^:]*?)\s*:(?:\s|$)/.exec(line)?.[1];
+    const key = /^([^\s#:][^:]*):(?:\s|$)/.exec(line)?.[1]?.trimEnd();
     if (key !== undefined) skipping = drop.has(key.replace(/^["']|["']$/g, ''));
     // Indented lines and list items at the left edge (`key:` then `- a`) belong to the key above; a comment doesn't.
     else if (!/^\s|^-(?:\s|$)/.test(line) && line.trim()) skipping = false;

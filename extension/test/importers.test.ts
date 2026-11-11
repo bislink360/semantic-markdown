@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import {
   decisionLog, extractTasks, IMPORT_FORMATS, madrToSmd, parseFrontMatter, specKitTasksToSmd, validateSmd, type ImportResult,
 } from '../src/core';
+import { dependsNote } from '../src/core/importers';
 
 const today = '2026-11-10';
 
@@ -444,4 +445,24 @@ test('CLI: smd from-md --from madr|spec-kit writes the import, warnings on stder
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('the dependency-note scanner reads what the earlier regular expression read, in linear time', () => {
+  // The expression the scanner replaced, kept here as the reference for its behaviour.
+  const OLD = /\bdepends\s+on\s*:?\s+(T\d+(?:\s*(?:,\s*(?:and\s+)?|and\s+|&\s*)T\d+)*)(.?)/i;
+  const old = (text: string) => {
+    const m = OLD.exec(text);
+    return m ? { index: m.index, ids: m[1].split(/\s*(?:,|&|\band\b)\s*/i).map((s) => s.trim()).filter(Boolean), next: m[2] } : undefined;
+  };
+  const cases = [
+    'Add model (depends on T001)', 'Wire API (depends on T001, T002)', 'X Depends on: T014', 'x depends on T1 and T2 and T3.',
+    'x depends on T1, and T2; then', 'x depends on T1 & T2', 'x depends on T1-T3', 'x depends on T1 and then more', 'x depends on:T1',
+    'x depends onto T1', 'x depends on', 'x depends on nothing, then depends on T7)', 'x depends on t5', 'x depends on T1,T2,',
+    'x depends on T1 , and', 'x depends   on  :   T9 ', 'no note here', 'x depends on T1\nnext line',
+  ];
+  for (const text of cases) assert.deepEqual(dependsNote(text), old(text), text);
+  const long = `x depends on T1${', T2'.repeat(20000)} and more`;
+  const started = Date.now();
+  assert.equal(dependsNote(long)?.ids.length, 20001);
+  assert.ok(Date.now() - started < 1000, 'a long note stays fast');
 });
