@@ -107,9 +107,7 @@ function isBalanced(lines: string[], spec: SpecVersion): boolean {
   return !fence && open.length === 0;
 }
 
-// ---------------------------------------------------------------------------
 // Blockquote callouts → :::callout
-// ---------------------------------------------------------------------------
 
 /** Common bold labels; GitHub alerts map as `smd from-md` and rendering map them (GITHUB_ALERTS). */
 const LABELS: Record<string, string> = {

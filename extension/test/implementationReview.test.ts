@@ -16,9 +16,7 @@ import { CALL, Reader, runRecord } from './bench/netTokens';
 
 const count = (text: string, word: string) => text.split(word).length - 1;
 
-// ---------------------------------------------------------------------------
 // C01: :::agent blocks nested in :::details survive brief, budgeted and section views.
-// ---------------------------------------------------------------------------
 
 const nested = [
   '---', 'smd: 2', 'title: Nested', '---', '',
@@ -68,9 +66,7 @@ test('C01: :::human blocks still drop the :::agent blocks in them by default', (
   assert.doesNotMatch(agentView(doc, { brief: true }).text, /HUMAN_ONLY/);
 });
 
-// ---------------------------------------------------------------------------
 // C09: exact section selection.
-// ---------------------------------------------------------------------------
 
 const apiDoc = ['---', 'smd: 2', 'title: A', '---', '', '## API', '', 'Short.', '', '## API details', '', 'Long.', '', '## Café', '', 'Coffee.', ''].join('\n');
 
@@ -87,9 +83,7 @@ test('C09: partial matching stays the default; --exact selects the id or whole t
   assert.equal(agentView(apiDoc).resolvedSections, undefined, 'only when sections are requested');
 });
 
-// ---------------------------------------------------------------------------
 // C06: routing on the tokenizer's count; MCP read takes maxTokens.
-// ---------------------------------------------------------------------------
 
 test('C06: readDocument routes on the tokenizer count when one is given, and says so', () => {
   const doc = '# Small\n\nShort text.\n';
@@ -130,9 +124,7 @@ test('C06/C09: smd read rejects an unknown tokenizer; read and agent take --exac
   }
 });
 
-// ---------------------------------------------------------------------------
 // C07: one containment check for the CLI and MCP readers.
-// ---------------------------------------------------------------------------
 
 test('C07: isInside compares whole path segments', () => {
   assert.ok(isInside(join(root, 'a'), join(root, 'a', 'b.txt')));
@@ -165,9 +157,7 @@ test('C07: the reader refuses links that lead outside its roots', (t) => {
   assert.equal(mcpRoot.reader(join(project, 'doc.smd'))('link/secret.txt'), undefined, 'and the MCP reader agrees');
 });
 
-// ---------------------------------------------------------------------------
 // C08: guarded writes.
-// ---------------------------------------------------------------------------
 
 const plan = ['---', 'smd: 2', 'title: Plan', 'status: draft', '---', '', '## Tasks', '', '- [ ] Ship it', ''].join('\n');
 
@@ -212,9 +202,7 @@ test('C08: replaceFile refuses a file that changed while the tool ran and leaves
   assert.deepEqual(readdirSync(root).filter((f) => f.endsWith('.tmp')), []);
 });
 
-// ---------------------------------------------------------------------------
 // C02: the benchmark reads files where they are, with the fixed date, and reports what smd read showed.
-// ---------------------------------------------------------------------------
 
 test('C02: the benchmark reader resolves relative includes and uses the fixed date', () => {
   const dir = join(root, 'bench');
@@ -282,9 +270,7 @@ test('C02: the benchmark rejects a --reader value other than cli or in-process',
   assert.equal(res.stdout, '', 'no report');
 });
 
-// ---------------------------------------------------------------------------
 // C01: the MCP read tool keeps a nested :::agent block once.
-// ---------------------------------------------------------------------------
 
 test('C01: MCP read keeps a :::agent block nested in :::details once, brief and with sections', async () => {
   writeFileSync(join(root, 'nested.smd'), nested);
@@ -303,9 +289,7 @@ test('C01: MCP read keeps a :::agent block nested in :::details once, brief and 
   }
 });
 
-// ---------------------------------------------------------------------------
 // C04: trust wording and constraints outside the selected sections.
-// ---------------------------------------------------------------------------
 
 const repo = join(__dirname, '..', '..');
 
@@ -369,9 +353,7 @@ test('C04: smd agent --section --constraints lists the constraints elsewhere; wi
   assert.equal(out.stdout, agentView(conflicting, { sections: ['Scope'], constraints: true, file }).text, 'the CLI prints the library view');
 });
 
-// ---------------------------------------------------------------------------
 // C05: smd agent and smd read --provenance write the manifest and leave stdout alone.
-// ---------------------------------------------------------------------------
 
 test('C05: --provenance writes a smd-projection/1 manifest and leaves stdout unchanged', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const dir = join(root, 'provenance');
@@ -398,9 +380,7 @@ test('C05: --provenance writes a smd-projection/1 manifest and leaves stdout unc
   assert.notEqual(missing.status, 0, 'a manifest needs a file name');
 });
 
-// ---------------------------------------------------------------------------
 // C08: the write tools refuse a change that adds a Mermaid syntax error.
-// ---------------------------------------------------------------------------
 
 /** Runs `smd mcp --allow-write` in `dir` with these tool calls and returns each call's result. */
 function mcpCalls(dir: string, calls: Array<{ name: string; arguments: Record<string, unknown> }>) {
@@ -433,9 +413,7 @@ test('C08: add_decision refuses a change that adds a Mermaid syntax error and wr
   assert.match(readFileSync(file, 'utf8'), /:::decision[^\n]* Valid diagram[\s\S]*A --> B/);
 });
 
-// ---------------------------------------------------------------------------
 // C09: exact selection with duplicate titles, punctuation and custom ids.
-// ---------------------------------------------------------------------------
 
 const headed = [
   '---', 'smd: 2', 'title: Headings', '---', '',

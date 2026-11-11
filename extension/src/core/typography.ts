@@ -65,9 +65,7 @@ export function addTextRules(md: MarkdownIt): void {
   });
 }
 
-// ---------------------------------------------------------------------------
 // GFM autolink literals
-// ---------------------------------------------------------------------------
 
 /** One GFM linkifier per linkify-it class: a host's own copy of linkify-it gets one of its own. */
 const GFM = new WeakMap<object, Linkify>();

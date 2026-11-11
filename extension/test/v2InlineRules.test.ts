@@ -31,9 +31,7 @@ const agent = (text: string) => agentView(text, { today: TODAY, lineRefs: false 
 const body = (markdown: string) => markdown.split('---\n').slice(2).join('---\n').trim();
 const corpus = (name: string) => readFileSync(join(__dirname, 'compat', 'corpus', name), 'utf8').replaceAll('\r\n', '\n');
 
-// ---------------------------------------------------------------------------
 // Proposal 5: a heading's trailing {word} or {} is text
-// ---------------------------------------------------------------------------
 
 test('headings: spec v2 reads an empty {} or a bare {word} as text; v1 as an attribute list', () => {
   for (const [line, v1, v2] of [
@@ -80,9 +78,7 @@ test('headings: every reader of a spec v2 document keeps {word} as heading text,
   assert.equal(segmentSmd(text).length, segmentSmd(v1).length);
 });
 
-// ---------------------------------------------------------------------------
 // Proposal 6: \\ in quoted values
-// ---------------------------------------------------------------------------
 
 test('escapes: in spec v2 \\\\ is one backslash and a value cannot end in a single one; v1 keeps 1.10\'s reading', () => {
   const src = String.raw`p="C:\docs\\" q="\\\\server\share" r="a\b" s='it\'s \\'`;
@@ -148,9 +144,7 @@ test('escapes: rendering, validation, the agent view and to-md read v2 values', 
   assert.deepEqual(codes(old.replace('smd: 2', 'smd: 1')), []);
 });
 
-// ---------------------------------------------------------------------------
 // Proposals 7b and 11: generic directives, names in any case
-// ---------------------------------------------------------------------------
 
 test('directives: spec v2 renders an unknown name\'s content in a smd-directive span, styled as a span; v1 keeps the text', () => {
   const text = doc('Read :abbr[**HTML**]{color=blue .pill #ab}, :sep{.wide} and :x[1].');
@@ -221,9 +215,7 @@ test('directives: the markdown-it plugin reads the document\'s version, or the s
   assert.match(md().render(doc('See :abbr[x].')), /smd-directive-abbr/);
 });
 
-// ---------------------------------------------------------------------------
 // smd migrate: v2 rendering of the migrated document is the v1 rendering of the original
-// ---------------------------------------------------------------------------
 
 /**
  * The rendered body: no header, no source lines or include queries, and each class once (v1 writes a repeated class

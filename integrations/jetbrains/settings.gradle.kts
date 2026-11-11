@@ -1,4 +1,3 @@
-// The Semantic Markdown plugin for JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm…). See README.md.
 pluginManagement {
     plugins {
         id("org.jetbrains.kotlin.jvm") version "2.4.21"

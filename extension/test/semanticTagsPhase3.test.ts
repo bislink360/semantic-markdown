@@ -14,8 +14,6 @@ const v1 = (body: string) => `---\nsmd: 1\ntitle: T\n---\n\n${body}\n`;
 const found = (text: string, code: string) => validateSmd(text, { today: TODAY }).filter((d) => d.code === code);
 const filler = 'Filler words here. '.repeat(60);
 
-// --- Non-goals -----------------------------------------------------------------------------------------------------
-
 const NON_GOALS = ':::non-goals\n- No requirements tool.\n- No test runner.\n:::';
 
 test('R57: :::non-goals renders as a panel, <non-goals> in the agent view and an IMPORTANT alert in plain Markdown', () => {
@@ -50,8 +48,6 @@ test('R57: non-goals written as prose get the hint non-goals/list', () => {
   assert.deepEqual(found(v2(':::non-goals\n1. Numbered.\n:::'), 'non-goals/list'), []);
 });
 
-// --- Examples ------------------------------------------------------------------------------------------------------
-
 test('R58: a bad example says kind="dont" in the agent view, a red "don\'t" pill in HTML and CAUTION in plain Markdown', () => {
   const text = v2(':::example{kind=dont} Spell the id as an attribute\n`id=R1`\n:::\n\n:::example{kind=do} Use an id\n`{#R1}`\n:::\n\n:::example\nNeutral.\n:::');
   const view = agentView(text).text;
@@ -72,8 +68,6 @@ test('R58: an invalid kind is a warning, not an error', () => {
   assert.equal(diags.length, 1);
   assert.equal(diags[0].severity, 'warning');
 });
-
-// --- Limitations ---------------------------------------------------------------------------------------------------
 
 test('R70: a limitation is open by default, links what it affects and is a WARNING until resolved', () => {
   const text = v2(':::requirement{#R1} Export\n:::\n\n:::limitation{#L1 affects=R1 owner=@team} PDF needs a browser\nWorkaround.\n:::');
@@ -97,8 +91,6 @@ test('R70: a limitation that is not resolved is key content under a budget', () 
   assert.deepEqual(omitted(doc('')), ['Plain'], 'an open limitation is kept longer');
   assert.deepEqual(omitted(doc(' status=resolved')), ['Known issues'], 'a resolved one is ordinary content');
 });
-
-// --- Deprecated and :since -----------------------------------------------------------------------------------------
 
 test('R59: :::deprecated shows since and use on every surface, and smd query filters on since', () => {
   const text = v2(':::deprecated{since=2.0 use="`smd export`"} smd convert\nStill works.\n:::');
@@ -131,8 +123,6 @@ test('R58 (de): the labels follow lang', () => {
   assert.match(html, />falsch<\/span>/);
   assert.match(html, /seit 2\.0/);
 });
-
-// --- Outline, symbols, catalog -------------------------------------------------------------------------------------
 
 test('phase 3: the outline notes non-goals, limitations and deprecated content; symbols leave examples out', () => {
   const text = v2(`## Scope\n\n${NON_GOALS}\n\n## Issues\n\n:::limitation{#L1} Slow\n:::\n\n## Old\n\n:::deprecated{since=2.0} Old API\n:::\n\n:::example{kind=do} E\n:::`);

@@ -16,10 +16,6 @@ import type { AnswerRecord, Task } from './types';
  * written. Every other command of the harness sends nothing anywhere.
  */
 
-// ---------------------------------------------------------------------------
-// Conditions
-// ---------------------------------------------------------------------------
-
 /** Conditions that put the rendered text in the user message. */
 export const WHOLE_TEXT_CONDITIONS = ['M1', 'S1', 'S2', 'S4-brief', 'S4-budget', 'O', 'S2.all-audiences', 'S2.plain-blocks', 'S2.no-agent-block'] as const;
 /** Conditions where the model reads with the tool: M2, S3 and the S3 ablations. */
@@ -30,10 +26,6 @@ export const RUN_CONDITIONS: readonly string[] = ['M1', 'M2', 'S1', 'S2', 'S3', 
 const isToolCondition = (c: string) => (TOOL_CONDITIONS as readonly string[]).includes(c);
 const formatOf = (c: string): 'md' | 'smd' => (c.startsWith('M') ? 'md' : 'smd');
 const fileOf = (c: string) => (formatOf(c) === 'md' ? 'doc.md' : 'doc.smd');
-
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
 
 export interface ModelConfig {
   /** A short name for paths and records, e.g. `model-a`. */
@@ -142,10 +134,6 @@ function checkCondition(c: string): void {
 
 const modelName = (m: ModelConfig) => `${m.label}:${m.model}`;
 
-// ---------------------------------------------------------------------------
-// Tools
-// ---------------------------------------------------------------------------
-
 /** A tool definition as Chat Completions takes it. */
 export interface ToolDef { type: 'function'; function: { name: string; description: string; parameters: Record<string, unknown> } }
 
@@ -252,10 +240,6 @@ export class Conditions {
   }
 }
 
-// ---------------------------------------------------------------------------
-// HTTP
-// ---------------------------------------------------------------------------
-
 export type FetchLike = (url: string, init: { method: string; headers: Record<string, string>; body: string; signal?: AbortSignal }) => Promise<{
   ok: boolean; status: number; headers: { get(name: string): string | null }; text(): Promise<string>;
 }>;
@@ -350,10 +334,6 @@ export async function post(url: string, key: string, body: unknown, opts: { time
     await deps.sleep(backoff(attempt, retryAfter));
   }
 }
-
-// ---------------------------------------------------------------------------
-// One answer
-// ---------------------------------------------------------------------------
 
 export interface Job { model: ModelConfig; doc: CorpusDoc; task: Task; condition: string; run: number; seed?: number }
 
@@ -475,10 +455,6 @@ export async function answerJob(job: Job, setup: Setup, key: string, settings: S
   t.finishedAt = deps.now().toISOString();
   return t;
 }
-
-// ---------------------------------------------------------------------------
-// The run
-// ---------------------------------------------------------------------------
 
 export interface RunOptions {
   corpusDir: string;

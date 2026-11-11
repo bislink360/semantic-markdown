@@ -92,10 +92,6 @@ function shiftHeading(line: string, shift: number): string {
   return m ? m[1] + '#'.repeat(shiftedLevel(m[2].length, shift)) + line.slice(m[0].length) : line;
 }
 
-// ---------------------------------------------------------------------------
-// Figures across includes
-// ---------------------------------------------------------------------------
-
 /**
  * The figures of a document and of the text its `:::include` blocks bring in, numbered together in document order
  * with one counter per kind, as rendered output numbers them. A loaded include's fallback body is replaced by the

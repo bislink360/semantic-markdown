@@ -43,10 +43,6 @@ function add<K, T>(map: Map<K, T[]>, key: K, value: T): void {
   else map.set(key, [value]);
 }
 
-// ---------------------------------------------------------------------------
-// By owner
-// ---------------------------------------------------------------------------
-
 export const UNASSIGNED = 'Unassigned';
 
 /** One group per owner, alphabetically, then Unassigned. A task with two owners is in both groups. */
@@ -68,10 +64,6 @@ function groupByOwner<T extends FileTask>(tasks: readonly T[]): TaskGroup<T>[] {
   if (unassigned.length) groups.push({ key: 'owner:', label: UNASSIGNED, tasks: unassigned.sort(compareTasks) });
   return groups;
 }
-
-// ---------------------------------------------------------------------------
-// By due date
-// ---------------------------------------------------------------------------
 
 export type DueBucket = 'overdue' | 'today' | 'week' | 'later' | 'earlier' | 'none';
 
@@ -104,10 +96,6 @@ function groupByDue<T extends FileTask>(tasks: readonly T[], today: string): Tas
     .map(({ bucket, label }) => ({ key: `due:${bucket}`, label, tasks: buckets.get(bucket)!.sort(compareTasks) }));
 }
 
-// ---------------------------------------------------------------------------
-// By document
-// ---------------------------------------------------------------------------
-
 /** One group per document, by path. */
 function groupByDocument<T extends FileTask>(tasks: readonly T[]): TaskGroup<T>[] {
   const files = new Map<string, T[]>();
@@ -116,10 +104,6 @@ function groupByDocument<T extends FileTask>(tasks: readonly T[]): TaskGroup<T>[
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([file, list]) => ({ key: `document:${file}`, label: file, tasks: list.sort(compareTasks) }));
 }
-
-// ---------------------------------------------------------------------------
-// Labels
-// ---------------------------------------------------------------------------
 
 /** `P0 · due 2026-10-03 (overdue) · @maya @sam` — the parts a task has. */
 export function taskDescription(task: TaskInfo): string {

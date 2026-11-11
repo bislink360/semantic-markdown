@@ -179,7 +179,6 @@ export async function collect({ repo, maintainers }) {
 
 const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('en-US') : n == null ? '–' : String(n));
 
-/** The numbers as a Markdown table: one row per metric. */
 export function markdownReport(data) {
   const rows = [];
   const row = (source, metric, value) => rows.push(`| ${source} | ${metric} | ${value} |`);

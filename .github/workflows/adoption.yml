@@ -1,7 +1,5 @@
 name: Adoption
 
-# Weekly adoption numbers (stars, outside contributions, release downloads, npm, VS Code Marketplace, Open VSX,
-# PyPI, public `smd: 2` documents) in the run's job summary. Read-only: it writes nothing to the repository.
 # The same report locally: node extension/scripts/adoption.mjs (needs a logged-in gh).
 
 on:

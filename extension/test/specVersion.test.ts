@@ -20,9 +20,7 @@ import { statusBarItem, statusBarState, statusBarText } from '../src/documentSta
 const today = '2026-10-17';
 const doc = (smdLine: string | undefined, body = '# Title\n\nText.\n') => (smdLine === undefined ? body : `---\n${smdLine}\n---\n\n${body}`);
 
-// ---------------------------------------------------------------------------
 // specVersion: every kind of value
-// ---------------------------------------------------------------------------
 
 test('specVersion: smd: 2 (or "2") is 2; smd: 1, no key, no front matter and broken front matter are 1', () => {
   const cases: Array<[string | undefined, number]> = [
@@ -104,9 +102,7 @@ test('isV2 and specOf read the env; anything that is not a version there is 1', 
   assert.equal(isSpecVersion(0), false);
 });
 
-// ---------------------------------------------------------------------------
 // Plumbing: renderSmd, parseSmd, the markdown-it plugin, remark
-// ---------------------------------------------------------------------------
 
 test('renderSmd puts the version on the env before parsing and on the result; the spec option fills in, the front matter wins', () => {
   assert.equal(renderSmd(doc('smd: 2')).spec, 2);
@@ -227,9 +223,7 @@ test('VS Code status bar: the tooltip names spec v2 for a document that opts in;
   assert.deepEqual(statusBarState('# No front matter\n'), { status: { kind: 'missing' }, spec: 1 });
 });
 
-// ---------------------------------------------------------------------------
 // No rule changes: every reader's output is the same for smd: 1, no key and smd: 2
-// ---------------------------------------------------------------------------
 
 const root = path.join(__dirname, '..', '..');
 const smdFiles = (dir: string) => fs.readdirSync(path.join(root, dir)).filter((f) => f.endsWith('.smd')).map((f) => path.join(dir, f));

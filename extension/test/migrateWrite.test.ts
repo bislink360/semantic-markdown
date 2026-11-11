@@ -29,9 +29,7 @@ const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [cli
 /** The document as spec v1 and v2 render it, comparable (no source lines). */
 const shown = (text: string, readFile?: MigrationOptions['readFile']) => comparableHtml(renderSmd(text, { readFile, today: TODAY }).html);
 
-// ---------------------------------------------------------------------------
 // The check after writing
-// ---------------------------------------------------------------------------
 
 test('checkMigration: a migrated document renders under spec v2 as the original under v1', () => {
   const original = doc('::::note\nx\n:::\n\nSee :abbr[HTML] and $$ x\ny $$');
@@ -58,9 +56,7 @@ test('checkMigration: changes left in the written document are reported', () => 
   assert.deepEqual(check.left.map((s) => s.kind), ['closer']);
 });
 
-// ---------------------------------------------------------------------------
 // The editor command's edit
-// ---------------------------------------------------------------------------
 
 /** Apply an edit to a text, as the editor does. */
 const applied = (text: string, plan: MigrationPlan) => {
@@ -102,9 +98,7 @@ test('migrationEdit: nothing to apply for a spec v2 document, or a plan with onl
   assert.match(migrationNotes(plan), /^ {2}line 3, note: Spec version: Not rewritten: the front matter does not parse/);
 });
 
-// ---------------------------------------------------------------------------
 // Writing a file whole or not at all
-// ---------------------------------------------------------------------------
 
 test('writeFileAtomic: the new text replaces the file; a failed step leaves the file and no temporary file', () => {
   const dir = tempDir();
@@ -123,10 +117,6 @@ test('writeFileAtomic: the new text replaces the file; a failed step leaves the 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
-
-// ---------------------------------------------------------------------------
-// The CLI writes
-// ---------------------------------------------------------------------------
 
 test('CLI: smd migrate --to 2 writes each file that needs it, keeps line endings, and prints the notes', { skip: noCli }, () => {
   const dir = tempDir();
@@ -322,9 +312,7 @@ test('CLI: a $$ that never closes doesn\'t hide the closing fences after it from
   }
 });
 
-// ---------------------------------------------------------------------------
 // Every tracked document, migrated on disk
-// ---------------------------------------------------------------------------
 
 /** The tracked .smd files, relative to the repository (every .smd file outside generated folders without Git). */
 function trackedDocuments(): string[] {
@@ -396,9 +384,7 @@ test('every tracked v1 document, migrated by the CLI, renders under spec v2 as i
   }
 });
 
-// ---------------------------------------------------------------------------
 // Writers write smd: 2
-// ---------------------------------------------------------------------------
 
 const TEMPLATE_DIR = path.join(root, 'skills', 'semantic-markdown-writer', 'assets', 'templates');
 const templates = () => fs.readdirSync(TEMPLATE_DIR).filter((f) => f.endsWith('.smd')).sort((a, b) => a.localeCompare(b));
@@ -444,9 +430,7 @@ test('every template validates under spec v2 and shows what it showed under v1, 
   }
 });
 
-// ---------------------------------------------------------------------------
 // from-md: Markdown read with the spec v2 rules, as GitHub shows it
-// ---------------------------------------------------------------------------
 
 test('from-md: the converted Markdown shows under spec v2 as GitHub shows the .md', () => {
   const md = [

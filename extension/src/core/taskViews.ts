@@ -101,10 +101,6 @@ export interface TaskViewResult extends AgentViewResult {
   view: TaskViewReport;
 }
 
-// ---------------------------------------------------------------------------
-// Reading the views
-// ---------------------------------------------------------------------------
-
 const isMapping = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** A list of headings: one string is one heading (its text may hold commas). */
@@ -156,10 +152,6 @@ export function findTaskView(text: string, name: string): TaskViewSpec {
   const hint = suggest(name, names);
   throw new TaskViewError(`No task view "${name}".${hint ? ` Did you mean "${hint}"?` : ''} Views: ${names.join(', ')}.`, names);
 }
-
-// ---------------------------------------------------------------------------
-// Building a view
-// ---------------------------------------------------------------------------
 
 const folderOf = (p: string) => p.slice(0, Math.max(0, p.lastIndexOf('/')));
 
@@ -372,9 +364,7 @@ function quoteArg(arg: string): string {
   return /[\s"']/.test(arg) ? JSON.stringify(arg) : arg;
 }
 
-// ---------------------------------------------------------------------------
 // For people: --inspect and --views
-// ---------------------------------------------------------------------------
 
 const lineSpan = (b: ViewBlock) => (b.line === undefined ? '' : b.endLine && b.endLine > b.line ? `L${b.line}-L${b.endLine}` : `L${b.line}`);
 const blockName = (b: ViewBlock) => [b.id ?? '', b.type, b.title ? `"${b.title}"` : '', lineSpan(b)].filter(Boolean).join(' ');
@@ -471,10 +461,6 @@ export function formatTaskViewList(text: string, file = '<file>'): string {
   out.push('', `Read one: smd agent ${quoteArg(file)} --view <name>   (--inspect explains what it selects)`);
   return out.join('\n') + '\n';
 }
-
-// ---------------------------------------------------------------------------
-// Validator
-// ---------------------------------------------------------------------------
 
 export interface TaskViewProblem {
   /** Zero-based line and columns in the front matter. */

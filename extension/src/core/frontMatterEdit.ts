@@ -227,10 +227,6 @@ function readEntry(lines: readonly string[], line: number, m: RegExpExecArray, c
   return entry;
 }
 
-// ---------------------------------------------------------------------------
-// Writing values
-// ---------------------------------------------------------------------------
-
 /** The types of value a known key takes, from the schema (strings, unless it says numbers or booleans), `anyOf` included. */
 function valueTypes(key: string): Set<string> {
   const prop = frontMatterProperty(key);
@@ -384,10 +380,6 @@ function holds(data: Record<string, unknown>, key: string, value: FrontMatterVal
   // Text that reads back as itself, as the type the key takes (`toc: maybe` is text, not a boolean).
   return valueTypes(key).has(typeof actual) && String(actual) === value;
 }
-
-// ---------------------------------------------------------------------------
-// The form
-// ---------------------------------------------------------------------------
 
 export type FrontMatterFieldKind = 'text' | 'select' | 'date' | 'list';
 

@@ -31,9 +31,7 @@ export function glossaryTerms(state: StateCore): void {
 const isGlossaryOpen = (t: Token) => t.type === 'container_smd_open' && (t.meta as ContainerMeta | null)?.name === 'glossary';
 const isGlossaryClose = (t: Token) => t.type === 'container_smd_close' && (t.meta as ContainerMeta | null)?.name === 'glossary';
 
-// ---------------------------------------------------------------------------
 // The glossary block: <ul> → <dl>
-// ---------------------------------------------------------------------------
 
 /** The tokens with each bullet list directly inside a glossary turned into a definition list, when it is one. */
 function convertGlossaries(state: StateCore, entries: Entry[]): Token[] {
@@ -177,10 +175,6 @@ const ENTITIES = new Map([['&amp;', '&'], ['&lt;', '<'], ['&gt;', '>'], ['&quot;
 function htmlText(html: string): string {
   return html.replaceAll(/<[^>]*>/g, '').replaceAll(/&(?:amp|lt|gt|quot|#39);/g, (e) => ENTITIES.get(e) ?? e);
 }
-
-// ---------------------------------------------------------------------------
-// Uses of the terms
-// ---------------------------------------------------------------------------
 
 /** Where the walk over the document is. */
 interface Walk {

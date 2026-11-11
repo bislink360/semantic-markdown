@@ -71,8 +71,6 @@ const PLAN = v2(
   'Also [R1](spec.smd#R1).',
 );
 
-// --- Where ids are written ------------------------------------------------------------------------------------------
-
 test('R19: splitIdRef reads other.smd#R1 as R1 in other.smd, and leaves anything else one id', () => {
   assert.deepEqual(splitIdRef('R1'), { path: '', id: 'R1' });
   assert.deepEqual(splitIdRef('spec.smd#R1'), { path: 'spec.smd', id: 'R1' });
@@ -117,8 +115,6 @@ test('R18: idUseAt finds the use under the cursor anywhere in other.smd#R1, and 
   assert.equal(idUseAt(SPEC, def.line, def.column + 1)?.kind, 'definition');
 });
 
-// --- Definition, references, hover ---------------------------------------------------------------------------------
-
 test('R18: go to definition gives the line of the block, every line of an ambiguous id, and none for an unknown one', () => {
   assert.deepEqual(idDefinitionLines(SPEC, 'R1'), [7]);
   assert.deepEqual(idDefinitionLines(SPEC, 'T1'), [20]);
@@ -156,8 +152,6 @@ test('R18: hover shows the block an id names: kind, attributes, title and the fi
   assert.match(idHover(v2(':::note{#x}', ':::', '- [ ] A {#x}'), 'x')!, /is the id of 2 blocks \(lines 6, 8\)/);
   assert.equal(idHover(SPEC, 'R9'), undefined);
 });
-
-// --- Rename ---------------------------------------------------------------------------------------------------------
 
 test('R18: renaming a block id updates its {#id}, every id attribute, :ref, :depends and link, across documents', () => {
   const docs = [{ key: 'docs/spec.smd', text: SPEC }, { key: 'docs/plan.smd', text: PLAN }];

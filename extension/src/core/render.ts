@@ -232,10 +232,6 @@ function languageAttrs(lang: string, messages: Messages): string {
   return ` lang="${escapeHtml(lang)}"${labels}`;
 }
 
-// ---------------------------------------------------------------------------
-// Table of contents
-// ---------------------------------------------------------------------------
-
 function renderToc(headings: Heading[], m: Messages): string {
   const items = headings.filter((h) => h.level >= 2 && h.level <= 3);
   if (!items.length) return '';

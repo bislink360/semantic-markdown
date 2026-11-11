@@ -24,9 +24,7 @@ const html = (src: string, options: Parameters<typeof renderSmd>[1] = {}) => ren
 const shape = (src: string) => html(src).replaceAll(/ data-(?:task-)?line="\d+"/g, '');
 const view = (src: string, options: Parameters<typeof agentView>[1] = {}) => agentView(src, { today: '2026-10-15', ...options }).text.trim();
 
-// ---------------------------------------------------------------------------
 // Unknown containers keep their title
-// ---------------------------------------------------------------------------
 
 test('unknown containers: the title renders in the box, after the name or from title=, with inline Markdown', () => {
   assert.match(html(':::frobnicate Release *notes*\nBody.\n:::\n'),
@@ -114,9 +112,7 @@ test('unknown containers: the corpus document is formatted, valid apart from its
   assert.match(smdToMarkdown(doc), /^\*\*From the attribute\*\*\n\nThe title comes from `title=`\.$/m);
 });
 
-// ---------------------------------------------------------------------------
 // GitHub alerts render as callouts
-// ---------------------------------------------------------------------------
 
 test('alerts: the five kinds map to callouts; IMPORTANT is info, as smd from-md converts it', () => {
   assert.deepEqual(GITHUB_ALERTS, { NOTE: 'note', TIP: 'tip', IMPORTANT: 'info', WARNING: 'warning', CAUTION: 'danger' });

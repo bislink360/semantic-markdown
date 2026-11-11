@@ -46,7 +46,6 @@ class SmdLspServerSupportProvider : LspServerSupportProvider {
             LspServerManager.getInstance(project).getServersForProvider(SmdLspServerSupportProvider::class.java)
                 .firstOrNull { it.state == LspServerState.Running }
 
-        /** Restart the server in every open project, after the settings change. */
         fun restartAll() {
             warned.set(false)
             for (project in ProjectManager.getInstance().openProjects) {

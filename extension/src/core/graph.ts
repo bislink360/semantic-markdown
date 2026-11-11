@@ -62,7 +62,6 @@ export interface GraphEdge {
   line: number;
   /** What it names as written: an id, `#anchor`, `file.smd#anchor`, or an include's `file § section`. */
   target: string;
-  /** The file the target is in. */
   file: string;
   status: TargetStatus;
   /** The target, when resolved. */
@@ -360,10 +359,6 @@ function refsIn(lines: string[], from: number, spec: SpecVersion): Array<{ id: s
   return refs;
 }
 
-// ---------------------------------------------------------------------------
-// Following edges
-// ---------------------------------------------------------------------------
-
 /** Whether following an edge in this direction reaches something the start needs (research contract, "Edge semantics"). */
 export function needs(edge: GraphEdge, direction: EdgeDirection): boolean {
   if (edge.kind !== 'mandatory') return false;
@@ -451,10 +446,6 @@ export function followEdges(graph: DocumentGraph, start: GraphNode | readonly Gr
   }
   return { neighbors, cut };
 }
-
-// ---------------------------------------------------------------------------
-// Mandatory closure
-// ---------------------------------------------------------------------------
 
 export interface ClosureOptions {
   /** Mandatory edge types to follow (default all: include, applies-to, depends-on). */
@@ -574,9 +565,7 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
   return { blocks, unsatisfied, complete: unsatisfied.length === 0 };
 }
 
-// ---------------------------------------------------------------------------
 // Validator rules (G7)
-// ---------------------------------------------------------------------------
 
 export interface DependencyProblem {
   code: 'depends/cycle' | 'decision/depends-superseded';
@@ -584,7 +573,6 @@ export interface DependencyProblem {
   line: number;
   /** The attribute the edge is written in (`depends-on`, `supersedes`), or `:depends`. */
   key: string;
-  /** The id it names. */
   id: string;
   message: string;
 }

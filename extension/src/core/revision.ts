@@ -32,7 +32,6 @@ export type BlockRevision =
     line: number;
     endLine: number;
     kind: 'container' | 'task' | 'heading' | 'other';
-    /** The text the revision is computed over. */
     text: string;
   }
   | { status: 'ambiguous'; lines: number[] }

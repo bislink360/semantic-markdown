@@ -98,7 +98,6 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   const wholeLine = (line: number, severity: Severity, code: string, message: string) =>
     push(line, 0, lines[line]?.length ?? 1, severity, code, message);
 
-  // --- Front matter -------------------------------------------------------
   const fm = parseFrontMatter(text);
   // The lines of code as rendering reads them, found on the first ask: a `$$` line there opens no math.
   let code: Set<number> | undefined;
@@ -113,7 +112,6 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   // The rules the body is read with: display math, closing fences, headings, directives and attribute escapes differ in spec v2.
   const spec = specVersion(fm.data);
 
-  // --- Body ---------------------------------------------------------------
   const stack: OpenContainer[] = [];
   let fence: { char: string; len: number; lang: string; info: string; line: number; content: string[] } | null = null;
   let mathStart = -1;
@@ -871,7 +869,6 @@ function undefinedFootnote(ref: FootnoteReference, labels: string[], push: Push)
 /** A link's `#anchor` that no id of its document matches. */
 interface UnresolvedAnchor {
   anchor: string;
-  /** The ids of the linked document. */
   ids: Set<string>;
   /** The linked document. */
   text: string;

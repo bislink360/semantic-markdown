@@ -13,10 +13,6 @@ const TODAY = '2026-09-26';
 const render = (src: string) => renderSmd(src, { today: TODAY }).html;
 const media = (name: string) => readFileSync(join(__dirname, '..', 'media', name), 'utf8');
 
-// ---------------------------------------------------------------------------
-// Rendered HTML
-// ---------------------------------------------------------------------------
-
 test('a11y: progress bars have a role, a value and a name', () => {
   assert.match(render(':progress[40]'), /role="progressbar" aria-label="Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40"/);
   assert.match(render(':progress[60]{label="3 of 5 <done>"}'), /role="progressbar" aria-label="3 of 5 &lt;done&gt;"/);
@@ -109,9 +105,7 @@ test('a11y: focus is visible everywhere, the copy button shows on focus, and mot
   assert.match(site, /\.smd-site-result:focus \{ outline: 2px solid var\(--smd-focus\)/);
 });
 
-// ---------------------------------------------------------------------------
 // Tabs (runtime): WAI-ARIA tabs pattern, driven through a small stand-in for the DOM
-// ---------------------------------------------------------------------------
 
 const { tabKeyTarget, buildTabs } = createRequire(__filename)(join(__dirname, '..', 'media', 'runtime.js'));
 
@@ -262,10 +256,8 @@ test('a11y tabs: rendered panes read without scripts and stack when printed', ()
   assert.match(media('smd.css'), /\.smd-tabs\.smd-js \.smd-tab:not\(\.smd-active\), \.smd-tabs\.smd-js \.smd-tab-label \{ display: block; \}/);
 });
 
-// ---------------------------------------------------------------------------
 // Block Editor (Preview): its page is built at run time inside closed shadow roots, so its markup is checked in the
 // page script, and its stylesheet here; the labels are in blockEditorWebview.test.ts.
-// ---------------------------------------------------------------------------
 
 const blockEditorPage = readFileSync(join(__dirname, '..', 'src', 'webview', 'blockEditor.ts'), 'utf8');
 

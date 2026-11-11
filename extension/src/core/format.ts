@@ -225,10 +225,6 @@ function formatHeading(raw: string, spec: SpecVersion): string {
   return attrs === null ? `${head}${m[0]}` : `${head} {${attrs}}`;
 }
 
-// ---------------------------------------------------------------------------
-// Attribute lists
-// ---------------------------------------------------------------------------
-
 const STYLE_ORDER = Object.keys(STYLE_KEYS);
 
 /**
@@ -331,10 +327,6 @@ function formatInline(line: string, spec: SpecVersion = 1): string {
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// Tables
-// ---------------------------------------------------------------------------
-
 const DELIMITER_ROW = /^\s{0,3}\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 
 /** A GFM pipe table starting at `start`: header, delimiter row and body rows up to a blank line. */
@@ -415,10 +407,6 @@ function textWidth(s: string): number {
   }
   return w;
 }
-
-// ---------------------------------------------------------------------------
-// Blank lines
-// ---------------------------------------------------------------------------
 
 const BLOCK_START: Kind[] = ['open', 'codeOpen', 'mathOpen', 'heading', 'tableStart'];
 const BLOCK_END: Kind[] = ['close', 'codeClose', 'mathClose', 'heading', 'tableEnd', 'fmEnd'];

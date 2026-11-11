@@ -24,9 +24,7 @@ const read = (name: string) => fs.readFileSync(path.join(corpus, name), 'utf8').
 const asV1 = (text: string) => text.replace(/^smd: 2$/m, 'smd: 1');
 const codes = (text: string, options = {}) => validateSmd(text, { today, ...options }).map((d) => `${d.line}:${d.code}:${d.severity}`);
 
-// ---------------------------------------------------------------------------
 // Proposal 9: `:::include section=` matches exactly
-// ---------------------------------------------------------------------------
 
 const TERMS = '---\nsmd: 1\n---\n\n## Rapid deployment\n\nShip it.\n\n## Deploy {#d1}\n\nThe deploy steps.\n\n## Refunds\n\nWithin 30 days.\n';
 const files: Record<string, string> = {
@@ -127,9 +125,7 @@ test('corpus/v2-includes.smd: v2 includes the exact sections and shows the fallb
   assert.deepEqual(codes(asV1(text), { readFile: reader }).map((c) => c.split(':')[1]), ['include/section-match']);
 });
 
-// ---------------------------------------------------------------------------
 // Proposal 10: variables keep their YAML spelling
-// ---------------------------------------------------------------------------
 
 const FRONT = [
   'title: T', 'status: draft', 'version: 2.10', 'updated: 2026-10-05', 'owners: ["@a"]', 'tags: [docs, 1.10, true]', 'build: 007', 'flag: True',

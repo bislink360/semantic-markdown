@@ -95,8 +95,6 @@ class SemanticMarkdownPlugin(BasePlugin):
         self._rendered: dict[str, dict[str, Any]] = {}
         self._cdn: dict[str, str] = {}
 
-    # -- build lifecycle -------------------------------------------------------------------------------------
-
     def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
         for name in (SMD_CSS, MKDOCS_CSS):
             _add_once(config.extra_css, f"{ASSET_DIR}/{name}")
@@ -132,8 +130,6 @@ class SemanticMarkdownPlugin(BasePlugin):
     def on_shutdown(self) -> None:
         self._close()
 
-    # -- pages -----------------------------------------------------------------------------------------------
-
     def on_page_markdown(self, markdown: str, page: Page, config: MkDocsConfig, files: Files) -> str:
         if not self._renders(page.file):
             return markdown
@@ -167,8 +163,6 @@ class SemanticMarkdownPlugin(BasePlugin):
         if not tags or "</head>" not in output:
             return output
         return output.replace("</head>", f"{tags}\n</head>", 1)
-
-    # -- helpers ---------------------------------------------------------------------------------------------
 
     def _renders(self, file: File) -> bool:
         return isinstance(file, SmdFile) or (self.config["md_syntax"] and file.is_documentation_page())

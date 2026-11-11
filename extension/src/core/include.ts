@@ -42,10 +42,6 @@ export function includeRequest(values: Record<string, string>): IncludeRequest |
   return { file, ...(section ? { section } : {}), ...(isHeadingLevel(level) ? { level } : {}) };
 }
 
-// ---------------------------------------------------------------------------
-// Paths
-// ---------------------------------------------------------------------------
-
 const isAbsolute = (p: string) => /^(?:[a-z][a-z0-9+.-]*:|[\\/])/i.test(p);
 
 /** `a/./b/../c` → `a/c`, with forward slashes. Leading `..` segments stay. */
@@ -85,10 +81,6 @@ export function includeHref(path: string, section?: string): string | undefined 
   if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return undefined;
   return encodeURI(path) + (section ? `#${slugify(section)}` : '');
 }
-
-// ---------------------------------------------------------------------------
-// Loading
-// ---------------------------------------------------------------------------
 
 /** Where includes are resolved: the document being read, and the includes it is inside. */
 export interface IncludeScope {
@@ -217,10 +209,6 @@ export function includeProblemText(failure: IncludeFailure, m: Messages = EN): s
     default: return m['include.tooLarge'];
   }
 }
-
-// ---------------------------------------------------------------------------
-// Finding includes in text
-// ---------------------------------------------------------------------------
 
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 

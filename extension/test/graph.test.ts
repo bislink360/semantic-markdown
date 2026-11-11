@@ -226,9 +226,7 @@ test('the closure depth limit counts the fewest steps, so a long path walked fir
   assert.doesNotMatch(formatQueryResult(result), /Unsatisfied dependency/);
 });
 
-// ---------------------------------------------------------------------------
 // G7: the validator rules
-// ---------------------------------------------------------------------------
 
 const codes = (text: string) => validateSmd(text, { today: TODAY })
   .filter((d) => d.code === 'depends/cycle' || d.code === 'decision/depends-superseded')

@@ -256,10 +256,6 @@ export function scanInline(lines: readonly string[], options: { allowHtml?: bool
   return items;
 }
 
-// ---------------------------------------------------------------------------
-// Editing one item
-// ---------------------------------------------------------------------------
-
 /** A change to one item: new content, and attributes to set (a value) or remove (null). */
 export interface InlineChange {
   content?: string;

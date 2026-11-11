@@ -169,10 +169,6 @@ export function setId(src: string, id: string | undefined, spec: SpecVersion = 1
   return insertItem(src, items, id, `#${id}`, [], ID);
 }
 
-// ---------------------------------------------------------------------------
-// Container opening lines
-// ---------------------------------------------------------------------------
-
 /** The parts of a container's opening line, `:::name{attrs} Title`, as parseContainerInfo reads them. */
 export interface ContainerHeader {
   indent: Span;

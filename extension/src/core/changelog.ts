@@ -109,10 +109,6 @@ export function versionKey(version: string): string {
   return [parts.join('.'), ...v.pre].join('-');
 }
 
-// ---------------------------------------------------------------------------
-// Source scanner
-// ---------------------------------------------------------------------------
-
 /** A release entry: a heading directly inside a `:::changelog`, at the level of its first such heading. */
 export interface ChangelogEntry extends EntryParts {
   /** Zero-based line of the heading. */

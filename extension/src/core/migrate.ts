@@ -228,10 +228,6 @@ function declaredVersion(fm: FrontMatter): number {
   return fm.error ? 1 : readSpec(fm.data.smd).declared ?? 1;
 }
 
-// ---------------------------------------------------------------------------
-// Recording steps
-// ---------------------------------------------------------------------------
-
 /** The original line of the current line `at`; past the end, the line after the original's last. */
 function originOf(w: Work, at: number): number {
   return w.origin[at] ?? (w.origin.at(-1) ?? -1) + 1;
@@ -276,9 +272,7 @@ function applyLineFixes(w: Work, fixes: Fix[], kind: MigrationKind): void {
   recordLines(w, splitLines(applyFixes(textOf(w), diagnostics).text), kind);
 }
 
-// ---------------------------------------------------------------------------
 // Steps from the validator's spec v2 hints: closers, duplicates, title text, heading braces, include sections
-// ---------------------------------------------------------------------------
 
 /**
  * Suppression comments are for reports, not for meaning: the hints a document silences still change how spec v2
@@ -302,9 +296,7 @@ function fixStep(w: Work, code: string, kind: MigrationKind, which: (d: Diagnost
   for (const d of manual) note(w, d.line, kind, `Not rewritten: ${d.message}`);
 }
 
-// ---------------------------------------------------------------------------
 // $$ delimiters (proposal 2)
-// ---------------------------------------------------------------------------
 
 /**
  * The block tokens of the body as rendering parses it, with the line the body starts on: with the rules of the version
@@ -349,9 +341,7 @@ function splitDelimiters(w: Work, open: number, close: number): void {
   change(w, open, close - open + 1, [...head, ...w.lines.slice(open + 1, close), ...tail], 'math-delimiters');
 }
 
-// ---------------------------------------------------------------------------
 // Unknown inline directives (proposal 7b)
-// ---------------------------------------------------------------------------
 
 /** Lines of raw HTML blocks, where nothing is Markdown. */
 function htmlLines(tokens: Token[], bodyStart: number): Set<number> {
@@ -445,9 +435,7 @@ function unknownDirectiveStep(w: Work): void {
   for (const { i, next } of edits) change(w, i, 1, [next], 'unknown-directive');
 }
 
-// ---------------------------------------------------------------------------
 // `{agent}` after a heading (proposal 5)
-// ---------------------------------------------------------------------------
 
 /**
  * A bare `agent` in a heading's attribute list, which v1 reads as `agent=true` (rendered as `data-agent="true"`), is
@@ -468,9 +456,7 @@ function headingAgentStep(w: Work): void {
   for (const { i, next } of edits) change(w, i, 1, [next], 'heading-braces');
 }
 
-// ---------------------------------------------------------------------------
 // Backslashes in quoted attribute values (proposal 6)
-// ---------------------------------------------------------------------------
 
 /** A known directive's name (as v1 reads it) right before an attribute list. */
 const KNOWN_DIRECTIVE_BEFORE = /(?:^|[\s([{>*_~"'-]):([a-z][a-z0-9-]*)(?:\[[^\]\n]*\])?$/;
@@ -534,9 +520,7 @@ function attrEscapeStep(w: Work): void {
   for (const { i, next } of edits) change(w, i, 1, [next], 'attr-escapes');
 }
 
-// ---------------------------------------------------------------------------
 // Enumerated values in the vocabulary's case (proposal 11)
-// ---------------------------------------------------------------------------
 
 /** The allowed value `value` is in another case, when it isn't written that way already. */
 function canonical(value: string | undefined, allowed: readonly string[]): string | undefined {
@@ -606,9 +590,7 @@ function valueCaseStep(w: Work): void {
   applyLineFixes(w, fixes, 'value-case');
 }
 
-// ---------------------------------------------------------------------------
 // Typography (proposal 8)
-// ---------------------------------------------------------------------------
 
 /** What the typographer writes, by kind: the names for one and for several, and the characters. */
 const TYPOGRAPHY: ReadonlyArray<[string, string, RegExp]> = [
@@ -700,9 +682,7 @@ function addFrontMatterKey(w: Work, line: string, kind: MigrationKind, reason: s
   change(w, 0, 0, ['---', line, '---', ...blankAfter], kind, reason);
 }
 
-// ---------------------------------------------------------------------------
 // Fuzzy links (proposal 8)
-// ---------------------------------------------------------------------------
 
 interface FuzzyLink {
   label: string;
@@ -829,9 +809,7 @@ function fuzzyLinkStep(w: Work): void {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Variables (proposal 10)
-// ---------------------------------------------------------------------------
 
 /** A plain scalar as written after `key:`, up to a comment; undefined for quoted, block or empty values. */
 function writtenScalar(rest: string): string | undefined {
@@ -899,9 +877,7 @@ function spellingLines(w: Work, fm: FrontMatter, shown: ReadonlySet<string>): Se
   return lines;
 }
 
-// ---------------------------------------------------------------------------
 // The smd key (versioning rules)
-// ---------------------------------------------------------------------------
 
 /** The line of the `smd` key, else the front matter's first line (0). */
 function versionLine(lines: string[], fm: FrontMatter): number {

@@ -266,10 +266,6 @@ export function judgePacket(doc: CorpusDoc, task: Task, r: AnswerRecord): JudgeP
   };
 }
 
-// ---------------------------------------------------------------------------
-// Paired bootstrap
-// ---------------------------------------------------------------------------
-
 /** A small seeded generator (mulberry32), so intervals are the same on every run with the same seed. */
 export function seededRandom(seed: number): () => number {
   let s = seed >>> 0;
@@ -370,10 +366,6 @@ function unitMeans(outcomes: Outcome[], metric: (o: Outcome) => number | null): 
 }
 
 const meanOf = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
-
-// ---------------------------------------------------------------------------
-// Scoring a file of answers
-// ---------------------------------------------------------------------------
 
 /** Parses answers.jsonl; blank lines are skipped, bad lines reported. */
 export function parseAnswers(text: string): { records: AnswerRecord[]; problems: string[] } {
@@ -486,10 +478,6 @@ function summarise(outcomes: Outcome[], settings: ScoreResult['settings']): Cond
     return s;
   });
 }
-
-// ---------------------------------------------------------------------------
-// Output
-// ---------------------------------------------------------------------------
 
 export const OUTCOME_COLUMNS = [
   'doc', 'task', 'type', 'condition', 'run', 'seed', 'model', 'format', 'correct', 'scoredBy', 'violation', 'violated', 'usedSuperseded',

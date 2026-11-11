@@ -40,9 +40,7 @@ const doc = [
   'Filler. '.repeat(120), '',
 ].join('\n');
 
-// ---------------------------------------------------------------------------
 // Locked: current behavior the contract records
-// ---------------------------------------------------------------------------
 
 test('AF21: a bare question selector matches every question, in document order, whatever is written on it', () => {
   const matches = querySmd(doc, 'question', { today: '2026-11-06' });
@@ -81,9 +79,7 @@ test('AF16: agent --max-tokens omits sections with pointers and reports, rather 
   assert.equal(tiny.budget?.fits, false, 'a budget that cannot hold the mandatory content is reported as not fitting');
 });
 
-// ---------------------------------------------------------------------------
 // Gaps found and fixed in G0 (contract section "Gaps the contract found").
-// ---------------------------------------------------------------------------
 
 test('GAP-1 (AF15): :::agent from an include is kept in a section view of another section', () => {
   const view = agentView(doc, { readFile, sections: ['Notes'], today: '2026-11-06' }).text;
@@ -113,9 +109,7 @@ test('GAP-5 (AF15): --max-tokens never omits a section whose :::agent block come
   assert.match(view, /INCLUDED_RULE/);
 });
 
-// ---------------------------------------------------------------------------
 // The fixes' edges
-// ---------------------------------------------------------------------------
 
 const edges = (body: string[]) => ['---', 'smd: 2', 'title: Edges', '---', '', ...body, ''].join('\n');
 const edgeFiles: Record<string, string> = {
@@ -191,9 +185,7 @@ test('GAP-7 (AF13, AF23): --constraints lists an include outside the sections wi
   assert.deepEqual(view.constraints?.pointers.map((p) => [p.type, p.title, p.line, p.section]), [['include', 'risky.smd', 7, 'A']]);
 });
 
-// ---------------------------------------------------------------------------
 // C04 constraint scope, decided 2026-11-06: dangers apply to the whole document
-// ---------------------------------------------------------------------------
 
 const scoped = edges([
   '## A', '', ':::danger Never drop the ledger', 'ROOT_DANGER', ':::', '', '> [!CAUTION]', '> ALERT_DANGER', '',
@@ -278,9 +270,7 @@ test('C04: provenance leaves the text unchanged and maps the head dangers to the
   assert.match(json, /risky\.smd/);
 });
 
-// ---------------------------------------------------------------------------
 // G1 identity: author-written task ids, and a duplicate id resolves to nothing (contract section "Identity")
-// ---------------------------------------------------------------------------
 
 const ids = (body: string[]) => ['---', 'smd: 2', 'title: Ids', '---', '', ...body, ''].join('\n');
 const plan = ids([
@@ -363,10 +353,8 @@ test('R17: two figures keep the released figure/duplicate-id and :ref first-matc
   assert.match(renderSmd(text).html, /<a class="smd-ref" href="#fig">Figure 1<\/a>/, ':ref still goes to the first figure');
 });
 
-// ---------------------------------------------------------------------------
 // G1 budget decisions, accepted 2026-11-06: overflow is reported in the view, and mandatory content is never a budget
 // candidate. GAP-6: a metric keeps its trend and tone.
-// ---------------------------------------------------------------------------
 
 const overflowLine = /\n\n\[budget: ≈(\d+) of (\d+) tokens, required content does not fit\]\n$/;
 

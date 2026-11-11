@@ -206,7 +206,6 @@ export function provenanceManifest(input: ManifestInput): Provenance {
 
 /** The manifest of an outline returned instead of a view (`smd read` over its budget): the view's, with the outline as text. */
 export function outlineProvenance(provenance: Provenance, outlineText: string, tokens: number): Provenance {
-  // An outline shows no head blocks.
   const { mandatory: _mandatory, ...view } = provenance;
   const lines = outlineText.replace(/\n$/, '').split('\n').length;
   const command = `smd agent ${view.source.file} --section "<heading>"`;

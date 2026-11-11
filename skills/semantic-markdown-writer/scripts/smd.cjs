@@ -698,7 +698,6 @@ body.smd-body {
   overflow-wrap: break-word;
 }
 
-/* ---------- Typography ---------- */
 .smd-doc h1, .smd-doc h2, .smd-doc h3, .smd-doc h4, .smd-doc h5, .smd-doc h6 {
   line-height: 1.25;
   margin: 1.8em 0 0.6em;
@@ -730,7 +729,6 @@ body.smd-body {
 }
 .smd-kbd-plus { color: var(--smd-fg-muted); padding: 0 .15em; font-size: .85em; }
 
-/* ---------- Code ---------- */
 .smd-doc code {
   font-family: var(--smd-font-mono); font-size: .88em;
   background: var(--smd-code-bg); padding: .15em .4em; border-radius: 5px;
@@ -754,7 +752,6 @@ body.smd-body {
 .smd-code:hover .smd-copy, .smd-code:focus-within .smd-copy { opacity: 1; }
 @media (hover: none) { .smd-copy { opacity: 1; } }
 
-/* highlight.js tokens */
 .hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-meta .hljs-keyword { color: var(--smd-purple); }
 .hljs-string, .hljs-regexp, .hljs-addition, .hljs-attribute .hljs-string { color: var(--smd-green); }
 .hljs-number, .hljs-literal, .hljs-symbol, .hljs-bullet { color: var(--smd-orange); }
@@ -765,20 +762,17 @@ body.smd-body {
 .hljs-deletion { color: var(--smd-red); }
 .hljs-tag, .hljs-name { color: var(--smd-pink); }
 
-/* ---------- Tables ---------- */
 .smd-table-wrap { overflow-x: auto; }
 .smd-doc table { border-collapse: collapse; width: max-content; max-width: 100%; font-size: .94em; }
 .smd-doc th, .smd-doc td { border: 1px solid var(--smd-border); padding: 6px 12px; }
 .smd-doc th { background: var(--smd-surface); font-weight: 600; }
 .smd-doc tr:nth-child(2n) td { background: color-mix(in srgb, var(--smd-surface) 60%, transparent); }
 
-/* ---------- Tasks ---------- */
 .smd-task-list { list-style: none; padding-left: 1.2em; }
 .smd-task { position: relative; }
 .smd-task-box { margin: 0 .5em 0 -1.3em; vertical-align: -0.1em; accent-color: var(--smd-accent); cursor: pointer; }
 .smd-task-done > p, .smd-task-done { color: var(--smd-fg-muted); }
 
-/* ---------- Document header ---------- */
 .smd-doc-header {
   padding: 24px 28px; margin: 0 0 32px; border-radius: 14px;
   background: linear-gradient(135deg, var(--smd-accent-soft), transparent 70%), var(--smd-surface);
@@ -804,14 +798,12 @@ body.smd-body {
 .smd-doc-status-deprecated { --c: var(--smd-red); }
 .smd-tag { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--smd-border); font-size: .92em; }
 
-/* ---------- TOC ---------- */
 .smd-toc { margin: 0 0 32px; padding: 14px 20px; border-left: 3px solid var(--smd-accent); background: var(--smd-surface); border-radius: 0 10px 10px 0; }
 .smd-toc-title { font-weight: 650; font-size: .8em; text-transform: uppercase; letter-spacing: .08em; color: var(--smd-fg-muted); margin-bottom: 4px; }
 .smd-toc ul { list-style: none; padding: 0; margin: 0; columns: 2 220px; }
 .smd-toc li { margin: 2px 0; break-inside: avoid; }
 .smd-toc-l3 { padding-left: 1em; font-size: .92em; }
 
-/* ---------- Inline directives ---------- */
 .smd-badge {
   --smd-badge: var(--smd-accent);
   display: inline-block; font-size: .78em; font-weight: 650; line-height: 1.5; padding: 0 .6em;
@@ -829,7 +821,6 @@ body.smd-body {
 .smd-progress-label { font-size: .82em; color: var(--smd-fg-muted); font-variant-numeric: tabular-nums; }
 .smd-progress-unknown .smd-progress-track { background: repeating-linear-gradient(-45deg, var(--smd-gray-soft) 0 4px, transparent 4px 8px); }
 
-/* ---------- Callouts ---------- */
 .smd-callout {
   --c: var(--smd-gray);
   margin: 0 0 1.2em; padding: 12px 16px; border-radius: 10px;
@@ -865,12 +856,10 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-frontmatter-error-yaml { margin: 6px 0 0; padding: 8px 12px; border-radius: 6px; background: var(--smd-code-bg); color: var(--smd-fg); overflow-x: auto; }
 .smd-frontmatter-error-yaml code { font-family: var(--smd-font-mono); font-size: .85em; white-space: pre; }
 
-/* ---------- Details ---------- */
 .smd-details { margin: 0 0 1em; border: 1px solid var(--smd-border); border-radius: 10px; background: var(--smd-surface); }
 .smd-details > summary { cursor: pointer; padding: 10px 16px; font-weight: 600; }
 .smd-details-body { padding: 0 16px 4px; }
 
-/* ---------- Card, box ---------- */
 .smd-card {
   --smd-card-accent: var(--smd-accent);
   margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-top: 3px solid var(--smd-card-accent);
@@ -894,11 +883,9 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-include-missing > :last-child { margin-bottom: 0; }
 .smd-include-note { color: var(--smd-fg-muted); font-size: .85em; margin-bottom: 6px; }
 
-/* ---------- Columns ---------- */
 .smd-columns { display: flex; gap: 20px; margin: 0 0 1.2em; flex-wrap: wrap; }
 .smd-column { flex: 1 1 0; min-width: 220px; }
 
-/* ---------- Tabs ---------- */
 .smd-tabs { margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-radius: 10px; overflow: hidden; }
 .smd-tabbar { display: flex; gap: 2px; padding: 0 8px; background: var(--smd-surface); border-bottom: 1px solid var(--smd-border); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .smd-tabbar button {
@@ -912,7 +899,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-tab-label { font-weight: 650; margin-bottom: 6px; }
 .smd-tab .smd-code { margin-bottom: 12px; }
 
-/* ---------- Steps ---------- */
 .smd-steps > ol { list-style: none; counter-reset: smd-step; padding-left: 0; }
 .smd-steps > ol > li { counter-increment: smd-step; position: relative; padding: 0 0 18px 44px; }
 .smd-steps > ol > li::before {
@@ -924,7 +910,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
   content: ""; position: absolute; left: 13px; top: 30px; bottom: 2px; width: 2px; background: var(--smd-border);
 }
 
-/* ---------- Audience blocks ---------- */
 .smd-agent { margin: 0 0 1.2em; border: 1px dashed color-mix(in srgb, var(--smd-cyan) 55%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--smd-cyan) 5%, transparent); }
 .smd-agent-title { cursor: pointer; padding: 8px 14px; font-size: .9em; font-weight: 600; color: var(--smd-cyan); display: flex; gap: .5em; }
 .smd-agent-body { padding: 0 16px 4px; font-size: .95em; }
@@ -932,14 +917,12 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-human-title { font-size: .9em; font-weight: 600; color: var(--smd-fg-muted); display: flex; gap: .5em; margin-bottom: 4px; }
 .smd-human-body > :last-child, .smd-agent-body > :last-child, .smd-details-body > :last-child { margin-bottom: 0.6em; }
 
-/* ---------- Diagrams & math ---------- */
 .smd-diagram { margin: 0 0 1.2em; padding: 16px; border: 1px solid var(--smd-border); border-radius: 10px; background: var(--smd-surface); overflow-x: auto; text-align: center; }
 .smd-diagram pre.smd-mermaid { margin: 0; text-align: left; font-family: var(--smd-font-mono); font-size: .85em; color: var(--smd-fg-muted); white-space: pre-wrap; }
 .smd-diagram svg { max-width: 100%; height: auto; }
 .smd-diagram-pending { box-sizing: border-box; overflow: hidden; }
 .smd-math-block { overflow-x: auto; margin: 0 0 1em; }
 
-/* ---------- Figures and references ---------- */
 .smd-figure { display: flex; flex-direction: column; margin: 0 0 1.2em; }
 .smd-figure > :nth-last-child(2) { margin-bottom: 0; }
 .smd-figure > p:has(> img:only-child) { text-align: center; }
@@ -968,7 +951,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
   .smd-glossary-list > dd { margin-bottom: .45em; }
 }
 
-/* ---------- Changelog (release history) ---------- */
 .smd-changelog { margin: 0 0 1.2em; }
 .smd-changelog-title { font-weight: 650; margin-bottom: .5em; }
 .smd-changelog-list { list-style: none; padding-left: 0; margin: 0 0 0 6px; border-left: 2px solid var(--smd-border); }
@@ -985,7 +967,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-changelog-date { font-size: .8em; font-weight: 400; color: var(--smd-fg-muted); font-variant-numeric: tabular-nums; }
 .smd-changelog-date-invalid { text-decoration: underline dotted var(--smd-red); }
 
-/* ---------- Quotes with attribution ---------- */
 .smd-quote { margin: 0 0 1.2em; }
 .smd-doc .smd-quote > blockquote { margin: 0; color: var(--smd-fg); border-left-color: var(--smd-accent); font-style: italic; }
 .smd-quote > blockquote > :last-child { margin-bottom: 0; }
@@ -1004,7 +985,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
   .smd-columns { flex-direction: column; }
 }
 
-/* ---------- Code: line highlights ---------- */
 pre.smd-has-hl { position: relative; }
 pre.smd-has-hl code { position: relative; }
 .smd-hl-line {
@@ -1013,7 +993,6 @@ pre.smd-has-hl code { position: relative; }
   border-left: 3px solid var(--smd-accent);
 }
 
-/* ---------- Headings hidden from agents ---------- */
 .smd-doc [data-agent="skip"]::after {
   content: "humans only"; margin-left: .6em; vertical-align: middle;
   font: 600 .5em/1.6 var(--smd-font-sans); letter-spacing: .06em; text-transform: uppercase;
@@ -1021,7 +1000,6 @@ pre.smd-has-hl code { position: relative; }
 }
 .smd-doc h2[data-agent="skip"]::after { font-size: .45em; }
 
-/* ---------- Priority & due ---------- */
 .smd-priority {
   --smd-badge: var(--smd-gray);
   display: inline-block; font-size: .75em; font-weight: 750; line-height: 1.5; padding: 0 .5em; border-radius: 4px;
@@ -1036,7 +1014,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-task-done .smd-due { color: var(--smd-fg-muted); background: none; border-color: var(--smd-border); font-weight: 400; }
 .smd-task-done .smd-due-note { display: none; }
 
-/* ---------- Metric tiles ---------- */
 .smd-metric {
   display: inline-flex; flex-direction: column; gap: 2px; vertical-align: top; min-width: 130px;
   margin: 4px 8px 4px 0; padding: 10px 14px; border-radius: 10px;
@@ -1049,7 +1026,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-metric-bad { color: var(--smd-red); }
 .smd-metric-flat { color: var(--smd-fg-muted); }
 
-/* ---------- Decision ---------- */
 .smd-decision {
   --c: var(--smd-blue);
   margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-radius: 10px; padding: 12px 16px;
@@ -1067,7 +1043,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-decision-superseded .smd-decision-title, .smd-decision-rejected .smd-decision-title { text-decoration: line-through; opacity: .75; }
 .smd-decision-body > :last-child, .smd-risk-body > :last-child, .smd-api-body > :last-child { margin-bottom: 0; }
 
-/* ---------- Review comments and suggestions ---------- */
 .smd-review {
   --c: var(--smd-purple);
   margin: 0 0 1.2em; border: 1px dashed var(--smd-border); border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 14px;
@@ -1092,7 +1067,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-review-record .smd-review-title { display: inline; margin: 0 0 0 6px; font-weight: 500; }
 .smd-review-closed > .smd-review-body { margin-top: 6px; }
 
-/* ---------- Risk ---------- */
 .smd-risk { --c: var(--smd-amber); margin: 0 0 1.2em; border: 1px solid color-mix(in srgb, var(--c) 35%, transparent); border-radius: 10px; padding: 12px 16px; background: color-mix(in srgb, var(--c) 6%, transparent); }
 .smd-risk-low { --c: var(--smd-green); }
 .smd-risk-high { --c: var(--smd-orange); }
@@ -1102,7 +1076,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-risk-facts b { color: var(--c); text-transform: uppercase; font-size: .9em; letter-spacing: .04em; }
 .smd-risk-status { text-transform: uppercase; font-weight: 650; letter-spacing: .04em; }
 
-/* ---------- Semantic tags (requirement, constraint, acceptance, assumption, evidence, non-goals, example, limitation, deprecated) ---------- */
 .smd-block {
   --c: var(--smd-blue);
   margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 16px;
@@ -1152,7 +1125,6 @@ pre.smd-has-hl code { position: relative; }
   border: 1px solid var(--smd-border); border-radius: 999px; padding: 0 .5em;
 }
 
-/* ---------- Risk matrix (:::risk-matrix, smd risks --html) ---------- */
 .smd-risk-band-low { --c: var(--smd-green); }
 .smd-risk-band-moderate { --c: var(--smd-yellow); }
 .smd-risk-band-high { --c: var(--smd-orange); }
@@ -1179,7 +1151,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-doc .smd-risk-table td { vertical-align: top; }
 .smd-doc .smd-risk-table tr:target td { background: var(--smd-accent-soft); }
 
-/* ---------- API endpoint ---------- */
 .smd-api { margin: 0 0 1.2em; border: 1px solid var(--smd-border); border-radius: 10px; overflow: hidden; }
 .smd-api-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 14px; background: var(--smd-surface); border-bottom: 1px solid var(--smd-border); }
 .smd-api-method { --c: var(--smd-gray); font: 700 .75em/1.7 var(--smd-font-mono); padding: 0 .6em; border-radius: 5px; color: var(--smd-bg); background: var(--c); letter-spacing: .04em; }
@@ -1190,7 +1161,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-api-auth { margin-left: auto; font-size: .78em; color: var(--smd-fg-muted); }
 .smd-api-body { padding: 12px 14px; }
 
-/* ---------- Timeline ---------- */
 .smd-timeline > ul, .smd-timeline > ol { list-style: none; padding-left: 0; margin-left: 6px; border-left: 2px solid var(--smd-border); }
 .smd-timeline > ul > li, .smd-timeline > ol > li { position: relative; padding: 0 0 14px 22px; }
 .smd-timeline > ul > li::before, .smd-timeline > ol > li::before {
@@ -1200,7 +1170,6 @@ pre.smd-has-hl code { position: relative; }
 .smd-timeline li.smd-task-done::before { background: var(--smd-green); border-color: var(--smd-green); }
 .smd-timeline li.smd-task .smd-task-box { margin-left: 0; }
 
-/* ---------- Footnotes ---------- */
 .smd-footnote-ref { font-size: .75em; line-height: 0; }
 .smd-footnote-ref a { padding: 0 .1em; font-variant-numeric: tabular-nums; }
 .smd-footnotes { margin-top: 2.5em; padding-top: .8em; border-top: 1px solid var(--smd-border); font-size: .88em; color: var(--smd-fg-muted); }
@@ -1511,8 +1480,6 @@ pre.smd-has-hl code { position: relative; }
     return;
   }
 
-  // ---- Page state ----------------------------------------------------------
-
   // acquireVsCodeApi() works once per page: the page's other scripts get this handle from window.smdRuntime.
   const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
   // What the page is, from <body data-smd-mode>: the preview (the default, also exported HTML, sites and the
@@ -1575,7 +1542,6 @@ pre.smd-has-hl code { position: relative; }
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
-  // ---- Tabs ---------------------------------------------------------------
   const panesOf = (tabs) => Array.from(tabs.children).filter((el) => el.classList.contains('smd-tab'));
   // Hydrating a scope (the whole page, or one block in the Block Editor) builds what is inside it. Keys are
   // counted over the whole page, so an element's key can move when one before it changes; saved state of the
@@ -1649,7 +1615,6 @@ pre.smd-has-hl code { position: relative; }
     refreshScrollers();
   }, true);
 
-  // ---- Copy buttons -------------------------------------------------------
   let liveRegion = null;
 
   /** Tell screen readers something without moving focus (a polite live region, created before it is needed). */
@@ -1709,7 +1674,6 @@ pre.smd-has-hl code { position: relative; }
 
   const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // ---- Mermaid diagrams ---------------------------------------------------
   function cssVar(name) {
     return getComputedStyle(html).getPropertyValue(name).trim();
   }
@@ -1907,7 +1871,6 @@ pre.smd-has-hl code { position: relative; }
     return node ? Number(node.getAttribute('data-line')) : null;
   }
 
-  // ---- Scroll anchoring ---------------------------------------------------
   // The preview remembers which source line is at the top of the viewport (plus the offset into
   // that element) rather than a pixel position, so re-renders and edits above don't move it.
   //
@@ -2074,7 +2037,6 @@ pre.smd-has-hl code { position: relative; }
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (applyTheme()) rerenderDiagrams(); });
   }
 
-  // ---- Printing -------------------------------------------------------------
   // Closed <details> can't be opened on paper, so open them for printing and close them again after.
   // \`smd pdf\` dispatches beforeprint itself, because headless printing doesn't.
   let openedForPrint = [];
@@ -2149,7 +2111,6 @@ body.smd-site { padding: 0; }
 /* The skip link moves focus to the content; the content itself needs no ring. */
 .smd-site #smd-root:focus { outline: none; }
 
-/* ---------- Top bar ---------- */
 .smd-site-bar {
   position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px;
   height: 52px; padding: 0 16px; box-sizing: border-box;
@@ -2163,7 +2124,6 @@ body.smd-site { padding: 0; }
   color: var(--smd-fg); background: var(--smd-surface); border: 1px solid var(--smd-border); border-radius: 6px;
 }
 
-/* ---------- Search ---------- */
 .smd-site-search { position: relative; flex: 1; max-width: 420px; margin-left: auto; }
 .smd-site-search input {
   width: 100%; box-sizing: border-box; font: inherit; font-size: .92em; padding: 6px 10px;
@@ -2184,7 +2144,6 @@ body.smd-site { padding: 0; }
 .smd-site-results mark { background: var(--smd-accent-soft); color: inherit; border-radius: 2px; }
 .smd-site-result-none { margin: 0; padding: 10px; color: var(--smd-fg-muted); font-size: .9em; }
 
-/* ---------- Layout and sidebar ---------- */
 .smd-site-layout { display: grid; grid-template-columns: 272px minmax(0, 1fr); max-width: 1320px; margin: 0 auto; }
 .smd-site-nav {
   position: sticky; top: 52px; align-self: start; max-height: calc(100vh - 52px); overflow-y: auto; box-sizing: border-box;
@@ -2209,7 +2168,6 @@ body.smd-site { padding: 0; }
 .smd-site-crumbs a { color: var(--smd-fg-muted); }
 .smd-site-sep { margin: 0 .5em; opacity: .7; }
 
-/* ---------- Backlinks, previous/next ---------- */
 .smd-site-backlinks { border-top: 1px solid var(--smd-border); padding: 16px 0 4px; font-size: .92em; }
 .smd-site-backlinks h2 { font-size: .8em; text-transform: uppercase; letter-spacing: .06em; color: var(--smd-fg-muted); margin: 0 0 6px; }
 .smd-site-backlinks ul { margin: 0; padding-left: 1.2em; }
@@ -2222,7 +2180,6 @@ body.smd-site { padding: 0; }
 .smd-site-pager a span { font-size: .78em; font-weight: 500; color: var(--smd-fg-muted); }
 .smd-site-next { margin-left: auto; text-align: right; }
 
-/* ---------- Home and dashboard ---------- */
 .smd-site-lead { color: var(--smd-fg-muted); }
 .smd-site-index { list-style: none; padding: 0; }
 .smd-site-index li { margin: 0 0 .7em; }
@@ -2369,8 +2326,6 @@ body.smd-site { padding: 0; }
     }
     return;
   }
-
-  // ---- Page ----------------------------------------------------------------
 
   const body = document.body;
   const root = body.getAttribute('data-smd-root') || '';

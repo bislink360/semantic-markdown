@@ -210,9 +210,7 @@ export function readRuleConfig(data: unknown): { rules: RuleSettings; problems: 
   return { rules, problems };
 }
 
-// ---------------------------------------------------------------------------
 // Inline suppression comments
-// ---------------------------------------------------------------------------
 
 const COMMENT = /<!--\s*smd-(disable-next-line|disable-line|disable|enable)\b([^>]*?)\s*-->/g;
 

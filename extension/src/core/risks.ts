@@ -173,10 +173,6 @@ function clip(text: string): string {
 }
 
 
-// ---------------------------------------------------------------------------
-// Text output
-// ---------------------------------------------------------------------------
-
 /** `docs/plan.smd:12  [9] high×medium  Title  @ops  open  — Section  → Mitigation summary` */
 export function riskLine(r: RiskEntry): string {
   const parts = [

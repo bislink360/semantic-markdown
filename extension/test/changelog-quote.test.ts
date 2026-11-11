@@ -32,10 +32,6 @@ const changelog = [
   '',
 ].join('\n');
 
-// ---------------------------------------------------------------------------
-// Changelog
-// ---------------------------------------------------------------------------
-
 test('changelog: entries render as a timeline list with versions and <time> dates, in the order written', () => {
   assert.equal(body(renderSmd(changelog).html),
     '<div class="smd-changelog" data-line="0"><div class="smd-changelog-title">Release history</div>\n'
@@ -145,10 +141,6 @@ test('changelog: to-md keeps the headings and lists under a bold title', () => {
     + '<a id="110-2026-01-15"></a>\n## [1.1.0] - 2026-01-15\n### Fixed\n- Dates\n\n## Unreleased\n');
 });
 
-// ---------------------------------------------------------------------------
-// Quote
-// ---------------------------------------------------------------------------
-
 const quote = ':::quote{author="Ada *Lovelace*" source="Notes" cite="https://example.com/notes?a=1&b=2"}\nThe engine weaves **patterns**.\n:::\n';
 
 test('quote: renders as a figure with a cited blockquote and an attribution caption', () => {
@@ -205,10 +197,6 @@ test('quote: to-md is a blockquote that ends with the attribution', () => {
   assert.equal(smdToMarkdown(':::quote\nq\n:::\n'), '> q\n\n');
   assert.equal(smdToMarkdown(':::card\n:::quote{author=A}\nq\n:::\n:::\n'), '> > q\n> >\n> > — A\n>\n\n');
 });
-
-// ---------------------------------------------------------------------------
-// Both
-// ---------------------------------------------------------------------------
 
 test('changelog: {{name}} values in a release heading are read as they render', () => {
   const doc = '---\nversion: "1.3.0"\nshipped: 2026-11-02\nsoon: next week\n---\n:::changelog\n## {{version}} — {{shipped}}\n- New\n## 1.2.0 — {{soon}}\n- Old\n:::\n';

@@ -209,9 +209,7 @@ export function containerRanges(md: MarkdownIt, lines: string[], bodyStartLine =
   return outer;
 }
 
-// ---------------------------------------------------------------------------
 // Inline syntax in Obsidian's text nodes
-// ---------------------------------------------------------------------------
 
 /** Where `:name[…]{…}` directives and `[text]{attrs}` spans are in a text, as `[start, end)` ranges. */
 export function findInlineSyntax(text: string): Array<{ start: number; end: number }> {
@@ -282,14 +280,11 @@ export function labelEnd(text: string, open: number): number {
   return -1;
 }
 
-// ---------------------------------------------------------------------------
 // [[Wikilinks]]
-// ---------------------------------------------------------------------------
 
 export interface WikiLink {
   /** The note (and `#heading` or `^block`) linked to. */
   target: string;
-  /** The text shown. */
   label: string;
   /** `![[…]]`: an embed in Obsidian; shown as a link here. */
   embed: boolean;

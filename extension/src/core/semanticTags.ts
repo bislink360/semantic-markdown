@@ -26,7 +26,6 @@ export interface TagBlock {
   line: number;
   endLine: number;
   id?: string;
-  /** The title as written. */
   title: string;
   /** The attributes as written, without the title. */
   values: Readonly<Record<string, string>>;
@@ -98,7 +97,6 @@ export function tagValue(block: TagBlock, key: string): string | undefined {
   return block.values[key] ?? own(CONTAINERS[block.name]?.defaults ?? {}, key);
 }
 
-/** The ids an id attribute lists. */
 export const listed = (block: TagBlock, key: string): string[] => (block.values[key] === undefined ? [] : idList(block.values[key]));
 
 /** The nearest container around a block with that name. */

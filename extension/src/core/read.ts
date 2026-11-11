@@ -152,9 +152,7 @@ export function readSmd(text: string, options: ReadOptions = {}): ReadResult {
 
 const counted = (result: AgentViewResult) => (result.counted ? { counted: result.counted } : {});
 
-// ---------------------------------------------------------------------------
 // Following edges from the content read
-// ---------------------------------------------------------------------------
 
 interface FollowInput extends Pick<AgentViewOptions, 'file' | 'today' | 'readFile' | 'tokenizer'> {
   types: string[];
