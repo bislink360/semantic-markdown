@@ -46,10 +46,6 @@ const editJson = (file: string, change: (value: any) => void) => {
   writeFileSync(file, JSON.stringify(value));
 };
 
-// ---------------------------------------------------------------------------
-// Validator
-// ---------------------------------------------------------------------------
-
 test('the fixture validates, with a similarity number below 1', () => {
   const report = validateCorpus(corpus);
   assert.ok(report.ok, JSON.stringify(report, null, 2));
@@ -108,10 +104,6 @@ test('similarity is 1 for the same text and lower as lines differ; markup is rem
   assert.equal(markupSimilarity('## Rules\n\nCareful\n\nDo not stop.\n', smd), 1);
 });
 
-// ---------------------------------------------------------------------------
-// Source rewrites
-// ---------------------------------------------------------------------------
-
 test('ablation rewrites keep the number of lines', () => {
   const smd = webhooks.smd;
   for (const rewrite of [withoutSkipMarks, plainBlocks, withoutAgentBlocks]) assert.equal(lineCount(rewrite(smd)), lineCount(smd), rewrite.name);
@@ -123,10 +115,6 @@ test('ablation rewrites keep the number of lines', () => {
   assert.equal(withoutSkipMarks('## A {#a agent=skip}\n'), '## A {#a}\n');
   assert.equal(withoutSkipMarks('```\n## A {agent=skip}\n```'), '```\n## A {agent=skip}\n```', 'code is left alone');
 });
-
-// ---------------------------------------------------------------------------
-// M2 tool
-// ---------------------------------------------------------------------------
 
 test('the M2 tool lists headings, reads sections, searches and reads ranges', () => {
   const md = webhooks.md;
@@ -147,10 +135,6 @@ test('the M2 tool lists headings, reads sections, searches and reads ranges', ()
   assert.equal(mdRead(md, { file: 'doc.md', lines: [16, 16] }), 'doc.md L16-16:\nA failed delivery is retried up to 8 times. Retries are not attempted for 4xx responses, except 429.\n');
   assert.match(mdRead(md, { file: 'doc.md', lines: [10, 999] }), /^Error: lines must be/);
 });
-
-// ---------------------------------------------------------------------------
-// Conditions
-// ---------------------------------------------------------------------------
 
 test('document conditions show the file, the agent views and the S2 ablations', () => {
   const views = new Map(docConditions(webhooks, ctx).map((r) => [r.condition, r]));
@@ -207,10 +191,6 @@ test('rendering is deterministic', () => {
   assert.equal(strip(renderDoc(corpus, pagination)), strip(renderDoc(corpus, pagination)));
 });
 
-// ---------------------------------------------------------------------------
-// Survival check
-// ---------------------------------------------------------------------------
-
 test('evidence matching normalises case, marks and whitespace', () => {
   assert.equal(normalise('  Only **HTTPS**\n endpoints `next_cursor` — ok '), 'only https endpoints nextcursor - ok');
   assert.deepEqual(evidenceFound('Retried up\nto 8 times', { evidence: ['retried up to 8 times', { regex: 'to (8|eight)' }, 'nine'] }), [true, true, false]);
@@ -237,10 +217,6 @@ test('the survival check finds what each condition drops', () => {
   assert.match(text, /^# Evidence survival: a deterministic projection check \(no model\)\. Not task accuracy\./);
   assert.match(text, /## Aggregate per condition/);
 });
-
-// ---------------------------------------------------------------------------
-// Scorer
-// ---------------------------------------------------------------------------
 
 const answer = (t: string, extra: Partial<AnswerRecord>): AnswerRecord => ({ task: t, condition: 'S2', run: 1, answer: '', ...extra });
 const score = (d: CorpusDoc, id: string, extra: Partial<AnswerRecord>) => scoreAnswer(d, task(d, id), answer(id, extra));
@@ -390,10 +366,6 @@ test('the CLI validates, checks, renders and scores into a folder', () => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// map-spans
-// ---------------------------------------------------------------------------
-
 /** A copy of the fixture in a temporary folder that stays until `done` is called. */
 function fixtureCopy(): { dir: string; done: () => void } {
   const dir = mkdtempSync(join(tmpdir(), 'smd-eval-'));
@@ -501,10 +473,6 @@ test('include expansion keeps the origin line of every included line', () => {
     done();
   }
 });
-
-// ---------------------------------------------------------------------------
-// Agreement
-// ---------------------------------------------------------------------------
 
 test('Cohen\'s kappa, with its degenerate cases', () => {
   const k = cohensKappa([['a', 'a'], ['a', 'b'], ['b', 'b'], ['b', 'b']]);

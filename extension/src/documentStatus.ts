@@ -8,10 +8,6 @@ import { SMD_VERSION } from './core/spec';
  * unit tested: what the status bar shows, the order of the status picker, and the front matter edit.
  */
 
-// ---------------------------------------------------------------------------
-// Reading the status
-// ---------------------------------------------------------------------------
-
 export type DocumentStatus =
   /** One of `STATUS_VALUES` (lowercased, as the validator compares them). */
   | { kind: 'known'; status: string }
@@ -121,10 +117,6 @@ export function nextStatus(current: string | undefined): string | undefined {
 }
 
 export const isStatus = (value: unknown): value is string => typeof value === 'string' && STATUS_VALUES.includes(value);
-
-// ---------------------------------------------------------------------------
-// Editing the front matter
-// ---------------------------------------------------------------------------
 
 /** Replace characters [start, end) of a zero-based line with `text` (an insertion when start = end). */
 export interface TextEdit {

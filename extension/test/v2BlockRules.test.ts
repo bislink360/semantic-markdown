@@ -34,10 +34,6 @@ const codes = (text: string) => validateSmd(text, { today: TODAY }).map((d) => `
 const shape = (segments: Segment[]): unknown[] => segments.map((s) => [s.type ?? s.kind, s.start, s.end, ...(s.children ? [shape(s.children)] : [])]);
 const mathTex = (html: string) => [...html.matchAll(/<annotation encoding="application\/x-tex">([^<]*)<\/annotation>/g)].map((m) => m[1]);
 
-// ---------------------------------------------------------------------------
-// The rules themselves
-// ---------------------------------------------------------------------------
-
 test('closedBy: v1 closes the innermost; v2 the innermost with as many colons, else the innermost', () => {
   assert.equal(closedBy([], 3, 2), -1);
   assert.equal(closedBy([4, 3], 4, 1), 1);
@@ -54,9 +50,7 @@ test('displayMath: v2 opens on a line that is only $$ (or $$…$$) and closes on
   assert.deepEqual(lines.map((_, i) => v2(i)), [false, false, true, true, true, true]);
 });
 
-// ---------------------------------------------------------------------------
 // Proposal 2: $$ delimiters
-// ---------------------------------------------------------------------------
 
 const PRICING = 'Pricing:\n$$5 per seat\n\n## Plans\n\n- [ ] Ship {{nope}}\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\nThe plan costs $$\n';
 
@@ -146,9 +140,7 @@ test('math: an incremental parse of a v2 document equals a full one when an edit
   }
 });
 
-// ---------------------------------------------------------------------------
 // Proposal 3: closing fences
-// ---------------------------------------------------------------------------
 
 const TABS = '::::tabs\n:::tab A\nOne\n::::\n\nAfter.\n';
 
@@ -227,9 +219,7 @@ test('fences: refactors find containers and wrap lines as the version pairs them
   assert.ok(wrapLines(text, 4, 5, 'box') === undefined, 'an unclosed tip is not balanced either');
 });
 
-// ---------------------------------------------------------------------------
 // The corpus documents and their v1 twins
-// ---------------------------------------------------------------------------
 
 test('corpus/v2-math.smd and corpus/v2-fences.smd: valid and formatted; their v1 twins read differently', () => {
   const math = corpus('v2-math.smd');

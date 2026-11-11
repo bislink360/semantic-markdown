@@ -7,7 +7,6 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.service
 
-/** The plugin's settings, for every project: Settings | Languages & Frameworks | Semantic Markdown. */
 @Service(Service.Level.APP)
 @State(name = "StyledMarkdownSettings", storages = [Storage("styled-markdown.xml")])
 class SmdSettings : SimplePersistentStateComponent<SmdSettings.Settings>(Settings()) {
@@ -24,7 +23,6 @@ class SmdSettings : SimplePersistentStateComponent<SmdSettings.Settings>(Setting
         /** The paper size of Export to PDF: A4 or Letter. */
         var pdfFormat by string("A4")
 
-        /** Export to PDF in landscape. */
         var pdfLandscape by property(false)
 
         /** What writes Export to Word: auto (Pandoc if set or on the PATH, else built-in), builtin or pandoc. */
@@ -77,7 +75,6 @@ class SmdSettings : SimplePersistentStateComponent<SmdSettings.Settings>(Setting
         }
 
     companion object {
-        /** The paper sizes of `smd export --to pdf --format`. */
         val PDF_FORMATS = listOf("A4", "Letter")
 
         /** Export to Word's engines: `auto` lets the CLI choose; the others are `smd export --to docx --engine`. */

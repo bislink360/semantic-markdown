@@ -28,10 +28,6 @@ const withKey = (text: string, line: string) => text.replace(/^---\r?\n/, `---\n
 
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort((a, b) => a.localeCompare(b));
 
-// ---------------------------------------------------------------------------
-// The catalog
-// ---------------------------------------------------------------------------
-
 test('every locale translates every label, keeps its placeholders, and nothing else', () => {
   const keys = Object.keys(EN).sort((a, b) => a.localeCompare(b));
   assert.deepEqual(Object.keys(LOCALES).sort((a, b) => a.localeCompare(b)), ['de', 'es', 'fr', 'ja', 'pt', 'zh']);
@@ -95,10 +91,6 @@ test('a label a locale lacks, or leaves empty, falls back to English', () => {
   assert.equal(format('Figure {n} of {total}', { n: 2 }), 'Figure 2 of {total}');
   assert.equal(format('{a}', { a: '{b}', b: 'x' }), '{b}', 'filled-in values are not filled in again');
 });
-
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
 
 test('without lang, or with an English lang, every sample and corpus document renders as before', () => {
   for (const [file, text] of documents()) {
@@ -175,9 +167,7 @@ test('markdown-it plugin: the lang option, env.lang, then the front matter', () 
   assert.equal(new MarkdownIt().use(smd, { lang: 'en' }).render(src), english);
 });
 
-// ---------------------------------------------------------------------------
 // What stays English
-// ---------------------------------------------------------------------------
 
 test('agent views and to-md stay English and unchanged by lang', () => {
   const asCustom = localized.replace('lang: de', 'custom: de');
@@ -198,10 +188,6 @@ test('validation: lang is checked, at most as information', () => {
   const [d] = validateSmd('---\nsmd: 1\nlang: ko\n---\n').filter((x) => x.code === 'frontmatter/lang');
   assert.match(d.message, /render in English\. Supported: en, de, es, fr, ja, pt, zh\./);
 });
-
-// ---------------------------------------------------------------------------
-// Static site and page runtime
-// ---------------------------------------------------------------------------
 
 test('smd build: the site language comes from --lang, else the home document', () => {
   const sources = [

@@ -116,10 +116,6 @@ const hasClass = (name: string) => (el: HtmlElement) => classes(el).includes(nam
 const childElement = (el: HtmlElement, test: (e: HtmlElement) => boolean) =>
   el.children.find((c): c is HtmlElement => c.kind === 'element' && test(c));
 
-// ---------------------------------------------------------------------------
-// Rules
-// ---------------------------------------------------------------------------
-
 /** The attributes Pandoc reads; everything else (classes, styles, data-*, ARIA) is dropped. */
 const KEPT_ATTRIBUTES = new Set([
   ID, HREF, 'src', 'alt', 'title', 'colspan', 'rowspan', 'start', 'reversed', 'type', 'lang', 'dir', 'cite', 'width', 'height', 'value',
@@ -360,7 +356,6 @@ const CLASS_RULES = new Map<string, Rule>([
   ['smd-footnote-ref', footnoteRef],
   ['smd-footnotes', footnotes],
   ['smd-footnote-backref', footnoteBackref],
-  // Inline directives.
   ['smd-badge', bracketed],
   ['smd-priority', bracketed],
   ['smd-status', wrapIn(STRONG)],

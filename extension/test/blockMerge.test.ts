@@ -113,9 +113,7 @@ test('blockMerge: lines both sides changed inside one paragraph stay a line conf
   assert.equal(r.text, lines('<<<<<<< ours', 'One LINE.', 'Two line.', '=======', 'One line.', 'Two LINE.', '>>>>>>> theirs'));
 });
 
-// ---------------------------------------------------------------------------
 // Properties over fuzzed edits of the corpus
-// ---------------------------------------------------------------------------
 
 const CORPUS = path.join(__dirname, 'compat', 'corpus');
 const corpus = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.smd')).sort((a, b) => a.localeCompare(b))

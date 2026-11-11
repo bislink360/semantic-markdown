@@ -40,7 +40,6 @@ export const element = (tag: string, children: HtmlNode[] = [], attrs: Record<st
 /** Text from a plain string (escaped here). */
 export const text = (value: string): HtmlText => ({ kind: 'text', html: escapeHtml(value) });
 
-/** Parse an HTML fragment into its top-level nodes. */
 export function parseHtml(html: string): HtmlNode[] {
   const root = element('#root');
   const open: HtmlElement[] = [root];

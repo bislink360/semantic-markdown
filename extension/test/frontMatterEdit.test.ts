@@ -161,9 +161,7 @@ test('frontMatterFields: every known key, with its value, kind and choices; refu
   assert.equal(comma.find((f) => f.name === 'tags')?.refused, 'an item with a comma');
 });
 
-// ---------------------------------------------------------------------------
 // Property: no unrelated line changes
-// ---------------------------------------------------------------------------
 
 const POOL: Record<string, string[][]> = {
   title: [['title: Plain title'], ['title: "Quoted: yes"'], ['title: \'Single\'   # c'], ['title:']],

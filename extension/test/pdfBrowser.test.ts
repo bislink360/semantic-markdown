@@ -7,8 +7,6 @@ import { PassThrough } from 'node:stream';
 import { loadPdfEngine, PdfError, printPdf } from '../src/pdf';
 import { browserArgs, browserEngine, Connection, findInstalledBrowsers, inches, printOptions } from '../src/pdfBrowser';
 
-// ---- Finding an installed browser ----
-
 const only = (...files: string[]) => (file: string) => files.includes(file);
 
 test('findInstalledBrowsers on Windows: Chrome, Edge, Chromium, Brave under Program Files and the user\'s app data', () => {
@@ -54,8 +52,6 @@ test('loadPdfEngine: --browser, then SMD_BROWSER, then Playwright or Puppeteer, 
   assert.throws(() => loadPdfEngine({ env: { SMD_BROWSER: '/opt/none' }, isFile }),
     (e: Error) => e instanceof PdfError && e.message === 'No browser was found at /opt/none (from SMD_BROWSER).');
 });
-
-// ---- Launching and printing ----
 
 test('browserArgs: headless on a DevTools pipe with a throwaway profile; no sandbox only as root', () => {
   const args = browserArgs('/tmp/profile', false);

@@ -57,7 +57,6 @@ typedef struct {
   /* The open code fence: its character (` or ~) and length, so the right line closes it. */
   uint8_t fence_char;
   uint8_t fence_len;
-  /* The spec version the front matter selects: 1 or 2. */
   uint8_t spec;
   /* The open containers, outermost first: how many, and the colon count of each (up to MAX_CONTAINERS). */
   uint16_t depth;
@@ -65,8 +64,6 @@ typedef struct {
 } Scanner;
 
 static bool v2(const Scanner *scanner) { return scanner->spec >= 2; }
-
-/* ------------------------------------------------------------------ character helpers */
 
 static void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
 
@@ -101,8 +98,6 @@ static bool accept(TSLexer *lexer, enum TokenType type) {
   lexer->result_symbol = type;
   return true;
 }
-
-/* ------------------------------------------------------------------ attribute lists and labels */
 
 /* After a `{`: consume through the `}` that closes the attribute list on this line (quotes may hold
  * `}`), as findAttrsEnd does. False for a newline or a `{` first. `items`, when given, is set to
@@ -176,8 +171,6 @@ static bool scan_label_content(TSLexer *lexer, enum TokenType type) {
   lexer->mark_end(lexer);
   return any && accept(lexer, type);
 }
-
-/* ------------------------------------------------------------------ inline openers */
 
 /* After the `:` of a directive: a name (lower case in spec v1, any case in v2), then a complete
  * `[…]`, a complete `{…}` or both. */
@@ -308,8 +301,6 @@ static bool scan_math_content(TSLexer *lexer) {
   return any && accept(lexer, MATH_CONTENT);
 }
 
-/* ------------------------------------------------------------------ display math */
-
 typedef struct {
   bool marking;  /* content mode: mark the end of the token as text is consumed */
   bool marked;   /* something was marked */
@@ -403,8 +394,6 @@ static bool scan_math_block(const Scanner *scanner, TSLexer *lexer, const bool *
   return run >= 2 && accept(lexer, MATH_BLOCK_CLOSE);
 }
 
-/* ------------------------------------------------------------------ fenced code */
-
 /* At a line start: whether it closes the open fence (same character, at least as many, then
  * nothing but blanks). Consumes the line up to its end when it does. */
 static bool closes_fence(Scanner *scanner, TSLexer *lexer) {
@@ -458,8 +447,6 @@ static bool scan_code(Scanner *scanner, TSLexer *lexer, const bool *valid) {
   }
   return accept(lexer, CODE_CONTENT);
 }
-
-/* ------------------------------------------------------------------ front matter */
 
 /* At a line start: `---` or `...` and nothing else but blanks. */
 static bool closes_front_matter(TSLexer *lexer) {
@@ -557,10 +544,6 @@ static bool scan_front_matter_body(Scanner *scanner, TSLexer *lexer, const bool 
     }
   }
 }
-
-/* ------------------------------------------------------------------ block starts */
-
-/* ------------------------------------------------------------------ containers */
 
 static void push_container(Scanner *scanner, unsigned colons) {
   if (scanner->depth < MAX_CONTAINERS) scanner->colons[scanner->depth] = (uint8_t)(colons > 255 ? 255 : colons);
@@ -664,8 +647,6 @@ static bool scan_opener(Scanner *scanner, TSLexer *lexer, const bool *valid) {
       return false;
   }
 }
-
-/* ------------------------------------------------------------------ entry points */
 
 void *tree_sitter_smd_external_scanner_create(void) {
   Scanner *scanner = ts_calloc(1, sizeof(Scanner));

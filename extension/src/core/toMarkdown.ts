@@ -333,7 +333,6 @@ function includeMarkdown(info: ContainerInfo, at: IncludeAt): number {
 /** A container's opening line in plain Markdown. */
 interface ContainerSource {
   name: string;
-  /** The title, converted. */
   title: string;
   values: Record<string, string>;
   id?: string;

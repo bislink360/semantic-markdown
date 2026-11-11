@@ -135,7 +135,6 @@ function start(rt: Runtime): void {
   const rootEl = document.getElementById('smd-root')!;
   const toolbarHost = document.getElementById('smd-ed-toolbar')!;
 
-  // ---- Building elements ------------------------------------------------------
   type Options = { className?: string; text?: string; attrs?: Record<string, string> };
   function h<K extends keyof HTMLElementTagNameMap>(tag: K, options: Options = {}, children: (Node | null)[] = []): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
@@ -160,7 +159,6 @@ function start(rt: Runtime): void {
     return b;
   }
 
-  // ---- State --------------------------------------------------------------------
   let model: RenderMessage | null = null;
   let openTag = '';
   /** Top-level block elements by key (the block being edited is not here: its key may be out of date). */
@@ -201,7 +199,6 @@ function start(rt: Runtime): void {
     return id;
   };
 
-  // ---- The document's frame -----------------------------------------------------
   const head = h(DIV, { className: 'smd-ed-head' });
   const headerHolder = h(DIV, { className: 'smd-ed-header' });
   const tocHolder = h(DIV, { className: 'smd-ed-toc' });
@@ -551,7 +548,6 @@ function start(rt: Runtime): void {
     if (focus.inline !== undefined) item.querySelector<HTMLElement>(`[data-smd-inline="${focus.inline}"]`)?.focus();
   }
 
-  // ---- Editing a block's source ----------------------------------------------------
   function editorFor(view: ItemView): { host: HTMLElement; root: ShadowRoot; textarea: HTMLTextAreaElement; notice: HTMLElement } {
     const host = h(DIV, { className: EDITOR });
     const root = chromeRoot(host);
@@ -759,7 +755,6 @@ function start(rt: Runtime): void {
     rt.announce(text);
   }
 
-  // ---- Messages from the extension -----------------------------------------------
   function renderAll(msg: RenderMessage): void {
     ensureArticle(msg.open);
     setHtml(headerHolder, msg.header);
@@ -888,7 +883,6 @@ function start(rt: Runtime): void {
     }
   });
 
-  // ---- Saved state ---------------------------------------------------------------
   function saveState(): void {
     const e = editing;
     const state: SavedState = {
@@ -917,7 +911,6 @@ function start(rt: Runtime): void {
     if (item) startEdit(item, { restore: draft });
   }
 
-  // ---- Keyboard and mouse on the blocks --------------------------------------------
   rootEl.addEventListener(KEYDOWN, (event) => {
     const item = event.target as HTMLElement;
     if (item.dataset?.smdInline !== undefined && ['Enter', ' ', 'F2'].includes(event.key) && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -1012,7 +1005,6 @@ function start(rt: Runtime): void {
     if (grid) commitCell(grid, grid.cell);
   });
 
-  // ---- Requests ----------------------------------------------------------------------
   function move(direction: 'up' | 'down'): void {
     // Right after editing, the block's element may still carry its old key; currentKey has the new one.
     const key = currentView()?.key ?? currentKey;
@@ -1242,7 +1234,6 @@ function start(rt: Runtime): void {
     rt.announce(text);
   }
 
-  // ---- The toolbar -----------------------------------------------------------------------
   const barRoot = chromeRoot(toolbarHost);
   const buttons: Record<Action, HTMLButtonElement> = {
     insert: button('Insert…', () => act('insert'), { title: 'Insert a block after this one (Ctrl+/)', 'aria-haspopup': 'menu', [ARIA_EXPANDED]: FALSE, 'aria-controls': 'menu' }),
@@ -1378,7 +1369,6 @@ function start(rt: Runtime): void {
     }, 0);
   });
 
-  // ---- The properties form of a container ------------------------------------------------
   function toggleProps(): void {
     if (props.hidden) {
       props.hidden = false;
@@ -1493,7 +1483,6 @@ function start(rt: Runtime): void {
     }
   });
 
-  // ---- Tables: the grid -----------------------------------------------------------------------------------
   // A table the extension can edit cell by cell (BlockView.table.rows) opens in a grid of labelled text fields, in
   // place of its rendering: Enter on the table, a click in one of its cells, or "Edit as grid". Each cell is written
   // on its own (tableCell) when the user pauses, leaves it or presses Enter; rows and columns change from the grid's

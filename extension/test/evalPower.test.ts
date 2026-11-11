@@ -17,10 +17,6 @@ import type { AnswerRecord, FactLookupTask } from './eval/types';
 const fixture = join(__dirname, 'eval', 'fixture');
 const model = (extra: Partial<PowerModel> = {}): PowerModel => ({ ...DEFAULT_MODEL, ...extra });
 
-// ---------------------------------------------------------------------------
-// Verdicts
-// ---------------------------------------------------------------------------
-
 test('AF34: non-inferiority and equivalence verdicts on constructed intervals', () => {
   const m = 0.05;
   assert.equal(nonInferiorityVerdict([-0.04, 0.02], m), 'non-inferior');
@@ -114,10 +110,6 @@ test('AF34: score takes the margins from flags or from "analysis" in a run confi
     rmSync(dir, { recursive: true, force: true });
   }
 });
-
-// ---------------------------------------------------------------------------
-// Simulated power
-// ---------------------------------------------------------------------------
 
 test('AF34: quantiles', () => {
   assert.ok(Math.abs(normalQuantile(0.975) - 1.959964) < 1e-5);

@@ -224,8 +224,6 @@
     return;
   }
 
-  // ---- Page state ----------------------------------------------------------
-
   // acquireVsCodeApi() works once per page: the page's other scripts get this handle from window.smdRuntime.
   const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : null;
   // What the page is, from <body data-smd-mode>: the preview (the default, also exported HTML, sites and the
@@ -288,7 +286,6 @@
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
-  // ---- Tabs ---------------------------------------------------------------
   const panesOf = (tabs) => Array.from(tabs.children).filter((el) => el.classList.contains('smd-tab'));
   // Hydrating a scope (the whole page, or one block in the Block Editor) builds what is inside it. Keys are
   // counted over the whole page, so an element's key can move when one before it changes; saved state of the
@@ -362,7 +359,6 @@
     refreshScrollers();
   }, true);
 
-  // ---- Copy buttons -------------------------------------------------------
   let liveRegion = null;
 
   /** Tell screen readers something without moving focus (a polite live region, created before it is needed). */
@@ -422,7 +418,6 @@
 
   const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // ---- Mermaid diagrams ---------------------------------------------------
   function cssVar(name) {
     return getComputedStyle(html).getPropertyValue(name).trim();
   }
@@ -620,7 +615,6 @@
     return node ? Number(node.getAttribute('data-line')) : null;
   }
 
-  // ---- Scroll anchoring ---------------------------------------------------
   // The preview remembers which source line is at the top of the viewport (plus the offset into
   // that element) rather than a pixel position, so re-renders and edits above don't move it.
   //
@@ -787,7 +781,6 @@
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (applyTheme()) rerenderDiagrams(); });
   }
 
-  // ---- Printing -------------------------------------------------------------
   // Closed <details> can't be opened on paper, so open them for printing and close them again after.
   // `smd pdf` dispatches beforeprint itself, because headless printing doesn't.
   let openedForPrint = [];

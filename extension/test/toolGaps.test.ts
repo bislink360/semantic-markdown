@@ -21,10 +21,6 @@ const taskLines = (src: string) => extractTasks(src, TODAY).map((t) => t.line);
 const renderedTasks = (src: string) => [...renderSmd(src, { today: TODAY }).html.matchAll(/data-task-line="(\d+)"/g)].map((m) => Number(m[1]));
 const codes = (src: string) => validateSmd(src, { today: TODAY }).map((d) => `${d.line}:${d.code}`);
 
-// ---------------------------------------------------------------------------
-// Task lines
-// ---------------------------------------------------------------------------
-
 test('tasks: a task-shaped line that continues a paragraph is text, as in rendering', () => {
   // Indented four columns after a paragraph: lazy continuation, not a list item.
   assert.deepEqual(taskLines('foo\n    - [ ] x\n'), []);
@@ -92,10 +88,6 @@ test('tasks: the scan agrees with rendering on every sample and corpus document'
   }
 });
 
-// ---------------------------------------------------------------------------
-// Inline items across line breaks
-// ---------------------------------------------------------------------------
-
 test('inline items across line breaks: the agent view reads them whole, as rendering does', () => {
   assert.equal(view('The :badge[foo\nbar]{color=green} build.\n'), 'The [foo\nbar] build.');
   assert.equal(view('Is :status[on\ntrack]{color=green}.\n'), 'Is [status: on\ntrack (ok)].');
@@ -138,9 +130,7 @@ test('inline items across line breaks: the corpus document', () => {
   assert.deepEqual(validateSmd(doc), []);
 });
 
-// ---------------------------------------------------------------------------
 // A `|` in a code span in a table cell
-// ---------------------------------------------------------------------------
 
 test('table/pipe-in-code: an info hint with a fix that escapes the pipe', () => {
   const doc = '| Command | Meaning |\n| --- | --- |\n| `grep a | wc -l` | Count |\n';

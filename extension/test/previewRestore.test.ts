@@ -14,9 +14,7 @@ const runtimePath = join(__dirname, '..', 'media', 'runtime.js');
 const runtime = new vm.Script(readFileSync(runtimePath, 'utf8'), { filename: runtimePath });
 const { mapAnchor, newerPlace } = createRequire(__filename)(runtimePath);
 
-// ---------------------------------------------------------------------------
 // The pure parts
-// ---------------------------------------------------------------------------
 
 test('mapAnchor applies the edits made after the version an anchor was measured in', () => {
   const sync = { since: 3, edits: [[4, 0, 0, 2], [6, 10, 12, 0], [7, 0, 0, 1]] };
@@ -80,9 +78,7 @@ test('readPosition accepts what the page sends and nothing else', () => {
   assert.equal(readPosition({ anchor: { line: -1, offset: 0 }, version: 4 }), undefined);
 });
 
-// ---------------------------------------------------------------------------
 // A fake of the `vscode` module: just what src/preview.ts uses
-// ---------------------------------------------------------------------------
 
 type Fn<T> = (e: T) => unknown;
 interface Emitter<T> { on(fn: Fn<T>): { dispose(): void }; fire(e: T): void }
@@ -126,9 +122,7 @@ loader._load = function (this: unknown, request: string, ...rest: unknown[]) {
 const { PreviewManager } = createRequire(__filename)('../src/preview') as typeof import('../src/preview');
 loader._load = realLoad;
 
-// ---------------------------------------------------------------------------
 // A fake page: the DOM media/runtime.js needs, with one line of source every LINE pixels
-// ---------------------------------------------------------------------------
 
 const LINE = 20;
 const VIEWPORT = 600;
@@ -219,9 +213,7 @@ class FakePage {
   }
 }
 
-// ---------------------------------------------------------------------------
 // A fake webview panel, as VS Code runs one that does not keep its context when hidden
-// ---------------------------------------------------------------------------
 
 /** Loading: the webview exists, but the page's script has not run yet, so nothing is listening. */
 type Loaded = FakePage | 'loading' | null;
@@ -329,10 +321,6 @@ class Webview {
     this.toPage.unshift(...this.inFlight.splice(0));
   }
 }
-
-// ---------------------------------------------------------------------------
-// Scenarios
-// ---------------------------------------------------------------------------
 
 const PARAGRAPHS = 60;
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));

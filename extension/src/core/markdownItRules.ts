@@ -25,9 +25,7 @@ export { HEADING_ATTRS, slugify } from './sections';
 
 const lineText = (state: StateBlock, l: number) => state.src.slice(state.bMarks[l] + state.tShift[l], state.eMarks[l]);
 
-// ---------------------------------------------------------------------------
 // Block containers  (:::name{attrs} Title … :::)
-// ---------------------------------------------------------------------------
 
 /**
  * The colon counts of the containers whose body is being parsed, outermost first, for the containers opened inside
@@ -304,10 +302,6 @@ function htmlIdsOf(html: string, add: (id: string) => void): void {
   for (const m of html.matchAll(/\s(?:id|name)="([^"]*)"/g)) add(m[1]);
 }
 
-// ---------------------------------------------------------------------------
-// Inline syntax
-// ---------------------------------------------------------------------------
-
 /** `[styled text]{color=red weight=bold}` → <span style=…> */
 export function styledSpan(state: StateInline, silent: boolean): boolean {
   const start = state.pos;
@@ -429,9 +423,7 @@ export interface DirectiveMeta {
 /** The meta of the checkbox token that taskLists puts in front of a task's text. */
 export interface TaskBoxMeta { taskBox: true; checked: boolean }
 
-// ---------------------------------------------------------------------------
 // Front matter variables  ({{name}})
-// ---------------------------------------------------------------------------
 
 /** Where the front matter of the document being rendered is kept for `{{name}}` (a host's env too). */
 export interface VariableEnv {
@@ -454,9 +446,7 @@ export function collectVariables(state: StateCore): void {
   if (state.src.startsWith('---')) env.smdVariables = shownValues(parseFrontMatter(state.src).data, state.src, specOf(env));
 }
 
-// ---------------------------------------------------------------------------
 // Spec version  (smd: 2)
-// ---------------------------------------------------------------------------
 
 /** The env of a parse inside a render: the scan of a file to include (see markdownItInclude.ts). */
 interface InnerEnv extends SpecEnv, VariableEnv {
@@ -592,9 +582,7 @@ function mathBlockEnd(state: StateBlock, startLine: number, endLine: number): nu
   return -1;
 }
 
-// ---------------------------------------------------------------------------
 // Footnotes  ([^label] references, [^label]: definitions — as on GitHub)
-// ---------------------------------------------------------------------------
 
 /** One parse's footnotes, on the env from the first definition until footnoteTail moves them. */
 interface FootnoteState {
@@ -762,10 +750,6 @@ function footnoteItem(state: StateCore, content: Token[], use: { n: number; coun
   return items;
 }
 
-// ---------------------------------------------------------------------------
-// Front matter
-// ---------------------------------------------------------------------------
-
 /**
  * `---` YAML front matter on the first line, as one `smd_front_matter` token carrying the parsed data. Front matter
  * that could not be read has its lines as written in `content`, which render in an error block. Otherwise, in spec v2
@@ -788,10 +772,6 @@ export function frontMatterBlock(state: StateBlock, startLine: number, _endLine:
   state.line = fm.bodyStartLine;
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// Core passes
-// ---------------------------------------------------------------------------
 
 const TASK = /^\[([ xX])\][ \t]/;
 

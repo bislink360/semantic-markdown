@@ -172,7 +172,6 @@ function riskMatrixPointer(title: string): string {
 interface ContainerHead { line?: string; close?: string }
 
 interface HeadSource {
-  /** The title as plain words. */
   title: string;
   values: Record<string, string>;
   id?: string;
@@ -644,9 +643,7 @@ function viewResult(
   return result;
 }
 
-// ---------------------------------------------------------------------------
 // Token budget (maxTokens): condense, then omit sections in priority order.
-// ---------------------------------------------------------------------------
 
 /**
  * A view before assembly: its head and every emitted body line with the source line it came from. Fitting a budget
@@ -1168,7 +1165,6 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     const raw = alertView.line(i, lines[i]);
     if (raw === undefined) continue;
 
-    // ---- fenced code ----
     if (fence) {
       if (new RegExp(`^\\s{0,3}${fence.marker[0] === '`' ? '`' : '~'}{${fence.marker.length},}\\s*$`).test(raw)) {
         const rendered = renderFence(fence, i, { ...options, brief: briefAt(fence.start) });
@@ -1194,7 +1190,6 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       continue;
     }
 
-    // ---- HTML comments ----
     let line = raw;
     if (inComment) {
       const end = line.indexOf('-->');
@@ -1210,7 +1205,6 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     if (startComment >= 0) { line = line.slice(0, startComment); inComment = true; commentStart = i; }
     if (raw.trim() && !line.trim()) continue;
 
-    // ---- containers ----
     if (CONTAINER_CLOSE.test(line)) {
       // The containers the fence closes, innermost first (spec v2 may close several, see closedBy).
       const at = closedBy(stack.map((f) => f.colons), closerColons(line), spec);
@@ -1290,7 +1284,6 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       continue;
     }
 
-    // ---- headings ----
     const h = /^(\s{0,3}#{1,6})\s+(.*?)\s*#*\s*$/.exec(line);
     if (h) {
       flushDone(i);
@@ -1298,7 +1291,6 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       continue;
     }
 
-    // ---- tasks ----
     // A task-shaped line that rendering shows as text (in a paragraph it continues) is not a task.
     const shape = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]\s+(.*)$/.exec(line);
     const task = shape && taskLines.has(i) ? shape : null;
@@ -1314,7 +1306,6 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       if (line.trim()) flushDone(i);
     }
 
-    // ---- tables ----
     if (/^\s*\|.*\|\s*$/.test(line)) {
       const cells = line.trim().slice(1, -1).split('|').map((c) => c.trim());
       const isDelimiter = cells.every((c) => /^:?-{1,}:?$/.test(c));
@@ -1689,10 +1680,8 @@ function directiveText(
   }
 }
 
-// ---------------------------------------------------------------------------
 // Outline: a table of contents with per-section token costs, so an agent can
 // decide what to read before reading anything.
-// ---------------------------------------------------------------------------
 
 /**
  * The agent view of any line range, as `transform` would produce it for that scope. The document is
@@ -1848,9 +1837,7 @@ function costWidth(costs: string[], tokenizer?: Tokenizer): number {
   return tokenizer ? Math.max(...costs.map((c) => c.length), 6) : 6;
 }
 
-// ---------------------------------------------------------------------------
 // Evidence in review views (`evidence: 'full'`, research AF27)
-// ---------------------------------------------------------------------------
 
 /**
  * The lines that follow a requirement or acceptance block in a view with `evidence: 'full'`: for each record that

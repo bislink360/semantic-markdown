@@ -37,9 +37,7 @@ async function textOf(uri: vscode.Uri): Promise<string | undefined> {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Index: tasks per file, kept current
-// ---------------------------------------------------------------------------
 
 /** Tasks in every .smd file of the workspace. Scans on first use, then follows edits, saves and file events. */
 class TaskIndex implements vscode.Disposable {
@@ -152,10 +150,6 @@ class TaskIndex implements vscode.Disposable {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Tree
-// ---------------------------------------------------------------------------
-
 class TasksProvider implements vscode.TreeDataProvider<Node> {
   private readonly emitter = new vscode.EventEmitter<Node | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
@@ -251,10 +245,6 @@ function taskTooltip(task: WorkspaceTask): string {
   return lines.filter(Boolean).join('\n');
 }
 
-// ---------------------------------------------------------------------------
-// Editing tasks
-// ---------------------------------------------------------------------------
-
 /** The task's line now: where it was, or where a task with the same text moved to. */
 function currentLine(document: vscode.TextDocument, task: WorkspaceTask): number | undefined {
   const tasks = extractTasks(document.getText());
@@ -294,10 +284,6 @@ async function pickGrouping(current: TaskGrouping): Promise<TaskGrouping | undef
   }));
   return (await vscode.window.showQuickPick(items, { placeHolder: 'Group tasks by' }))?.by;
 }
-
-// ---------------------------------------------------------------------------
-// Registration
-// ---------------------------------------------------------------------------
 
 export function registerTasksView(context: vscode.ExtensionContext): void {
   const index = new TaskIndex();

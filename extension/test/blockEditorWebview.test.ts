@@ -364,10 +364,6 @@ test('textareaRows grows with the text, within limits', () => {
   assert.equal(textareaRows('x\n'.repeat(100)), 40);
 });
 
-// ---------------------------------------------------------------------------
-// The page script itself
-// ---------------------------------------------------------------------------
-
 const pageSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'webview', 'blockEditor.ts'), 'utf8');
 const modelSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'webview', 'blockEditorModel.ts'), 'utf8');
 

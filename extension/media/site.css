@@ -8,7 +8,6 @@ body.smd-site { padding: 0; }
 /* The skip link moves focus to the content; the content itself needs no ring. */
 .smd-site #smd-root:focus { outline: none; }
 
-/* ---------- Top bar ---------- */
 .smd-site-bar {
   position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px;
   height: 52px; padding: 0 16px; box-sizing: border-box;
@@ -22,7 +21,6 @@ body.smd-site { padding: 0; }
   color: var(--smd-fg); background: var(--smd-surface); border: 1px solid var(--smd-border); border-radius: 6px;
 }
 
-/* ---------- Search ---------- */
 .smd-site-search { position: relative; flex: 1; max-width: 420px; margin-left: auto; }
 .smd-site-search input {
   width: 100%; box-sizing: border-box; font: inherit; font-size: .92em; padding: 6px 10px;
@@ -43,7 +41,6 @@ body.smd-site { padding: 0; }
 .smd-site-results mark { background: var(--smd-accent-soft); color: inherit; border-radius: 2px; }
 .smd-site-result-none { margin: 0; padding: 10px; color: var(--smd-fg-muted); font-size: .9em; }
 
-/* ---------- Layout and sidebar ---------- */
 .smd-site-layout { display: grid; grid-template-columns: 272px minmax(0, 1fr); max-width: 1320px; margin: 0 auto; }
 .smd-site-nav {
   position: sticky; top: 52px; align-self: start; max-height: calc(100vh - 52px); overflow-y: auto; box-sizing: border-box;
@@ -68,7 +65,6 @@ body.smd-site { padding: 0; }
 .smd-site-crumbs a { color: var(--smd-fg-muted); }
 .smd-site-sep { margin: 0 .5em; opacity: .7; }
 
-/* ---------- Backlinks, previous/next ---------- */
 .smd-site-backlinks { border-top: 1px solid var(--smd-border); padding: 16px 0 4px; font-size: .92em; }
 .smd-site-backlinks h2 { font-size: .8em; text-transform: uppercase; letter-spacing: .06em; color: var(--smd-fg-muted); margin: 0 0 6px; }
 .smd-site-backlinks ul { margin: 0; padding-left: 1.2em; }
@@ -81,7 +77,6 @@ body.smd-site { padding: 0; }
 .smd-site-pager a span { font-size: .78em; font-weight: 500; color: var(--smd-fg-muted); }
 .smd-site-next { margin-left: auto; text-align: right; }
 
-/* ---------- Home and dashboard ---------- */
 .smd-site-lead { color: var(--smd-fg-muted); }
 .smd-site-index { list-style: none; padding: 0; }
 .smd-site-index li { margin: 0 0 .7em; }

@@ -17,8 +17,6 @@ const v2 = (body: string) => `---\nsmd: 2\ntitle: T\n---\n\n${body}\n`;
 const v1 = (body: string) => `---\nsmd: 1\ntitle: T\n---\n\n${body}\n`;
 const found = (text: string, code: string) => validateSmd(text, { today: TODAY }).filter((d) => d.code === code);
 
-// --- Assumption ---------------------------------------------------------------------------------------------------
-
 test('AC10 (R38): an unvalidated assumption past its review-by date is assumption/overdue, and renders "overdue"', () => {
   const text = v2(':::assumption{#A1 owner=@maya review-by=2026-01-01} Readers use the CLI\n:::');
   const diags = found(text, 'assumption/overdue');
@@ -50,8 +48,6 @@ test('R40: an unvalidated assumption is key content under a budget; a validated 
   assert.deepEqual(omitted(doc('')), ['Plain'], 'an unvalidated premise is kept longer');
   assert.deepEqual(omitted(doc(' status=validated')), ['Premise'], 'a validated premise is ordinary content');
 });
-
-// --- Evidence ------------------------------------------------------------------------------------------------------
 
 test('R41: evidence linked to nothing, or with an empty supports=, is info evidence/unlinked; evidence/rev hints without rev', () => {
   const unlinked = found(v2(':::evidence{#E1 method=test result=pass} Run\n:::'), 'evidence/unlinked');
@@ -121,8 +117,6 @@ test('R43: a commit that is not 7 to 40 hex characters is evidence/commit; exist
   assert.match(agentView(v2(':::evidence{#E1 commit=main} Run\n:::')).text, /commit="main"/);
 });
 
-// --- Questions -----------------------------------------------------------------------------------------------------
-
 const QUESTIONS = v2([
   ':::question Plain question', 'Body.', ':::', '',
   ':::question{#Q1 status=answered owner=@maya due=2026-01-01} Written answered, no answer', ':::', '',
@@ -182,8 +176,6 @@ test('AC14 (R50): the catalog counts open questions only, once a question uses t
   assert.equal(indexEntry(v2(':::question A\n:::\n\n:::question B\n:::'), 'q.smd', { today: TODAY }).counts.questions, 2);
 });
 
-// --- Decisions -----------------------------------------------------------------------------------------------------
-
 const SUPERSEDES = v2(':::decision{#D3 status=accepted} Use files\n:::\n\n:::decision{#D7 status=accepted supersedes=D3} Use a database\n:::\n\n:::decision{#D4} No status\n:::\n\n:::decision{#D8 supersedes=D4} Replaces it\n:::');
 
 test('AC15 (R52): decision/supersedes warns on the superseded decision, and the fix sets status=superseded', () => {
@@ -228,8 +220,6 @@ test('R19, R53: with the document\'s path, every view counts supersedes=this.smd
   assert.match(elsewhere, /superseded by <a class="smd-ref" href="#D7"/);
   assert.doesNotMatch(elsewhere, /superseded by <a class="smd-ref" href="#D5">/);
 });
-
-// --- Dependencies --------------------------------------------------------------------------------------------------
 
 const TASKS = v2([
   ':::requirement{#R7 status=proposed} Proposed', ':::', '',

@@ -13,9 +13,7 @@ import { githubHeadingIds } from '../src/core/toMarkdown';
 
 const ids = (body: string) => renderSmd(body).headings.map((h) => h.slug);
 
-// ---------------------------------------------------------------------------
 // Semantic Markdown's own ids (SPEC §4.2.3): pinned, since links depend on them
-// ---------------------------------------------------------------------------
 
 test('slugify: lower-case, punctuation and `_` removed, whitespace runs to one hyphen, hyphens collapsed', () => {
   assert.equal(slugify('Getting Started'), 'getting-started');
@@ -66,10 +64,6 @@ test('heading ids: repeats are numbered -1, -2…; {#id} is used as written and 
   assert.deepEqual(ids('## foo_bar\n\n## foobar\n\n## Foo-Bar\n\n## Foo -- Bar'), ['foobar', 'foobar-1', 'foo-bar', 'foo-bar-1']);
   assert.deepEqual(ids('## !!!\n\n## ???'), ['section', 'section-1']);
 });
-
-// ---------------------------------------------------------------------------
-// GitHub's ids
-// ---------------------------------------------------------------------------
 
 test('githubSlug: lower-case, punctuation removed except - and _, each space a hyphen, nothing collapsed', () => {
   assert.equal(githubSlug('Getting Started'), 'getting-started');
@@ -137,10 +131,6 @@ test('githubHeadingIds: the ids of the to-md output, where badges, variables and
   assert.deepEqual(ids(src), ['install', 'new-in-version', 'custom', 'bold-part', 'a', 'a-1']);
 });
 
-// ---------------------------------------------------------------------------
-// Aliases
-// ---------------------------------------------------------------------------
-
 const ALIASES = '# Guide\n\n## foo_bar\n\n## A -- B\n\n## Plain\n\n## Same_name\n\n## samename {#Same_name-x}\n\n<a id="same_name"></a>\n';
 
 test('githubAliases: GitHub ids that differ from the heading id, unless something has that id itself', () => {
@@ -193,10 +183,6 @@ test('validate: links to another document by GitHub id are info too', () => {
   assert.match(diags[0].message, /heading "max_tokens" in "other\.smd"/);
 });
 
-// ---------------------------------------------------------------------------
-// to-md and from-md
-// ---------------------------------------------------------------------------
-
 test('to-md: an anchor with the heading id before each heading whose GitHub id differs', () => {
   assert.equal(smdToMarkdown('## foo_bar\n\nText.\n\n## Plain\n'), '<a id="foobar"></a>\n## foo_bar\n\nText.\n\n## Plain\n');
   // `{#id}`, which GitHub can't read, keeps working through the anchor.
@@ -239,10 +225,6 @@ test('from-md: the anchors to-md writes are dropped again; other anchors stay', 
   assert.equal(markdownToSmd('---\nsmd: 1\n---\n<a id="top"></a>\n## Intro\n\n<a id="foo"></a>\n\nText\n', 'T'),
     '---\nsmd: 1\n---\n<a id="top"></a>\n## Intro\n\n<a id="foo"></a>\n\nText\n');
 });
-
-// ---------------------------------------------------------------------------
-// Rename
-// ---------------------------------------------------------------------------
 
 test('renameHeading: links by GitHub id follow the heading', () => {
   const src = '## foo_bar\n\n## Plain\n';

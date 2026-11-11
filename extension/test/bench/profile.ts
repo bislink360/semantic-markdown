@@ -196,10 +196,6 @@ export function profileDocument(doc: ProfileDoc, settings: ProfileSettings, only
   };
 }
 
-// ---------------------------------------------------------------------------
-// Documents
-// ---------------------------------------------------------------------------
-
 function smdFile(file: string): ProfileDoc {
   return { name: path.relative(repo, file).replace(/\\/g, '/'), text: fs.readFileSync(file, 'utf8'), dir: path.dirname(file) };
 }
@@ -272,10 +268,6 @@ function documents(): { docs: ProfileDoc[]; temp: string[] } {
   docs.push(included);
   return { docs, temp: [included.dir] };
 }
-
-// ---------------------------------------------------------------------------
-// Report
-// ---------------------------------------------------------------------------
 
 function gitOut(args: string[]): string | undefined {
   try {

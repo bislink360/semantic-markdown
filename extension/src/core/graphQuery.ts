@@ -137,10 +137,6 @@ export function documentConstraints(text: string, matches: readonly QueryMatch[]
     .map((b) => ({ type: b.type, line: b.line, endLine: b.endLine, title: b.title, section: b.section, text: b.text }));
 }
 
-// ---------------------------------------------------------------------------
-// Text
-// ---------------------------------------------------------------------------
-
 export interface FormatOptions {
   /** One line per match instead of its content (`--titles`). */
   titles?: boolean;
@@ -286,10 +282,6 @@ export function queryResultSummary(result: QueryDocumentsResult, fileCount: numb
   }
   return parts.join(' ');
 }
-
-// ---------------------------------------------------------------------------
-// JSON
-// ---------------------------------------------------------------------------
 
 const nodeJson = (n: GraphNode) => ({ file: n.file, type: n.type, title: n.title, ...(n.line === undefined ? {} : { line: n.line, endLine: n.endLine }), ...(n.id ? { id: n.id } : {}), section: n.section });
 

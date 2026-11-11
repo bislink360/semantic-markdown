@@ -24,10 +24,6 @@ const urls: PageUrls = {
 };
 const scriptSrcs = (html: string) => [...html.matchAll(/<script nonce="n1" src="([^"]+)"><\/script>/g)].map((m) => m[1]);
 
-// ---------------------------------------------------------------------------
-// Pages
-// ---------------------------------------------------------------------------
-
 test('preview page: the shell the preview builds, stub first, local files, no remote loads', () => {
   const html = previewPage(showcase, join(samples, 'showcase.smd'), urls, 'n1');
   assert.match(html, /<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file: https: data:; style-src file: 'unsafe-inline'; font-src file: data:; script-src 'nonce-n1'; form-action 'none'">/);
@@ -121,10 +117,6 @@ test('parseArgs', () => {
   assert.throws(() => parseArgs(['--fast']), /Unknown option: --fast/);
 });
 
-// ---------------------------------------------------------------------------
-// The accessibility tree
-// ---------------------------------------------------------------------------
-
 const node = (nodeId: string, role: string, name = '', extra: Partial<AXNode> = {}): AXNode =>
   ({ nodeId, ignored: false, role: { type: 'role', value: role }, name: { type: 'computedString', value: name }, ...extra });
 const focusable = { properties: [{ name: 'focusable', value: { type: 'booleanOrUndefined', value: true } }] };
@@ -177,10 +169,6 @@ test('id references: missing or repeated in their own tree scope', () => {
     'div[role=dialog]: aria-labelledby → "a" is not in the shadow root of div#pop',
   ], 'an id in another scope does not count');
 });
-
-// ---------------------------------------------------------------------------
-// Tab walk, focus, tabs, motion
-// ---------------------------------------------------------------------------
 
 const ring = { outlineStyle: 'solid', outlineWidth: '2px', boxShadow: 'none', inView: true, opacity: 1 };
 const at = (expected: number, order: number, extra: Partial<TabStep> = {}): TabStep => ({ body: false, desc: `el${expected}`, order, expected, ...ring, ...extra });
@@ -243,10 +231,6 @@ test('pageCss: inline styles and linked sheets, resolved against <base>; claimsR
   assert.deepEqual(site, ['a {}']);
   assert.equal(claimsReducedMotion(site), false);
 });
-
-// ---------------------------------------------------------------------------
-// Results
-// ---------------------------------------------------------------------------
 
 test('applyKnown: known failures are listed, not failed; new ones still fail; ones that went away are reported', () => {
   const known = [{ page: /^preview/, check: 'image text', item: /^graphics-document/, note: 'diagrams' }, { page: /./, check: 'names', item: /x/, note: 'gone' }];

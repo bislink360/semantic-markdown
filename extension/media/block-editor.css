@@ -6,8 +6,6 @@
  * theme variables, so light, dark and high-contrast themes all apply; forced-colors mode gets system colors.
  */
 
-/* ---- The page ------------------------------------------------------------------------------------------- */
-
 #smd-ed-toolbar { position: sticky; top: 0; z-index: 10; margin: 0 0 8px; }
 
 .smd-ed-block { position: relative; border-radius: 3px; }
@@ -89,7 +87,6 @@
 }
 :host input:focus, :host select:focus, :host textarea:focus { outline: 2px solid var(--vscode-focusBorder, #0078d4); outline-offset: 0; }
 
-/* The toolbar. */
 :host .bar {
   display: flex;
   flex-wrap: wrap;
@@ -104,7 +101,6 @@
 :host .bar-notice { padding: 4px 8px; background: var(--vscode-editorWidget-background, Canvas); color: var(--vscode-foreground, inherit); }
 :host .bar-notice:empty { display: none; }
 
-/* The insert menu. */
 :host .menu {
   position: absolute;
   left: 8px;
@@ -126,7 +122,6 @@
   background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground, rgba(128, 128, 128, 0.3)));
 }
 
-/* A container's properties. */
 :host .props {
   padding: 8px;
   background: var(--vscode-editorWidget-background, Canvas);
@@ -142,7 +137,6 @@
 :host .props .actions { margin-top: 6px; }
 :host .field input:disabled, :host .field select:disabled { opacity: 0.6; }
 
-/* The form of an inline directive or styled span. */
 :host .pop {
   min-width: 16em;
   max-width: min(28em, 90vw);
@@ -157,7 +151,6 @@
 :host .pop .field input[type="date"] { flex: 1; padding: 2px 4px; }
 :host .pop .actions { margin-top: 6px; }
 
-/* The source editor of a block. */
 :host .editor { margin: 0.5em 0; }
 :host .label { display: block; margin-bottom: 2px; font-size: 0.85em; color: var(--vscode-descriptionForeground, inherit); }
 :host textarea.source {
@@ -181,7 +174,6 @@
 :host .notice p { margin: 0 0 6px; }
 :host .actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* A table edited cell by cell. */
 :host .grid-editor { margin: 0.5em 0; }
 :host .grid-editor .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 2px 0 6px; }
 :host .grid-scroll { overflow-x: auto; }
@@ -208,7 +200,6 @@
 :host table.grid input:focus { outline: 2px solid var(--vscode-focusBorder, #0078d4); outline-offset: -2px; }
 :host table.grid[aria-busy="true"] { opacity: 0.7; }
 
-/* The drag handle. */
 :host .handle {
   width: 18px;
   line-height: 22px;
@@ -220,18 +211,15 @@
 }
 :host .handle:hover { opacity: 1; color: var(--vscode-foreground, inherit); }
 
-/* An item's controls: the problem badge at the right. */
 :host .chrome { position: relative; height: 0; }
 :host .chrome .badge { position: absolute; top: 0; right: 0; }
 :host .chrome.child .badge { top: 2px; }
 
-/* A review block's buttons: at the right, left of the problem badge when there is one. */
 :host .chrome .review { position: absolute; top: 0; right: 0; display: flex; gap: 4px; }
 :host .chrome .badge:not([hidden]) + .review { right: 56px; }
 :host .chrome.child .review { top: 2px; }
 :host .chrome .review button { font-size: 11px; line-height: 18px; padding: 0 8px; }
 
-/* A block's problems, listed (Ctrl+.). */
 :host .problems { margin: 0 0 6px; padding-left: 1.2em; max-height: 40vh; overflow: auto; }
 :host .problems li { margin: 2px 0; overflow-wrap: anywhere; }
 :host .fixes { margin: 0 0 6px; }

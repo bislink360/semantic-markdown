@@ -39,7 +39,6 @@ const git = (args, cwd = ROOT) => execFileSync('git', args, { cwd, encoding: 'ut
 const tryGit = (args, cwd = ROOT) => { try { return git(args, cwd); } catch { return null; } };
 const act = (label, fn) => { console.log(`${DRY ? '[dry-run] ' : ''}${label}`); if (!DRY) return fn(); };
 
-// ---- validate the version -------------------------------------------------
 git(['fetch', '--quiet', 'origin', '--tags', '--prune']);
 const semver = (v) => v.replace(/^v/, '').split('.').map(Number);
 const cmp = (a, b) => { const x = semver(a), y = semver(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
@@ -69,7 +68,6 @@ for (const b of featureBranches) {
   if (!/^[a-z]+\/[a-z0-9][a-z0-9._-]*$/.test(b)) { console.error(`Invalid branch name "${b}" (use lowercase slugs like feat/table-captions).`); process.exit(2); }
 }
 
-// ---- 1. release branch ---------------------------------------------------------
 if (remoteHas(RELEASE)) {
   console.log(`${RELEASE} exists; adding features to it.`);
 } else {
@@ -79,7 +77,6 @@ if (remoteHas(RELEASE)) {
   });
 }
 
-// ---- 2. open the release at its version (bump + changelog heading) ------------
 const bumpScript = join(ROOT, '.claude', 'skills', 'smd-release', 'scripts', 'bump-version.mjs');
 const releasePkgVersion = () => {
   const ref = remoteHas(RELEASE) ? `origin/${RELEASE}` : baseRef;
@@ -112,7 +109,6 @@ if (flag('--no-bump')) {
   });
 }
 
-// ---- 3. feature branches -------------------------------------------------------
 const created = [], existing = [];
 for (const b of featureBranches) {
   if (remoteHas(b)) { existing.push(b); continue; }
@@ -121,7 +117,6 @@ for (const b of featureBranches) {
 }
 if (!DRY) git(['fetch', '--quiet', 'origin']);
 
-// ---- 4. draft tracking PR --------------------------------------------------------
 // gh is the maintainer's own GitHub CLI from their PATH, as git is; this runs only on their machine.
 const hasGh = spawnSync('gh', ['--version'], { encoding: 'utf8' }).status === 0; // NOSONAR(javascript:S4036): the maintainer's gh on their PATH, local tool
 const repo = (tryGit(['remote', 'get-url', 'origin']) ?? '').replace(/^.*github\.com[:/]/, '').replace(/\.git$/, '');
@@ -142,7 +137,6 @@ if (!flag('--no-pr') && hasGh && repo) {
   }
 }
 
-// ---- summary ----------------------------------------------------------------------
 const slug = (b) => b.replace(/[^a-z0-9]+/gi, '-');
 console.log(`
 Release train ${version}

@@ -30,9 +30,7 @@ const TEXT = '"Quotes", \'single\', it\'s 10--20 --- wait... (c) (tm) (r) +-1';
 const STRAIGHT = '&quot;Quotes&quot;, \'single\', it\'s 10--20 --- wait... (c) (tm) (r) +-1';
 const CURLED = '“Quotes”, ‘single’, it’s 10–20 — wait… © ™ ® ±1';
 
-// ---------------------------------------------------------------------------
 // The corpus: v2-typography.smd and v2-typography-on.smd, and their v1 twins
-// ---------------------------------------------------------------------------
 
 test('corpus/v2-typography.smd: no typographic character anywhere in the render, and only GFM autolink literals linked', () => {
   const v2 = corpus('v2-typography.smd');
@@ -85,9 +83,7 @@ test('the corpus documents are valid, formatted, and spec v2 documents', () => {
   }
 });
 
-// ---------------------------------------------------------------------------
 // Text: paragraphs, titles, the header, directive content, both versions
-// ---------------------------------------------------------------------------
 
 test('render: v1 curls; v2 keeps the text as written; v2 with typography: true curls', () => {
   assert.match(html(doc('smd: 1', TEXT)), new RegExp(`<p data-line="4">${CURLED}</p>`));
@@ -149,9 +145,7 @@ test('specEnv passes the version and typography along; typographyOn reads them',
   assert.equal(typographyOf(undefined), false);
 });
 
-// ---------------------------------------------------------------------------
 // Links: fuzzy (v1) and GFM autolink literals (v2)
-// ---------------------------------------------------------------------------
 
 /** Each link of the HTML as `text → href`. */
 const linksOf = (out: string) => [...out.matchAll(/<a href="([^"]*)">([^<]*)<\/a>/g)].map((m) => `${m[2]} → ${m[1]}`);
@@ -187,9 +181,7 @@ test('links: a v2 render leaves the instance as it was, so the next v1 render is
   assert.match(v1, /<a href="http:\/\/example\.com">/);
 });
 
-// ---------------------------------------------------------------------------
 // The markdown-it plugin, remark, Obsidian
-// ---------------------------------------------------------------------------
 
 test('markdown-it plugin: spec v2 (option or front matter) takes typography and fuzzy links away from the host', () => {
   const host = (spec?: 1 | 2) => new MarkdownIt({ linkify: true, typographer: true }).use(smd, { spec });
@@ -242,9 +234,7 @@ test('Obsidian: its typographer stays off in every version; v2 notes link only G
   assert.doesNotMatch(note({ smd: 2 }), /<a /);
 });
 
-// ---------------------------------------------------------------------------
 // Exporters, the Block Editor, and the readers that keep the source
-// ---------------------------------------------------------------------------
 
 test('exporters: Pandoc HTML, Confluence and Notion follow the version and typography', () => {
   const body = `## "H" -- 1\n\n${TEXT} example.com\n\n:::note "A" -- title\nx\n:::`;
@@ -286,10 +276,6 @@ test('the agent view, to-md and tasks keep the source text in either version', (
     assert.deepEqual(extractTasks(text, today).map((t) => t.text), ['"Ship" -- it... example.com'], smdLine);
   }
 });
-
-// ---------------------------------------------------------------------------
-// The front matter key
-// ---------------------------------------------------------------------------
 
 test('typography is a front matter key: in the schema, the validator and the Block Editor\'s form', () => {
   const prop = (FRONTMATTER_SCHEMA.properties as Record<string, { type?: string; description: string }>).typography;

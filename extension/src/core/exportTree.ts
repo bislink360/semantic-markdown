@@ -204,7 +204,6 @@ interface ContainerCall {
   meta: ContainerMeta;
   title: string;
   body: () => Block[];
-  /** The index of its opening token. */
   open: number;
 }
 
@@ -400,10 +399,6 @@ function listFact(name: string, value: unknown, shown: unknown): Inline[] {
   const items = (Array.isArray(value) ? value : [value]).flatMap((v, i) => (typeof v === 'string' || typeof v === 'number' ? [String(spelled[i])] : []));
   return items.length ? [text(`${name}: `, { bold: true }), text(items.join(', '))] : [];
 }
-
-// ---------------------------------------------------------------------------
-// Containers
-// ---------------------------------------------------------------------------
 
 const withTitle = (prefix: string, title: string) => (title ? `${prefix}: ${title}` : prefix);
 /** A bold title paragraph, then the body. */
@@ -716,10 +711,6 @@ function containerRule(name: string): (c: ContainerCall) => Block[] {
   return CONTAINERS.get(name) ?? (isKnownContainer(name) ? contentOnly : titled);
 }
 
-// ---------------------------------------------------------------------------
-// Inline content
-// ---------------------------------------------------------------------------
-
 /** The marks a token opens; the matching `_close` token ends them. */
 const MARK_OPENERS = new Map<string, (t: Token) => Marks>([
   ['strong_open', () => ({ bold: true })],
@@ -839,10 +830,6 @@ class InlineReader {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Inline directives
-// ---------------------------------------------------------------------------
-
 type DirectiveExport = (d: DirectiveMeta, b: TreeBuilder, marks: Marks) => Inline[];
 
 const statusColor = (value: string | undefined): string => (exportColor(value)?.named ?? 'gray');
@@ -889,10 +876,6 @@ function metric(d: DirectiveMeta, b: TreeBuilder, marks: Marks): Inline[] {
   const rest = [values.label, ...delta].filter(Boolean).join(' ');
   return [text(b.plain(d.content), { ...marks, bold: true }), ...(rest ? [text(` ${rest}`, marks)] : [])];
 }
-
-// ---------------------------------------------------------------------------
-// Raw HTML
-// ---------------------------------------------------------------------------
 
 /** An HTML block as paragraphs of its text: tags, comments, scripts and styles dropped, entities decoded. */
 export function htmlParagraphs(html: string): Block[] {

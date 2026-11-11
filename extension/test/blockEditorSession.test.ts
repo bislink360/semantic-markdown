@@ -149,10 +149,6 @@ const DOC = [
   '',
 ].join('\n');
 
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
-
 test('readEditorMessage accepts every message type with its fields', () => {
   const key = 'abc123#0';
   const valid: unknown[] = [
@@ -207,10 +203,6 @@ test('readEditorMessage ignores anything malformed', () => {
   for (const m of invalid) assert.equal(readEditorMessage(m), undefined, JSON.stringify(m)?.slice(0, 120));
 });
 
-// ---------------------------------------------------------------------------
-// The log of changes
-// ---------------------------------------------------------------------------
-
 test('mapBoundary: changes above move a line, changes below leave it, an insertion at it depends on the side', () => {
   const change = (startLine: number, startCharacter: number, endLine: number, endCharacter: number, text: string): TextChange =>
     ({ startLine, startCharacter, endLine, endCharacter, text });
@@ -242,10 +234,6 @@ test('lineSpan is the text of whole lines, line breaks excluded', () => {
   assert.equal(lineSpan(text, { start: 2, end: 4 }), undefined);
   assert.equal(lineSpan(text, { start: 1, end: 1 }), undefined);
 });
-
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
 
 test('render: the front matter, top-level blocks with their HTML, gaps, children, forms and problems', () => {
   const h = harness(DOC, { diagnostics: [{ line: 10, message: 'Odd', severity: 'warning' }, { line: 12, message: 'Bad', severity: 'error' }] });
@@ -307,10 +295,6 @@ test('containerForm: enumerated values, colors, flags and text, from CONTAINERS'
   assert.equal(containerForm(':::warnign', 'warnign'), undefined, 'unknown kind');
   assert.equal(containerForm(':::note{a="x} t', 'note'), undefined, 'attributes that do not parse');
 });
-
-// ---------------------------------------------------------------------------
-// Edits
-// ---------------------------------------------------------------------------
 
 test('edit: the smallest change inside the block, nothing outside it, then ack', async () => {
   const h = harness(DOC);
@@ -423,10 +407,6 @@ test('edit: a child of a container is edited on its own; a text editor changing 
   assert.ok(h.doc.text.includes('Inside, edited.\n\n- [ ] very a task'));
 });
 
-// ---------------------------------------------------------------------------
-// Insert, delete, move
-// ---------------------------------------------------------------------------
-
 /** `after` is `before` with lines added only: every old line is still there, in order, in runs around the new ones. */
 function onlyInserted(before: string, after: string): string[] {
   const a = lines(before);
@@ -528,10 +508,6 @@ test('move: not past the first or last sibling, and never the front matter', asy
   assert.equal(h.doc.text, DOC);
 });
 
-// ---------------------------------------------------------------------------
-// Header forms, front matter, flush
-// ---------------------------------------------------------------------------
-
 test('setAttr and setTitle change only the opening line, and only what they set', async () => {
   const h = harness(DOC);
   const callout = () => block(h.render(), ':::warning');
@@ -605,9 +581,7 @@ test('ready sends a render; status counts blocks and keys', async () => {
   assert.equal(status.lastAck, null);
 });
 
-// ---------------------------------------------------------------------------
 // Property: random edits to random blocks change no line outside the edited block
-// ---------------------------------------------------------------------------
 
 const corpusDir = path.join(__dirname, 'compat', 'corpus');
 const samplesDir = path.join(__dirname, 'samples');
@@ -738,9 +712,7 @@ test('segments of the fake document agree with segmentSmd (the session sees what
   assert.deepEqual(r.blocks.map((b) => b.key), top);
 });
 
-// ---------------------------------------------------------------------------
 // Inline directives and styled spans (setInline)
-// ---------------------------------------------------------------------------
 
 const INLINE_DOC = [
   '---',
@@ -932,9 +904,7 @@ test('property: setInline on every item of every sample and corpus file changes 
   assert.ok(applied > 20, `inline edits applied (${applied})`);
 });
 
-// ---------------------------------------------------------------------------
 // Tables: the grid
-// ---------------------------------------------------------------------------
 
 const TABLE_DOC = [
   '# Tables',
@@ -1165,10 +1135,6 @@ test('property: a random grid change to every table of every sample and corpus f
   assert.ok(applied > 10, `table edits applied (${applied})`);
 });
 
-// ---------------------------------------------------------------------------
-// Quick fixes
-// ---------------------------------------------------------------------------
-
 /** The offset of a line and column in a text whose lines end in \n or \r\n. */
 function offsetAt(text: string, line: number, character: number): number {
   let offset = 0;
@@ -1334,10 +1300,6 @@ test('quick fixes in a CRLF document: the same lines, and the document stays CRL
   onlyLinesChanged(crlf, h.doc.text, warn.start, warn.end);
 });
 
-// ---------------------------------------------------------------------------
-// The front matter form
-// ---------------------------------------------------------------------------
-
 const FM_DOC = [
   '---', 'title: "Plan"   # shown', '# owners', 'owners:', '  - "@maya"', 'tags: [a, b]', '---', '', '# Plan', '', 'Text.', '',
 ].join('\n');
@@ -1409,9 +1371,7 @@ test('setFrontMatter in a CRLF document keeps CRLF', async () => {
   assert.doesNotMatch(h.doc.text.replaceAll('\r\n', ''), /\n/);
 });
 
-// ---------------------------------------------------------------------------
 // Drag and drop: move to a sibling boundary
-// ---------------------------------------------------------------------------
 
 test('readEditorMessage: a move goes up, down, before a sibling\'s key or to the end, and only one of them', () => {
   const key = 'abc123#0';
@@ -1480,10 +1440,6 @@ test('move to: the target found where a text editor moved it, and a CRLF documen
   assert.ok(h.doc.text.includes('Added.\r\n\r\n# Plan\r\n\r\nLast paragraph.\r\n\r\nFirst paragraph\r\n'), JSON.stringify(h.doc.text));
   assert.doesNotMatch(h.doc.text.replaceAll('\r\n', ''), /\n/);
 });
-
-// ---------------------------------------------------------------------------
-// Pasted and dropped images
-// ---------------------------------------------------------------------------
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]).toString('base64');
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16]).toString('base64');

@@ -7,10 +7,6 @@ import { NOTION_LIMITS, notionRequests, smdToConfluence, smdToNotion, type Notio
 import { htmlToText } from '../src/core/exportTree';
 import { splitText } from '../src/core/notion';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const NAME = /^[A-Za-z_][\w:.-]*/;
 const ENTITY = /^&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/;
 
@@ -112,10 +108,6 @@ function assertNotionLimits(blocks: NotionBlock[], depth = 0): void {
     assertNotionLimits(children, depth + 1);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Confluence
-// ---------------------------------------------------------------------------
 
 test('confluence: text is escaped and raw HTML never passes through', () => {
   const xml = confluence('Tom & Jerry <3 "quotes" a]]>b \u0001\n\n<div onclick="steal()"><b>Hi</b> &amp; bye<script>alert(1)</script><!-- note --></div>\n\nInline <span style="color:red">raw</span> html.\n');
@@ -240,10 +232,6 @@ test('confluence: the front matter header, localized labels, and the same output
   assert.equal(smdToConfluence(''), '');
 });
 
-// ---------------------------------------------------------------------------
-// Notion
-// ---------------------------------------------------------------------------
-
 test('notion: one block type per construct', () => {
   const blocks = notion('# One\n\n## Two\n\n### Three\n\n#### Four\n\nPara.\n\n- a\n- b\n\n1. first\n\n- [x] done\n- [ ] open\n\n```py\nx = 1\n```\n\n> Quoted\n\n:::tip Hint\nBody\n:::\n\n---\n\n| A | B |\n|---|---|\n| 1 |\n\n:::details More\nHidden\n:::\n\n$$\nx^2\n$$\n');
   assert.deepEqual(blocks.map((b) => b.type), [
@@ -364,10 +352,6 @@ test('notion: output is plain JSON and the same every time', () => {
 test('raw HTML to text: tags, comments, scripts and styles go; entities are decoded; a lone < stays', () => {
   assert.equal(htmlToText('<p class="x">a &lt;b&gt; &amp; &#169; &#x1F600;</p><!-- c --><style>p{}</style><script>x()</script> 1 < 2'), 'a <b> & © 😀 1 < 2');
 });
-
-// ---------------------------------------------------------------------------
-// Every sample and corpus document
-// ---------------------------------------------------------------------------
 
 const root = join(__dirname, '..', '..');
 const documents = [join(__dirname, 'samples'), join(__dirname, 'compat', 'corpus')]

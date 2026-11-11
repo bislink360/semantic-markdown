@@ -22,8 +22,6 @@ const PLAYGROUND = join(__dirname, '..', '..', 'playground');
 const STARTER = readFileSync(join(PLAYGROUND, 'starter.smd'), 'utf8');
 const TODAY = '2026-10-10';
 
-// ---- Share-by-URL codec ---------------------------------------------------------
-
 test('the URL codec round-trips documents, including Unicode, line endings and empty text', async () => {
   const samples = [
     '',
@@ -91,8 +89,6 @@ test('long share links get a warning', async () => {
   const url = 'https://example.test/playground/' + (await shareFragment(noise));
   assert.ok(shareLinkWarning(url));
 });
-
-// ---- Panes --------------------------------------------------------------------------
 
 test('renderPanes returns the preview, agent view, diagnostics and Markdown of a document', () => {
   const panes = renderPanes(STARTER, { today: TODAY });
@@ -284,8 +280,6 @@ test('the preview takes its update port only from the playground page\'s origin'
   assert.equal(isParentOrigin('null', undefined), false);
 });
 
-// ---- Editor helpers and storage --------------------------------------------------------
-
 test('Tab indents the caret or every selected line; Shift+Tab outdents', () => {
   assert.deepEqual(indent('ab', 1, 1), { text: 'a  b', start: 3, end: 3 });
   assert.deepEqual(indent('a\nb\nc', 0, 3), { text: '  a\n  b\nc', start: 2, end: 7 });
@@ -319,8 +313,6 @@ test('storage is optional: missing or throwing storage is ignored', () => {
   assert.equal(themeSetting('dark'), 'dark');
   assert.equal(themeSetting('purple'), 'auto');
 });
-
-// ---- Browser bundle -----------------------------------------------------------------
 
 /** Node built-ins a browser bundle must not reach for. */
 const NODE_ONLY = /\brequire\(\s*["'](?:node:)?(?:fs|path|os|child_process|crypto|url|util|stream|http|https|net|tls|zlib|worker_threads|module|process|buffer)["']\s*\)|["']node:[a-z_/]+["']/;

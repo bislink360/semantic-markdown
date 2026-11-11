@@ -181,13 +181,10 @@ export function parseTable(lines: readonly string[]): TableSource | undefined {
   return { rows: [header, ...body], delimiter: delimiter.row, aligns: delimiter.aligns, columns: header.cells.length };
 }
 
-// ---------------------------------------------------------------------------
 // The table as the renderer reads it
-// ---------------------------------------------------------------------------
 
 /** What markdown-it makes of a table: its lines, each row's line and cells' text, and the alignments. */
 export interface RenderedTable {
-  /** The line after the table. */
   end: number;
   rows: { line: number; cells: string[] }[];
   aligns: TableAlign[];
@@ -265,10 +262,6 @@ export function readTable(lines: readonly string[], options: { allowHtml?: boole
   if (!rendered || !agrees(table, rendered, lines.length)) return refuse('This table reads differently when it is rendered.');
   return table;
 }
-
-// ---------------------------------------------------------------------------
-// Edits
-// ---------------------------------------------------------------------------
 
 export function tableShape(table: TableSource): TableShape {
   return { cells: table.rows.map((r) => r.cells.map((c) => c.content)), aligns: [...table.aligns] };

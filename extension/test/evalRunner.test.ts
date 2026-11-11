@@ -75,10 +75,6 @@ function allText(dir: string): string {
   }).join('\n');
 }
 
-// ---------------------------------------------------------------------------
-// Answers
-// ---------------------------------------------------------------------------
-
 test('answers are read from fenced or bare JSON, with trailing text, for every task type', () => {
   assert.deepEqual(parseAnswer('{"text": "8"}'), { answer: { text: '8' } });
   assert.deepEqual(parseAnswer('Looking at L16.\n```json\n{"text": "8 times", "lines": [[16, 16]]}\n```\nDone.'), { answer: { text: '8 times' }, lines: [[16, 16]] });
@@ -128,9 +124,7 @@ test('every condition gets one tool named read; whole-text conditions get the na
   assert.throws(() => conds.setup(webhooks, task, 'M2-oracle'), /offline render/);
 });
 
-// ---------------------------------------------------------------------------
 // Runs against the fake provider
-// ---------------------------------------------------------------------------
 
 test('a whole-text condition: the request shape, the record and a transcript without the key', withOut(async (out) => {
   const p = provider(() => ({ content: 'Here you go:\n```json\n{"text": "8", "lines": [[16, 16]]}\n```' }));

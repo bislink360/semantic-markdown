@@ -59,8 +59,6 @@ jobs:
         working-directory: npm
         run: npm pack --dry-run
 
-  # The MkDocs plugin (integrations/mkdocs) with the committed bridge.cjs (the test job checks that it is up to
-  # date): real `mkdocs build` runs of a small site, on the oldest supported Python and a current one.
   mkdocs:
     name: MkDocs plugin (${{ matrix.os }}, Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
@@ -85,8 +83,6 @@ jobs:
         run: python -m pip install --disable-pip-version-check ".[test]"
       - run: python -m pytest -q
 
-  # The Obsidian plugin (integrations/obsidian): type-checked against the `obsidian` API typings and built as the
-  # release builds it (the unit tests also bundle it and run it against a mock of the API).
   obsidian:
     name: Obsidian plugin
     runs-on: ubuntu-latest
@@ -115,9 +111,6 @@ jobs:
           test -s ../../obsidian-plugin/styled-markdown/styles.css
           test -s ../../obsidian-plugin/styled-markdown/manifest.json
 
-  # The Tree-sitter grammar (integrations/tree-sitter-smd): the committed parser matches grammar.js,
-  # the corpus tests pass and every .smd file in the repository parses without errors. tree-sitter-cli
-  # is pinned in that folder's package.json and package-lock.json.
   tree-sitter:
     name: Tree-sitter grammar
     runs-on: ubuntu-latest
@@ -145,9 +138,6 @@ jobs:
       - name: Every .smd file parses without errors
         run: node scripts/parse-all.mjs
 
-  # The JetBrains plugin (integrations/jetbrains): it compiles against the IntelliJ Platform version in its
-  # gradle.properties, its plugin.xml passes the platform's structure checks, and the zip has the server
-  # and the TextMate bundle in it.
   jetbrains:
     name: JetBrains plugin
     runs-on: ubuntu-latest

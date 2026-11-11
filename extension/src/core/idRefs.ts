@@ -194,10 +194,6 @@ function links(text: string): IdUse[] {
   return uses;
 }
 
-// ---------------------------------------------------------------------------
-// Across documents
-// ---------------------------------------------------------------------------
-
 /** A document of the workspace: a key the host chooses (a path or URI) and its text. */
 export interface IdDocument { key: string; text: string }
 
@@ -284,10 +280,6 @@ export function namingUses(text: string, id: string, pointsAt: (path: string) =>
   if (!text.includes(id)) return [];
   return idUses(text).filter((u) => u.id === id && (u.kind === 'attribute' || u.kind === 'ref' || u.kind === 'depends') && pointsAt(u.path));
 }
-
-// ---------------------------------------------------------------------------
-// Definition and hover
-// ---------------------------------------------------------------------------
 
 /** The zero-based lines of the blocks that give `id` in a document: one, several (ambiguous) or none. */
 export function idDefinitionLines(text: string, id: string): number[] {

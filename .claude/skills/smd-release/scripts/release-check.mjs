@@ -18,9 +18,6 @@ import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { cmpSemver, pickBaseTag, releaseTags } from './base-tag.mjs';
 
-// ---------------------------------------------------------------------------
-// Arguments and helpers
-// ---------------------------------------------------------------------------
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(name);
 const option = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -47,9 +44,6 @@ const features = [];   // additive changes → at least a MINOR bump
 const failures = [];   // blocks the release regardless of version
 const passed = [];     // checks that ran and passed
 
-// ---------------------------------------------------------------------------
-// 1. Base version
-// ---------------------------------------------------------------------------
 const semver = (v) => v.replace(/^v/, '').split('.').map(Number);
 const tags = releaseTags(git('tag', '--list', 'v*').split('\n'));
 const extPkg = readJson(join(EXT, 'package.json'));
@@ -69,9 +63,6 @@ if (!BASE) { console.error('No release tag (vX.Y.Z) found; pass --base.'); proce
 log(RELEASED ? `this tree is the released v${version}; comparing it with ${BASE}` : `comparing working tree with ${BASE}`);
 if (RELEASED) passed.push(`Already released: this tree is the tagged v${version} (compared with ${BASE})`);
 
-// ---------------------------------------------------------------------------
-// 2. Versions are consistent and ahead of the base
-// ---------------------------------------------------------------------------
 const npmPkgPath = join(ROOT, 'npm', 'package.json');
 const npmPkg = existsSync(npmPkgPath) ? readJson(npmPkgPath) : null;
 // --pr: feature/fix/docs/chore PRs don't bump versions; only release/vX.Y.Z branches do.
@@ -88,9 +79,6 @@ if (!PR_MODE) {
 const cliSrc = readFileSync(join(EXT, 'src', 'cli.ts'), 'utf8');
 if (!/pkg\.version/.test(cliSrc)) review.push('The CLI no longer reports its version from package.json.');
 
-// ---------------------------------------------------------------------------
-// 3. Build and test the working tree
-// ---------------------------------------------------------------------------
 log('building working tree…');
 // The Study 2 study build (session logging) is never released: refuse to build one here.
 const study = await import(pathToFileURL(join(EXT, 'scripts', 'study-build.mjs')).href).catch(() => null);
@@ -128,9 +116,7 @@ if (!flag('--skip-tests')) {
   review.push('Tests were skipped (--skip-tests). Run the full check before publishing.');
 }
 
-// ---------------------------------------------------------------------------
 // 4. Build the baseline in a temporary worktree (cached per tag)
-// ---------------------------------------------------------------------------
 const cacheDir = join(tmpdir(), 'smd-release-baseline', BASE);
 const baseCli = join(cacheDir, 'cli.js');
 const baseNpm = join(cacheDir, 'npm');
@@ -152,9 +138,7 @@ if (!existsSync(baseCli)) {
   }
 }
 
-// ---------------------------------------------------------------------------
 // 5. Format vocabulary (spec.ts): removals break existing documents
-// ---------------------------------------------------------------------------
 const requireExt = createRequire(join(EXT, 'package.json'));
 const esbuild = requireExt('esbuild');
 function loadSpec(source) {
@@ -205,15 +189,11 @@ diffSet('Front matter audience values', oldSpec.AUDIENCE_VALUES, newSpec.AUDIENC
 diffSet('Style keys', Object.keys(oldSpec.STYLE_KEYS ?? {}), Object.keys(newSpec.STYLE_KEYS ?? {}));
 diffSet('Mermaid diagram types accepted', oldSpec.MERMAID_TYPES, newSpec.MERMAID_TYPES);
 
-// ---------------------------------------------------------------------------
 // 6. Diagnostic rule codes: CI filters and agents key on them
-// ---------------------------------------------------------------------------
 const codesIn = (src) => [...new Set([...src.matchAll(/'([a-z]+\/[a-z-]+)'/g)].map((m) => m[1]))].sort();
 diffSet('Diagnostic codes', codesIn(git('show', `${BASE}:extension/src/core/validate.ts`)), codesIn(readFileSync(join(EXT, 'src', 'core', 'validate.ts'), 'utf8')), { addedIs: 'review' });
 
-// ---------------------------------------------------------------------------
 // 7. Behaviour on a document corpus: validation, agent view, Markdown export, HTML
-// ---------------------------------------------------------------------------
 function collect(dir, out = []) {
   if (!existsSync(dir)) return out;
   for (const e of readdirSync(dir)) {
@@ -261,9 +241,6 @@ for (const file of corpus) {
 }
 if (removedClasses.size) review.push(`CSS classes no longer emitted in rendered HTML (custom stylesheets may target them): ${[...removedClasses].join(', ')}`);
 
-// ---------------------------------------------------------------------------
-// 8. CLI surface: commands and flags
-// ---------------------------------------------------------------------------
 const helpOf = (bin) => cli(bin, ['--help']).out;
 const commandsOf = (h) => [...h.matchAll(/^\s+smd ([a-z-]+)/gm)].map((m) => m[1]);
 const flagsOf = (h) => [...new Set([...h.matchAll(/(--[a-z][a-z-]*)/g)].map((m) => m[1]))];
@@ -273,9 +250,6 @@ diffSet('CLI flags', flagsOf(oldHelp), flagsOf(newHelp));
 const templatesOf = (bin) => cli(bin, ['templates']).out.split('\n').map((l) => l.split(/\s+/)[0]).filter(Boolean);
 diffSet('Document templates (smd init --template)', templatesOf(baseCli), templatesOf(NEW_CLI));
 
-// ---------------------------------------------------------------------------
-// 9. npm library API
-// ---------------------------------------------------------------------------
 if (npmPkg) {
   const newApi = Object.keys(createRequire(import.meta.url)(join(ROOT, 'npm', 'dist', 'index.cjs')));
   if (existsSync(join(baseNpm, 'dist', 'index.cjs'))) {
@@ -293,9 +267,6 @@ if (npmPkg) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 10. VS Code extension manifest
-// ---------------------------------------------------------------------------
 const oldExt = JSON.parse(git('show', `${BASE}:extension/package.json`));
 const c0 = oldExt.contributes ?? {}, c1 = extPkg.contributes ?? {};
 if (oldExt.name !== extPkg.name || oldExt.publisher !== extPkg.publisher) breaking.push(`Extension identity changed ${oldExt.publisher}.${oldExt.name} → ${extPkg.publisher}.${extPkg.name}: users will not receive updates.`);
@@ -313,9 +284,6 @@ diffSet('Keybindings', (c0.keybindings ?? []).map((k) => `${k.key}→${k.command
 const snippetPrefixes = (json) => Object.values(json).flatMap((s) => [].concat(s.prefix));
 diffSet('Snippet prefixes', snippetPrefixes(JSON.parse(git('show', `${BASE}:extension/snippets/smd.json`))), snippetPrefixes(readJson(join(EXT, 'snippets', 'smd.json'))), { removedIs: 'review' });
 
-// ---------------------------------------------------------------------------
-// 11. Agent skills
-// ---------------------------------------------------------------------------
 const skillNamesAt = (ref) => git('ls-tree', '-d', '--name-only', `${ref}:skills`).split('\n').filter(Boolean);
 let newSkills = [];
 try { newSkills = readdirSync(join(ROOT, 'skills')).filter((d) => existsSync(join(ROOT, 'skills', d, 'SKILL.md'))); } catch { /* none */ }
@@ -328,9 +296,6 @@ for (const s of newSkills) {
   if (existsSync(bundled) && readFileSync(bundled, 'utf8') !== readFileSync(NEW_CLI, 'utf8')) failures.push(`skills/${s}/scripts/smd.cjs is stale. Run npm run build.`);
 }
 
-// ---------------------------------------------------------------------------
-// 12. Required bump vs actual bump
-// ---------------------------------------------------------------------------
 const [bM, bm, bp] = semver(BASE), [vM, vm, vp] = semver(version);
 const actual = vM > bM ? 'major' : vm > bm ? 'minor' : vp > bp ? 'patch' : 'none';
 const required = breaking.length ? 'major' : features.length ? 'minor' : 'patch';
@@ -338,9 +303,6 @@ const rank = { none: 0, patch: 1, minor: 2, major: 3 };
 if (!PR_MODE && rank[actual] < rank[required]) failures.push(`Version bump too small: ${BASE} → ${version} is a ${actual} bump, but the changes require a ${required} bump.`);
 if (!PR_MODE && actual === 'major' && !breaking.length) review.push(`${version} is a major bump but no breaking change was detected. Is that intended?`);
 
-// ---------------------------------------------------------------------------
-// Report
-// ---------------------------------------------------------------------------
 const section = (title, items, empty) => `### ${title}\n\n${items.length ? items.map((i) => `- ${i.replace(/\n/g, '\n  ')}`).join('\n') : `_${empty}_`}\n`;
 const verdict = failures.length ? '❌ BLOCKED' : breaking.length ? '⚠️ READY ONLY AS A MAJOR RELEASE, after explicit human approval of the breaking changes' : review.length ? '🟡 READY after a human confirms the behaviour changes below' : '✅ READY';
 const header = PR_MODE ? `## Compatibility check vs ${BASE} (pull request)

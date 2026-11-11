@@ -1,4 +1,3 @@
-; Semantic Markdown (.smd) injections.
 ;
 ; Markdown: every line the .smd grammar does not parse itself, as one combined document, so
 ; paragraphs, lists and headings work across lines. The .smd constructs inside a line (directives,
@@ -20,7 +19,6 @@
 ((front_matter_content) @injection.content
   (#set! injection.language "yaml"))
 
-; $math$ and $$ … $$ blocks.
 ((math_content) @injection.content
   (#set! injection.language "latex"))
 

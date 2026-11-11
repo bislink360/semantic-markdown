@@ -13,9 +13,7 @@ import { applyWhen, previewApplies, previewMode } from '../src/markdownPreviewGa
 
 const TODAY = '2026-01-01';
 
-// ---------------------------------------------------------------------------
 // inlineText(line, options)
-// ---------------------------------------------------------------------------
 
 test('inlineText takes its options as one object', () => {
   const line = 'Ship :badge[v2] by :due[2025-12-30], see :ref[fig-a], for {{team}}';
@@ -38,9 +36,7 @@ test('inlineText: the 1.x positional arguments throw a TypeError that shows the 
   assert.throws(() => legacy('x', null), TypeError);
 });
 
-// ---------------------------------------------------------------------------
 // readFile(relativePath, env?)
-// ---------------------------------------------------------------------------
 
 const EMBED = '```ts file="a.ts"\n```\n\n:::include{file="part.smd"}\n:::\n';
 const FILES: Record<string, string> = { 'a.ts': 'const a = 1;\n', 'part.smd': 'Included :badge[x].\n' };
@@ -70,9 +66,7 @@ test('readFile: a one-argument function still works for both', () => {
   assert.match(new MarkdownIt().use(smd, { readFile }).render(EMBED), /Included <span class="smd-badge">x<\/span>/);
 });
 
-// ---------------------------------------------------------------------------
 // The read-only vocabulary
-// ---------------------------------------------------------------------------
 
 /** Every exported table of the vocabulary (spec.ts, through `export * from './spec'`). */
 const TABLES = [
@@ -118,9 +112,7 @@ test('vocabulary: changing a table throws in strict mode and changes nothing', (
   assert.equal(mine.mine.description, 'Mine');
 });
 
-// ---------------------------------------------------------------------------
 // The markdown-it plugin's preset: 'smd'
-// ---------------------------------------------------------------------------
 
 const PRESET_DOC = [
   '---', 'title: Plan', 'status: draft', '---', '', '# Plan', '', '## Setup', '', '## Setup', '',
@@ -162,9 +154,7 @@ test('preset: raw HTML stays the host’s choice', () => {
   assert.match(new MarkdownIt({ html: true }).use(smd, { preset: 'smd' }).render('<b>x</b>'), /<b>x<\/b>/);
 });
 
-// ---------------------------------------------------------------------------
 // smd.markdownPreview.enabled: which .md files get .smd syntax in VS Code's built-in preview
-// ---------------------------------------------------------------------------
 
 test('preview setting: the mode, with 1.x booleans migrated', () => {
   assert.equal(previewMode(undefined), 'opt-in');

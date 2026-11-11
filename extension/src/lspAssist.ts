@@ -76,10 +76,6 @@ const FENCE_LANGUAGES = ['mermaid', 'math', 'ts', 'js', 'json', 'yaml', 'bash', 
 const CONTAINER_LINE = /^(\s*:{3,}\s*)([\w-]+)/;
 const NAME_CHAR = /[\w-]/;
 
-// ---------------------------------------------------------------------------
-// Completion
-// ---------------------------------------------------------------------------
-
 type Provider = (cursor: Cursor, env: AssistEnv) => Completion | undefined;
 
 /** In order: the first provider that recognizes the context answers. */
@@ -302,10 +298,6 @@ function mermaidCompletion(cursor: Cursor): Completion | undefined {
   if (!typed || cursor.line === 0 || !/^\s*```\s*mermaid/.test(cursor.lines[cursor.line - 1])) return undefined;
   return { from: cursor.column - typed[1].length, items: MERMAID_TYPES.map((label) => ({ label, kind: COMPLETION_KIND.keyword })) };
 }
-
-// ---------------------------------------------------------------------------
-// Hover
-// ---------------------------------------------------------------------------
 
 /** Markdown to show, and the span on the hovered line it describes (UTF-16 columns). */
 export interface AssistHover {

@@ -57,15 +57,11 @@ let loadedFromLink = false;
 let renderTimer: ReturnType<typeof setTimeout> | undefined;
 let draftTimer: ReturnType<typeof setTimeout> | undefined;
 
-// ---- Notices ----------------------------------------------------------------
-
 function showNotice(message: string, kind: 'info' | 'warning' = 'info'): void {
   notice.textContent = message;
   notice.dataset.kind = kind;
   notice.hidden = !message;
 }
-
-// ---- Theme ------------------------------------------------------------------
 
 function applyTheme(setting: ThemeSetting): void {
   theme = setting;
@@ -73,8 +69,6 @@ function applyTheme(setting: ThemeSetting): void {
   themeSelect.value = setting;
   if (latest) showPreview(latest.preview);
 }
-
-// ---- Preview frame ----------------------------------------------------------
 
 let mermaidRequested = false;
 
@@ -137,8 +131,6 @@ frame.addEventListener('load', () => {
   if (latest) showPreview(latest.preview);
 });
 
-// ---- Output panes -------------------------------------------------------------
-
 function diagnosticItem(text: string, d: Diagnostic): HTMLLIElement {
   const item = document.createElement('li');
   const button = document.createElement('button');
@@ -190,8 +182,6 @@ function scheduleRender(): void {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(render, RENDER_DELAY);
 }
-
-// ---- Editor -------------------------------------------------------------------
 
 function updateGutter(): void {
   gutter.textContent = lineNumbers(source.value);
@@ -297,8 +287,6 @@ tabs.forEach((tab, index) => {
   });
 });
 
-// ---- Sharing and copying ----------------------------------------------------------
-
 async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -341,8 +329,6 @@ themeSelect.addEventListener('change', () => {
   writeStored(THEME_KEY, setting);
   applyTheme(setting);
 });
-
-// ---- Start ------------------------------------------------------------------
 
 async function loadFromHash(): Promise<boolean> {
   const found = await documentFromHash(location.hash);

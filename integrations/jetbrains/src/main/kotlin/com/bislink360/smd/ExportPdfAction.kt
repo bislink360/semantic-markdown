@@ -74,7 +74,6 @@ class ExportPdfAction : AnAction() {
 
         private val PRINTED_WITH = Regex("""\(printed with (.+)\)\s*$""")
 
-        /** The `smd` arguments: the document, the PDF, and the paper and browser from the settings. */
         fun arguments(source: Path, out: Path, settings: SmdSettings): List<String> = buildList {
             addAll(listOf("export", source.toString(), "--to", "pdf", "-o", out.toString(), "--format", settings.pdfFormat))
             if (settings.pdfLandscape) add("--landscape")

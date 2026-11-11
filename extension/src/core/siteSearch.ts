@@ -33,7 +33,6 @@ export interface SearchDoc {
 }
 
 export interface SearchIndex {
-  /** Format version of the index. */
   v: 1;
   docs: SearchDoc[];
 }

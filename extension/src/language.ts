@@ -30,10 +30,6 @@ import { variableCompletion, variableHover, type VariableCompletion } from './co
 
 const SELECTOR: vscode.DocumentSelector = { language: 'smd' };
 
-// ---------------------------------------------------------------------------
-// Diagnostics + quick fixes
-// ---------------------------------------------------------------------------
-
 const SEVERITY: Record<Diagnostic['severity'], vscode.DiagnosticSeverity> = {
   error: vscode.DiagnosticSeverity.Error,
   warning: vscode.DiagnosticSeverity.Warning,
@@ -156,9 +152,7 @@ class QuickFixProvider implements vscode.CodeActionProvider {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Refactorings: wrap in a block, change a callout's type, blockquote → callout
-// ---------------------------------------------------------------------------
 
 const WRAP_TARGETS: Array<[string, string]> = [
   ['note', 'note'], ['tip', 'tip'], ['warning', 'warning'], ['danger', 'danger'],
@@ -205,10 +199,6 @@ class RefactorProvider implements vscode.CodeActionProvider {
     return actions;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Completion
-// ---------------------------------------------------------------------------
 
 const ATTR_VALUES: Record<string, readonly string[]> = {
   color: [...NAMED_COLORS],
@@ -465,10 +455,6 @@ class CompletionProvider implements vscode.CompletionItemProvider {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hover
-// ---------------------------------------------------------------------------
-
 class HoverProvider implements vscode.HoverProvider {
   provideHover(document: vscode.TextDocument, position: vscode.Position): vscode.Hover | undefined {
     const text = document.getText();
@@ -605,9 +591,7 @@ function embedHover(document: vscode.TextDocument, position: vscode.Position): v
 
 const escapeMarkdown = (s: string) => s.replace(/[\\`*_{}[\]()#+\-.!|<>]/g, '\\$&');
 
-// ---------------------------------------------------------------------------
 // Workspace symbols (Ctrl+T): headings, decisions, risks and API endpoints in every .smd file
-// ---------------------------------------------------------------------------
 
 const SYMBOL_KINDS: Record<SmdSymbol['kind'], vscode.SymbolKind> = {
   heading: vscode.SymbolKind.String,
@@ -661,9 +645,7 @@ class WorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Color swatches for color=… / bg=… / accent: …
-// ---------------------------------------------------------------------------
 
 /** The light theme's named colors in smd.css (contrast.test.ts checks they match). */
 const LIGHT_HEX: Record<string, string> = {
@@ -704,10 +686,6 @@ class ColorProvider implements vscode.DocumentColorProvider {
     return [new vscode.ColorPresentation(`"${value}"`), new vscode.ColorPresentation(value)];
   }
 }
-
-// ---------------------------------------------------------------------------
-// Outline + folding
-// ---------------------------------------------------------------------------
 
 class SymbolProvider implements vscode.DocumentSymbolProvider {
   provideDocumentSymbols(document: vscode.TextDocument): vscode.DocumentSymbol[] {
@@ -761,9 +739,7 @@ class FoldingProvider implements vscode.FoldingRangeProvider {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Go to definition: links to headings, anchors in other documents, files and reference definitions
-// ---------------------------------------------------------------------------
 
 class DefinitionProvider implements vscode.DefinitionProvider {
   provideDefinition(document: vscode.TextDocument, position: vscode.Position): vscode.LocationLink[] | undefined {
@@ -813,9 +789,7 @@ function blockIdDefinition(document: vscode.TextDocument, position: vscode.Posit
   });
 }
 
-// ---------------------------------------------------------------------------
 // Find references and rename for heading anchors and block ids, across the workspace
-// ---------------------------------------------------------------------------
 
 interface WorkspaceDoc { uri: vscode.Uri; text: string }
 
@@ -994,9 +968,7 @@ async function renameBlockId(document: vscode.TextDocument, position: vscode.Pos
   return { edit };
 }
 
-// ---------------------------------------------------------------------------
 // Formatting (Format Document, format on save): the same rules as `smd fmt`
-// ---------------------------------------------------------------------------
 
 class FormattingProvider implements vscode.DocumentFormattingEditProvider {
   provideDocumentFormattingEdits(document: vscode.TextDocument): vscode.TextEdit[] {

@@ -74,10 +74,6 @@ export interface PowerRow {
   meanHalfWidth: number;
 }
 
-// ---------------------------------------------------------------------------
-// Numerics
-// ---------------------------------------------------------------------------
-
 const expit = (x: number) => 1 / (1 + Math.exp(-x));
 const RESIDUAL = (Math.PI * Math.PI) / 3;
 
@@ -226,10 +222,6 @@ function mixSeed(...parts: number[]): number {
   return h >>> 0;
 }
 
-// ---------------------------------------------------------------------------
-// Simulation
-// ---------------------------------------------------------------------------
-
 export function checkModel(model: PowerModel): PowerModel {
   const share = (v: number, name: string) => {
     if (!Number.isFinite(v) || v < 0 || v >= 1) throw new Error(`${name} must be at least 0 and below 1`);
@@ -287,10 +279,6 @@ export function simulate(model: PowerModel, docs: number, tasksPerDoc: number, r
   }
   return { reference, comparison };
 }
-
-// ---------------------------------------------------------------------------
-// Analysis of one data set
-// ---------------------------------------------------------------------------
 
 /** Per-document unit differences (comparison minus reference). */
 const differences = (data: SimulatedData) => data.comparison.map((c, d) => c.map((x, t) => x - data.reference[d][t]));
@@ -370,10 +358,6 @@ export const METHOD_TEXT: Record<PowerMethod, string> = {
   bootstrap: 'the scorer\'s own seeded paired bootstrap (pairedBootstrap), percentile interval',
 };
 
-// ---------------------------------------------------------------------------
-// Power
-// ---------------------------------------------------------------------------
-
 export function power(model: PowerModel, docs: number, tasksPerDoc: number, options: PowerOptions = {}): PowerRow {
   const alpha = options.alpha ?? POWER_DEFAULTS.alpha;
   const sims = options.sims ?? POWER_DEFAULTS.sims;
@@ -412,10 +396,6 @@ export function power(model: PowerModel, docs: number, tasksPerDoc: number, opti
 export function powerGrid(model: PowerModel, docsList: readonly number[], tasksList: readonly number[], options: PowerOptions = {}): PowerRow[] {
   return docsList.flatMap((d) => tasksList.map((t) => power(model, d, t, options)));
 }
-
-// ---------------------------------------------------------------------------
-// Pilot estimates
-// ---------------------------------------------------------------------------
 
 export interface PilotEstimate {
   reference: string;
@@ -540,10 +520,6 @@ export function estimatePilot(outcomes: readonly Outcome[], reference: string, t
   }
   return out;
 }
-
-// ---------------------------------------------------------------------------
-// Report
-// ---------------------------------------------------------------------------
 
 export interface PowerReport {
   model: PowerModel;

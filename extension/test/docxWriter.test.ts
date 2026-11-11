@@ -7,10 +7,6 @@ import { decodeEntities } from '../src/core/htmlTree';
 import { docxParts, hexColour, imageInfo, linkTarget, smdToDocx, stylesXml, type DocxWriterOptions } from '../src/core/docxWriter';
 import { crc32, unzipEntry, zip } from '../src/core/zip';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 const showcase = join(__dirname, 'samples', 'showcase.smd');
 
 /** The parts of a .docx written from `source`, as text (images as Latin-1). */
@@ -61,10 +57,6 @@ const GIF = Buffer.from('474946383961030002000000002c00000000030002000002024c010
 /** The start of a 640×480 baseline JPEG: SOI, an APP0 segment, then SOF0. */
 const JPEG = Buffer.from('ffd8ffe000104a46494600010100000100010000ffc0001108' + '01e0' + '0280' + '03012200021101031101', 'hex');
 
-// ---------------------------------------------------------------------------
-// zip.ts
-// ---------------------------------------------------------------------------
-
 test('zip: CRC-32 is the IEEE one; entries round-trip stored and deflated, with UTF-8 names', () => {
   assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
   assert.equal(crc32(new Uint8Array()), 0);
@@ -85,10 +77,6 @@ test('zip: unzipEntry rejects what is not a ZIP archive', () => {
   assert.throws(() => unzipEntry(new TextEncoder().encode('not a zip at all, just text'), 'x', inflateRawSync), /Not a ZIP archive/);
   assert.throws(() => unzipEntry(new Uint8Array(3), 'x', inflateRawSync), /Not a ZIP archive/);
 });
-
-// ---------------------------------------------------------------------------
-// The package
-// ---------------------------------------------------------------------------
 
 test('docx: a package Word opens: content types, relationships, styles, numbering, settings, all well-formed', () => {
   const files = parts(readFileSync(showcase, 'utf8'), { readFile: (p) => { try { return readFileSync(join(dirname(showcase), p), 'utf8'); } catch { return undefined; } } });
@@ -120,10 +108,6 @@ test('docx: the same document gives the same bytes; smdToDocx zips the parts and
   assert.equal(Buffer.from(document!).toString('utf8'), parts(source).get('word/document.xml'));
   assert.deepEqual(smdToDocx('![x](gone.png)\n').warnings, ['Image gone.png was not found: only its alt text is in the .docx.']);
 });
-
-// ---------------------------------------------------------------------------
-// Blocks
-// ---------------------------------------------------------------------------
 
 test('docx: the front matter title is the Title; headings are Heading 1–6 with Word\'s own names', () => {
   const xml = documentXml('---\ntitle: Plan & <Scope>\nstatus: draft\n---\n# One\n## Two\n###### Six\n');
@@ -214,10 +198,6 @@ test('docx: footnotes are Word footnotes with their own part', () => {
   // Without footnotes, no part.
   assert.ok(!parts('No notes.\n').has('word/footnotes.xml'));
 });
-
-// ---------------------------------------------------------------------------
-// Inline content
-// ---------------------------------------------------------------------------
 
 test('docx: text styles, colours, highlights and inline code are run properties', () => {
   const xml = documentXml('**b** *i* ~~s~~ `c` ==m== [red]{color=red} [hex]{color=#0ea5e9}\n');
