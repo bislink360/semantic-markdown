@@ -55,11 +55,12 @@ interface MadrStatus { status?: string; note?: string }
  */
 function madrStatus(raw: string): MadrStatus {
   const text = raw.trim();
-  const m = /^([a-z]+)(.*)$/i.exec(text);
+  const lead = /^[a-z]+/i.exec(text)?.[0] ?? '';
+  const rest = text.slice(lead.length);
   // The word must end there: `accepted2` or `accepted_x` is not the status `accepted`.
-  const word = m && !/^\w/.test(m[2]) ? m[1].toLowerCase() : undefined;
-  if (!m || !word || !DECISION_STATUSES.includes(word)) return { note: `Status: ${text}` };
-  return m[2].trim() ? { status: word, note: text[0].toUpperCase() + text.slice(1) } : { status: word };
+  const word = lead && !/^\w/.test(rest) ? lead.toLowerCase() : undefined;
+  if (!word || !DECISION_STATUSES.includes(word)) return { note: `Status: ${text}` };
+  return rest.trim() ? { status: word, note: text[0].toUpperCase() + text.slice(1) } : { status: word };
 }
 
 /** A list of people from a front matter value (`Alice, Bob` or a YAML list), as written. */
@@ -368,7 +369,8 @@ function sourceParts(md: string, warnings: string[]): SourceParts {
 function takeTitle(lines: string[]): { title?: string; lines: string[] } {
   const first = bodyHeadings(lines)[0];
   if (first?.level !== 1) return { lines };
-  const atx = /^\s{0,3}#\s+(.*)$/.exec(lines[first.line]);
+  const opener = /^\s{0,3}#\s+/.exec(lines[first.line]);
+  const atx = opener ? [opener[0], lines[first.line].slice(opener[0].length)] : null;
   const setext = !atx && /^\s{0,3}=+\s*$/.test(lines[first.line + 1] ?? '');
   if (!atx && !setext) return { lines };
   const title = atx ? atxText(atx[1]) : lines[first.line].trim();
