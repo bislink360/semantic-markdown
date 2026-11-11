@@ -12,6 +12,7 @@ import { judgeAgreement, judgeAgreementText, parseJudged, parsePackets, runJudge
 import { checkMargin, outcomesCsv, parseAnswers, scoreAnswers, summaryText, type JudgedRecord, type Outcome } from './score';
 import { DEFAULT_MODEL, estimatePilot, POWER_DEFAULTS, POWER_METHODS, powerReport, powerText, type PowerMethod, type PowerModel, type PowerReport } from './power';
 import { mapCorpus, spanReportText, spansOk } from './spans';
+import { outlineUse, outlineUseText } from './outlineUse';
 import { survival, survivalText } from './survival';
 import { validateCorpus, validationText } from './validate';
 
@@ -27,6 +28,7 @@ import { validateCorpus, validationText } from './validate';
  *   npm run eval -- compare-marks [corpus] --other <dir> [--json] [--out <dir>]
  *   npm run eval -- run [corpus] --config <run.json> --out <dir> [--dry-run | --setup-probe] [--docs a,b] [--tasks a,b] [--conditions a,b] [--runs n] [--limit n] [--concurrency n]
  *   npm run eval -- tokens <run dir> [--out <dir>] [--scored outcomes.json] [--model <label>] [--seed 1] [--resamples 2000] [--baseline M1] [--json]
+ *   npm run eval -- outline-use <run dir> [--out <dir>] [--model <label>] [--json]
  *   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed 1] [--resamples 2000] [--baseline M1] [--judged a.jsonl,b.jsonl] [--model <label>] [--ni-margin 0.05] [--eq-margin 0.05] [--config <run.json>]
  *   npm run eval -- power [--accuracy 0.8] [--diff 0] [--ni-margin 0.05] [--eq-margin 0.05] [--docs 12,24] [--tasks 10] [--runs 1] [--icc 0.1] [--task-icc 0.3] [--doc-corr 0.5] [--task-corr 0.5] [--alpha 0.025] [--sims 1000] [--seed 1] [--method scorer|cluster|bootstrap] [--pilot outcomes.json --reference M1 [--condition S3]] [--out <dir>] [--json]
  *   npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit n] [--concurrency n]
@@ -47,6 +49,7 @@ const USAGE = `Usage:
   npm run eval -- score <corpus> <answers.jsonl> --out <dir> [--seed <n>] [--resamples <n>] [--baseline <condition>] [--judged <files>] [--model <label>] [--ni-margin <share>] [--eq-margin <share>] [--config <run.json>]
   npm run eval -- power [--accuracy <0..1>] [--diff <share>] [--ni-margin <share>] [--eq-margin <share>] [--docs <n,n>] [--tasks <n,n>] [--runs <n>] [--icc <0..1>] [--task-icc <0..1>] [--doc-corr <-1..1>] [--task-corr <-1..1>] [--alpha <one-sided>] [--sims <n>] [--seed <n>] [--method scorer|cluster|bootstrap] [--resamples <n>] [--pilot <outcomes.json> [--reference <condition>] [--condition <condition>]] [--out <dir>] [--json]
   npm run eval -- tokens <run dir> [--out <dir>] [--scored <outcomes.json>] [--model <label>] [--seed <n>] [--resamples <n>] [--baseline <condition>] [--json]
+  npm run eval -- outline-use <run dir> [--out <dir>] [--model <label>] [--json]
   npm run eval -- judge <judge-packets.jsonl> --config <run.json> --out <dir> [--model <label>] [--dry-run] [--limit <n>] [--concurrency <n>]
   npm run eval -- sample <judge-packets.jsonl> --out <dir> [--share <0..1> | --count <n>] [--seed <n>]
   npm run eval -- judge-agreement <judge-packets.jsonl> --judged <files> --human <files> [--out <dir>] [--json]
@@ -287,6 +290,19 @@ export function main(args: string[], log: (s: string) => void = (s) => process.s
       write(path.join(dir, 'tokens.md'), text);
       write(path.join(dir, 'by-task.csv'), byTaskCsv(report));
       log(flags.has('--json') ? JSON.stringify({ conditions: report.conditions, problems: report.problems }, null, 2) + '\n' : text);
+      return report.episodes.length ? 0 : 1;
+    }
+    case 'outline-use': {
+      // Study 1 "Outline cost use": what S3 agents read after an outline, against the costs it showed.
+      if (!positional[0]) throw new Error('outline-use needs <run dir> (the --out folder of run)');
+      const runDir = resolvePath(positional[0]);
+      const report = outlineUse(runDir, { model: stringFlag(flags, '--model') });
+      const text = outlineUseText(report);
+      const dir = out ?? path.join(runDir, 'outline-use');
+      write(path.join(dir, 'episodes.jsonl'), jsonl(report.episodes));
+      write(path.join(dir, 'outline-use.json'), JSON.stringify({ summary: report.summary, problems: report.problems }, null, 2) + '\n');
+      write(path.join(dir, 'outline-use.md'), text);
+      log(flags.has('--json') ? JSON.stringify({ summary: report.summary, problems: report.problems }, null, 2) + '\n' : text);
       return report.episodes.length ? 0 : 1;
     }
     default:
