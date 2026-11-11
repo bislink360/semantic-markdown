@@ -116,32 +116,32 @@ Two requests with equal inputs, as defined above, produce the same view bytes an
 
 Each row is a case a reviewer or a probe raised. The last column says what the response must do.
 
-| Case | What the law requires |
-| --- | --- |
-| A dependency in another document | It is added when the host lets the reader open the file. Its document's document-scoped constraints and the constraints that name it apply (L2). A file the host denies is `denied`, and one outside the reader's reach is `unread` (L3) |
-| A target hidden from agents | The target is withheld and listed as `hidden`. A visible constraint on it is still carried, because the constraint is visible text. The target law adds a mark that its target is not shown (t-66) |
-| An ambiguous target | An id that names more than one block resolves to nothing and is listed as `ambiguous`. The validator reports the duplicate id |
-| An unresolved target | The constraint applies to every view as unplaced, a budget never omits it, and every view lists the target as `unresolved-target` and is incomplete |
-| A target that included content provides | Target law. It resolves like a target in the same file. Until t-59 lands it goes through the unresolved path, which is safe but names the wrong reason |
-| A rule chain past the block limit | The rounds stop at 50 blocks, the cut is listed as `limit`, and the view is incomplete |
-| The budget frontier | Required content is printed and overflow is reported (L5). Content that is not required is replaced by pointers, each an omission with a reason and a command |
-| An include that cannot be read | Its blocks are unavailable, the include is listed, and the view is incomplete |
-| A skipped section the caller named | It is shown, and its agent blocks and dangers count for L1 in that request only |
-| Text above the first heading | Target law. A section read that leaves it out records the omission (t-60) |
+| Case                                    | What the law requires                                                                                                                                                                                                                    |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A dependency in another document        | It is added when the host lets the reader open the file. Its document's document-scoped constraints and the constraints that name it apply (L2). A file the host denies is `denied`, and one outside the reader's reach is `unread` (L3) |
+| A target hidden from agents             | The target is withheld and listed as `hidden`. A visible constraint on it is still carried, because the constraint is visible text. The target law adds a mark that its target is not shown (t-66)                                       |
+| An ambiguous target                     | An id that names more than one block resolves to nothing and is listed as `ambiguous`. The validator reports the duplicate id                                                                                                            |
+| An unresolved target                    | The constraint applies to every view as unplaced, a budget never omits it, and every view lists the target as `unresolved-target` and is incomplete                                                                                      |
+| A target that included content provides | Target law. It resolves like a target in the same file. Until t-59 lands it goes through the unresolved path, which is safe but names the wrong reason                                                                                   |
+| A rule chain past the block limit       | The rounds stop at 50 blocks, the cut is listed as `limit`, and the view is incomplete                                                                                                                                                   |
+| The budget frontier                     | Required content is printed and overflow is reported (L5). Content that is not required is replaced by pointers, each an omission with a reason and a command                                                                            |
+| An include that cannot be read          | Its blocks are unavailable, the include is listed, and the view is incomplete                                                                                                                                                            |
+| A skipped section the caller named      | It is shown, and its agent blocks and dangers count for L1 in that request only                                                                                                                                                          |
+| Text above the first heading            | Target law. A section read that leaves it out records the omission (t-60)                                                                                                                                                                |
 
 ## Status at HEAD {#status}
 
 The table describes main after PR #189, which made the applicability rounds reach a fixed point, carried constraints from other documents, and made unresolved targets fail safe. The paper's measured snapshot, 8d3b359, predates it.
 
-| Law | Status | Open work |
-| --- | --- | --- |
-| L1 Preservation | Holds on the tested cases | t-71 adds where a carried agent block comes from |
-| L2 Scoped applicability | Holds for rule chains, other documents and unresolved targets | t-59 for targets from included content, t-66 for the hidden-target mark |
-| L3 Closure with frontier | Holds on generated graphs | t-63 splits `complete` into coverage, resolution and budget |
-| L4 Status fidelity | Holds for the literal label | t-72 makes a lifecycle conflict explicit to agents |
-| L5 Overflow | Holds | t-73 adds an opt-in fail-closed mode for comparison |
-| L6 Omission accounting | Holds as a report of named operations, not as a partition | t-60, t-61, t-65, t-67 and t-68 |
-| L7 Determinism | Benchmark output reproduces byte for byte at a pinned commit | t-68 records digests and the effective date in the manifest |
+| Law                      | Status                                                        | Open work                                                               |
+| ------------------------ | ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| L1 Preservation          | Holds on the tested cases                                     | t-71 adds where a carried agent block comes from                        |
+| L2 Scoped applicability  | Holds for rule chains, other documents and unresolved targets | t-59 for targets from included content, t-66 for the hidden-target mark |
+| L3 Closure with frontier | Holds on generated graphs                                     | t-63 splits `complete` into coverage, resolution and budget             |
+| L4 Status fidelity       | Holds for the literal label                                   | t-72 makes a lifecycle conflict explicit to agents                      |
+| L5 Overflow              | Holds                                                         | t-73 adds an opt-in fail-closed mode for comparison                     |
+| L6 Omission accounting   | Holds as a report of named operations, not as a partition     | t-60, t-61, t-65, t-67 and t-68                                         |
+| L7 Determinism           | Benchmark output reproduces byte for byte at a pinned commit  | t-68 records digests and the effective date in the manifest             |
 
 No law is called complete until the conformance suite (t-64), written without reading the renderer, passes on the snapshot the paper measures.
 
