@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   agentView, applyFixes, DECISION_STATUS_FILTERS, decisionLog, decisionLogMarkdown, diffSmd, formatRelated, formatSmd, ganttDate,
-  ganttDocument, getDocumentInfo, markdownToSmd, outline, relatedDocs, renderRiskPage, formatTrace, traceRequirements, traceSummary,
+  ganttDocument, getDocumentInfo, IMPORT_FORMATS, madrToSmd, markdownToSmd, outline, specKitTasksToSmd, relatedDocs, renderRiskPage, formatTrace, traceRequirements, traceSummary,
   RISK_STATUS, riskRegister, riskRegisterSummary, riskRegisterText, LATEST_SPEC, smdIndex,
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
   type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
@@ -223,6 +223,14 @@ ${MIGRATE_HELP}${REVIEW_HELP}${EXPORT_HELP}
       --lang   language of the navigation, search and dashboard, and of documents without "lang:"
                (default: the home document's "lang:", else English)
   smd from-md <file.md> [-o out.smd]       Upgrade Markdown to .smd
+  smd from-md <file.md> --from <madr|spec-kit> [-o out.smd] [--today YYYY-MM-DD]
+      Import a file another tool wrote; every line of text is kept.
+      madr      a MADR decision record (MADR 2 bullets, MADR 3/4 front matter): the decision becomes a
+                :::decision with its status, date and decision makers (owner), around "Decision Outcome"
+      spec-kit  a GitHub Spec Kit tasks.md: each T001 task gets {#T001}, and "(depends on T001, T002)"
+                naming tasks of the file gets :depends[T001,T002]; [P] and story labels stay as written
+      What is kept as text instead of mapped (an unknown status, an unclear dependency) is a warning
+      on stderr. --today sets "updated:" when the file has no date.
   smd init <file.smd> [--template <name>] [--title "My doc"]
       New document from a template: ${Object.keys(TEMPLATES).join(', ')} (default: prd)
   smd templates                            List templates
@@ -270,7 +278,7 @@ const VALUE_OPTIONS = new Set([
   '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
-  '--follow', '--direction', '--depth', '--view', '--order',
+  '--follow', '--direction', '--depth', '--view', '--order', '--from',
   '--text', '--by', '--reason', '--kind',
 ]);
 
@@ -375,10 +383,8 @@ function main(argv: string[]): number | Promise<number> {
     case 'pdf':
     case 'docx':
       return runExport(command, args);
-    case 'from-md': {
-      const file = requireFile(positional[0]);
-      return write(value('-o'), markdownToSmd(read(file), path.basename(file, path.extname(file))));
-    }
+    case 'from-md':
+      return fromMd(requireFile(positional[0]), value('--from'), value('-o'), today);
     case 'init': {
       if (args.values.has('--agent')) return initAgents(args);
       const file = positional[0];
@@ -414,6 +420,20 @@ function main(argv: string[]): number | Promise<number> {
     default:
       return fail(`Unknown command "${command}".\n\n${HELP}`);
   }
+}
+
+/**
+ * `smd from-md`: plain Markdown as before, or with `--from` a file another tool wrote (a MADR decision record, a Spec
+ * Kit tasks.md). What an importer keeps as text instead of mapping is a warning on stderr; the exit code stays 0.
+ */
+function fromMd(file: string, from: string | undefined, out: string | undefined, today: string | undefined): number {
+  const title = path.basename(file, path.extname(file));
+  if (from === undefined) return write(out, markdownToSmd(read(file), title));
+  const convert = from === 'madr' ? madrToSmd : from === 'spec-kit' ? specKitTasksToSmd : undefined;
+  if (!convert) return fail(`--from needs one of: ${IMPORT_FORMATS.join(', ')} (got "${from}").`);
+  const result = convert(read(file), title, { today });
+  for (const warning of result.warnings) console.error(`[smd] warning: ${file}: ${warning}`);
+  return write(out, result.text);
 }
 
 /** `smd validate` output formats: `--json` is short for `--format json`. */

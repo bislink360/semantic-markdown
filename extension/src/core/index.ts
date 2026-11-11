@@ -26,6 +26,8 @@ export { tasksToCsv, tasksToGantt, ganttDocument, ganttDate, TASK_CSV_COLUMNS } 
 export type { TaskExportRow, GanttOptions } from './taskExport';
 export { acyclicPrerequisites, orderByPrerequisites, taskPrerequisites } from './taskOrder';
 export { markdownToSmd, fillTemplate } from './fromMarkdown';
+export { madrToSmd, specKitTasksToSmd, IMPORT_FORMATS } from './importers';
+export type { ImportFormat, ImportOptions, ImportResult } from './importers';
 export { agentView, outline, estimateTokens, inlineText } from './agentView';
 export type { AgentViewOptions, AgentViewResult, InlineTextOptions, ResolvedSection, PinnedSelection } from './agentView';
 export type { BudgetResult, OmittedSection, Tokenizer } from './budget';

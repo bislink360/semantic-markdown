@@ -9,17 +9,7 @@ import { SMD_VERSION } from './spec';
  * places where it would read the Markdown otherwise than v1 (and GitHub) do are rewritten (markdownForV2).
  */
 export function markdownToSmd(md: string, fallbackTitle: string): string {
-  const lines = md.split(/\r?\n/);
-  const out: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    // The marker in any case, as GitHub reads it; the same callouts as rendering gives alerts.
-    const callout = lines[i].startsWith('>') ? alertCallout(lines[i].slice(1).trim()) : undefined;
-    if (!callout) { out.push(lines[i]); continue; }
-    out.push(`:::${callout}`);
-    while (i + 1 < lines.length && /^>/.test(lines[i + 1])) out.push(lines[++i].replace(/^>\s?/, ''));
-    out.push(':::');
-  }
-  let body = out.join('\n');
+  let body = alertsToCallouts(md);
   if (/^---\r?\n/.test(body)) {
     // Front matter that already says which version reads it keeps it, and its text stays as written.
     if (/^smd\s*:/m.test(body.split(/\r?\n---/)[0])) return withoutHeadingAnchors(body);
@@ -34,6 +24,30 @@ export function markdownToSmd(md: string, fallbackTitle: string): string {
   return withoutHeadingAnchors(`---\nsmd: ${SMD_VERSION}\ntitle: ${JSON.stringify(title)}\nstatus: draft\nupdated: ${today}\n---\n\n${body}`);
 }
 
+/** GitHub alerts (`> [!NOTE]` and the rest, the marker in any case) as the callouts rendering gives them; lines joined with `\n`. */
+function alertsToCallouts(md: string): string {
+  const lines = md.split(/\r?\n/);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    // The marker in any case, as GitHub reads it; the same callouts as rendering gives alerts.
+    const callout = lines[i].startsWith('>') ? alertCallout(lines[i].slice(1).trim()) : undefined;
+    if (!callout) { out.push(lines[i]); continue; }
+    out.push(`:::${callout}`);
+    while (i + 1 < lines.length && /^>/.test(lines[i + 1])) out.push(lines[++i].replace(/^>\s?/, ''));
+    out.push(':::');
+  }
+  return out.join('\n');
+}
+
+/**
+ * A Markdown body without front matter as `smd from-md` converts it for a spec v2 document: GitHub alerts as
+ * callouts, then the rewrites that keep its v1 reading (markdownForV2). The importers (fromMadr.ts, fromSpecKit.ts)
+ * start from it, so they convert the prose exactly as `smd from-md` does.
+ */
+export function markdownBodyForSmd(body: string): string {
+  return markdownForV2(alertsToCallouts(body));
+}
+
 /** An anchor line as `smd to-md` writes it before a heading. */
 const HEADING_ANCHOR = /^<a id="([^"]*)"><\/a>$/;
 
@@ -42,7 +56,7 @@ const HEADING_ANCHOR = /^<a id="([^"]*)"><\/a>$/;
  * an anchor line right before a heading (or before a blank line and a heading) whose id is that heading's id
  * anyway. Any other anchor stays, so no id is lost.
  */
-function withoutHeadingAnchors(smd: string): string {
+export function withoutHeadingAnchors(smd: string): string {
   const lines = smd.split('\n');
   if (!lines.some((l) => HEADING_ANCHOR.test(l))) return smd;
   const ids = new Map(parseSmd(smd).headings.map((h) => [h.line, h.slug]));
