@@ -1,4 +1,7 @@
-import { DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS, type DocumentRead, type GraphNode, type UnsatisfiedKind } from './graph';
+import {
+  contains, DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS,
+  type ClosureBlock, type DocumentRead, type GraphNode, type UnsatisfiedKind,
+} from './graph';
 import { resolveId } from './ids';
 import { includeLabel, includeProblemText, includeRequest, innerScope, loadInclude, rootScope, type IncludeScope } from './include';
 import { includeSource } from './includeText';
@@ -19,6 +22,22 @@ import { listed, tagBlocks, type TagBlock } from './semanticTags';
  * The dependencies of what a view shows are the `depends-on` and `:depends` closure (mandatoryClosure), at most 5 steps.
  * What it cannot include (cycles, depth cuts, missing or ambiguous targets) and includes that were not read make the
  * view incomplete.
+ *
+ * Constraints and dependencies bring each other in. A constraint whose `applies-to` names a dependency the view adds
+ * applies too, and what that constraint depends on is a dependency in turn, so the two are worked out in rounds until
+ * a round adds no constraint. A constraint the view carries counts as shown, so its own dependencies start at step 1;
+ * the closure's limits (CLOSURE_LIMITS) bound what the rounds add and report what they cut.
+ *
+ * A dependency the view adds is content of the view, so the rule above applies to it as to a selected section: it
+ * brings the `scope=section` constraints of the section it sits in (an included one counts where its include is), and
+ * the constraints whose `applies-to` names it or a heading above it. A dependency read from another document (not
+ * included) brings that document's constraints by the same rule, with its `scope=document` constraints too, and a
+ * constraint of this document that names it (`applies-to=other.smd#R2`) applies as well. A constraint is never a
+ * reason for itself, and a dependency hidden from agents brings nothing.
+ *
+ * A constraint whose `applies-to` names no block the reader can find (a typo, a deleted id, a file that cannot be
+ * read) is `unplaced`. It applies to every view, a budget never omits it, and every view lists the unknown target
+ * under "Not satisfied" and is incomplete until an author fixes it (research contract, 2026-11-10).
  */
 
 /** The root document's key in picks; an included file's key is its path. */
@@ -38,8 +57,11 @@ export interface AppliedConstraint {
   file: string;
   /** One-based line in `file`. */
   line: number;
-  /** Why it applies: its scope, or what its `applies-to` names. */
-  applies: 'document' | 'section' | 'applies-to';
+  /**
+   * Why it applies: its scope, what its `applies-to` names, or `unplaced` when an `applies-to` target names no block
+   * the reader can find, so the constraint is shown in every read until an author fixes it.
+   */
+  applies: 'document' | 'section' | 'applies-to' | 'unplaced';
 }
 
 export interface IncludedDependency {
@@ -54,7 +76,8 @@ export interface IncludedDependency {
   depth: number;
 }
 
-export type MandatoryProblem = UnsatisfiedKind | 'hidden' | 'include';
+/** `unresolved-target`: a constraint's `applies-to` names no block the reader can find (research contract, 2026-11-10). */
+export type MandatoryProblem = UnsatisfiedKind | 'hidden' | 'include' | 'unresolved-target';
 
 export interface UnsatisfiedDependency {
   kind: MandatoryProblem;
@@ -88,6 +111,8 @@ export interface MandatoryPlan {
   dependencies: Picks;
   /** Dependencies in included text that no include of the document reaches: file and agent view. */
   extra: Array<{ file: string; text: string }>;
+  /** Applying constraints of documents read for a dependency, which no include reaches: file and agent view. */
+  applyingExtra: Array<{ file: string; text: string }>;
   unsatisfied: string[];
   /** Budget rules (see Tie), lines of the document. */
   ties: Tie[];
@@ -250,25 +275,116 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const sectionAt = (line: number) => sections.filter((s) => line >= s.start && line <= s.end).at(-1);
   const overlapsView = (s: Section) => !selected || selected.some((sel) => sel.start <= s.end && s.start <= sel.end);
 
-  /** Whether `id` (as the document resolves it) is shown by the view, or by the dependencies added so far. */
-  const targetShown = (id: string, extra: ReadonlyArray<readonly [number, number]>): number | undefined => {
+  /** Where a dependency the view adds sits in the document: its line, or the line of each include that reaches it. A hidden one sits nowhere. */
+  const spotsOf = (p: ClosureBlock): number[] => {
+    const line = p.node.line!;
+    if (within(line, hiddenIn(p.node.file))) return [];
+    if (p.node.file === GRAPH_ROOT) return [line];
+    return includes.filter((r) => r.ok && r.path === p.node.file && line >= r.start && line <= r.end).map((r) => r.pos);
+  };
+
+  /** Whether `id` (as the document resolves it) is shown by the view, or by the dependencies added so far (`extra` their lines, `spots` where they sit). */
+  const targetShown = (id: string, extra: ReadonlyArray<readonly [number, number]>, spots: readonly number[] = []): number | undefined => {
     const found = resolveId(text, id);
     if (found.status !== 'resolved' || found.line === undefined) return undefined;
     const heading = sections.find((s) => s.start === found.line);
-    if (heading) return overlapsView(heading) || within(found.line, extra) ? found.line : undefined;
+    // A heading binds its section, so a dependency the view adds from inside that section brings the constraint.
+    if (heading) return overlapsView(heading) || within(found.line, extra) || spots.some((at) => at >= heading.start && at <= heading.end) ? found.line : undefined;
     return shownAt(ROOT_DOC, found.line) || within(found.line, extra) ? found.line : undefined;
   };
 
-  const whyApplies = (c: FoundConstraint, extra: ReadonlyArray<readonly [number, number]>): AppliedConstraint['applies'] | undefined => {
+  // Documents read for a dependency: neither the document nor a file it includes.
+  const given = new Set(docs.map((d) => d.path));
+  const farOf = (pulled: readonly ClosureBlock[]) => pulled.filter((p) => !given.has(p.node.file));
+  /** Whether an `applies-to` edge names a dependency read from another document, or a block inside one. */
+  const namesFar = (e: { type: string; status: string; to?: GraphNode }, far: readonly ClosureBlock[]) =>
+    e.type === 'applies-to' && e.status === 'resolved' && !!e.to && far.some((p) => contains(p.node, e.to!));
+
+  /** A document read for a dependency: the constraints an agent may see, and its sections. */
+  const farDocs = new Map<string, { rules: TagBlock[]; sections: Section[] }>();
+  const farDoc = (path: string) => {
+    if (!farDocs.has(path)) {
+      const read = graph.document(path);
+      const hidden = hiddenIn(path);
+      farDocs.set(path, 'text' in read
+        ? {
+          rules: tagBlocks(read.text).filter((b) => b.name === 'constraint' && !within(b.line, hidden) && !parentHides(b, input.includeHuman)),
+          sections: sectionsOf(parseSmd(read.text).headings, read.lines.length),
+        }
+        : { rules: [], sections: [] });
+    }
+    return farDocs.get(path)!;
+  };
+  type FarRule = { file: string; block: TagBlock; node: GraphNode; why: AppliedConstraint['applies'] };
+  /**
+   * The constraints of the documents `pulled` dependencies were read from that bind one of them, by the rule the
+   * document's own constraints follow: its `applies-to` names the dependency or the heading of a section that holds
+   * it, it is document-scoped, or it is section-scoped and the dependency sits in its section. A constraint that is
+   * itself the dependency is not a reason for itself.
+   */
+  const farApplying = (pulled: readonly ClosureBlock[]): FarRule[] => {
+    const far = farOf(pulled);
+    const out: FarRule[] = [];
+    for (const file of new Set(far.map((p) => p.node.file))) {
+      const { rules, sections: farSections } = farDoc(file);
+      if (!rules.length) continue;
+      const hidden = hiddenIn(file);
+      const edges = graph.edgesOf(file).filter((e) => e.type === 'applies-to' && e.status === 'resolved' && e.to);
+      const read = far.filter((p) => p.node.file === file && !within(p.node.line!, hidden));
+      for (const block of rules) {
+        const node = graph.nodeAt(file, block.line);
+        if (!node) continue;
+        const others = read.filter((p) => !contains(node, p.node));
+        const holds = (s: Section | undefined) => !!s && others.some((p) => p.node.line! >= s.start && p.node.line! <= s.end);
+        const own = edges.filter((e) => e.from.line === block.line);
+        const section = farSections.filter((s) => block.line >= s.start && block.line <= s.end).at(-1);
+        let why: FarRule['why'] | undefined;
+        if (own.some((e) => namesFar(e, far))) why = 'applies-to';
+        else if (!others.length) why = undefined;
+        else if ((block.values.scope ?? 'section').trim().toLowerCase() === 'document' || !section) why = 'document';
+        else if (holds(section)) why = 'section';
+        else if (own.some((e) => e.to!.file === file && holds(farSections.find((s) => s.start === e.to!.line)))) why = 'applies-to';
+        if (why) out.push({ file, block, node, why });
+      }
+    }
+    return out;
+  };
+
+  /** The `applies-to` targets of a constraint that resolve to no block: missing, ambiguous, or in a file not read. */
+  const unresolvedOf = (c: FoundConstraint) => {
+    if (!listed(c.block, 'applies-to').length) return [];
+    return graph.edgesOf(c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc)
+      .filter((e) => e.type === 'applies-to' && e.from.line === c.block.line && e.status !== 'resolved');
+  };
+
+  /**
+   * Why a constraint applies to the view, or undefined. One whose `applies-to` names a block nobody can find is
+   * `unplaced` and applies to every view, so a mistyped target never switches a rule off without a trace.
+   */
+  const whyApplies = (c: FoundConstraint, pulled: readonly ClosureBlock[]): AppliedConstraint['applies'] | undefined =>
+    whyBound(c, pulled) ?? (unresolvedOf(c).length ? 'unplaced' : undefined);
+
+  const whyBound = (c: FoundConstraint, pulled: readonly ClosureBlock[]): AppliedConstraint['applies'] | undefined => {
     const scope = (c.block.values.scope ?? 'section').trim().toLowerCase();
     const section = sectionAt(c.pos);
     if (scope === 'document' || !section) return 'document';
     if (!selected || selected.some((s) => s.start >= section.start && s.end <= section.end)) return 'section';
-    return listed(c.block, 'applies-to').some((id) => targetShown(id, extra) !== undefined) ? 'applies-to' : undefined;
+    if (!pulled.length) return listed(c.block, 'applies-to').some((id) => targetShown(id, []) !== undefined) ? 'applies-to' : undefined;
+    const extra = pulled.filter((p) => p.node.file === GRAPH_ROOT).map((p) => [p.node.line!, p.node.endLine ?? p.node.line!] as [number, number]);
+    const spots = pulled.flatMap(spotsOf);
+    if (listed(c.block, 'applies-to').some((id) => targetShown(id, extra, spots) !== undefined)) return 'applies-to';
+    // Its applies-to names a dependency read from another document (`other.smd#R2`).
+    const far = farOf(pulled);
+    const path = c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc;
+    if (far.length && graph.edgesOf(path).some((e) => e.from.line === c.block.line && namesFar(e, far))) return 'applies-to';
+    // A dependency the view adds sits in its section. The constraint itself, added as a dependency, is not a reason.
+    const self = (p: ClosureBlock) => docOf(p.node.file) === c.doc && p.node.line! >= c.block.line && p.node.line! <= c.block.endLine;
+    return pulled.some((p) => !self(p) && spotsOf(p).some((at) => at >= section.start && at <= section.end)) ? 'section' : undefined;
   };
 
-  const run =(extra: ReadonlyArray<readonly [number, number]>) => {
-    const head = constraints.filter((c) => !c.inPlace).map((c) => ({ c, why: whyApplies(c, extra) })).filter((x) => x.why);
+  const run = (pulled: readonly ClosureBlock[]) => {
+    const head = constraints.filter((c) => !c.inPlace).map((c) => ({ c, why: whyApplies(c, pulled) })).filter((x) => x.why);
+    const far = farApplying(pulled);
     const inHead = (doc: string, line: number) => head.some(({ c }) => c.doc === doc && line >= c.block.line && line <= c.block.endLine);
     const shownNode = (doc: string, line: number) => shownAt(doc, line) || inHead(doc, line);
     const starts: GraphNode[] = [];
@@ -285,19 +401,36 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
         if (!seen.has(key)) { seen.add(key); starts.push(e.from); }
       }
     }
-    return { head, closure: mandatoryClosure(graph, starts, { types: ['depends-on'], shown, maxDepth: CLOSURE_LIMITS.depth }) };
+    // A carried constraint of another document is shown, and what it depends on is a dependency of the view.
+    const started = new Set(starts.map(nodeKey));
+    for (const rule of far) {
+      shown.add(nodeKey(rule.node));
+      for (const e of graph.edgesOf(rule.file)) {
+        if (e.type !== 'depends-on' || e.from.line === undefined || !contains(rule.node, e.from)) continue;
+        const key = nodeKey(e.from);
+        if (!started.has(key)) { started.add(key); starts.push(e.from); }
+      }
+    }
+    return { head, far, closure: mandatoryClosure(graph, starts, { types: ['depends-on'], shown, maxDepth: CLOSURE_LIMITS.depth }) };
   };
+  // Rounds, until one adds no constraint: a constraint that binds a dependency the view adds applies too, and what it
+  // depends on is a dependency in turn. The dependencies of every round count (one that becomes a carried constraint
+  // leaves the closure and is still content of the view), so the constraints only grow. Each round that goes on adds
+  // one, and there are finitely many (the closure includes at most CLOSURE_LIMITS.blocks blocks and reports the
+  // rest), so this ends.
   let round = run([]);
-  const rootRanges = (r: typeof round) => r.closure.blocks.filter((b) => b.node.file === GRAPH_ROOT).map((b) => [b.node.line!, b.node.endLine ?? b.node.line!] as [number, number]);
-  // One more round: a constraint whose applies-to names a dependency the view adds applies too.
-  if (round.closure.blocks.length && hasConstraints) {
-    const next = run(rootRanges(round));
-    if (next.head.length > round.head.length) round = next;
+  const added = new Map<string, ClosureBlock>();
+  for (;;) {
+    for (const b of round.closure.blocks) added.set(nodeKey(b.node), b);
+    if (!added.size) break;
+    const next = run([...added.values()]);
+    if (next.head.length + next.far.length <= round.head.length + round.far.length) break;
+    round = next;
   }
 
   const plan: MandatoryPlan = {
     context: { constraints: [], dependencies: [], unsatisfied: [], complete: true },
-    applying: emptyPicks(), dependencies: emptyPicks(), extra: [], unsatisfied: [], ties: [],
+    applying: emptyPicks(), dependencies: emptyPicks(), extra: [], applyingExtra: [], unsatisfied: [], ties: [],
     constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints,
   };
 
@@ -307,12 +440,17 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     if (c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   }
   for (const c of constraints) if (c.inPlace && c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
+  for (const rule of round.far) {
+    plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node) });
+    plan.context.constraints.push({ ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why });
+  }
 
   const name = (n: GraphNode) => n.id ?? `${n.type} "${n.title}"`;
   const unsatisfied = (u: UnsatisfiedDependency) => {
     plan.context.unsatisfied.push(u);
     const where = u.file === input.file ? '' : ` in ${u.file}`;
-    const what = u.kind === 'include' ? `included file ${u.target}` : `${u.via} depends on ${u.target}`;
+    const what = u.kind === 'include' ? `included file ${u.target}`
+      : u.kind === 'unresolved-target' ? `${u.via} applies to ${u.target}` : `${u.via} depends on ${u.target}`;
     plan.unsatisfied.push(`- ${what} [L${u.line}]${where}: ${u.reason}`);
   };
 
@@ -351,13 +489,23 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     if (r.ok) continue;
     unsatisfied({ kind: 'include', target: r.label, file: fileName(r.doc), line: r.line + 1, reason: `not read (${r.reason})` });
   }
+  // A constraint an agent can see whose applies-to names nothing: shown in every read, and the view says why.
+  for (const c of constraints) {
+    for (const e of unresolvedOf(c)) {
+      const status = e.status as Exclude<typeof e.status, 'resolved'>;
+      unsatisfied({
+        kind: 'unresolved-target', target: e.target, file: fileName(c.doc), line: e.line + 1, via: c.block.id ?? `constraint "${c.block.title}"`,
+        reason: `${reasons[status]({ lines: e.lines })}, so the constraint is shown in every read`,
+      });
+    }
+  }
   plan.context.complete = plan.context.unsatisfied.length === 0;
 
   // Budget rules, on the document's lines: what applies or is depended on keeps its section.
   for (const c of constraints) {
     if (!c.inPlace) continue;
     const scope = (c.block.values.scope ?? 'section').trim().toLowerCase();
-    if (scope === 'document' || !sectionAt(c.pos)) { plan.ties.push({ holder: c.pos, needs: [], always: true }); continue; }
+    if (scope === 'document' || !sectionAt(c.pos) || unresolvedOf(c).length) { plan.ties.push({ holder: c.pos, needs: [], always: true }); continue; }
     const needs = c.doc === ROOT_DOC ? listed(c.block, 'applies-to').map((id) => targetShown(id, [])).filter((l): l is number => l !== undefined) : [];
     if (needs.length) plan.ties.push({ holder: c.pos, needs });
   }

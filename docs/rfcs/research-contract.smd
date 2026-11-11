@@ -6,7 +6,7 @@ status: approved
 owners: ["@roshanmadhushanka"]
 tags: [rfc, research, agent-view, contract]
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-10
 toc: true
 related:
   - ../requirements/research-interaction.smd
@@ -163,6 +163,14 @@ A block applies to a view when any of these holds. It is document-scoped. It is 
 
 :::decision{status=accepted date=2026-11-06 owner=@roshanmadhushanka} Includes carry scope from where they are included
 A block inside an included file applies as if it were written at the include's position. A `scope=document` block in an included file applies to the including document. An include the view did not open, because it is outside the selected sections or the sandbox denied it, makes the view incomplete, as `constraints/1` reports today.
+:::
+
+:::decision{status=accepted date=2026-11-10 owner=@roshanmadhushanka} Dependencies a view adds bring their own constraints
+A dependency the view adds counts as content of the view for applicability. It brings the `scope=section` constraints of the section it sits in, and the constraints whose `applies-to` names it or a heading above it. A dependency read from another document brings that document's constraints by the same rule, with its `scope=document` constraints too. Constraints and dependencies are worked out in rounds until a round adds no constraint, within the closure limits, which are reported when they cut. A dependency hidden from agents brings nothing, and a constraint is never a reason for itself. This closes the gaps a reviewer found on 2026-11-09, where a read left out a constraint on a dependency it showed and still reported itself complete.
+:::
+
+:::decision{status=accepted date=2026-11-10 owner=@roshanmadhushanka} A constraint whose target names nothing applies everywhere
+A constraint whose `applies-to` names no block the reader can find, because of a typo, a deleted id or a file that cannot be read, applies to every view as unplaced. A budget never omits it. Every view lists the unknown target under "Not satisfied" and is incomplete until an author fixes it. This replaces the diagnostic-only treatment in "Applicability is a union, and ambiguity is a diagnostic" for this case, so a mistyped target can no longer switch a rule off while reads report themselves complete. `must` and `should` constraints are treated the same.
 :::
 
 ## Edge semantics
