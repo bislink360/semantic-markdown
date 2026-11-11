@@ -1,0 +1,150 @@
+---
+smd: 2
+title: View laws
+summary: The read contract stated as seven laws over the views of one source document, with the definitions they rest on, the boundary cases at external, hidden, ambiguous and unresolved targets and at the budget frontier, and which laws the code meets today.
+status: draft
+owners: ["@roshanmadhushanka"]
+tags: [rfc, research, agent-view, contract]
+created: 2026-11-10
+updated: 2026-11-10
+toc: true
+related:
+  - research-contract.smd
+  - ../requirements/research-interaction.smd
+  - ../requirements/semantic-tags.smd
+---
+
+:::agent
+This document restates accepted decisions as laws a test can check. It adds no syntax and changes no behaviour. Where a law says "target", the code does not meet it yet and the task named beside it tracks the gap. Do not cite a target law as a guarantee.
+:::
+
+## Why laws
+
+The [research contract](research-contract.smd) records what each cue means in an agent view and how scope, edges and budgets combine. Each decision there is local to one feature. A reader who wants to test the whole read, or a second implementation that wants to match it, needs the same rules stated over one object, the response to one request. The laws below do that. Each law names the routes it covers, the cases it excludes, and how a test decides it from the response and its manifest alone.
+
+The laws are written so that an oracle can check them without sharing code with the renderer. A conformance suite (improvement roadmap t-64) supplies the expected blocks for each case by hand, and a map from tests to laws (t-77) shows which law each regression test checks and which law has none.
+
+## Definitions
+
+### The request and its inputs {#d-request}
+
+A request $r$ names a route and its options. Its result depends on these inputs and on nothing else.
+
+- The source snapshot, which is the bytes of the document and of every file it includes or reaches through a dependency.
+- The requested scope, which is the selected sections, the selector of a query, the named task view, or none.
+- The audience settings, which are whether content for people is included and which skipped sections the caller named.
+- The dependency resolution, which is the files the host lets the reader open and the containment root it checks them against.
+- The renderer version, meaning the `smd` package version and the spec version the document declares.
+- The tokenizer, the default estimate of characters divided by four or the encoding named with `--tokenizer`.
+- The effective date, because due dates and overdue marks render relative to it.
+
+Two requests with equal inputs are the same request. A law that speaks of "the response" means the response to one such request.
+
+### Blocks and eligibility {#d-blocks}
+
+Parsing a document $D$ yields a finite set of blocks $B(D)$. A block is a heading with its section, a fenced container such as a constraint or decision, or a run of ordinary Markdown. Every block has a kind, a source file, a line range, the section that contains it, and optional attributes such as an id, a status, `applies-to` and `depends-on`. Included files contribute their blocks at the position of the include.
+
+A block is **eligible** when no audience mark hides it. A `:::human` block and a section marked `{agent=skip}` hide what they contain, unless the caller named that section or asked for content for people. Naming a skipped section is an explicit choice by the caller and is honoured as one. $E(D)$ is the set of eligible blocks. Audience comes first. An instruction or danger inside a hidden region does not become visible because of its kind.
+
+Within $E(D)$ the laws use four sets. $A$ holds the `:::agent` blocks and non-goal lists, $G$ the dangers (a `:::danger` block or a CAUTION alert), $C$ the constraints and $R$ every other typed block.
+
+### Routes {#d-routes}
+
+An **outline** lists headings with line ranges, estimated costs and markers. It is navigation and not a read, and no law below applies to it. A workflow that has received only an outline has not read the document.
+
+Every other route is **content-bearing**. These are the full view, the brief view, a section view, a budgeted view, a task view, a query, and an adaptive read when it returns the full view.
+
+### Shown, content and appearance {#d-shown}
+
+$\mathit{Shown}(r)$ is the set of eligible blocks inside the requested scope. $K(r)$ is the content of the view, which is $\mathit{Shown}(r)$ together with the dependencies the view adds under L3.
+
+A source block **appears** in a response when the response holds its rendered form and the source map of the manifest maps those output lines to the block's line range. Rendering changes the text. A typed block becomes a tagged element with its attributes, an image becomes its description, and a condensed block becomes a pointer. A pointer counts as condensed, not as appearing. Matching is by the source map, never by comparing text, so a test does not need to know how a kind renders. $V(r)$ is the set of source blocks that appear in the response.
+
+### Extra context {#d-extra}
+
+A response may hold blocks outside $K(r)$ and outside the sets the laws require. Examples are the header, text above the first heading, and a constraint on a dependency the view carried. Extra context is permitted. It never counts toward coverage, and a test reports it apart, as precision, so that a view cannot pass by printing everything.
+
+### The validator's part {#d-validator}
+
+Some cases the read cannot settle on its own, and the validator reports them instead. A decision marked accepted while another supersedes it, a duplicate id and an `applies-to` that names nothing are examples. The laws hold for any document the parser accepts. A document that validates with warnings still gets a response that meets the laws, but its labels may disagree with each other. A study that needs consistent labels rejects documents with unresolved lifecycle warnings before it runs (t-72).
+
+## The laws
+
+### L1 Preservation {#l1}
+
+For every content-bearing request, $A \cup G \subseteq V(r)$.
+
+Agent instructions, non-goal lists and dangers of the document and of the files it includes appear in every content-bearing view. This includes views of other sections, and blocks nested inside something the brief view condenses. Hidden blocks are not in $A$ or $G$, so L1 never shows content an audience mark hides.
+
+### L2 Scoped applicability {#l2}
+
+The applicable constraints of a request are the union
+
+$$
+\mathit{Apply}(r) = \{\, c \in C \mid c \text{ is document-scoped} \;\lor\; \mathit{sec}(c) \text{ encloses a selected section} \;\lor\; T(c) \cap K(r) \neq \emptyset \;\lor\; T(c) \text{ is unresolved} \,\}
+$$
+
+and the law requires $\mathit{Apply}(r) \subseteq V(r)$. A constraint is document-scoped when it says `scope=document` or sits above the first heading. $T(c)$ is the set of blocks and headings its `applies-to` names. A dependency the view adds counts as content for the third term, so it brings the constraints of its own section and the constraints that name it. A dependency read from another document also brings that document's document-scoped constraints. A constraint whose `applies-to` names nothing the reader can find applies to every view as unplaced.
+
+A view need not carry constraints that bind nothing it shows. Carrying them is extra context.
+
+### L3 Bounded closure with a typed frontier {#l3}
+
+Let $\mathit{dep}^{\le k}(X)$ be the blocks reachable from $X$ along at most $k$ mandatory edges, counted by fewest steps. With the limits of 5 hops and 50 blocks, the view adds every eligible member of $\mathit{dep}^{\le k}(\mathit{Shown}(r) \cup \mathit{Apply}(r))$ that it can resolve. $K(r)$ and $\mathit{Apply}(r)$ are defined together as the least fixed point of L2 and L3 within these limits. The reader works them out in rounds until a round adds no constraint.
+
+Every prerequisite or target the view cannot add is listed in the unsatisfied set $U(r)$ with one kind, which is `missing`, `ambiguous`, `hidden`, `denied`, `unread`, `cycle`, `depth`, `limit` or `unresolved-target`. The view reports itself complete exactly when $U(r)$ is empty.
+
+### L4 Status fidelity {#l4}
+
+Every typed block in a view carries the lifecycle status it has in the source, and defaults that change meaning are written out, for example `status="proposed"` on a requirement with no status and `level="must"` on a constraint. A decision that another supersedes is shown with a computed `superseded-by`. The law is about the literal label. Whether the label is true, and which decision is in force, is outside it.
+
+### L5 Overflow {#l5}
+
+A budget never removes a block that L1, L2 or L3 requires. When the required content alone exceeds the budget, the response still prints it and says it does not fit, in the view text, in the manifest (`budget.fits` is false) and on stderr. The adaptive read routes on a threshold. It is not a ceiling on later explicit requests. A fail-closed mode that returns no view on overflow is a design alternative under study (t-73) and is not the default.
+
+### L6 Omission accounting {#l6}
+
+On request the reader writes a manifest (`smd-projection/1`) with the hash of the source and of each dependency, the settings, the resolved selection, a map from output lines to source lines, and a list of omissions. Each omission names an operation, a source line range, a reason and, where one exists, a command that shows what was left out.
+
+The **target** form is a partition. Every block of $B(D)$ has exactly one outcome per view, which is shown, carried, condensed, omitted with a reason, or unavailable, and the outcome is recorded apart from where the block was placed. A block carried out of a condensed parent is then represented correctly.
+
+### L7 Determinism {#l7}
+
+Two requests with equal inputs, as defined above, produce the same view bytes and the same manifest. The manifest records whether the date was fixed by the caller or taken from the clock. Its hashes identify the inputs. A hash identifies bytes. It does not identify an author or show that content is correct.
+
+## Boundary cases {#boundary}
+
+Each row is a case a reviewer or a probe raised. The last column says what the response must do.
+
+| Case | What the law requires |
+| --- | --- |
+| A dependency in another document | It is added when the host lets the reader open the file. Its document's document-scoped constraints and the constraints that name it apply (L2). A file the host denies is `denied`, and one outside the reader's reach is `unread` (L3) |
+| A target hidden from agents | The target is withheld and listed as `hidden`. A visible constraint on it is still carried, because the constraint is visible text. The target law adds a mark that its target is not shown (t-66) |
+| An ambiguous target | An id that names more than one block resolves to nothing and is listed as `ambiguous`. The validator reports the duplicate id |
+| An unresolved target | The constraint applies to every view as unplaced, a budget never omits it, and every view lists the target as `unresolved-target` and is incomplete |
+| A target that included content provides | Target law. It resolves like a target in the same file. Until t-59 lands it goes through the unresolved path, which is safe but names the wrong reason |
+| A rule chain past the block limit | The rounds stop at 50 blocks, the cut is listed as `limit`, and the view is incomplete |
+| The budget frontier | Required content is printed and overflow is reported (L5). Content that is not required is replaced by pointers, each an omission with a reason and a command |
+| An include that cannot be read | Its blocks are unavailable, the include is listed, and the view is incomplete |
+| A skipped section the caller named | It is shown, and its agent blocks and dangers count for L1 in that request only |
+| Text above the first heading | Target law. A section read that leaves it out records the omission (t-60) |
+
+## Status at HEAD {#status}
+
+The table describes main after PR #189, which made the applicability rounds reach a fixed point, carried constraints from other documents, and made unresolved targets fail safe. The paper's measured snapshot, 8d3b359, predates it.
+
+| Law | Status | Open work |
+| --- | --- | --- |
+| L1 Preservation | Holds on the tested cases | t-71 adds where a carried agent block comes from |
+| L2 Scoped applicability | Holds for rule chains, other documents and unresolved targets | t-59 for targets from included content, t-66 for the hidden-target mark |
+| L3 Closure with frontier | Holds on generated graphs | t-63 splits `complete` into coverage, resolution and budget |
+| L4 Status fidelity | Holds for the literal label | t-72 makes a lifecycle conflict explicit to agents |
+| L5 Overflow | Holds | t-73 adds an opt-in fail-closed mode for comparison |
+| L6 Omission accounting | Holds as a report of named operations, not as a partition | t-60, t-61, t-65, t-67 and t-68 |
+| L7 Determinism | Benchmark output reproduces byte for byte at a pinned commit | t-68 records digests and the effective date in the manifest |
+
+No law is called complete until the conformance suite (t-64), written without reading the renderer, passes on the snapshot the paper measures.
+
+## Correspondence with earlier drafts {#correspondence}
+
+The novelty analysis drafted five laws, named preservation, omission completeness, determinism, closure honesty and status fidelity. They are L1, L6, L7, L3 and L4 here. L2 states scoped applicability, which that draft did not cover, and L5 states the overflow policy, which the draft folded into preservation. The paper's read contract numbers the same properties P1 to P7 in the same order.
