@@ -104,6 +104,13 @@ export interface RequestSpec {
    * other carried constraint marked (boundary table, t-66).
    */
   hiddenTargets?: Record<string, string[]>;
+  /**
+   * L4: a block's tag as the view must print it, matched as the start of one of the output lines the source map ties to
+   * the block, so the check needs no knowledge of how other kinds render.
+   */
+  labels?: Array<{ ref: Ref; tag: string }>;
+  /** L7: the same request made again gives the same view text and the same manifest, byte for byte. */
+  deterministic?: boolean;
   omissions?: OmissionExpectation[];
   budgetFits?: boolean;
   xfail?: Partial<Record<ScalarCheck, ExpectedFailure>>;
@@ -391,7 +398,7 @@ function checkSourceMap(fx: Fixture, obs: Observation): CheckResult {
   return { name: 'sourceMap', ok: !problems.length, detail: problems.join('; ') || 'well-formed, every non-blank output line mapped' };
 }
 
-export function evaluate(caseName: string, dir: string, request: RequestSpec, obs: Observation): RequestResult {
+export function evaluate(caseName: string, dir: string, request: RequestSpec, obs: Observation, again?: Observation): RequestResult {
   const fx = loadFixture(dir, request.doc ?? 'doc.smd');
   const m = obs.manifest;
   const checks: CheckResult[] = [checkSourceMap(fx, obs)];
@@ -421,6 +428,19 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
     const want = Object.fromEntries(Object.entries(request.hiddenTargets).map(([id, t]) => [id, [...t].sort()]));
     const ok = JSON.stringify(Object.entries(got).sort()) === JSON.stringify(Object.entries(want).sort());
     checks.push({ name: 'hiddenTargets', ok, detail: `expected ${JSON.stringify(want)}, reported ${JSON.stringify(got)}`, expectedFailure: xf.hiddenTargets });
+  }
+  for (const { ref, tag } of request.labels ?? []) {
+    const block = resolveRef(fx, ref);
+    const out = obs.text.split('\n');
+    const lines = m.sourceMap.filter((s) => s.kind === 'source' && s.file !== undefined && s.source !== undefined
+      && normalize(s.file) === block.file && block.own.some((r) => overlaps(r, s.source!)))
+      .flatMap((s) => out.slice(s.output[0] - 1, s.output[1]));
+    const ok = lines.some((l) => l.startsWith(tag));
+    checks.push({ name: `label ${ref}`, ok, detail: `expected a line of ${label(block)} to start with ${tag}; mapped lines: ${JSON.stringify(lines.slice(0, 3))}` });
+  }
+  if (request.deterministic) {
+    const same = !!again && again.text === obs.text && JSON.stringify(again.manifest) === JSON.stringify(obs.manifest);
+    checks.push({ name: 'deterministic', ok: same, detail: 'the same request made twice must give the same text and manifest' });
   }
   if (request.budgetFits !== undefined) {
     const fits = m.budget?.fits;
@@ -454,7 +474,8 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
 
 export function runRequest(c: LoadedCase, request: RequestSpec, driver: Driver = 'library'): RequestResult {
   const obs = observe(driver, c.dir, request.doc ?? 'doc.smd', request.route);
-  return evaluate(c.name, c.dir, request, obs);
+  const again = request.deterministic ? observe(driver, c.dir, request.doc ?? 'doc.smd', request.route) : undefined;
+  return evaluate(c.name, c.dir, request, obs, again);
 }
 
 export function runAll(driver: Driver = 'library', cases = loadCases()): RequestResult[] {

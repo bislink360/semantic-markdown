@@ -1,0 +1,43 @@
+---
+smd: 2
+title: Status labels
+---
+
+## Work
+
+:::requirement{#R1 depends-on=D2} A requirement with no status
+REQ-NO-STATUS text.
+:::
+
+:::requirement{#R2 status=accepted} An accepted requirement
+REQ-ACCEPTED text.
+:::
+
+:::assumption{#A1} An assumption nobody checked
+ASSUMPTION text.
+:::
+
+## Rules
+
+:::constraint{#C1 scope=document} A constraint with no level
+CONSTRAINT text.
+:::
+
+:::constraint{#C2 scope=document level=should} A constraint that says should
+SHOULD text.
+:::
+
+## Decisions
+
+:::decision{#D1 status=superseded} The old choice
+OLD-CHOICE text.
+:::
+
+:::decision{#D2 status=accepted supersedes=D1} The new choice
+NEW-CHOICE text.
+:::
+
+## Filler
+
+FILLER-ONE text that a small budget leaves out, written long enough to cost tokens on its own, so the budgeted read
+has something it can omit without touching the rules or the requirements that the laws require.

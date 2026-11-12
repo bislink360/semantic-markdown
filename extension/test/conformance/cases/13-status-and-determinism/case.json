@@ -1,0 +1,54 @@
+{
+  "description": "Status fidelity and determinism (L4, L7). Every typed block carries its literal lifecycle status, defaults that change meaning are written out (status=\"proposed\" on a requirement with no status, status=\"unvalidated\" on an assumption, level=\"must\" on a constraint), and a superseded decision shows a computed superseded-by. The same request made twice gives the same view text and the same manifest, in full, brief, section and budgeted views.",
+  "requests": [
+    {
+      "name": "full view writes every status and default, and is deterministic",
+      "route": { },
+      "laws": ["L4", "L7"],
+      "mustAppear": ["R1", "R2", "A1", "C1", "C2", "D1", "D2"],
+      "labels": [
+        { "ref": "R1", "tag": "<requirement id=\"R1\" status=\"proposed\"" },
+        { "ref": "R2", "tag": "<requirement id=\"R2\" status=\"accepted\">" },
+        { "ref": "A1", "tag": "<assumption id=\"A1\" status=\"unvalidated\">" },
+        { "ref": "C1", "tag": "<constraint id=\"C1\" scope=\"document\" level=\"must\">" },
+        { "ref": "C2", "tag": "<constraint id=\"C2\" scope=\"document\" level=\"should\">" },
+        { "ref": "D1", "tag": "<decision id=\"D1\" status=\"superseded\" superseded-by=\"D2\">" },
+        { "ref": "D2", "tag": "<decision id=\"D2\" status=\"accepted\" supersedes=\"D1\">" }
+      ],
+      "deterministic": true
+    },
+    {
+      "name": "brief view keeps the labels and is deterministic",
+      "route": { "brief": true },
+      "laws": ["L4", "L7"],
+      "labels": [
+        { "ref": "R1", "tag": "<requirement id=\"R1\" status=\"proposed\"" },
+        { "ref": "D1", "tag": "<decision id=\"D1\" status=\"superseded\" superseded-by=\"D2\">" }
+      ],
+      "deterministic": true
+    },
+    {
+      "name": "section Work keeps the labels of what it shows and carries, and is deterministic",
+      "route": { "sections": ["Work"] },
+      "laws": ["L2", "L3", "L4", "L7"],
+      "mustAppear": ["R1", "R2", "A1", "C1", "C2", "D2"],
+      "labels": [
+        { "ref": "R1", "tag": "<requirement id=\"R1\" status=\"proposed\"" },
+        { "ref": "A1", "tag": "<assumption id=\"A1\" status=\"unvalidated\">" },
+        { "ref": "C1", "tag": "<constraint id=\"C1\" scope=\"document\" level=\"must\">" },
+        { "ref": "D2", "tag": "<decision id=\"D2\" status=\"accepted\" supersedes=\"D1\">" }
+      ],
+      "deterministic": true
+    },
+    {
+      "name": "a budgeted read keeps the labels of the required content, and is deterministic",
+      "route": { "maxTokens": 60 },
+      "laws": ["L4", "L5", "L7"],
+      "mustAppear": ["C1", "C2"],
+      "labels": [
+        { "ref": "C1", "tag": "<constraint id=\"C1\" scope=\"document\" level=\"must\">" }
+      ],
+      "deterministic": true
+    }
+  ]
+}

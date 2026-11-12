@@ -97,7 +97,9 @@ export const LAW_TESTS: Record<Law, LawTest[]> = {
   L3: [
     t(CV, 'AF15: a section view adds the dependency closure of what it shows, with line refs'),
     t(CV, 'AF15/AF20: a cycle and a missing target are reported as unsatisfied and mark the view incomplete'),
-    t(CV, 'AF15: a dependency the view already shows is not repeated, and a whole view only reports what is unsatisfied'),
+    t(CV, 'AF15: a dependency the view already shows is not repeated, and a whole view reports what is unsatisfied and the cycle it shows'),
+    t(CV, 'an include that fails to read leaves the view incomplete even in a document with no rule and no dependency'),
+    t(CV, 'a cycle between blocks a whole view shows is listed, as a section read that walks into it lists it'),
     t(CV, 'AF15: an applying constraint brings its own dependencies, and a constraint whose applies-to names a dependency applies'),
     t(CV, 'AF15: a dependency in an {agent=skip} section is not shown and is unsatisfied'),
     t(CV, 't-58, R18 hidden-target probe'),
