@@ -15,7 +15,7 @@ const v1 = (body: string) => `---\nsmd: 1\ntitle: T\n---\n\n${body}\n`;
 const codes = (text: string, prefix: RegExp) => validateSmd(text).filter((d) => prefix.test(d.code));
 const refHtml = (text: string) => renderSmd(text).html.match(/<(?:a|span) class="smd-ref[^"]*"[^>]*>[^<]*<\/(?:a|span)>/g) ?? [];
 
-// --- D5: spec v1 keeps its directive list -------------------------------------------------------------------------
+// D5: spec v1 keeps its directive list
 
 test('D5: the v1 directive list is the nine 3.0 names, frozen, and all of them are still directives', () => {
   assert.deepEqual([...V1_DIRECTIVES], ['badge', 'kbd', 'progress', 'mention', 'status', 'priority', 'due', 'metric', 'ref']);
@@ -44,7 +44,7 @@ test('AC17 (R61): smd migrate --to 2 escapes v1 text such as :since[1.6] so it s
   assert.match(renderSmd(plan.result).html, /Added :since\[1\.6\] here\./);
 });
 
-// --- D4, R14: :ref[id] to any block --------------------------------------------------------------------------------
+// D4, R14: :ref[id] to any block
 
 test('AC2 (R14): :ref to a heading, task or container shows its id, linked, with its title as the accessible name', () => {
   const text = v2([
@@ -90,7 +90,7 @@ test('R16: an unknown :ref keeps figure/unknown-ref and its released output, now
   assert.equal(unknown.fix?.replacement, 'R1');
 });
 
-// --- R15 to R17: id attributes -------------------------------------------------------------------------------------
+// R15 to R17: id attributes
 
 test('R15: id attributes take one id or a comma-separated list, bare or quoted', () => {
   assert.deepEqual(idList('R1'), ['R1']);

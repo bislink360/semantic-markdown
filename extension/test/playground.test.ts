@@ -131,8 +131,6 @@ test('an empty document renders every pane', () => {
   assert.equal(typeof panes.markdown, 'string');
 });
 
-// ---- Preview frame and security -------------------------------------------------------
-
 function cspDirectives(csp: string): Map<string, string[]> {
   return new Map(csp.split(';').map((d) => d.trim().split(/\s+/)).map(([name, ...values]) => [name, values]));
 }

@@ -82,8 +82,6 @@ test('code line highlights and file embeds', () => {
   assert.ok(codes('```ts file="src/a.ts"\nstuff\n```', { readFile }).includes('fence/embed-body'));
 });
 
-// Agent view — token reduction without losing meaning
-
 test('agent view drops human-only content and styling but keeps meaning', () => {
   const r = agentView(prd, { today: TODAY });
   assert.ok(r.tokens < r.originalTokens * 0.7, `expected ≥30% smaller, got ${r.tokens}/${r.originalTokens}`);
@@ -449,8 +447,6 @@ test('plain Markdown leaves indented code and display math as written', () => {
     'Before `b`.', '', '<!-- included from part.smd -->', 'Included `inc`.', '', '    inc code :badge[x] ==mark== [text]{color=red}', '',
     '$$', String.raw`\sqrt[3]{z} ==m==`, '$$', '', 'Para', '    lazy `inc-lazy`');
 });
-
-// CLI (requires `npm run build`)
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: skills install writes both self-contained skills', { skip: !existsSync(cli) && 'run npm run build first' }, () => {

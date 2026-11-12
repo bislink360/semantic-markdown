@@ -163,7 +163,6 @@ function coverage() {
   return true;
 }
 
-// ── results ──
 const SEV_RANK = { INFO: 0, LOW: 1, MEDIUM: 2, HIGH: 3, BLOCKER: 4 };
 const LEGACY_SEV = { INFO: 'INFO', MINOR: 'LOW', MAJOR: 'MEDIUM', CRITICAL: 'HIGH', BLOCKER: 'BLOCKER' };
 const LEGACY_QUALITY = { BUG: 'RELIABILITY', VULNERABILITY: 'SECURITY', CODE_SMELL: 'MAINTAINABILITY' };
@@ -267,7 +266,6 @@ function report({ gate, blocking, warnings, ...counts }) {
   return lines.join('\n') + '\n';
 }
 
-// ── main ──
 if (flag('--reset')) {
   log('removing the local SonarQube server and its data');
   compose(['--profile', 'scan', 'down', '-v']);

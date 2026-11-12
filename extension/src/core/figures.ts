@@ -7,7 +7,6 @@ import type { SpecVersion } from './specVersion';
  * same way in the rendered HTML, the agent view and the plain-Markdown export.
  */
 
-/** A figure's kind and number. */
 export interface FigureNumber {
   /** `figure`, `table` or `listing`. */
   kind: string;

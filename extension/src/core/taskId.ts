@@ -1,4 +1,3 @@
-/** The `{#id}` a task's line may end with (see splitTaskId). */
 const TASK_ID = /^\{#([A-Za-z0-9_-]+)\}$/;
 
 /**

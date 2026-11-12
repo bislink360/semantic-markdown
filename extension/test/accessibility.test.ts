@@ -28,7 +28,6 @@ test('a11y: overdue and due soon are words as well as colours', () => {
   assert.match(html, /📅 2026-09-20<span class="smd-due-note"> · overdue<\/span>/);
   assert.match(html, /📅 2026-09-30<span class="smd-due-note smd-sr-only"> \(due soon\)<\/span>/);
   assert.match(html, /📅 2026-12-01<\/span>/);
-  // Done tasks are not overdue: the stylesheet hides the note there.
   assert.match(media('smd.css'), /\.smd-task-done \.smd-due-note \{ display: none; \}/);
 });
 

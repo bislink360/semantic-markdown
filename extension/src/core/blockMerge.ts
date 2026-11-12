@@ -293,7 +293,6 @@ interface Unit {
   key?: string;
 }
 
-/** Lines [from, to) cut into units. */
 function cutUnits(lines: readonly string[], from: number, to: number, units: Units): Unit[] {
   const out: Unit[] = [];
   let start = from;
@@ -386,8 +385,6 @@ function unitGroups(regions: readonly Region[], units: Three<Units>, counts: Thr
   }
   return groups;
 }
-
-// The merged text, as pieces
 
 /** Merged lines, or a conflict between the sides' lines. `seam`: the piece starts a unit taken by the block merge. */
 interface Piece {

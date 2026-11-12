@@ -74,7 +74,6 @@ test('G1, G2: edges are derived from links, :ref, related, includes, id attribut
   // Edges point both ways: what points at R1.
   const r1 = graph.nodeAt('docs/a.smd', edges[2].from.line!)!;
   assert.deepEqual(graph.incoming(r1).map((e) => `${e.from.id}:${e.type}`), ['C1:applies-to', 'AC1:verifies', 'T1:depends-on']);
-  // Cross-file: B links back to a heading of A.
   assert.deepEqual(graph.edgesOf('docs/b.smd').map((e) => `${e.type}->${e.to?.file}:${e.to?.id}`), ['link->docs/a.smd:requirements']);
   // An ambiguous target lists the blocks that give the id.
   assert.equal(edges.find((e) => e.target === 'DUP')?.lines?.length, 2);

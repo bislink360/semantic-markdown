@@ -18,7 +18,6 @@ const corpus = join(root, 'extension', 'test', 'compat', 'corpus');
 const localized = readFileSync(join(corpus, 'localized.smd'), 'utf8');
 const TODAY = '2026-02-01';
 
-/** Every sample and corpus document, by path. */
 const documents = (): Array<[string, string]> => [join(__dirname, 'samples'), corpus]
   .flatMap((dir) => readdirSync(dir).filter((f) => f.endsWith('.smd')).map((f) => join(dir, f)))
   .map((file): [string, string] => [file, readFileSync(file, 'utf8')]);
@@ -166,8 +165,6 @@ test('markdown-it plugin: the lang option, env.lang, then the front matter', () 
   assert.ok(page.includes('<span>Hinweis</span>') && page.includes('>Entwurf</span>'), 'the front matter wins');
   assert.equal(new MarkdownIt().use(smd, { lang: 'en' }).render(src), english);
 });
-
-// What stays English
 
 test('agent views and to-md stay English and unchanged by lang', () => {
   const asCustom = localized.replace('lang: de', 'custom: de');

@@ -130,8 +130,6 @@ test('inline items across line breaks: the corpus document', () => {
   assert.deepEqual(validateSmd(doc), []);
 });
 
-// A `|` in a code span in a table cell
-
 test('table/pipe-in-code: an info hint with a fix that escapes the pipe', () => {
   const doc = '| Command | Meaning |\n| --- | --- |\n| `grep a | wc -l` | Count |\n';
   const diags = validateSmd(doc);

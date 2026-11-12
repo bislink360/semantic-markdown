@@ -249,7 +249,7 @@ function actorOf(actor: ReviewActor): string | ReviewResult {
   return by ?? refuse('Say who does this: --by @name.');
 }
 
-// --- Where a new block goes, and what it looks like -------------------------
+// Where a new block goes, and what it looks like
 
 /** The target block: its lines and what kind it is. */
 interface Target {

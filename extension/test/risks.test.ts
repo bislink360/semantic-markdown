@@ -168,6 +168,5 @@ test(':::risk-matrix in the agent view, plain Markdown, validation and query', (
   assert.deepEqual(validateSmd(withMatrix).filter((d) => d.severity !== 'hint' && d.severity !== 'info'), []);
   assert.deepEqual(querySmd(withMatrix, 'risk-matrix').map((m) => m.title), ['Launch risks']);
   assert.equal(formatSmd(withMatrix), withMatrix);
-  // The outline flags sections with risks, not sections with only a matrix.
   assert.doesNotMatch(outline('# A\n\n## Matrix\n\n:::risk-matrix\n:::\n'), /Matrix.*risk/);
 });

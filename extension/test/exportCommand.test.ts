@@ -7,8 +7,6 @@ import { join } from 'node:path';
 import { EXPORT_ALIASES, EXPORT_FORMATS, EXPORT_HELP, EXPORT_USAGE, exportFormat, inferExportFormat, type ExportArgs } from '../src/exportCommand';
 import { DOCX_MISSING_PANDOC } from '../src/docx';
 
-// ---- Choosing the format ----
-
 function args(values: Record<string, string>, positional = ['doc.smd']): ExportArgs {
   return { positional, flags: new Set(), values: new Map(Object.entries(values).map(([k, v]) => [k, [v]])) };
 }
@@ -48,8 +46,6 @@ test('smd export: no format, an empty one, an unknown one or an unknown extensio
   assert.match(EXPORT_USAGE, /--to html\|md\|pdf\|docx\|confluence\|notion/);
   assert.match(EXPORT_USAGE, /\(\.html, \.md, \.pdf, \.docx\)/);
 });
-
-// ---- The CLI (requires `npm run build`) ----
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 const skip = !existsSync(cli) && 'run npm run build first';

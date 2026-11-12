@@ -265,7 +265,6 @@ test('codeAction offers the fix as a quick fix, also before a delayed validation
   assert.equal(action.diagnostics[0].code, 'attrs/unknown');
   assert.deepEqual(action.edit.changes[PLAN_URI], [{ range: { start: { line: 13, character: 18 }, end: { line: 13, character: 22 } }, newText: 'color' }]);
   assert.match(applyEdits(PLAN, action.edit.changes[PLAN_URI]), /:badge\[x\]\{color=red\}/);
-  // Refactorings only: none here.
   assert.deepEqual(c.result('textDocument/codeAction', { textDocument: { uri: PLAN_URI }, range, context: { diagnostics: [], only: ['refactor'] } }), []);
 
   // A change waiting for the delay is validated before fixes are offered.

@@ -24,8 +24,6 @@ const html = (src: string, options: Parameters<typeof renderSmd>[1] = {}) => ren
 const shape = (src: string) => html(src).replaceAll(/ data-(?:task-)?line="\d+"/g, '');
 const view = (src: string, options: Parameters<typeof agentView>[1] = {}) => agentView(src, { today: '2026-10-15', ...options }).text.trim();
 
-// Unknown containers keep their title
-
 test('unknown containers: the title renders in the box, after the name or from title=, with inline Markdown', () => {
   assert.match(html(':::frobnicate Release *notes*\nBody.\n:::\n'),
     /<div class="smd-box smd-box-frobnicate" data-line="0"><div class="smd-box-title">Release <em>notes<\/em><\/div>\n<p data-line="1">Body\.<\/p>/);
@@ -33,7 +31,6 @@ test('unknown containers: the title renders in the box, after the name or from t
   assert.match(html(':::frobnicate{#x bg=amber} Styled\nBody.\n:::\n'),
     /<div id="x" class="smd-box smd-box-frobnicate" style="background:var\(--smd-amber-soft\)" data-line="0"><div class="smd-box-title">Styled<\/div>/);
   assert.match(html('---\nproduct: Acme\n---\n:::frobnicate About {{product}}\nx\n:::\n'), /<div class="smd-box-title">About Acme<\/div>/);
-  // Without a title nothing is added.
   assert.match(html(':::frobnicate\nBody.\n:::\n'), /<div class="smd-box smd-box-frobnicate" data-line="0">\n<p/);
 });
 
@@ -64,7 +61,6 @@ test('unknown containers: smd to-md writes the title as a **Title** paragraph, a
   assert.equal(smdToMarkdown(':::frobnicate{title="Attr"}\nBody.\n:::\n'), '**Attr**\n\nBody.\n');
   assert.equal(smdToMarkdown(':::frobnicate\nBody.\n:::\n'), 'Body.\n');
   assert.equal(smdToMarkdown(':::box Ignored\nBody.\n:::\n'), 'Body.\n');
-  // Inside a callout, in its blockquote.
   assert.equal(smdToMarkdown('::::note\n:::frobnicate Inner\nx\n:::\n::::\n'), '> [!NOTE]\n> **Inner**\n>\n> x\n\n');
 });
 
@@ -74,7 +70,6 @@ test('unknown containers: Confluence, Notion and Word (docx, PDF through Pandoc)
   assert.deepEqual(smdToNotion(doc).map((b) => b.type), ['paragraph', 'paragraph']);
   assert.match(JSON.stringify(smdToNotion(doc)[0]), /"content":"Release notes"},"annotations":\{"bold":true\}/);
   assert.match(smdToPandocHtml(doc), /<p><strong>Release <em>notes<\/em><\/strong><\/p>\n<p>Body\.<\/p>/);
-  // A box keeps the content only.
   assert.equal(smdToConfluence(':::box Ignored\nBody.\n:::\n'), '<p>Body.</p>\n');
 });
 
@@ -111,8 +106,6 @@ test('unknown containers: the corpus document is formatted, valid apart from its
   assert.match(view(doc), /^Outer title:\nInner card:\nA known container inside an unknown one\.$/m);
   assert.match(smdToMarkdown(doc), /^\*\*From the attribute\*\*\n\nThe title comes from `title=`\.$/m);
 });
-
-// GitHub alerts render as callouts
 
 test('alerts: the five kinds map to callouts; IMPORTANT is info, as smd from-md converts it', () => {
   assert.deepEqual(GITHUB_ALERTS, { NOTE: 'note', TIP: 'tip', IMPORTANT: 'info', WARNING: 'warning', CAUTION: 'danger' });
@@ -181,7 +174,6 @@ test('alerts: the agent view shows them as the callout, without the quote marker
   assert.equal(view('> [!NOTE] same line\n'), '> [!NOTE] same line');
   // Done tasks are counted inside it in brief views.
   assert.equal(view('> [!NOTE]\n> - [x] done\n> - [x] done too\n\nNext.\n', { brief: true }), '<note>\n- (2 completed tasks omitted)\n</note>\n\nNext.');
-  // Inside a container, between its tags.
   assert.equal(view(':::card Release\n> [!CAUTION]\n> Careful.\n:::\n'), 'Release:\n<danger>\nCareful.\n</danger>');
 });
 
@@ -210,7 +202,6 @@ test('alerts: Confluence and Notion export them as callouts; Word (docx, PDF thr
   assert.equal(smdToConfluence(alert), smdToConfluence(callout));
   assert.deepEqual(smdToNotion(alert), smdToNotion(callout));
   assert.equal(smdToPandocHtml(alert), smdToPandocHtml(callout));
-  // A plain quote stays a quote.
   assert.match(smdToConfluence('> [!WARNING] same line\n'), /^<blockquote>/);
 });
 

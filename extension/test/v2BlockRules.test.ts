@@ -219,8 +219,6 @@ test('fences: refactors find containers and wrap lines as the version pairs them
   assert.ok(wrapLines(text, 4, 5, 'box') === undefined, 'an unclosed tip is not balanced either');
 });
 
-// The corpus documents and their v1 twins
-
 test('corpus/v2-math.smd and corpus/v2-fences.smd: valid and formatted; their v1 twins read differently', () => {
   const math = corpus('v2-math.smd');
   assert.deepEqual(codes(math), []);

@@ -61,7 +61,6 @@ export function templateSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 41);
 }
 
-/** Counts by kind. */
 export function cueCounts(cues: readonly StudyCue[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const c of cues) counts[c.kind] = (counts[c.kind] ?? 0) + 1;

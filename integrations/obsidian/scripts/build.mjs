@@ -18,7 +18,6 @@ const extensionRoot = resolve(pluginRoot, '../../extension');
 /** Modules Obsidian provides at runtime. */
 export const EXTERNAL = ['obsidian', 'electron', '@codemirror/*', '@lezer/*'];
 
-/** The plugin's manifest.json. */
 export function readManifest() {
   return JSON.parse(readFileSync(join(pluginRoot, 'manifest.json'), 'utf8'));
 }
@@ -44,7 +43,6 @@ export function buildOptions(outfile = join(pluginRoot, 'main.js')) {
   };
 }
 
-/** The extension's esbuild. */
 export function loadEsbuild() {
   try {
     return createRequire(join(extensionRoot, 'package.json'))('esbuild');

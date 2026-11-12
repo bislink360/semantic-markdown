@@ -147,7 +147,6 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
       continue;
     }
 
-    // Display math $$ … $$
     if (mathStart >= 0) {
       if (closesDisplayMath(raw, spec)) {
         mathLines.push(raw.trimEnd().slice(0, -2));
@@ -174,7 +173,6 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
       continue;
     }
 
-    // Containers
     const close = CONTAINER_CLOSE.exec(raw);
     if (close) {
       closeContainer(stack, { line: i, indent: close[1].length, colons: close[2].length }, spec, { lines, push });
@@ -197,7 +195,6 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
       continue;
     }
 
-    // Headings
     const h1 = /^#\s+(.+?)\s*#*\s*$/.exec(raw);
     if (h1 && !firstH1) firstH1 = { text: withoutHeadingAttrs(h1[1], spec), line: i };
     if (/^\s{0,3}#{1,6}\s/.test(raw)) checkHeadingAttrs(raw, i, pushText, spec);

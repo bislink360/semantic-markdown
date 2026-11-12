@@ -112,8 +112,6 @@ export function feedbackUpdates(oldText: string, newText: string, options: Updat
   };
 }
 
-// Matching blocks across versions
-
 interface Pair { old?: DocumentBlock; now?: DocumentBlock; matchedBy: 'id' | 'text' }
 
 /**

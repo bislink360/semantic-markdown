@@ -152,7 +152,6 @@ test('include: validation reports missing files and sections, cycles, depth and 
   const chain: Record<string, string> = {};
   for (let i = 0; i < 12; i++) chain[`d${i}.smd`] = `:::include{file="d${i + 1}.smd"}\n:::\n`;
   assert.deepEqual(codes(validateSmd(':::include{file="d0.smd"}\n:::\n', { readFile: reader(chain) })), ['0:include/depth:warning']);
-  // The include file is not also reported as a missing link target.
   assert.ok(!found.some((d) => d.code === 'link/missing-file'));
 });
 

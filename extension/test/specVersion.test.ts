@@ -20,8 +20,6 @@ import { statusBarItem, statusBarState, statusBarText } from '../src/documentSta
 const today = '2026-10-17';
 const doc = (smdLine: string | undefined, body = '# Title\n\nText.\n') => (smdLine === undefined ? body : `---\n${smdLine}\n---\n\n${body}`);
 
-// specVersion: every kind of value
-
 test('specVersion: smd: 2 (or "2") is 2; smd: 1, no key, no front matter and broken front matter are 1', () => {
   const cases: Array<[string | undefined, number]> = [
     ['smd: 2', 2], ['smd: "2"', 2], ["smd: '02'", 2], ['smd: 2 # spec v2', 2],

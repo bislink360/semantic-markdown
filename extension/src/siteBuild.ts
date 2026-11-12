@@ -76,7 +76,6 @@ function sourceProblem(dir: string): string | undefined {
   return undefined;
 }
 
-/** Whether `child` is `parent` or inside it. */
 export function isInside(parent: string, child: string): boolean {
   const rel = path.relative(parent, child);
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));

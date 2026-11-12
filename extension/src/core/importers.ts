@@ -41,9 +41,7 @@ const DOCUMENT_STATUS: Record<string, string> = {
   proposed: 'review', accepted: 'approved', rejected: 'archived', deprecated: 'deprecated', superseded: 'deprecated',
 };
 
-// ---------------------------------------------------------------------------
 // MADR
-// ---------------------------------------------------------------------------
 
 /** What a MADR status says: one of the decision statuses (with any text after it as a note), or text only. */
 interface MadrStatus { status?: string; note?: string }
@@ -224,9 +222,7 @@ function bodyHeadings(lines: readonly string[]): Array<{ level: number; text: st
   return parseSmd(['', ...lines].join('\n')).headings.map((h) => ({ level: h.level, text: h.text, line: h.line - 1 }));
 }
 
-// ---------------------------------------------------------------------------
 // Spec Kit
-// ---------------------------------------------------------------------------
 
 /** A Spec Kit task id at the start of a task's text: `T001`. */
 const SPEC_KIT_ID = /^(T\d+)\b/;
@@ -336,10 +332,6 @@ function taskDepends(id: string, text: string, tasks: ReadonlyMap<string, number
   }
   return [...new Set(ids)];
 }
-
-// ---------------------------------------------------------------------------
-// Shared
-// ---------------------------------------------------------------------------
 
 /** The source's front matter (raw lines and data) and its body, `\n` line endings. */
 interface SourceParts { frontMatter: string[]; data: Record<string, unknown>; body: string }

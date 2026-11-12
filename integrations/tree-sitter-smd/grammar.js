@@ -71,7 +71,7 @@ module.exports = grammar({
     _newline: () => token(prec(1, /\r?\n/)),
     _ws: () => /[ \t\r]+/,
 
-    // ---------------------------------------------------------------- front matter (spec §2.1)
+    // front matter (spec §2.1)
 
     front_matter: ($) => seq(
       alias($._front_matter_open, $.front_matter_delimiter),
@@ -81,7 +81,7 @@ module.exports = grammar({
       $._eol,
     ),
 
-    // ---------------------------------------------------------------- containers (spec §3)
+    // containers (spec §3)
 
     // Spec v1: a bare `:::` closes the innermost open container; colon counts are cosmetic. Spec v2
     // (`smd: 2`): it closes the innermost container opened with as many colons, and the scanner ends
@@ -109,7 +109,7 @@ module.exports = grammar({
     container_name: () => /[A-Za-z][A-Za-z0-9_-]*/,
     container_title: () => /[^ \t\r\n][^\r\n]*/,
 
-    // ---------------------------------------------------------------- fenced code (spec §6)
+    // fenced code (spec §6)
 
     fenced_code_block: ($) => seq(
       alias($._code_fence_open, $.code_fence_delimiter),
@@ -125,7 +125,7 @@ module.exports = grammar({
     _info_ws: () => token(prec(1, /[ \t]+/)),
     _info_rest: () => /[^\r\n]+/,
 
-    // ---------------------------------------------------------------- display math (spec §4.4)
+    // display math (spec §4.4)
 
     math_block: ($) => seq(
       alias($._math_block_open, $.math_delimiter),
@@ -153,7 +153,7 @@ module.exports = grammar({
     // `[^label]:` starting a footnote definition (spec §4.6).
     footnote_label: () => /[ \t]{0,3}\[\^[^\] \t\r\n]+\]:/,
 
-    // ---------------------------------------------------------------- inline (spec §4)
+    // inline (spec §4)
 
     _inline: ($) => choice(
       $._word,
@@ -221,7 +221,7 @@ module.exports = grammar({
 
     footnote_reference: () => /\[\^[^\] \t\r\n]+\]/,
 
-    // ---------------------------------------------------------------- attribute lists (spec §5)
+    // attribute lists (spec §5)
 
     // Directly after a container name, a directive or a span.
     attribute_list: ($) => seq(alias($._attr_open, '{'), $._attribute_body),

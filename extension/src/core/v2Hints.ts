@@ -19,8 +19,6 @@ const ERROR: Severity = 'error';
 /** The message of `priority` on `:::agent` (an `attrs/unknown` warning since 2.0), which `smd migrate` looks for. */
 export const AGENT_PRIORITY_REMOVED = 'Unknown attribute "priority" on ":::agent". It was removed in Semantic Markdown 2.0, since no tool read it. Remove it.';
 
-// Attribute list items
-
 interface AttrItem {
   /** What a repeat of it is: `#` for every id, `.name` for a class, the key for the others. */
   slot: string;
@@ -50,8 +48,6 @@ function itemOf(m: RegExpExecArray, start: number): AttrItem {
 const without = (src: string, kept: AttrItem[]) => kept.map((it) => src.slice(it.start, it.end).trim()).join(' ');
 
 const quoted = (labels: string[]) => labels.map((l) => `"${l}"`).join(', ');
-
-// attrs/duplicate
 
 /**
  * A key, an id or a class given more than once in the attribute list between `open` (`{`) and `close` (`}`) on a line.
@@ -147,8 +143,6 @@ export function removedAgentPriority(line: number, raw: string, open: number, pu
     AGENT_PRIORITY_REMOVED, fix);
   return true;
 }
-
-// Headings: attrs/duplicate, heading/attrs-text
 
 /**
  * The attribute list ending a heading: `start` is where the spaces before its `{` begin, `open` and `close` its braces.

@@ -100,7 +100,6 @@ def test_assets_are_added_and_ordered(site):
     assert ".smd-code .hljs" in css
     assert not re.search(r"^\.hljs", css, re.MULTILINE), "code colors stay inside .smd code frames"
     script = (site.out / "assets" / "semantic-markdown" / "mkdocs.js").read_text(encoding="utf-8")
-    # Reads the theme's mode and writes data-smd-theme-pref, which runtime.js follows.
     assert "dataset.bsTheme" in script
     assert "dataset.mdColorScheme" in script
     assert "dataset.smdThemePref = mode" in script

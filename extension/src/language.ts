@@ -427,13 +427,11 @@ class CompletionProvider implements vscode.CompletionItemProvider {
       });
     }
 
-    // Diagram / code languages after ```
     if (/^\s*(`{3,}|~{3,})\w*$/.test(prefix)) {
       return ['mermaid', 'math', 'ts', 'js', 'json', 'yaml', 'bash', 'python', 'go', 'sql', 'diff'].map((l) =>
         new vscode.CompletionItem(l, l === 'mermaid' || l === 'math' ? vscode.CompletionItemKind.Keyword : vscode.CompletionItemKind.Value));
     }
 
-    // Inline directives :name
     const inline = /(?:^|[\s(>*_-]):([a-z]*)$/.exec(prefix);
     if (inline) {
       const range = new vscode.Range(position.translate(0, -inline[1].length), position);

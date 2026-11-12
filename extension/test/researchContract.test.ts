@@ -109,8 +109,6 @@ test('GAP-5 (AF15): --max-tokens never omits a section whose :::agent block come
   assert.match(view, /INCLUDED_RULE/);
 });
 
-// The fixes' edges
-
 const edges = (body: string[]) => ['---', 'smd: 2', 'title: Edges', '---', '', ...body, ''].join('\n');
 const edgeFiles: Record<string, string> = {
   ...FILES,
