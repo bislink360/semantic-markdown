@@ -1,0 +1,43 @@
+{
+  "description": "Explicit selection of a skipped section (eligibility, boundary table). Naming an {agent=skip} section shows it, and its agent block and danger count for L1 in that request only. Unnamed, the section and the protected blocks in it stay hidden in every view, and so does a scope=document constraint in it (hidden blocks are not in A, G or C).",
+  "requests": [
+    {
+      "name": "section Notes named explicitly is shown with its agent block and danger",
+      "route": { "sections": ["Notes"] },
+      "laws": ["L1"],
+      "mustAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "sections Main and Notes together show both",
+      "route": { "sections": ["Main", "Notes"] },
+      "laws": ["L1"],
+      "mustAppear": ["~MAIN-TEXT", "~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"]
+    },
+    {
+      "name": "section Main keeps the skipped section and its protected blocks hidden",
+      "route": { "sections": ["Main"] },
+      "laws": ["L1"],
+      "mustAppear": ["~MAIN-TEXT"],
+      "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
+      "omissions": [
+        { "kind": ["skipped-section", "not-selected"], "heading": "Notes", "lines": [10, 29] }
+      ]
+    },
+    {
+      "name": "full view keeps them hidden and records the skipped section",
+      "route": { },
+      "laws": ["L1", "L6"],
+      "mustAppear": ["~MAIN-TEXT"],
+      "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
+      "omissions": [{"kind": "skipped-section", "heading": "Notes", "lines": [10, 29]}]
+    },
+    {
+      "name": "brief section Later keeps them hidden",
+      "route": { "sections": ["Later"], "brief": true },
+      "laws": ["L1"],
+      "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"]
+    }
+  ]
+}

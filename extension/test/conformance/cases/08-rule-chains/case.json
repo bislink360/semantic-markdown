@@ -1,0 +1,53 @@
+{
+  "description": "Rule chains (L2 and L3 to a fixed point). A constraint that applies to a shown block depends on a block in another section, a constraint on that block depends on the next, four rounds deep: every rule and every block of the chain is carried, a dependency brings the section constraint of its own section (CSTORE), and a task's :depends edge is followed too. Which 50 blocks a limit lets through the laws do not say, so they count as context, not as required. A chain past 5 hops is cut with depth, and a rule chain past 50 blocks is cut with limit; both make the view incomplete, with coverage false.",
+  "requests": [
+    {
+      "name": "section Work carries the whole rule chain",
+      "route": { "sections": ["Work"] },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["R1", "T1", "R6", "C1", "R2", "C3", "R3", "C4", "R4", "C5", "CSTORE"],
+      "unsatisfied": [],
+      "complete": true,
+      "completeness": { "coverage": true, "resolution": true, "budget": true }
+    },
+    {
+      "name": "brief section Work carries the whole rule chain",
+      "route": { "sections": ["Work"], "brief": true },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["R1", "T1", "R6", "C1", "R2", "C3", "R3", "C4", "R4", "C5", "CSTORE"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "a budget smaller than the chain still carries all of it",
+      "route": { "sections": ["Work"], "maxTokens": 40 },
+      "laws": ["L2", "L3", "L5"],
+      "mustAppear": ["R1", "T1", "R6", "C1", "R2", "C3", "R3", "C4", "R4", "C5", "CSTORE"],
+      "unsatisfied": [],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": true, "budget": false },
+      "budgetFits": false
+    },
+    {
+      "name": "a chain past 5 hops is cut with depth",
+      "doc": "doc-depth.smd",
+      "route": { "sections": ["Work"] },
+      "laws": ["L3"],
+      "mustAppear": ["R1", "D1", "D2", "D3", "D4", "D5"],
+      "unsatisfied": [{"kind": "depth", "target": "D6"}],
+      "complete": false,
+      "completeness": { "coverage": false, "resolution": true, "budget": true }
+    },
+    {
+      "name": "a rule chain past 50 blocks is cut with limit",
+      "doc": "doc-limit.smd",
+      "route": { "sections": ["Work"] },
+      "laws": ["L3"],
+      "mustAppear": ["R1", "CL"],
+      "context": ["B{1..60}"],
+      "unsatisfied": [{"kind": "limit"}],
+      "complete": false,
+      "completeness": { "coverage": false, "resolution": true, "budget": true }
+    }
+  ]
+}

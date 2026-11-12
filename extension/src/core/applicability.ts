@@ -1,11 +1,11 @@
 import {
   contains, DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS,
-  type ClosureBlock, type DocumentRead, type GraphNode, type UnsatisfiedKind,
+  type ClosureBlock, type DocumentRead, type GraphNode, type SharedId, type UnsatisfiedKind,
 } from './graph';
-import { resolveId } from './ids';
+import { documentIdIndex, resolveDocumentId } from './includedIds';
 import { includeLabel, includeProblemText, includeRequest, innerScope, loadInclude, rootScope, type IncludeScope } from './include';
 import { includeSource } from './includeText';
-import { parseSmd } from './parse';
+import { idOwners, parseSmd } from './parse';
 import { sectionsOf, type Section } from './sections';
 import { listed, tagBlocks, type TagBlock } from './semanticTags';
 
@@ -92,14 +92,68 @@ export interface UnsatisfiedDependency {
 
 /**
  * The mandatory context of a view: the constraints from outside the selected sections it shows, the dependencies it
- * adds, and what it could not satisfy. `complete` is false when anything is unsatisfied.
+ * adds, and what it could not satisfy. `complete` is the three parts of `completeness` together.
  */
 export interface MandatoryContext {
   constraints: AppliedConstraint[];
   dependencies: IncludedDependency[];
   unsatisfied: UnsatisfiedDependency[];
   complete: boolean;
+  /** Which part of completeness failed, if any (t-63). */
+  completeness: Completeness;
 }
+
+/**
+ * The three ways a view can fall short of what it must carry (research contract, view laws L3 and L5; t-63). A
+ * problem belongs to one part, by its kind (see PART_OF).
+ */
+export interface Completeness {
+  /** Every applicable rule and every dependency the view needs was carried: none hidden from agents or cut at a limit. */
+  coverage: boolean;
+  /** Every rule target, dependency and include resolved: none missing, ambiguous, denied, unread or in a cycle. */
+  resolution: boolean;
+  /** What the view must carry fit its token budget; true without a budget. */
+  budget: boolean;
+}
+
+/** The part of completeness each kind of problem breaks. */
+export const PART_OF: Readonly<Record<MandatoryProblem, 'coverage' | 'resolution'>> = {
+  hidden: 'coverage', depth: 'coverage', limit: 'coverage',
+  missing: 'resolution', ambiguous: 'resolution', denied: 'resolution', cycle: 'resolution', include: 'resolution', 'unresolved-target': 'resolution',
+};
+
+/** Completeness from the problems a view has, and whether its budget fit. */
+export function completenessOf(unsatisfied: readonly UnsatisfiedDependency[], fits = true): Completeness {
+  return {
+    coverage: !unsatisfied.some((u) => PART_OF[u.kind] === 'coverage'),
+    resolution: !unsatisfied.some((u) => PART_OF[u.kind] === 'resolution'),
+    budget: fits,
+  };
+}
+
+/**
+ * The line that ends a view's "Not satisfied" list: which part failed and for what, e.g. `[incomplete: resolution
+ * failed for 1 rule target and 1 include; coverage failed for 2 dependencies]`. A rule target is not a dependency.
+ */
+export function incompleteLine(unsatisfied: readonly UnsatisfiedDependency[]): string {
+  const parts: string[] = [];
+  for (const part of ['resolution', 'coverage'] as const) {
+    const mine = unsatisfied.filter((u) => PART_OF[u.kind] === part);
+    if (!mine.length) continue;
+    const count = (n: number, one: string, many: string) => (n ? [`${n} ${n === 1 ? one : many}`] : []);
+    const targets = mine.filter((u) => u.kind === 'unresolved-target').length;
+    const includes = mine.filter((u) => u.kind === 'include').length;
+    const items = [
+      ...count(targets, 'rule target', 'rule targets'), ...count(includes, 'include', 'includes'),
+      ...count(mine.length - targets - includes, 'dependency', 'dependencies'),
+    ];
+    parts.push(`${part} failed for ${items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0]}`);
+  }
+  return `[incomplete: ${parts.join('; ')}]`;
+}
+
+/** A block a view carries from a file no include of the document reaches, with its zero-based first and last line there. */
+export interface ExtraBlock { file: string; text: string; line: number; end: number }
 
 /** Omitting the section that holds `holder` needs every line of `needs` omitted too; `always` never allows it. */
 export interface Tie { holder: number; needs: number[]; always?: boolean }
@@ -109,10 +163,10 @@ export interface MandatoryPlan {
   context: MandatoryContext;
   applying: Picks;
   dependencies: Picks;
-  /** Dependencies in included text that no include of the document reaches: file and agent view. */
-  extra: Array<{ file: string; text: string }>;
-  /** Applying constraints of documents read for a dependency, which no include reaches: file and agent view. */
-  applyingExtra: Array<{ file: string; text: string }>;
+  /** Dependencies in included text that no include of the document reaches: file, agent view and lines. */
+  extra: ExtraBlock[];
+  /** Applying constraints of documents read for a dependency, which no include reaches: file, agent view and lines. */
+  applyingExtra: ExtraBlock[];
   unsatisfied: string[];
   /** Budget rules (see Tie), lines of the document. */
   ties: Tie[];
@@ -247,8 +301,21 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
 
   const hasConstraints = constraints.length > 0;
   if (!hasConstraints && !docs.some((d) => /depends-on|:depends\[/i.test(d.text))) return undefined;
+  // An id names a block of the document or of what its includes show, as rendering has it (t-59): one index for the
+  // document and every file it includes, so a rule on an included block resolves, and fallback text never does.
+  const ids = documentIdIndex(text, input.includes ? input.readFile : undefined);
+  const tree = new Set(docs.map((d) => d.path));
+  const sharedId = (path: string, id: string): SharedId | undefined => {
+    if (!tree.has(path)) return undefined;
+    const found = resolveDocumentId(ids, id);
+    if (found.status === 'resolved') return { status: 'resolved', file: found.site.file === ROOT_DOC ? GRAPH_ROOT : found.site.file, line: found.site.line };
+    if (found.status === 'ambiguous') return { status: 'ambiguous', lines: found.sites.map((s) => s.line) };
+    // Ids rendering makes up (footnotes) have no block: the document's own lookup decides them.
+    const own = docs.find((d) => d.path === path)!;
+    return idOwners(own.text).has(id) ? { status: 'missing' } : undefined;
+  };
   // Other files a dependency names are read through the host, relative to the document (the root's folder is '').
-  const graph = new DocumentGraph(docs.map((d) => ({ path: d.path, text: d.text })), { readDocument: input.readDocument });
+  const graph = new DocumentGraph(docs.map((d) => ({ path: d.path, text: d.text })), { readDocument: input.readDocument, ids: sharedId });
   // A word in prose or code is not a dependency: only an edge is.
   if (!hasConstraints && !docs.some((d) => graph.edgesOf(d.path).some((e) => e.type === 'depends-on'))) return undefined;
 
@@ -283,14 +350,25 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     return includes.filter((r) => r.ok && r.path === p.node.file && line >= r.start && line <= r.end).map((r) => r.pos);
   };
 
-  /** Whether `id` (as the document resolves it) is shown by the view, or by the dependencies added so far (`extra` their lines, `spots` where they sit). */
-  const targetShown = (id: string, extra: ReadonlyArray<readonly [number, number]>, spots: readonly number[] = []): number | undefined => {
-    const found = resolveId(text, id);
-    if (found.status !== 'resolved' || found.line === undefined) return undefined;
-    const heading = sections.find((s) => s.start === found.line);
+  /**
+   * Whether the block `id` names (in the document or in what an include shows) is shown by the view or is one of the
+   * dependencies added so far: the document's line where it sits (an include's line for an included block), or undefined.
+   */
+  const targetShown = (id: string, pulled: readonly ClosureBlock[] = []): number | undefined => {
+    const found = resolveDocumentId(ids, id);
+    if (found.status !== 'resolved') return undefined;
+    const { file, line } = found.site;
+    const path = file === ROOT_DOC ? GRAPH_ROOT : file;
+    const added = pulled.some((p) => p.node.file === path && line >= p.node.line! && line <= (p.node.endLine ?? p.node.line!));
+    if (file !== ROOT_DOC) {
+      const at = includes.filter((r) => r.ok && r.path === file && line >= r.start && line <= r.end);
+      const pos = (at.find((r) => r.shown) ?? at[0])?.pos;
+      return pos !== undefined && (shownAt(file, line) || added) ? pos : undefined;
+    }
+    const heading = sections.find((s) => s.start === line);
     // A heading binds its section, so a dependency the view adds from inside that section brings the constraint.
-    if (heading) return overlapsView(heading) || within(found.line, extra) || spots.some((at) => at >= heading.start && at <= heading.end) ? found.line : undefined;
-    return shownAt(ROOT_DOC, found.line) || within(found.line, extra) ? found.line : undefined;
+    if (heading) return overlapsView(heading) || added || pulled.flatMap(spotsOf).some((at) => at >= heading.start && at <= heading.end) ? line : undefined;
+    return shownAt(ROOT_DOC, line) || added ? line : undefined;
   };
 
   // Documents read for a dependency: neither the document nor a file it includes.
@@ -369,10 +447,8 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     const section = sectionAt(c.pos);
     if (scope === 'document' || !section) return 'document';
     if (!selected || selected.some((s) => s.start >= section.start && s.end <= section.end)) return 'section';
-    if (!pulled.length) return listed(c.block, 'applies-to').some((id) => targetShown(id, []) !== undefined) ? 'applies-to' : undefined;
-    const extra = pulled.filter((p) => p.node.file === GRAPH_ROOT).map((p) => [p.node.line!, p.node.endLine ?? p.node.line!] as [number, number]);
-    const spots = pulled.flatMap(spotsOf);
-    if (listed(c.block, 'applies-to').some((id) => targetShown(id, extra, spots) !== undefined)) return 'applies-to';
+    if (listed(c.block, 'applies-to').some((id) => targetShown(id, pulled) !== undefined)) return 'applies-to';
+    if (!pulled.length) return undefined;
     // Its applies-to names a dependency read from another document (`other.smd#R2`).
     const far = farOf(pulled);
     const path = c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc;
@@ -429,7 +505,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   }
 
   const plan: MandatoryPlan = {
-    context: { constraints: [], dependencies: [], unsatisfied: [], complete: true },
+    context: { constraints: [], dependencies: [], unsatisfied: [], complete: true, completeness: completenessOf([]) },
     applying: emptyPicks(), dependencies: emptyPicks(), extra: [], applyingExtra: [], unsatisfied: [], ties: [],
     constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints,
   };
@@ -441,7 +517,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   }
   for (const c of constraints) if (c.inPlace && c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   for (const rule of round.far) {
-    plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node) });
+    plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node), line: rule.block.line, end: rule.block.endLine });
     plan.context.constraints.push({ ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why });
   }
 
@@ -469,7 +545,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       ...(b.node.id ? { id: b.node.id } : {}), type: b.node.type, title: b.node.title, file: fileName(doc), line: line + 1, via: name(b.via), depth: b.depth,
     });
     if (doc === ROOT_DOC || includes.some((r) => r.ok && r.path === doc && line >= r.start && line <= r.end)) addPick(plan.dependencies, doc, line, end);
-    else plan.extra.push({ file: doc, text: b.text });
+    else plan.extra.push({ file: doc, text: b.text, line, end });
   }
   const reasons: Record<UnsatisfiedKind, (u: { path?: GraphNode[]; lines?: number[] }) => string> = {
     missing: () => 'no block has this id',
@@ -499,6 +575,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       });
     }
   }
+  plan.context.completeness = completenessOf(plan.context.unsatisfied);
   plan.context.complete = plan.context.unsatisfied.length === 0;
 
   // Budget rules, on the document's lines: what applies or is depended on keeps its section.
@@ -506,7 +583,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     if (!c.inPlace) continue;
     const scope = (c.block.values.scope ?? 'section').trim().toLowerCase();
     if (scope === 'document' || !sectionAt(c.pos) || unresolvedOf(c).length) { plan.ties.push({ holder: c.pos, needs: [], always: true }); continue; }
-    const needs = c.doc === ROOT_DOC ? listed(c.block, 'applies-to').map((id) => targetShown(id, [])).filter((l): l is number => l !== undefined) : [];
+    const needs = c.doc === ROOT_DOC ? listed(c.block, 'applies-to').map((id) => targetShown(id)).filter((l): l is number => l !== undefined) : [];
     if (needs.length) plan.ties.push({ holder: c.pos, needs });
   }
   for (const e of graph.edgesOf(GRAPH_ROOT)) {

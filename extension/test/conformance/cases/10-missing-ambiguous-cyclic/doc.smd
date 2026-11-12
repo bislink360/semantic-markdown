@@ -1,0 +1,42 @@
+---
+smd: 2
+title: Missing, ambiguous, cyclic and unresolved
+---
+
+## Missing
+
+:::requirement{#R1 depends-on=NOPE}
+Needs a block nobody wrote.
+:::
+
+## Ambiguous
+
+:::requirement{#R2 depends-on=DUP}
+Needs a block two blocks claim.
+:::
+
+## Cycle
+
+:::requirement{#R3 depends-on=R4}
+Needs R4.
+:::
+
+## Store
+
+:::requirement{#DUP}
+First copy DUP-ONE.
+:::
+
+:::requirement{#DUP}
+Second copy DUP-TWO.
+:::
+
+:::requirement{#R4 depends-on=R3}
+Needs R3 back.
+:::
+
+## Rules
+
+:::constraint{#C99 applies-to=R99}
+A rule whose target was deleted UNPLACED.
+:::

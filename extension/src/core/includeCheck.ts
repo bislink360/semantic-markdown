@@ -5,7 +5,9 @@ import {
 } from './include';
 import { includeSource } from './includeText';
 import { specVersion, type SpecVersion } from './specVersion';
+import { documentIdIndex } from './includedIds';
 import { anchorIds } from './links';
+import { idOwners } from './parse';
 import { renderSmd } from './render';
 import { attrValueFix } from './fixes';
 import { findSection, matchesExactly, sectionsOf } from './sections';
@@ -139,10 +141,18 @@ function problemOf(failure: IncludeFailure, options: IncludeCheckOptions): { cod
   }
 }
 
-/** Ids a `#fragment` in the document can point at, the headings its includes bring in included. */
+/**
+ * Ids a `#fragment` in the document can point at: its own, and the headings (with the ids rendering gives them) and
+ * other blocks its includes bring in (t-15). An include's fallback text is not shown once the file is read, so ids
+ * only it gives are left out then.
+ */
 export function documentIds(text: string, readFile?: (relativePath: string) => string | undefined): Set<string> {
   const ids = anchorIds(text);
   if (!readFile || !hasIncludes(text)) return ids;
+  const index = documentIdIndex(text, readFile);
+  const hidden = (line: number) => index.fallback.some(([a, b]) => line >= a && line <= b);
+  for (const [id, owners] of idOwners(text)) if (owners.every((o) => hidden(o.line))) ids.delete(id);
+  for (const id of index.owners.keys()) ids.add(id);
   for (const h of renderSmd(text, { readFile }).headings) ids.add(h.slug);
   return ids;
 }

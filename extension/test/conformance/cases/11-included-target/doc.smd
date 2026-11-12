@@ -1,0 +1,19 @@
+---
+smd: 2
+title: A target that included content provides
+---
+
+## Work
+
+:::include{file="inc.smd"}
+:::
+
+## Rules
+
+:::constraint{#C3 applies-to=RI}
+Included requirements are versioned RULE-ON-RI.
+:::
+
+## Other
+
+Other text OTHER-TEXT.

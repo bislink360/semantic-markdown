@@ -243,3 +243,61 @@ test('C04: works with a budget and through readDocument, and the manifest record
   assert.equal(span.kind, 'source');
   assert.ok(span.source![0] <= lineOf(doc, 'Mask every PAN') && lineOf(doc, 'Mask every PAN') <= span.source![1]);
 });
+
+const preambled = (...preamble: string[]) => [
+  '---', 'smd: 2', 'title: Plan', '---', '', ...preamble, '',
+  '## Work', '', 'Work text.', '',
+  '## Other', '', ':::danger', 'OTHER_DANGER', ':::', '', 'Other text.', '',
+].join('\n');
+
+test('t-60: a section read that leaves out text above the first heading records it, with a reason and a recovery command', () => {
+  const text = preambled('Intro PRE_TEXT for people and agents.', '', 'A second preamble line.');
+  const p = agentView(text, { sections: ['Work'], provenance: true, file: 'plan.smd' }).provenance!;
+  const pre = p.omissions.find((o) => o.kind === 'not-selected' && !o.heading);
+  assert.deepEqual(pre && { lines: pre.lines, retrieve: pre.retrieve }, { lines: [6, 8], retrieve: 'smd agent plan.smd' });
+  assert.match(pre!.reason, /above the first heading/);
+  // The whole document shows it, and records nothing.
+  const whole = agentView(text, { provenance: true, file: 'plan.smd' });
+  assert.match(whole.text, /PRE_TEXT/);
+  assert.ok(!whole.provenance!.omissions.some((o) => o.kind === 'not-selected'));
+});
+
+test('t-60: a preamble of only front matter, blank lines, comments or carried blocks records nothing', () => {
+  for (const preamble of [
+    [],
+    ['<!-- an editor note -->'],
+    [':::agent', 'AGENT_TEXT', ':::'],
+    [':::constraint{#C0} Above the first heading', 'TOP_BODY', ':::', '', ':::danger', 'TOP_DANGER', ':::'],
+  ]) {
+    const r = agentView(preambled(...preamble), { sections: ['Work'], provenance: true, file: 'plan.smd' });
+    assert.ok(!r.provenance!.omissions.some((o) => o.kind === 'not-selected' && !o.heading), preamble.join(' '));
+    for (const shown of ['AGENT_TEXT', 'TOP_BODY', 'TOP_DANGER']) if (preamble.some((l) => l === shown)) assert.match(r.text, new RegExp(shown));
+  }
+  // Text beside a carried block is still recorded, without the carried lines around it.
+  const mixed = agentView(preambled(':::agent', 'AGENT_TEXT', ':::', '', 'Loose PRE_TEXT.'), { sections: ['Work'], provenance: true, file: 'plan.smd' });
+  assert.deepEqual(mixed.provenance!.omissions.find((o) => o.kind === 'not-selected' && !o.heading)?.lines, [10, 10]);
+});
+
+test('t-61: an omitted range that holds a carried block says which lines were carried and where they appear', () => {
+  const text = preambled('Intro.');
+  const r = agentView(text, { sections: ['Work'], provenance: true, file: 'plan.smd' });
+  const other = r.provenance!.omissions.find((o) => o.heading === 'Other')!;
+  assert.deepEqual(other.lines, [12, 19]);
+  assert.deepEqual(other.carried, [{ lines: [14, 16], output: other.carried![0].output }]);
+  // The output lines are where the danger is in the view.
+  const out = r.text.split('\n');
+  const [a, b] = other.carried![0].output;
+  assert.deepEqual(out.slice(a - 1, b), ['<danger>', 'OTHER_DANGER', '</danger>']);
+  // A range with nothing carried has no such field.
+  const plain = agentView(text.replace(/:::danger\nOTHER_DANGER\n:::\n/, ''), { sections: ['Work'], provenance: true, file: 'plan.smd' });
+  assert.equal(plain.provenance!.omissions.find((o) => o.heading === 'Other')!.carried, undefined);
+});
+
+test('t-61: lines an include in the omitted range brings are named by their file', () => {
+  const files = filesReader({ 'inc.smd': ['---', 'smd: 2', '---', '', ':::danger', 'INC_DANGER', ':::', ''].join('\n') });
+  const text = preambled('Intro.').replace('Other text.', 'Other text.\n\n:::include{file="inc.smd"}\n:::');
+  const r = agentView(text, { sections: ['Work'], provenance: true, file: 'plan.smd', readFile: files });
+  const carried = r.provenance!.omissions.find((o) => o.heading === 'Other')!.carried!;
+  assert.deepEqual(carried.map((c) => [c.file ?? 'plan.smd', c.lines]), [['plan.smd', [14, 16]], ['inc.smd', [5, 7]]]);
+  assert.match(r.text.split('\n').slice(carried[1].output[0] - 1, carried[1].output[1]).join('\n'), /INC_DANGER/);
+});

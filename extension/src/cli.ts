@@ -9,6 +9,7 @@ import {
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
   type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
 } from './core';
+import { incompleteLine } from './core/applicability';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
 import { followOptions, runQuery, type QueryFlags } from './queryCommand';
@@ -780,10 +781,11 @@ function provenanceTarget(args: Args): string | undefined | null {
 
 const PROVENANCE_USAGE = '--provenance needs a file to write the manifest to, e.g. --provenance view.json.';
 
-/** A view that could not include a mandatory dependency says so on stderr too; the view lists them. */
+/** A view that could not carry or resolve what it must says so on stderr too, by part (t-63); the view lists them. */
 function warnIncomplete(mandatory: AgentViewResult['mandatory']): void {
-  const n = mandatory?.unsatisfied.length ?? 0;
-  if (n) console.error(`[smd] warning: incomplete view, ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied (listed under "Dependencies of the selected content")`);
+  if (!mandatory?.unsatisfied.length) return;
+  const what = incompleteLine(mandatory.unsatisfied).slice('[incomplete: '.length, -1);
+  console.error(`[smd] warning: incomplete view, ${what} (listed under "Not satisfied")`);
 }
 
 function writeProvenance(target: string, manifest: Provenance): void {

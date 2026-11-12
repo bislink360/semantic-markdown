@@ -1,0 +1,44 @@
+{
+  "description": "Overflow (L5, L6). A budget smaller than the required content never removes it: the agent block, the document-scoped constraint, the danger and the selected section still appear, budget.fits is false, and content that is not required is replaced by pointers recorded as budget omissions. Completeness parts: budget fails, coverage and resolution hold; complete is the conjunction of the parts.",
+  "requests": [
+    {
+      "name": "a full view over budget keeps the required content and omits the filler",
+      "route": { "maxTokens": 30 },
+      "laws": ["L1", "L2", "L5", "L6"],
+      "mustAppear": ["~AGENT-TOP", "CD", "~DANGER-B"],
+      "budgetFits": false,
+      "unsatisfied": [],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": true, "budget": false },
+      "omissions": [
+        { "kind": "budget", "heading": "Filler A", "lines": [22, 25], "retrieve": "smd agent doc.smd" }
+      ]
+    },
+    {
+      "name": "a section read over budget keeps the section and the rules",
+      "route": { "sections": ["Work"], "maxTokens": 30 },
+      "laws": ["L1", "L2", "L5"],
+      "mustAppear": ["R1", "~AGENT-TOP", "CD", "~DANGER-B"],
+      "budgetFits": false,
+      "completeness": { "coverage": true, "resolution": true, "budget": false }
+    },
+    {
+      "name": "a brief view over budget keeps the required content",
+      "route": { "brief": true, "maxTokens": 30 },
+      "laws": ["L1", "L2", "L5"],
+      "mustAppear": ["~AGENT-TOP", "CD", "~DANGER-B"],
+      "budgetFits": false
+    },
+    {
+      "name": "a budget that fits omits nothing and is complete",
+      "route": { "maxTokens": 5000 },
+      "laws": ["L5"],
+      "mustAppear": ["~AGENT-TOP", "CD", "R1", "~DANGER-B", "~FILLER-A", "~FILLER-B"],
+      "budgetFits": true,
+      "unsatisfied": [],
+      "complete": true,
+      "completeness": { "coverage": true, "resolution": true, "budget": true },
+      "omissions": [{"kind": "budget", "absent": true}]
+    }
+  ]
+}
