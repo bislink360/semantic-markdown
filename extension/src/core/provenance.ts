@@ -135,6 +135,16 @@ export interface Provenance {
     dependencies: Dependency[];
   };
   settings: ProvenanceSettings;
+  /**
+   * The date overdue marks, due states and lifecycle checks used, YYYY-MM-DD: `settings.today` when the caller fixed it,
+   * else the UTC date the view was made on (t-68).
+   */
+  effectiveDate: string;
+  /**
+   * SHA-256 of the settings as recorded here (keys sorted, without the `tool` a CLI adds) and of the view's text, so two
+   * manifests show at a glance whether they describe the same request and the same output (t-68).
+   */
+  digests: { settings: string; output: string };
   /** With sections: each query, the headings it selected (one-based lines), and the queries that matched none or several. */
   selection: {
     queries: string[];
@@ -155,6 +165,13 @@ export interface Provenance {
   mandatory?: MandatoryContext;
   /** A read with `follow` (`smd read --follow`): the edges followed, the pointers and dependencies added, and what is unsatisfied. */
   follow?: FollowManifest;
+}
+
+/** JSON with object keys sorted at every level, so equal values give equal text and equal digests. */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    : v));
 }
 
 /** Add an omission; HTML comments on neighbouring lines become one. */
@@ -200,6 +217,7 @@ export function provenanceManifest(input: ManifestInput): Provenance {
   const omissions = own.sort((a, b) =>
     Number(a.file !== file) - Number(b.file !== file) || a.file.localeCompare(b.file) || a.lines[0] - b.lines[0] || a.lines[1] - b.lines[1]);
   const tokenizer = result.counted?.tokenizer ?? 'estimate';
+  const settings: ProvenanceSettings = { ...input.settings, datePolicy: input.settings.today ? 'fixed' : 'clock' };
   return {
     schema: PROVENANCE_SCHEMA,
     projection: 'agent-view',
@@ -208,7 +226,9 @@ export function provenanceManifest(input: ManifestInput): Provenance {
       dependencies: [...input.dependencies].sort(([a], [b]) => a.localeCompare(b)).map(([path, content]) => (
         content === undefined ? { path, sha256: null, status: 'unavailable' } : { path, sha256: sha256Hex(content), status: 'read' })),
     },
-    settings: { ...input.settings, datePolicy: input.settings.today ? 'fixed' : 'clock' },
+    settings,
+    effectiveDate: input.settings.today ?? new Date().toISOString().slice(0, 10),
+    digests: { settings: sha256Hex(canonicalJson(settings)), output: sha256Hex(result.text) },
     selection: input.resolved && {
       queries: input.resolved.map((r) => r.query),
       resolved: input.resolved.map((r) => ({ query: r.query, headings: r.headings.map((h) => ({ ...h, line: h.line + 1 })) })),
@@ -234,6 +254,7 @@ export function outlineProvenance(provenance: Provenance, outlineText: string, t
   return {
     ...view,
     projection: 'outline',
+    digests: { ...view.digests, output: sha256Hex(outlineText) },
     sourceMap: [{ output: [1, lines], kind: 'synthesized' }],
     omissions: [{
       kind: 'outline', file: view.source.file, lines: [1, view.source.lines], retrieve: command,

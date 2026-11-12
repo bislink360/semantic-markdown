@@ -327,3 +327,21 @@ test('t-65: human and condensed omissions carry the command that shows them, and
   const off = agentView(text, { includes: false, provenance: true, file: 'plan.smd' }).provenance!;
   assert.equal(off.omissions.find((o) => o.kind === 'include')?.retrieve, 'smd agent plan.smd');
 });
+
+test('t-68: the manifest records the effective date and digests of its settings and of the view text', () => {
+  const text = ['---', 'smd: 2', '---', '', '## Work', '', '- [ ] Ship it :due[2026-01-01]', ''].join('\n');
+  const fixed = agentView(text, { today: '2026-11-12', provenance: true, file: 'plan.smd' });
+  const p = fixed.provenance!;
+  assert.equal(p.schema, 'smd-projection/1');
+  assert.equal(p.effectiveDate, '2026-11-12');
+  assert.equal(p.digests.output, sha256Hex(fixed.text));
+  assert.match(p.digests.settings, /^[0-9a-f]{64}$/);
+  // Equal requests have equal digests; another setting or another date gives another settings digest.
+  assert.deepEqual(agentView(text, { today: '2026-11-12', provenance: true, file: 'plan.smd' }).provenance!.digests, p.digests);
+  assert.notEqual(agentView(text, { today: '2026-11-13', provenance: true, file: 'plan.smd' }).provenance!.digests.settings, p.digests.settings);
+  assert.notEqual(agentView(text, { today: '2026-11-12', brief: true, provenance: true, file: 'plan.smd' }).provenance!.digests.settings, p.digests.settings);
+  // Without a fixed date the manifest still says which date the view used.
+  const clock = agentView(text, { provenance: true, file: 'plan.smd' }).provenance!;
+  assert.equal(clock.settings.datePolicy, 'clock');
+  assert.equal(clock.effectiveDate, new Date().toISOString().slice(0, 10));
+});
