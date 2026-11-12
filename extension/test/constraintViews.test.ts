@@ -105,7 +105,7 @@ test('D6: the head blocks come in order: agent instructions, constraints, depend
   assert.ok(at('Constraints that apply here:') < at('Dependencies of the selected content:'));
   assert.ok(at('Dependencies of the selected content:') < at('Dangers elsewhere in the document:'));
   assert.ok(at('Dangers elsewhere in the document:') < at('### Refunds'));
-  assert.match(text, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger">\nDANGER_BODY\n<\/danger>\n\n### Refunds/);
+  assert.match(text, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger"> \[L\d+\]\nDANGER_BODY\n<\/danger>\n\n### Refunds/);
 });
 
 test('R25: --brief keeps applying constraints whole', () => {
@@ -657,4 +657,21 @@ test('a cycle between blocks a whole view shows is listed, as a section read tha
     assert.deepEqual(r.mandatory?.unsatisfied.map((u) => u.kind), ['cycle'], String(sections));
     assert.equal(r.mandatory?.completeness.resolution, false);
   }
+});
+
+test('t-71: a carried agent block, non-goals list or danger names its line, in the file an <included> block names', () => {
+  const files: Record<string, string> = { 'inc.smd': ['---', 'smd: 2', '---', '', ':::agent', 'INC_AGENT', ':::', '', ':::danger', 'INC_DANGER', ':::', ''].join('\n') };
+  const doc = [
+    '---', 'smd: 2', '---', '', ':::agent', 'TOP_AGENT', ':::', '', ':::non-goals', '- No billing.', ':::', '',
+    '## Work', '', 'Work text.', '', '## Shared', '', ':::include{file="inc.smd"}', ':::', '', ':::danger', 'OWN_DANGER', ':::', '',
+  ].join('\n');
+  const r = agentView(doc, { sections: ['Work'], readFile: (p) => files[p] });
+  assert.match(r.text, /^<agent-instructions> \[L5\]\nTOP_AGENT$/m);
+  assert.match(r.text, /^<non-goals> \[L9\]\n- No billing\.$/m);
+  assert.match(r.text, /<included file="inc\.smd">\n<agent-instructions> \[L5\]\nINC_AGENT/);
+  assert.match(r.text, /<included file="inc\.smd">\n<danger> \[L9\]\nINC_DANGER/);
+  assert.match(r.text, /^<danger> \[L22\]\nOWN_DANGER$/m);
+  // Blocks in place keep their tags as they were, and --no-lines leaves the references out.
+  assert.match(agentView(doc).text, /^<agent-instructions>\nTOP_AGENT$/m);
+  assert.doesNotMatch(agentView(doc, { sections: ['Work'], readFile: (p) => files[p], lineRefs: false }).text, /\[L\d+\]/);
 });

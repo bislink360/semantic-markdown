@@ -187,14 +187,14 @@ test('C04: the constraints pass is off by default; only the dangers of other sec
   const plain = agentView(doc, { sections: ['Requirements'] });
   assert.doesNotMatch(plain.text, /Constraints elsewhere/);
   assert.equal(plain.constraints, undefined);
-  assert.match(plain.text, /Dangers elsewhere in the document:\n<danger title="No card numbers in logs">\nMask every PAN before logging\.\n<\/danger>/);
+  assert.match(plain.text, /Dangers elsewhere in the document:\n<danger title="No card numbers in logs"> \[L\d+\]\nMask every PAN before logging\.\n<\/danger>/);
   assert.doesNotMatch(plain.text, /warning "Rate limits"|accepted decision "Use Postgres"/, 'warnings and decisions stay behind --constraints');
 });
 
 test('C04: dangers in full, other constraints as pointers, and nothing that is not a constraint', () => {
   const r = agentView(doc, { sections: ['Requirements'], constraints: true });
-  assert.match(r.text, /Constraints elsewhere in the document:\n<danger title="No card numbers in logs">\nMask every PAN before logging\.\n<\/danger>/);
-  assert.match(r.text, /<danger>\nNever retry a capture twice\.\n<\/danger>/, 'a CAUTION alert is a danger');
+  assert.match(r.text, /Constraints elsewhere in the document:\n<danger title="No card numbers in logs"> \[L\d+\]\nMask every PAN before logging\.\n<\/danger>/);
+  assert.match(r.text, /<danger> \[L\d+\]\nNever retry a capture twice\.\n<\/danger>/, 'a CAUTION alert is a danger');
   assert.match(r.text, /- warning "Rate limits" \[L\d+\] in "Operations"/);
   assert.match(r.text, /- accepted decision "Use Postgres" \[L\d+\] in "Decisions"/);
   assert.match(r.text, /- open question "Should refunds be partial\?" \[L\d+\] in "Open questions"/);
@@ -287,7 +287,7 @@ test('t-61: an omitted range that holds a carried block says which lines were ca
   // The output lines are where the danger is in the view.
   const out = r.text.split('\n');
   const [a, b] = other.carried![0].output;
-  assert.deepEqual(out.slice(a - 1, b), ['<danger>', 'OTHER_DANGER', '</danger>']);
+  assert.deepEqual(out.slice(a - 1, b), ['<danger> [L14]', 'OTHER_DANGER', '</danger>']);
   // A range with nothing carried has no such field.
   const plain = agentView(text.replace(/:::danger\nOTHER_DANGER\n:::\n/, ''), { sections: ['Work'], provenance: true, file: 'plan.smd' });
   assert.equal(plain.provenance!.omissions.find((o) => o.heading === 'Other')!.carried, undefined);

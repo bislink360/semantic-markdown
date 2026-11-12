@@ -305,6 +305,9 @@ function containerHead(name: string, source: HeadSource): ContainerHead {
 /** What the view reads included files with: nothing when includes are only pointers. */
 const viewReader = (options: AgentViewOptions) => (options.includes === false ? undefined : options.readFile);
 
+/** Blocks a section view carries into its head from elsewhere, which say where they are (t-71). */
+const CARRIED_HEADS: ReadonlySet<string> = new Set(['agent', 'non-goals', 'danger']);
+
 /** Front matter keys the agent view's header leaves out of its facts. */
 export const AGENT_HEADER_HIDDEN: ReadonlySet<string> = new Set(['smd', 'theme', 'accent', 'toc', 'title', 'summary']);
 
@@ -1156,6 +1159,10 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     if (inKept()) options.onAgentLine?.(at);
     if (traced) trace?.entries.push({ file: trace.file, line: at, end, root: trace.root ?? at, text: line });
   };
+  // A block the head carries from elsewhere (an agent block, non-goals, a danger) says where it is, so a host can
+  // check where carried instructions come from (t-71). Inside an <included> block the line is that file's.
+  const carriedRef = lineRefs && (options.onlyAgentBlocks || options.onlyDangers || options.onlyConstraints);
+  const withRef = (line: string, at: number) => (carriedRef && !/\[L\d+\]$/.test(line) ? `${line} [L${at + 1}]` : line);
   /** Record lines [start, end] (zero-based) as left out of the view, when provenance is asked for. */
   const omit = (o: Omit<Omission, 'file' | 'lines'>, start: number, end: number) => {
     if (trace?.omissions) addOmission(trace.omissions, { ...o, file: trace.file, lines: [start + 1, end + 1] });
@@ -1186,7 +1193,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const sink = options.constraintSink;
   const alertView = alertTags(alerts, lines, emit, flushDone, (callout, at) => {
     if (sink && inScope(at) && !dropping() && !inAgent() && !inDanger()) recordConstraint(sink, callout, '', at);
-  });
+  }, withRef);
 
   for (let i = from; i < lines.length; i++) {
     current = i;
@@ -1308,7 +1315,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         title, values: info.attrs.values, id: info.attrs.id, figure: ownFigures.get(i), requirement,
         ...(tags ? { tags: { block: tags.byLine.get(i), context: tags } } : {}),
       });
-      if (head.line !== undefined) emit(head.line, i);
+      if (head.line !== undefined) emit(CARRIED_HEADS.has(info.name) ? withRef(head.line, i) : head.line, i);
       frame.close = head.close;
       continue;
     }
@@ -1395,7 +1402,7 @@ const QUOTE_MARKER = /^ {0,3}> ?/;
  */
 function alertTags(
   alerts: readonly AlertLines[], lines: string[], emit: (line: string, at: number) => void, flush: (at: number) => void,
-  opened?: (callout: string, at: number) => void,
+  opened?: (callout: string, at: number) => void, opening: (line: string, at: number) => string = (line) => line,
 ) {
   const byStart = new Map(alerts.map((a) => [a.start, a]));
   let open: { alert: AlertLines; last: number } | undefined;
@@ -1417,7 +1424,7 @@ function alertTags(
         flush(i);
         opened?.(alert.callout, i);
         open = { alert, last };
-        emit(`<${alert.callout}>`, i);
+        emit(opening(`<${alert.callout}>`, i), i);
       }
       if (!open) return raw;
       return i === open.alert.marker ? undefined : raw.replace(QUOTE_MARKER, '');

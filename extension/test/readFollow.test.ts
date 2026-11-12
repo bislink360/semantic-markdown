@@ -97,10 +97,14 @@ test('G4, G5: mandatory edges come in full once, and what cannot be satisfied ma
   const f = plain.follow!;
   assert.equal(plain.shown, 'full');
   assert.deepEqual(f.dependencies, [], 'c.smd is shown in place');
-  assert.deepEqual(f.unsatisfied.map((u) => `${u.kind}:${u.edge.target}`), ['denied:../secret.smd']);
+  // The view lists the include it could not read itself (decided 2026-11-12), so follow does not repeat it, and the
+  // result is still incomplete.
+  assert.deepEqual(f.unsatisfied, []);
+  assert.deepEqual(plain.mandatory?.unsatisfied.map((u) => `${u.kind}:${u.target}`), ['include:../secret.smd']);
   assert.equal(f.complete, false);
-  assert.match(plain.text, /^Unsatisfied dependency: include "\.\.\/secret\.smd" from L7 is in secret\.smd, outside the paths this command may read \(denied\)\.$/m);
-  assert.match(plain.text, /^\[incomplete: 1 mandatory dependency is not satisfied along the followed edges\]$/m);
+  assert.match(plain.text, /^- included file \.\.\/secret\.smd \[L7\]: not read \(cannot read the file\)$/m);
+  assert.match(plain.text, /^\[incomplete: resolution failed for 1 include\]$/m);
+  assert.doesNotMatch(plain.text, /^Unsatisfied dependency:/m);
   assert.match(plain.text, /^ {2}-> link {8}document {2}Plan B {2}docs\/b\.smd {2}≈\d+ tokens$/m);
   // A host that shows no includes in place gets the included file in full from the edges.
   const bare = readSmd(A, { file: 'docs/a.smd', today: TODAY, sections: ['Design'], follow: 'include', readDocument: reader });
@@ -196,8 +200,10 @@ test('provenance: the manifest records what follow added, maps its lines, and li
   const p = result.provenance!;
   assert.equal(plain.provenance!.follow, undefined);
   assert.equal(p.follow!.direction, 'both');
-  assert.deepEqual(p.follow!.unsatisfied.map((u) => `${u.kind}:${u.edge}:${u.from.file}:${u.from.line}`), ['denied:include:docs/d.smd:7']);
-  assert.ok(p.omissions.some((o) => o.kind === 'dependency' && /followed edge/.test(o.reason)));
+  // The view reports the unread include itself (decided 2026-11-12), so the followed edges add nothing to it.
+  assert.deepEqual(p.follow!.unsatisfied, []);
+  assert.equal(p.follow!.complete, false);
+  assert.ok(p.omissions.some((o) => o.kind === 'dependency' && /an include is not read/.test(o.reason)));
   assert.equal(p.size.tokens, plain.provenance!.size.tokens + result.follow!.tokens.shown);
   const lines = result.text.replace(/\n$/, '').split('\n').length;
   assert.deepEqual(p.sourceMap.at(-1)!.output[1], lines);

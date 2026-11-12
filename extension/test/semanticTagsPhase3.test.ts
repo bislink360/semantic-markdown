@@ -28,7 +28,7 @@ test('R57: :::non-goals renders as a panel, <non-goals> in the agent view and an
 test('R57: a section view that leaves out the non-goals still shows them, as it shows :::agent blocks', () => {
   const text = v2(`## Goals\n\n${NON_GOALS}\n\n## Design\n\nThe design.`);
   const view = agentView(text, { sections: ['Design'] }).text;
-  assert.match(view, /Document-wide agent instructions:\n<non-goals>\n- No requirements tool\./);
+  assert.match(view, /Document-wide agent instructions:\n<non-goals> \[L\d+\]\n- No requirements tool\./);
   assert.match(agentView(text, { sections: ['Design'], brief: true }).text, /No test runner/);
 });
 
