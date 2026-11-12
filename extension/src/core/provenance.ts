@@ -302,8 +302,9 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
     const inSelected = (line: number) => selected.some((sel) => line >= sel.start && line <= sel.end);
     const isListed = (line: number) => out.some((o) => line + 1 >= o.lines[0] && line + 1 <= o.lines[1]);
     const lines = input.text.split(/\r?\n/);
-    for (let l = sections[0]?.start ?? lines.length; l < lines.length; l++) {
-      if (inSelected(l) || isListed(l) || !lines[l].trim()) continue;
+    let l = sections[0]?.start ?? lines.length;
+    while (l < lines.length) {
+      if (inSelected(l) || isListed(l) || !lines[l].trim()) { l++; continue; }
       const holder = sections.filter((s) => l >= s.start && l <= s.end).at(-1)!;
       let end = l;
       while (end + 1 <= holder.end && !inSelected(end + 1) && !isListed(end + 1)) end++;
@@ -312,7 +313,7 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
         kind: 'not-selected', file, lines: [l + 1, end + 1], heading: holder.heading.text, retrieve: read(holder.heading.text),
         reason: 'outside the requested sections: the heading and text of a section around them',
       });
-      l = end;
+      l = end + 1;
     }
     const preamble = preambleLeftOut(input, matched);
     if (preamble) {

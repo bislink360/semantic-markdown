@@ -88,12 +88,13 @@ export function documentUnits(text: string, bodyStart: number): Unit[] {
     add('alert', a.start, last);
   }
   // Runs of other non-blank lines outside containers.
-  for (let i = bodyStart; i < lines.length; i++) {
-    if (owner[i] !== undefined || !lines[i].trim()) continue;
+  let i = bodyStart;
+  while (i < lines.length) {
+    if (owner[i] !== undefined || !lines[i].trim()) { i++; continue; }
     let j = i;
     while (j + 1 < lines.length && owner[j + 1] === undefined && lines[j + 1].trim()) j++;
     add('text', i, j);
-    i = j;
+    i = j + 1;
   }
   for (let i = bodyStart; i < lines.length; i++) if (owner[i] !== undefined && lines[i].trim()) units[owner[i]!].own.push(i);
   // Document order, with parents kept pointing at the right block.
