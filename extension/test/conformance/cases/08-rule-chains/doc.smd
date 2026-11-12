@@ -1,0 +1,60 @@
+---
+smd: 2
+title: Rule chains
+---
+
+## Work
+
+:::requirement{#R1}
+Ship the export.
+:::
+
+- [ ] Wire the export job :depends[R6] {#T1}
+
+## Rules
+
+:::constraint{#C1 applies-to=R1 depends-on=R2}
+The export reads from the archive.
+:::
+
+:::constraint{#C3 applies-to=R2 depends-on=R3}
+The archive is encrypted at rest.
+:::
+
+:::constraint{#C4 applies-to=R3 depends-on=R4}
+Keys rotate every quarter.
+:::
+
+:::constraint{#C5 applies-to=R4}
+Rotation is logged.
+:::
+
+:::constraint{#C9 applies-to=R9}
+Unrelated rule.
+:::
+
+## Store
+
+:::requirement{#R2}
+Keep an archive.
+:::
+
+:::requirement{#R3}
+Encrypt the archive.
+:::
+
+:::requirement{#R4}
+Rotate keys.
+:::
+
+:::requirement{#R6}
+Schedule jobs.
+:::
+
+:::requirement{#R9}
+Something else.
+:::
+
+:::constraint{#CSTORE}
+Archive jobs run off-peak.
+:::

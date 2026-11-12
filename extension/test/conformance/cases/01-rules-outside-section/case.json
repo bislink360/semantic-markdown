@@ -1,0 +1,47 @@
+{
+  "description": "Rules outside the section (L2): a document-scoped rule in another section, a rule above the first heading, the rule of an enclosing section, and section rules elsewhere that bind nothing the view shows (extra context at most).",
+  "requests": [
+    {
+      "name": "section Storage carries the rules that apply from outside it",
+      "route": { "sections": ["Storage"] },
+      "laws": ["L2"],
+      "mustAppear": ["RSTORE", "CTOP", "CPARENT", "CDOC"],
+      "unsatisfied": [],
+      "complete": true,
+      "omissions": [
+        { "kind": "not-selected", "heading": "Billing", "lines": [28, 40] }
+      ]
+    },
+    {
+      "name": "section Billing carries its own rules, the rule on its target and the global ones",
+      "route": { "sections": ["Billing"] },
+      "laws": ["L2"],
+      "mustAppear": ["RBILL", "CBILL", "CON", "CTOP", "CDOC"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "section Platform carries its own rule and the global ones",
+      "route": { "sections": ["Platform"] },
+      "laws": ["L2"],
+      "mustAppear": ["CPARENT", "RSTORE", "CTOP", "CDOC"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "brief section Storage carries the same rules",
+      "route": { "sections": ["Storage"], "brief": true },
+      "laws": ["L2"],
+      "mustAppear": ["RSTORE", "CTOP", "CPARENT", "CDOC"],
+      "complete": true
+    },
+    {
+      "name": "full view shows every rule",
+      "route": {},
+      "laws": ["L2"],
+      "mustAppear": ["CTOP", "CPARENT", "RSTORE", "CDOC", "CBILL", "CON", "RBILL"],
+      "unsatisfied": [],
+      "complete": true
+    }
+  ]
+}

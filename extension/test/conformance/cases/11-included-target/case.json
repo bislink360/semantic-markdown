@@ -1,0 +1,41 @@
+{
+  "description": "A target that included content provides (L2, boundary table, target law). RI comes from inc.smd through an include in section Work, and C3 in section Rules applies to RI. RI resolves like a target in the same file: reading Work carries C3 and is complete, and a read that does not show RI neither needs C3 nor lists RI as unresolved.",
+  "requests": [
+    {
+      "name": "section Work carries C3 for the included RI and is complete",
+      "route": { "sections": ["Work"] },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["RI", "C3"],
+      "unsatisfied": [],
+      "complete": true,
+      "xfail": {
+        "unsatisfied": { "task": "t-59", "note": "RI from the include is not resolvable, so C3 goes through the unplaced path and RI is listed as unresolved-target" },
+        "complete": { "task": "t-59", "note": "incomplete because of the unresolved-target RI" }
+      }
+    },
+    {
+      "name": "full view carries RI and C3 and is complete",
+      "route": {},
+      "laws": ["L2", "L3"],
+      "mustAppear": ["RI", "C3", "~OTHER-TEXT"],
+      "unsatisfied": [],
+      "complete": true,
+      "xfail": {
+        "unsatisfied": { "task": "t-59", "note": "RI is listed as unresolved-target" },
+        "complete": { "task": "t-59", "note": "incomplete because of the unresolved-target RI" }
+      }
+    },
+    {
+      "name": "section Other does not show RI and lists nothing",
+      "route": { "sections": ["Other"] },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["~OTHER-TEXT"],
+      "unsatisfied": [],
+      "complete": true,
+      "xfail": {
+        "unsatisfied": { "task": "t-59", "note": "C3 is unplaced today, so every view lists RI as unresolved-target" },
+        "complete": { "task": "t-59", "note": "incomplete because of the unresolved-target RI" }
+      }
+    }
+  ]
+}

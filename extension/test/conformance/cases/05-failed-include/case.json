@@ -1,0 +1,66 @@
+{
+  "description": "An include that cannot be read (L3, L6, boundary table): its blocks are unavailable, the include is listed as unsatisfied (kind include, the unread kind) and recorded as an omission, and the view is incomplete. A section read elsewhere is incomplete too, since the unread file may hold blocks L1 requires in every view. Completeness parts: resolution fails, coverage and budget hold. doc.smd has no constraint and no dependency; doc-rule.smd is the same document with one section constraint.",
+  "requests": [
+    {
+      "name": "full view lists the unread include and is incomplete",
+      "route": {},
+      "laws": ["L3", "L6"],
+      "mustAppear": ["## Work", "~WORK-TEXT", "~OTHER-TEXT"],
+      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": false, "budget": true },
+      "omissions": [{ "kind": "include", "lines": [10, 10] }],
+      "xfail": {
+        "unsatisfied": { "task": "unknown", "note": "a document with no constraint and no dependency gets no mandatory context, so the unread include is never listed as unsatisfied" },
+        "complete": { "task": "unknown", "note": "no mandatory context, so the view never reports itself incomplete (no [incomplete] line, no stderr warning)" },
+        "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" }
+      }
+    },
+    {
+      "name": "section Work lists the unread include and is incomplete",
+      "route": { "sections": ["Work"] },
+      "laws": ["L3", "L6"],
+      "mustAppear": ["~WORK-TEXT"],
+      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "complete": false,
+      "omissions": [{ "kind": "include", "lines": [10, 10] }],
+      "xfail": {
+        "unsatisfied": { "task": "unknown", "note": "no mandatory context in a document without constraints or dependencies" },
+        "complete": { "task": "unknown", "note": "no mandatory context in a document without constraints or dependencies" }
+      }
+    },
+    {
+      "name": "with a rule: full view lists the unread include and is incomplete",
+      "doc": "doc-rule.smd",
+      "route": {},
+      "laws": ["L3", "L6"],
+      "mustAppear": ["~WORK-TEXT", "~OTHER-TEXT", "CO"],
+      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": false, "budget": true },
+      "omissions": [{ "kind": "include", "lines": [10, 10] }],
+      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+    },
+    {
+      "name": "with a rule: section Work lists the unread include and is incomplete",
+      "doc": "doc-rule.smd",
+      "route": { "sections": ["Work"] },
+      "laws": ["L3", "L6"],
+      "mustAppear": ["~WORK-TEXT"],
+      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": false, "budget": true },
+      "omissions": [{ "kind": "include", "lines": [10, 10] }],
+      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+    },
+    {
+      "name": "with a rule: section Other is incomplete too",
+      "doc": "doc-rule.smd",
+      "route": { "sections": ["Other"] },
+      "laws": ["L1", "L3"],
+      "mustAppear": ["~OTHER-TEXT", "CO"],
+      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "complete": false
+    }
+  ]
+}

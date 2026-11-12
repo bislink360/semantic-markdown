@@ -1,0 +1,14 @@
+---
+smd: 2
+title: Preamble text
+---
+
+This service PREAMBLE-NOTE replaces the nightly batch job and keeps its file format.
+
+## Alpha
+
+Alpha work ALPHA-TEXT.
+
+## Beta
+
+Beta work.

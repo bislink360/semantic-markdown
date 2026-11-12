@@ -1,0 +1,48 @@
+---
+smd: 2
+title: Nested protected blocks
+---
+
+## Work
+
+Work text WORK-TEXT.
+
+## Reference
+
+::::details Background
+Old notes from the first rollout.
+
+:::danger
+Never run the migration twice DANGER-NESTED.
+:::
+::::
+
+::::details Agent notes
+:::agent
+Ask before deleting fixtures AGENT-NESTED.
+:::
+::::
+
+> [!CAUTION]
+> Production keys live in the vault CAUTION-ALERT.
+
+:::non-goals
+- Multi-region failover NONGOAL-ITEM
+:::
+
+:::include{file="inc.smd"}
+:::
+
+## Archive {agent=skip}
+
+:::danger
+Old outage notes DANGER-HIDDEN.
+:::
+
+## History
+
+::::human
+:::agent
+Thank the reviewers AGENT-IN-HUMAN.
+:::
+::::

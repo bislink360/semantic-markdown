@@ -1,0 +1,32 @@
+---
+smd: 2
+title: Explicit selection of a skipped section
+---
+
+## Main
+
+Main text MAIN-TEXT.
+
+## Notes {agent=skip}
+
+Notes prose NOTES-PROSE.
+
+:::agent
+Prefer the old importer here AGENT-SKIPPED.
+:::
+
+:::danger
+The archive bucket is shared DANGER-SKIPPED.
+:::
+
+:::requirement{#RS}
+Keep the archive read-only.
+:::
+
+:::constraint{#CSKIP scope=document}
+Skipped rule SKIP-RULE.
+:::
+
+## Later
+
+Later text.

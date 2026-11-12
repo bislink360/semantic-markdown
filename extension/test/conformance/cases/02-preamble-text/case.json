@@ -1,0 +1,43 @@
+{
+  "description": "Text above the first heading (L6, boundary table). A section read that leaves a preamble paragraph out records the omission, with no heading and a command that shows it. A preamble of front matter, blank lines and carried blocks records nothing.",
+  "requests": [
+    {
+      "name": "section Alpha records the preamble paragraph it leaves out",
+      "route": { "sections": ["Alpha"] },
+      "laws": ["L6"],
+      "mustAppear": ["~ALPHA-TEXT"],
+      "omissions": [
+        {
+          "kind": "not-selected", "heading": null, "lines": [6, 6], "reason": "first heading", "retrieve": "smd agent doc.smd",
+          "expectedFailure": { "task": "t-60", "note": "a section read drops text above the first heading without recording it" }
+        },
+        { "kind": "not-selected", "heading": "Beta", "lines": [12, 14] }
+      ]
+    },
+    {
+      "name": "full view shows the preamble and records no omission for it",
+      "route": {},
+      "laws": ["L6"],
+      "mustAppear": ["~PREAMBLE-NOTE", "~ALPHA-TEXT"],
+      "omissions": [
+        { "kind": ["not-selected", "budget"], "lines": [5, 7], "absent": true }
+      ]
+    },
+    {
+      "name": "brief view shows the preamble",
+      "route": { "brief": true },
+      "laws": ["L6"],
+      "mustAppear": ["~PREAMBLE-NOTE"]
+    },
+    {
+      "name": "section Alpha of a quiet preamble carries the agent block and records nothing for the preamble",
+      "doc": "doc-quiet.smd",
+      "route": { "sections": ["Alpha"] },
+      "laws": ["L1", "L6"],
+      "mustAppear": ["~QUIET-AGENT"],
+      "omissions": [
+        { "kind": ["not-selected", "budget"], "heading": null, "absent": true }
+      ]
+    }
+  ]
+}

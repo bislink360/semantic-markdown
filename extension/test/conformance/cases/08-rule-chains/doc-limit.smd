@@ -1,0 +1,258 @@
+---
+smd: 2
+title: A rule chain past the block limit
+---
+
+## Work
+
+:::requirement{#R1}
+Start here.
+:::
+
+## Rules
+
+:::constraint{#CL applies-to=R1 depends-on=B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,B14,B15,B16,B17,B18,B19,B20,B21,B22,B23,B24,B25,B26,B27,B28,B29,B30,B31,B32,B33,B34,B35,B36,B37,B38,B39,B40,B41,B42,B43,B44,B45,B46,B47,B48,B49,B50,B51,B52,B53,B54,B55,B56,B57,B58,B59,B60}
+Everything in the store is needed.
+:::
+
+## Store
+
+:::requirement{#B1}
+Block 1.
+:::
+
+:::requirement{#B2}
+Block 2.
+:::
+
+:::requirement{#B3}
+Block 3.
+:::
+
+:::requirement{#B4}
+Block 4.
+:::
+
+:::requirement{#B5}
+Block 5.
+:::
+
+:::requirement{#B6}
+Block 6.
+:::
+
+:::requirement{#B7}
+Block 7.
+:::
+
+:::requirement{#B8}
+Block 8.
+:::
+
+:::requirement{#B9}
+Block 9.
+:::
+
+:::requirement{#B10}
+Block 10.
+:::
+
+:::requirement{#B11}
+Block 11.
+:::
+
+:::requirement{#B12}
+Block 12.
+:::
+
+:::requirement{#B13}
+Block 13.
+:::
+
+:::requirement{#B14}
+Block 14.
+:::
+
+:::requirement{#B15}
+Block 15.
+:::
+
+:::requirement{#B16}
+Block 16.
+:::
+
+:::requirement{#B17}
+Block 17.
+:::
+
+:::requirement{#B18}
+Block 18.
+:::
+
+:::requirement{#B19}
+Block 19.
+:::
+
+:::requirement{#B20}
+Block 20.
+:::
+
+:::requirement{#B21}
+Block 21.
+:::
+
+:::requirement{#B22}
+Block 22.
+:::
+
+:::requirement{#B23}
+Block 23.
+:::
+
+:::requirement{#B24}
+Block 24.
+:::
+
+:::requirement{#B25}
+Block 25.
+:::
+
+:::requirement{#B26}
+Block 26.
+:::
+
+:::requirement{#B27}
+Block 27.
+:::
+
+:::requirement{#B28}
+Block 28.
+:::
+
+:::requirement{#B29}
+Block 29.
+:::
+
+:::requirement{#B30}
+Block 30.
+:::
+
+:::requirement{#B31}
+Block 31.
+:::
+
+:::requirement{#B32}
+Block 32.
+:::
+
+:::requirement{#B33}
+Block 33.
+:::
+
+:::requirement{#B34}
+Block 34.
+:::
+
+:::requirement{#B35}
+Block 35.
+:::
+
+:::requirement{#B36}
+Block 36.
+:::
+
+:::requirement{#B37}
+Block 37.
+:::
+
+:::requirement{#B38}
+Block 38.
+:::
+
+:::requirement{#B39}
+Block 39.
+:::
+
+:::requirement{#B40}
+Block 40.
+:::
+
+:::requirement{#B41}
+Block 41.
+:::
+
+:::requirement{#B42}
+Block 42.
+:::
+
+:::requirement{#B43}
+Block 43.
+:::
+
+:::requirement{#B44}
+Block 44.
+:::
+
+:::requirement{#B45}
+Block 45.
+:::
+
+:::requirement{#B46}
+Block 46.
+:::
+
+:::requirement{#B47}
+Block 47.
+:::
+
+:::requirement{#B48}
+Block 48.
+:::
+
+:::requirement{#B49}
+Block 49.
+:::
+
+:::requirement{#B50}
+Block 50.
+:::
+
+:::requirement{#B51}
+Block 51.
+:::
+
+:::requirement{#B52}
+Block 52.
+:::
+
+:::requirement{#B53}
+Block 53.
+:::
+
+:::requirement{#B54}
+Block 54.
+:::
+
+:::requirement{#B55}
+Block 55.
+:::
+
+:::requirement{#B56}
+Block 56.
+:::
+
+:::requirement{#B57}
+Block 57.
+:::
+
+:::requirement{#B58}
+Block 58.
+:::
+
+:::requirement{#B59}
+Block 59.
+:::
+
+:::requirement{#B60}
+Block 60.
+:::

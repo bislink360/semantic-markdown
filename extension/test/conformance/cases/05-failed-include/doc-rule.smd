@@ -1,0 +1,19 @@
+---
+smd: 2
+title: Failed include in a document with a rule
+---
+
+## Work
+
+Work text WORK-TEXT.
+
+:::include{file="missing.smd"}
+:::
+
+## Other
+
+Other text OTHER-TEXT.
+
+:::constraint{#CO}
+Keep the output stable.
+:::

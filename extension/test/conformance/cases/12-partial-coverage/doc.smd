@@ -1,0 +1,32 @@
+---
+smd: 2
+title: Partial coverage
+---
+
+## Work
+
+Work text WORK-TEXT.
+
+## Operations
+
+Operations prose OPS-TEXT about the weekly maintenance window and who is on call for it.
+
+:::danger
+Never restart the primary during business hours DANGER-CARRIED.
+:::
+
+More operations prose about backups, restores and the quarterly drill OPS-MORE.
+
+## Runbook
+
+::::details Restore steps
+Restore from the latest snapshot RESTORE-TEXT.
+
+:::danger
+Never restore over the live database DANGER-IN-DETAILS.
+:::
+::::
+
+## Later
+
+Later text.

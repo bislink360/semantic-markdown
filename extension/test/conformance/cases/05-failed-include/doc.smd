@@ -1,0 +1,15 @@
+---
+smd: 2
+title: Failed include
+---
+
+## Work
+
+Work text WORK-TEXT.
+
+:::include{file="missing.smd"}
+:::
+
+## Other
+
+Other text OTHER-TEXT.
