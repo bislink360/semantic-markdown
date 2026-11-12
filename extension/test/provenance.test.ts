@@ -301,3 +301,29 @@ test('t-61: lines an include in the omitted range brings are named by their file
   assert.deepEqual(carried.map((c) => [c.file ?? 'plan.smd', c.lines]), [['plan.smd', [14, 16]], ['inc.smd', [5, 7]]]);
   assert.match(r.text.split('\n').slice(carried[1].output[0] - 1, carried[1].output[1]).join('\n'), /INC_DANGER/);
 });
+
+test('t-65: human and condensed omissions carry the command that shows them, and the rest say why none does', () => {
+  const text = [
+    '---', 'smd: 2', '---', '', '## Work', '',
+    ':::human', 'People only.', ':::', '',
+    ':::details More', 'Detail.', ':::', '',
+    '<!-- an editor note -->', '',
+    ':::include{file="gone.smd"}', ':::', '',
+    '## Other', '', 'Other text.', '',
+  ].join('\n');
+  const brief = agentView(text, { sections: ['Work'], brief: true, provenance: true, file: 'plan.smd', readFile: () => undefined }).provenance!;
+  const by = (kind: string) => brief.omissions.find((o) => o.kind === kind)!;
+  assert.equal(by('human').retrieve, 'smd agent plan.smd --section "Work" --brief --include-human');
+  assert.equal(by('details').retrieve, 'smd agent plan.smd --section "Work"');
+  assert.match(by('comment').noRetrieve!, /in no agent view/);
+  assert.match(by('include').noRetrieve!, /could not be read/);
+  // Every omission has one or the other, never both.
+  for (const o of brief.omissions) assert.ok(!!o.retrieve !== !!o.noRetrieve, JSON.stringify(o));
+  // A budget condenses as --brief does: the command drops --max-tokens.
+  const budget = agentView(text, { maxTokens: 30, provenance: true, file: 'plan.smd', readFile: () => undefined }).provenance!;
+  const details = budget.omissions.find((o) => o.kind === 'details');
+  if (details) assert.equal(details.retrieve, 'smd agent plan.smd');
+  // Includes turned off: the command turns them back on.
+  const off = agentView(text, { includes: false, provenance: true, file: 'plan.smd' }).provenance!;
+  assert.equal(off.omissions.find((o) => o.kind === 'include')?.retrieve, 'smd agent plan.smd');
+});

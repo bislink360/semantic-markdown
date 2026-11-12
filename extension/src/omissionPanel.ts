@@ -62,7 +62,7 @@ function item(o: Omission, document: string): OmissionItem {
   return {
     label: `$(${ICONS[o.kind]}) ${name}${o.heading ? `: ${o.heading}` : ''}`,
     description: [own ? lines : `${o.file} ${lines}`, extra].filter(Boolean).join(' · '),
-    detail: `${capitalize(o.reason)}.${o.retrieve ? ` Shown by: ${o.retrieve}` : ''}`,
+    detail: `${capitalize(o.reason)}.${o.retrieve ? ` Shown by: ${o.retrieve}` : o.noRetrieve ? ` No command shows it: ${o.noRetrieve}.` : ''}`,
     kind: o.kind, file: o.file, start: a - 1, end: b - 1, own,
   };
 }

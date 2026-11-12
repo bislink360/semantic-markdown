@@ -41,6 +41,8 @@ export interface Omission {
   tokens?: number;
   /** A command that shows it. */
   retrieve?: string;
+  /** Why no command shows it, when `retrieve` is absent (t-65). */
+  noRetrieve?: string;
   /**
    * Lines of the range that the view shows anyway, carried into its head (a danger, an agent block, a rule or a
    * dependency, or a danger kept out of a condensed block), and the output lines where they appear (t-61). Only on
@@ -194,6 +196,7 @@ export function provenanceManifest(input: ManifestInput): Provenance {
   const matched = matchLines(result.text, input.entries, input.headerLines);
   const own = [...input.omissions, ...sectionOmissions(input, matched)];
   addCarried(own, file, matched);
+  addRecovery(own, input);
   const omissions = own.sort((a, b) =>
     Number(a.file !== file) - Number(b.file !== file) || a.file.localeCompare(b.file) || a.lines[0] - b.lines[0] || a.lines[1] - b.lines[1]);
   const tokenizer = result.counted?.tokenizer ?? 'estimate';
@@ -283,6 +286,44 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
     });
   }
   return out;
+}
+
+/** What brief views and budgets condense: a read without `--brief` and `--max-tokens` shows it. */
+const CONDENSED: ReadonlySet<OmissionKind> = new Set(['details', 'diagram', 'code', 'completed-tasks', 'deprecated']);
+
+/** Why no command shows an omission of these kinds. */
+const NO_RETRIEVE: Partial<Record<OmissionKind, string>> = {
+  comment: 'HTML comments are in no agent view: read the source lines',
+  dependency: 'it names something the reader could not show, for the reason given',
+};
+
+/**
+ * Give each omission without a command the one that shows it: the view's own command with the option that hid it
+ * changed (`--include-human` for a :::human block, no `--brief` or `--max-tokens` for what they condense, `--embed`
+ * for a code embed, no `--no-includes` for an include). An omission no command can show says why instead (t-65).
+ */
+function addRecovery(omissions: Omission[], input: ManifestInput): void {
+  const s = input.settings;
+  const command = (change: { human?: boolean; condensed?: boolean; embed?: boolean; includes?: boolean }) => [
+    `smd agent ${input.file}`,
+    ...(s.sections ?? []).map((q) => `--section "${q.replace(/"/g, '')}"`),
+    ...(s.exactSections ? ['--exact'] : []),
+    ...(s.brief && !change.condensed ? ['--brief'] : []),
+    ...(s.includeHuman || change.human ? ['--include-human'] : []),
+    ...(s.embed || change.embed ? ['--embed'] : []),
+    ...(!s.includes && !change.includes ? ['--no-includes'] : []),
+    ...(s.maxTokens !== null && !change.condensed ? [`--max-tokens ${s.maxTokens}`] : []),
+    ...(s.constraints ? ['--constraints'] : []),
+  ].join(' ');
+  for (const o of omissions) {
+    if (o.retrieve || o.noRetrieve) continue;
+    if (o.kind === 'human') o.retrieve = command({ human: true });
+    else if (CONDENSED.has(o.kind)) o.retrieve = command({ condensed: true });
+    else if (o.kind === 'embed') o.retrieve = command({ embed: true });
+    else if (o.kind === 'include' && !s.includes) o.retrieve = command({ includes: true });
+    else if (o.kind === 'include') o.noRetrieve = 'the included file could not be read, so no command shows it';
+    else o.noRetrieve = NO_RETRIEVE[o.kind] ?? 'no command shows it';
+  }
 }
 
 /** Omissions of a range of the document whose blocks a view may still carry (see Omission's `carried`). */
