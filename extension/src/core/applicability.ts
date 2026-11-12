@@ -1,5 +1,5 @@
 import {
-  contains, DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS,
+  contains, cycleKey, cyclesAmong, DocumentGraph, mandatoryClosure, nodeKey, CLOSURE_LIMITS,
   type ClosureBlock, type DocumentRead, type GraphNode, type SharedId, type UnsatisfiedKind,
 } from './graph';
 import { documentIdIndex, resolveDocumentId } from './includedIds';
@@ -224,6 +224,11 @@ const HIDING = new Set(['agent', 'danger']);
 
 const within = (line: number, ranges: ReadonlyArray<readonly [number, number]>) => ranges.some(([a, b]) => line >= a && line <= b);
 
+/** Reasons an include was not read that are a choice of the caller or the host, not a failure to read it. */
+const NOT_TRIED: ReadonlySet<string> = new Set(['includes are off', 'no reader for included files']);
+/** Whether the reader tried to read an include and could not (a missing file or section, a cycle, a limit). */
+const readFailed = (r: FoundInclude) => !r.ok && !NOT_TRIED.has(r.reason ?? '');
+
 function addPick(picks: Picks, doc: string, start: number, end: number): void {
   picks.ranges.set(doc, [...(picks.ranges.get(doc) ?? []), [start, end]]);
   picks.opens.set(doc, (picks.opens.get(doc) ?? new Set()).add(start));
@@ -300,7 +305,9 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   scan(ROOT_DOC, rootBlocks, [input.bodyStart, input.lines.length - 1], rootHidden, rootScope(text));
 
   const hasConstraints = constraints.length > 0;
-  if (!hasConstraints && !docs.some((d) => /depends-on|:depends\[/i.test(d.text))) return undefined;
+  // An include the reader tried and failed to read leaves the view incomplete, rules or not (decided 2026-11-12).
+  const failedRead = includes.some(readFailed);
+  if (!hasConstraints && !failedRead && !docs.some((d) => /depends-on|:depends\[/i.test(d.text))) return undefined;
   // An id names a block of the document or of what its includes show, as rendering has it (t-59): one index for the
   // document and every file it includes, so a rule on an included block resolves, and fallback text never does.
   const ids = documentIdIndex(text, input.includes ? input.readFile : undefined);
@@ -317,7 +324,11 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   // Other files a dependency names are read through the host, relative to the document (the root's folder is '').
   const graph = new DocumentGraph(docs.map((d) => ({ path: d.path, text: d.text })), { readDocument: input.readDocument, ids: sharedId });
   // A word in prose or code is not a dependency: only an edge is.
-  if (!hasConstraints && !docs.some((d) => graph.edgesOf(d.path).some((e) => e.type === 'depends-on'))) return undefined;
+  const hasEdges = docs.some((d) => graph.edgesOf(d.path).some((e) => e.type === 'depends-on'));
+  if (!hasConstraints && !failedRead && !hasEdges) return undefined;
+  // Without a rule or a dependency only a failed read matters: includes turned off, or a host with no file reader,
+  // leave such a view as it was.
+  const quietIncludes = !hasConstraints && !hasEdges;
 
   const fileName = (doc: string) => (doc === ROOT_DOC || doc === GRAPH_ROOT ? input.file : doc);
   const docOf = (path: string) => (path === GRAPH_ROOT ? ROOT_DOC : path);
@@ -487,7 +498,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
         if (!started.has(key)) { started.add(key); starts.push(e.from); }
       }
     }
-    return { head, far, closure: mandatoryClosure(graph, starts, { types: ['depends-on'], shown, maxDepth: CLOSURE_LIMITS.depth }) };
+    return { head, far, starts, closure: mandatoryClosure(graph, starts, { types: ['depends-on'], shown, maxDepth: CLOSURE_LIMITS.depth }) };
   };
   // Rounds, until one adds no constraint: a constraint that binds a dependency the view adds applies too, and what it
   // depends on is a dependency in turn. The dependencies of every round count (one that becomes a carried constraint
@@ -561,8 +572,18 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       reason: reasons[u.kind]({ path: u.path, lines: u.edge.lines }),
     });
   }
+  // A cycle among blocks the view shows is listed too, so every view that holds part of a cycle says so
+  // (decided 2026-11-12). The closure already lists the ones it walked into.
+  const walked = new Set(round.closure.unsatisfied.filter((u) => u.kind === 'cycle').map((u) => cycleKey(u.path!)));
+  for (const c of cyclesAmong(graph, [...round.starts, ...round.closure.blocks.map((b) => b.node)], ['depends-on'])) {
+    if (walked.has(cycleKey(c.path))) continue;
+    unsatisfied({
+      kind: 'cycle', target: c.edge.target, file: fileName(c.edge.from.file), line: c.edge.line + 1, via: name(c.via),
+      reason: reasons.cycle({ path: c.path }),
+    });
+  }
   for (const r of includes) {
-    if (r.ok) continue;
+    if (r.ok || (quietIncludes && !readFailed(r))) continue;
     unsatisfied({ kind: 'include', target: r.label, file: fileName(r.doc), line: r.line + 1, reason: `not read (${r.reason})` });
   }
   // A constraint an agent can see whose applies-to names nothing: shown in every read, and the view says why.

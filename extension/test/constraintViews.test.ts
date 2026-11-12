@@ -185,12 +185,12 @@ test('AF15/AF20: a cycle and a missing target are reported as unsatisfied and ma
   assert.equal(agentView(DEPS, { sections: ['Work'], file: 'deps.smd' }).text, r.text, 'provenance leaves the text unchanged');
 });
 
-test('AF15: a dependency the view already shows is not repeated, and a whole view only reports what is unsatisfied', () => {
+test('AF15: a dependency the view already shows is not repeated, and a whole view reports what is unsatisfied and the cycle it shows (decided 2026-11-12)', () => {
   const both = agentView(DEPS, { sections: ['Work', 'Basis'] }).text;
   assert.equal(count(both, 'R2_BODY'), 1);
   const whole = agentView(DEPS).text;
   assert.equal(count(whole, 'R2_BODY'), 1);
-  assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: resolution failed for 1 dependency\]/);
+  assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n- R3 depends on R1 \[L20\]: the chain returns to its start \(R1 → R2 → R3 → R1\)\n\[incomplete: resolution failed for 2 dependencies\]/);
 });
 
 test('AF15: an applying constraint brings its own dependencies, and a constraint whose applies-to names a dependency applies', () => {
@@ -622,4 +622,34 @@ test('t-63: required content over the budget fails the budget part, and complete
   const fits = agentView(doc, { sections: ['Two'], maxTokens: 5000 });
   assert.deepEqual(fits.mandatory?.completeness, { coverage: true, resolution: true, budget: true });
   assert.equal(fits.mandatory?.complete, true);
+});
+
+// --- Includes and cycles in documents without rules (decided 2026-11-12) ---------------------------------------------
+
+test('an include that fails to read leaves the view incomplete even in a document with no rule and no dependency', () => {
+  const doc = ['---', 'smd: 2', '---', '', '## Work', '', ':::include{file="missing.smd"}', ':::', '', '## Other', '', 'Other text.', ''].join('\n');
+  for (const sections of [undefined, ['Other']]) {
+    const r = agentView(doc, { sections, readFile: () => undefined, file: 'doc.smd' });
+    assert.deepEqual(r.mandatory?.unsatisfied.map((u) => [u.kind, u.target]), [['include', 'missing.smd']], String(sections));
+    assert.deepEqual(r.mandatory?.completeness, { coverage: true, resolution: false, budget: true });
+    assert.match(r.text, /\[incomplete: resolution failed for 1 include\]/);
+  }
+  // Includes turned off on purpose, or a host with no file reader, change nothing for such a document.
+  assert.equal(agentView(doc, { includes: false, readFile: () => undefined }).mandatory, undefined);
+  assert.equal(agentView(doc, {}).mandatory, undefined);
+  // An include that reads stays silent too.
+  assert.equal(agentView(doc, { readFile: () => '---\nsmd: 2\n---\n\nIncluded.\n' }).mandatory, undefined);
+});
+
+test('a cycle between blocks a whole view shows is listed, as a section read that walks into it lists it', () => {
+  const doc = [
+    '---', 'smd: 2', '---', '',
+    '## A', '', ':::requirement{#R3 depends-on=R4} Three', 'R3_BODY', ':::', '',
+    '## B', '', ':::requirement{#R4 depends-on=R3} Four', 'R4_BODY', ':::', '',
+  ].join('\n');
+  for (const sections of [undefined, ['A'], ['B'], ['A', 'B']]) {
+    const r = agentView(doc, { sections });
+    assert.deepEqual(r.mandatory?.unsatisfied.map((u) => u.kind), ['cycle'], String(sections));
+    assert.equal(r.mandatory?.completeness.resolution, false);
+  }
 });
