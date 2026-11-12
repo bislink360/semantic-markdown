@@ -62,6 +62,8 @@ export interface AppliedConstraint {
    * the reader can find, so the constraint is shown in every read until an author fixes it.
    */
   applies: 'document' | 'section' | 'applies-to' | 'unplaced';
+  /** The `applies-to` targets that are hidden from agents ({agent=skip} or :::human), so the view shows the rule without them (t-66). */
+  hiddenTargets?: string[];
 }
 
 export interface IncludedDependency {
@@ -176,6 +178,8 @@ export interface MandatoryPlan {
   applyingLines: Set<number>;
   /** The document or a file it includes has a `:::constraint` block. */
   hasConstraints: boolean;
+  /** Ids that carried constraints name in `applies-to` and that are hidden from agents (t-66). */
+  hiddenTargets: Set<string>;
 }
 
 export interface ScopeInput {
@@ -518,18 +522,30 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const plan: MandatoryPlan = {
     context: { constraints: [], dependencies: [], unsatisfied: [], complete: true, completeness: completenessOf([]) },
     applying: emptyPicks(), dependencies: emptyPicks(), extra: [], applyingExtra: [], unsatisfied: [], ties: [],
-    constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints,
+    constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints, hiddenTargets: new Set(),
   };
 
+  /** The applies-to targets of a constraint that resolve to blocks hidden from agents, as written. */
+  const hiddenTargetsOf = (file: string, line: number): string[] => [...new Set(graph.edgesOf(file)
+    .filter((e) => e.type === 'applies-to' && e.from.line === line && e.status === 'resolved' && e.to?.line !== undefined && within(e.to.line, hiddenIn(e.to.file)))
+    .map((e) => e.target))];
+  const hiddenMark = (targets: string[]) => {
+    for (const t of targets) plan.hiddenTargets.add(t);
+    return targets.length ? { hiddenTargets: targets } : {};
+  };
   for (const { c, why } of round.head) {
     addPick(plan.applying, c.doc, c.block.line, c.block.endLine);
-    plan.context.constraints.push({ ...(c.block.id ? { id: c.block.id } : {}), title: c.block.title, file: fileName(c.doc), line: c.block.line + 1, applies: why! });
+    const hidden = hiddenTargetsOf(c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc, c.block.line);
+    plan.context.constraints.push({ ...(c.block.id ? { id: c.block.id } : {}), title: c.block.title, file: fileName(c.doc), line: c.block.line + 1, applies: why!, ...hiddenMark(hidden) });
     if (c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   }
   for (const c of constraints) if (c.inPlace && c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   for (const rule of round.far) {
     plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node), line: rule.block.line, end: rule.block.endLine });
-    plan.context.constraints.push({ ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why });
+    plan.context.constraints.push({
+      ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why,
+      ...hiddenMark(hiddenTargetsOf(rule.file, rule.block.line)),
+    });
   }
 
   const name = (n: GraphNode) => n.id ?? `${n.type} "${n.title}"`;

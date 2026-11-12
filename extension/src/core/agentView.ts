@@ -445,8 +445,20 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   const parts = [pickedText(scope, options, plan.applying, trace)];
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
   for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
-  const text = parts.filter(Boolean).join('\n');
+  const text = markHiddenTargets(parts.filter(Boolean).join('\n'), plan.hiddenTargets);
   return text ? `Constraints that apply here:\n${text}\n\n` : '';
+}
+
+/**
+ * A carried rule whose `applies-to` names a block hidden from agents says so on its tag, `hidden-target="R2"`, so an
+ * agent knows the rule binds something it can't see (t-66). The rule's text is shown as it is.
+ */
+function markHiddenTargets(text: string, hidden: ReadonlySet<string>): string {
+  if (!hidden.size) return text;
+  return text.replace(/^(<constraint\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
+    const names = idList(targets).filter((t) => hidden.has(t));
+    return names.length ? `${start} hidden-target="${names.join(',')}"` : open;
+  });
 }
 
 /**

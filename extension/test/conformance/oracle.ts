@@ -79,7 +79,7 @@ export interface Completeness {
   budget: boolean;
 }
 
-export type ScalarCheck = 'unsatisfied' | 'complete' | 'completeness' | 'budgetFits';
+export type ScalarCheck = 'unsatisfied' | 'complete' | 'completeness' | 'budgetFits' | 'hiddenTargets';
 
 export interface RequestSpec {
   name: string;
@@ -99,6 +99,11 @@ export interface RequestSpec {
   unsatisfied?: UnsatisfiedExpectation[];
   complete?: boolean;
   completeness?: Completeness;
+  /**
+   * The carried constraints, by id, that name a target hidden from agents, and those targets: exactly these, and no
+   * other carried constraint marked (boundary table, t-66).
+   */
+  hiddenTargets?: Record<string, string[]>;
   omissions?: OmissionExpectation[];
   budgetFits?: boolean;
   xfail?: Partial<Record<ScalarCheck, ExpectedFailure>>;
@@ -127,6 +132,7 @@ export interface Manifest {
   budget: { fits: boolean } | null;
   mandatory?: {
     unsatisfied: Array<{ kind: string; target: string }>;
+    constraints?: Array<{ id?: string; hiddenTargets?: string[] }>;
     complete: boolean;
     completeness?: Completeness;
   };
@@ -409,6 +415,12 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
     const e = request.completeness;
     const ok = !!got && got.coverage === e.coverage && got.resolution === e.resolution && got.budget === e.budget;
     checks.push({ name: 'completeness', ok, detail: `expected ${JSON.stringify(e)}, reported ${JSON.stringify(got ?? null)}`, expectedFailure: xf.completeness });
+  }
+  if (request.hiddenTargets) {
+    const got = Object.fromEntries((m.mandatory?.constraints ?? []).filter((c) => c.hiddenTargets?.length).map((c) => [c.id ?? '?', [...c.hiddenTargets!].sort()]));
+    const want = Object.fromEntries(Object.entries(request.hiddenTargets).map(([id, t]) => [id, [...t].sort()]));
+    const ok = JSON.stringify(Object.entries(got).sort()) === JSON.stringify(Object.entries(want).sort());
+    checks.push({ name: 'hiddenTargets', ok, detail: `expected ${JSON.stringify(want)}, reported ${JSON.stringify(got)}`, expectedFailure: xf.hiddenTargets });
   }
   if (request.budgetFits !== undefined) {
     const fits = m.budget?.fits;
