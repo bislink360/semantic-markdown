@@ -55,9 +55,12 @@ function item(o: Omission, document: string): OmissionItem {
   const own = o.file === document;
   const [a, b] = o.lines;
   const lines = a === b ? `L${a}` : `L${a}–L${b}`;
-  const extra = [o.count ? `${o.count} task${o.count > 1 ? 's' : ''}` : '', o.tokens ? `≈${o.tokens} tokens` : ''].filter(Boolean).join(', ');
+  const carried = o.carried?.length ? `${o.carried.length} part${o.carried.length > 1 ? 's' : ''} carried into the view` : '';
+  const extra = [o.count ? `${o.count} task${o.count > 1 ? 's' : ''}` : '', o.tokens ? `≈${o.tokens} tokens` : '', carried].filter(Boolean).join(', ');
+  // Text above the first heading is not a section: a section read leaves it out (t-60).
+  const name = o.kind === 'not-selected' && !o.heading ? 'Text above the first heading' : LABELS[o.kind];
   return {
-    label: `$(${ICONS[o.kind]}) ${LABELS[o.kind]}${o.heading ? `: ${o.heading}` : ''}`,
+    label: `$(${ICONS[o.kind]}) ${name}${o.heading ? `: ${o.heading}` : ''}`,
     description: [own ? lines : `${o.file} ${lines}`, extra].filter(Boolean).join(' · '),
     detail: `${capitalize(o.reason)}.${o.retrieve ? ` Shown by: ${o.retrieve}` : ''}`,
     kind: o.kind, file: o.file, start: a - 1, end: b - 1, own,
