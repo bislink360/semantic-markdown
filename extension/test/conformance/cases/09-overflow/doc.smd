@@ -1,0 +1,32 @@
+---
+smd: 2
+title: Overflow
+---
+
+:::agent
+Keep answers short AGENT-TOP.
+:::
+
+## Rules
+
+:::constraint{#CD scope=document}
+Every payment call carries an idempotency key, and a retry reuses the key of the first attempt so that a timeout never charges a card twice RULE-BODY.
+:::
+
+## Work
+
+:::requirement{#R1}
+Charge the card once the fraud check passes, and store the processor reference with the order WORK-BODY.
+:::
+
+## Filler A
+
+The alpha team reviewed item 1 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 2 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 3 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 4 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 5 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 6 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 7 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 8 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 9 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 10 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 11 of the backlog and wrote down what changed, who approved it and when it shipped. The alpha team reviewed item 12 of the backlog and wrote down what changed, who approved it and when it shipped. FILLER-A
+
+## Filler B
+
+:::danger
+Never refund an order twice DANGER-B.
+:::
+
+The beta team reviewed item 1 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 2 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 3 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 4 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 5 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 6 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 7 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 8 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 9 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 10 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 11 of the backlog and wrote down what changed, who approved it and when it shipped. The beta team reviewed item 12 of the backlog and wrote down what changed, who approved it and when it shipped. FILLER-B

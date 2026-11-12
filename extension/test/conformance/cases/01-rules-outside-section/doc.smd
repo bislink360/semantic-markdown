@@ -1,0 +1,40 @@
+---
+smd: 2
+title: Rules outside the section
+---
+
+:::constraint{#CTOP}
+Keep every change behind a feature flag.
+:::
+
+## Platform
+
+:::constraint{#CPARENT}
+Platform code never calls the billing API directly.
+:::
+
+### Storage
+
+:::requirement{#RSTORE}
+Store uploads in the regional bucket.
+:::
+
+## Policies
+
+:::constraint{#CDOC scope=document}
+Log every write with the request id.
+:::
+
+## Billing
+
+:::constraint{#CBILL}
+Billing changes need a second reviewer.
+:::
+
+:::constraint{#CON applies-to=RBILL}
+Invoices round half to even.
+:::
+
+:::requirement{#RBILL}
+Send the invoice on the first day of the month.
+:::

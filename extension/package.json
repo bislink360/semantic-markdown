@@ -634,6 +634,7 @@
     "bench:tokens": "node --import tsx test/bench/netTokens.ts",
     "bench:profile": "node --expose-gc --import tsx test/bench/profile.ts",
     "eval": "node --import tsx test/eval/cli.ts",
+    "conformance": "node --import tsx test/conformance/report.ts",
     "test:vscode": "npm run build && node test/integration/run.mjs",
     "test:a11y": "node --import tsx test/browser/a11y.ts",
     "package": "npm run build && vsce package --no-dependencies",
