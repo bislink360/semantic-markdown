@@ -33,7 +33,6 @@ export function loadRuleConfig(documentPath: string, cache = new Map<string, Loa
   return result;
 }
 
-/** Read one config file. */
 export function readConfigFile(file: string): LoadedConfig {
   let data: unknown;
   try {

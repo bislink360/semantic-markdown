@@ -11,10 +11,6 @@ import { chooseEncoding, fromClientColumn, toClientColumn } from '../src/lspDocu
 import { contentLength, frame, LspEndpoint, MessageReader, type LspMessage, type LspResponse } from '../src/lspProtocol';
 import { filePath, SmdLanguageServer, type LanguageServerOptions } from '../src/lsp';
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
 const root = mkdtempSync(join(tmpdir(), 'smd-lsp-'));
 after(() => rmSync(root, { recursive: true, force: true }));
 // Stops the config file search here, as a repository root does.
@@ -49,9 +45,7 @@ const uriOf = (file: string) => pathToFileURL(file).href;
 const PLAN_URI = uriOf(planFile);
 const OTHER_URI = uriOf(otherFile);
 
-// ---------------------------------------------------------------------------
 // A server driven through its protocol endpoint
-// ---------------------------------------------------------------------------
 
 interface Diag { range: { start: { line: number; character: number }; end: { line: number; character: number } }; severity: number; code: string; source: string; message: string }
 
@@ -105,10 +99,6 @@ function applyEdits(text: string, edits: Array<{ range: Diag['range']; newText: 
   return sorted.reduce((t, e) => t.slice(0, offset(e.range.start)) + e.newText + t.slice(offset(e.range.end)), text);
 }
 
-// ---------------------------------------------------------------------------
-// Framing
-// ---------------------------------------------------------------------------
-
 test('frame: Content-Length counts UTF-8 bytes', () => {
   const message: LspMessage = { jsonrpc: '2.0', method: 'x', params: { text: 'é😀' } };
   const framed = frame(message).toString('utf8');
@@ -141,10 +131,6 @@ test('MessageReader: split and combined chunks, multi-byte bodies', () => {
   assert.equal(contentLength('Content-Length:12'), 12);
   assert.equal(contentLength('Content-Length: -1'), undefined);
 });
-
-// ---------------------------------------------------------------------------
-// Lifecycle
-// ---------------------------------------------------------------------------
 
 test('lifecycle: initialize first, shutdown then exit', () => {
   const c = client();
@@ -206,10 +192,6 @@ test('a failing handler answers InternalError and keeps serving', () => {
   assert.match(logged.join('\n'), /boom failed: Error: bad[\s\S]*crash failed: Error: worse/);
 });
 
-// ---------------------------------------------------------------------------
-// Positions
-// ---------------------------------------------------------------------------
-
 test('position encodings: UTF-16 by default, UTF-32 or UTF-8 when the client offers only those', () => {
   assert.equal(chooseEncoding(undefined), 'utf-16');
   assert.equal(chooseEncoding(['utf-8', 'utf-16']), 'utf-16');
@@ -231,10 +213,6 @@ test('position encodings: UTF-16 by default, UTF-32 or UTF-8 when the client off
   assert.equal(fromClientColumn(line, 99, 'utf-8'), 5);
   assert.equal(toClientColumn(line, 99, 'utf-32'), 4);
 });
-
-// ---------------------------------------------------------------------------
-// Capabilities
-// ---------------------------------------------------------------------------
 
 test('didOpen publishes diagnostics with codes, severities and UTF-16 ranges', () => {
   const c = ready();
@@ -557,10 +535,6 @@ test('assist helpers work on plain text', () => {
   assert.ok(labels(':sta').includes('status'));
   assert.equal(completionsAt('a:sta', 0, 5), undefined);
 });
-
-// ---------------------------------------------------------------------------
-// End to end
-// ---------------------------------------------------------------------------
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd lsp --stdio speaks LSP over stdio', { skip: !existsSync(cli) && 'run npm run build first' }, () => {

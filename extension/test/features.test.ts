@@ -17,10 +17,6 @@ const TODAY = '2026-09-26';
 const codes = (text: string, opts = {}) => validateSmd(text, { today: TODAY, ...opts }).map((d) => d.code);
 const prd = readFileSync(join(__dirname, 'samples', 'checkout-redesign.smd'), 'utf8');
 
-// ---------------------------------------------------------------------------
-// PM / developer components
-// ---------------------------------------------------------------------------
-
 test('decision, risk, api and timeline render', () => {
   const html = renderSmd([
     ':::decision{status=accepted date=2026-09-01 owner=@a} Use Postgres', 'Because.', ':::',
@@ -86,9 +82,7 @@ test('code line highlights and file embeds', () => {
   assert.ok(codes('```ts file="src/a.ts"\nstuff\n```', { readFile }).includes('fence/embed-body'));
 });
 
-// ---------------------------------------------------------------------------
 // Agent view — token reduction without losing meaning
-// ---------------------------------------------------------------------------
 
 test('agent view drops human-only content and styling but keeps meaning', () => {
   const r = agentView(prd, { today: TODAY });
@@ -406,10 +400,6 @@ test('outline lists sections with costs and markers', () => {
   assert.ok(o.length / 4 < 400, 'outline stays small');
 });
 
-// ---------------------------------------------------------------------------
-// Tasks, meta and conversion
-// ---------------------------------------------------------------------------
-
 test('tasks carry owner, priority, due date and section', () => {
   const tasks = extractTasks(prd, TODAY).filter((t) => !t.done);
   const idem = tasks.find((t) => t.text.startsWith('Idempotent order creation'))!;
@@ -460,9 +450,7 @@ test('plain Markdown leaves indented code and display math as written', () => {
     '$$', String.raw`\sqrt[3]{z} ==m==`, '$$', '', 'Para', '    lazy `inc-lazy`');
 });
 
-// ---------------------------------------------------------------------------
 // CLI (requires `npm run build`)
-// ---------------------------------------------------------------------------
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: skills install writes both self-contained skills', { skip: !existsSync(cli) && 'run npm run build first' }, () => {

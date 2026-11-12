@@ -83,10 +83,6 @@ export function notionRequests(blocks: NotionBlock[]): NotionRequest[] {
   return requests;
 }
 
-// ---------------------------------------------------------------------------
-// Rich text
-// ---------------------------------------------------------------------------
-
 /** smd named colour → Notion colour. Notion has no teal, cyan or indigo; `accent` follows the page theme, so it is dropped. */
 const COLORS = new Map([
   ['red', 'red'], ['orange', 'orange'], ['amber', 'yellow'], ['yellow', 'yellow'], ['green', 'green'], ['teal', 'green'], ['cyan', 'blue'],
@@ -174,10 +170,6 @@ export function splitText(value: string, size: number): string[] {
 
 /** Plain text as rich text objects of at most 2000 characters. */
 const plainRich = (value: string, marks: Marks = {}): NotionRichText[] => splitText(value, NOTION_LIMITS.text).map((c) => textItem(c, marks));
-
-// ---------------------------------------------------------------------------
-// Blocks
-// ---------------------------------------------------------------------------
 
 function block(type: string, body: Record<string, unknown>, children: NotionBlock[] = []): NotionBlock {
   return { object: 'block', type, [type]: children.length ? { ...body, children } : body };
@@ -322,9 +314,7 @@ function notionBlocks(b: Block): NotionBlock[] {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Nesting limits
-// ---------------------------------------------------------------------------
 
 function childrenOf(b: NotionBlock): NotionBlock[] {
   return (b[b.type] as { children?: NotionBlock[] }).children ?? [];

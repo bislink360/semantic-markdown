@@ -402,8 +402,6 @@ export function topRange(blocks: readonly Pick<BlockView, 'start' | 'end'>[], ra
   return holder ? { start: holder.start, end: holder.end } : range;
 }
 
-// ---- Tables: the grid ----------------------------------------------------------------------------------
-
 /** A cell of the grid: row 0 is the header row (the delimiter row is not one), columns from 0. */
 export interface GridCell {
   row: number;

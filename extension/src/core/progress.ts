@@ -22,7 +22,6 @@ export function progressBasis(values: Readonly<Record<string, string>>): string 
   return values.basis?.trim().toLowerCase() || undefined;
 }
 
-/** Whether a bar counts the tasks of its section. */
 export const countsTasks = (values: Readonly<Record<string, string>>): boolean => progressBasis(values) === 'tasks';
 
 /** Whether a written value says progress is unknown. */

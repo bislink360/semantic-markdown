@@ -104,9 +104,7 @@ export function fenced(lang: string, code: string): string {
   return `${fence}${lang}\n${code.replace(/\n$/, '')}\n${fence}`;
 }
 
-// ---------------------------------------------------------------------------
 // Tabs (the page runtime does this in the preview and exported HTML)
-// ---------------------------------------------------------------------------
 
 let tabIds = 0;
 

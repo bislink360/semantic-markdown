@@ -23,10 +23,6 @@ export function registerEditorFeatures(context: vscode.ExtensionContext): void {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Enter on list items
-// ---------------------------------------------------------------------------
-
 async function onEnterKey(editor: vscode.TextEditor): Promise<void> {
   const { document, selection } = editor;
   const plainEnter = () => vscode.commands.executeCommand('type', { source: 'keyboard', text: '\n' });
@@ -42,9 +38,7 @@ async function onEnterKey(editor: vscode.TextEditor): Promise<void> {
   await editor.insertSnippet(new vscode.SnippetString(`\n${escape(action.prefix)}$0${escape(action.suffix)}`), selection.active);
 }
 
-// ---------------------------------------------------------------------------
 // Images: drop files, paste from the clipboard
-// ---------------------------------------------------------------------------
 
 /** Where images for a document are saved: `smd.images.folder` in its workspace folder. */
 export function targetFolder(document: vscode.TextDocument): string {
@@ -122,10 +116,6 @@ class ImagePasteProvider implements vscode.DocumentPasteEditProvider {
     return undefined;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Spell checking
-// ---------------------------------------------------------------------------
 
 /**
  * Add .smd patterns to cSpell's `languageSettings` in the workspace (or user) settings, so directive

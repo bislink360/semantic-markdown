@@ -109,8 +109,6 @@
     return;
   }
 
-  // ---- Page ----------------------------------------------------------------
-
   const body = document.body;
   const root = body.getAttribute('data-smd-root') || '';
   // Search messages in the site's language, from data-smd-labels (only on sites in a language other than English).

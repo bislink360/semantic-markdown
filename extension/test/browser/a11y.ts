@@ -31,10 +31,6 @@ export const SAMPLES = path.join(EXTENSION, 'test', 'samples');
 /** The documents every page is built from: tabs, details, tasks, decisions, diagrams, math, tables. */
 export const SAMPLE_FILES = ['showcase.smd', 'checkout-redesign.smd'];
 
-// ---------------------------------------------------------------------------
-// Command line
-// ---------------------------------------------------------------------------
-
 export interface A11yArgs {
   json: boolean;
   requireBrowser: boolean;
@@ -48,10 +44,6 @@ export function parseArgs(argv: readonly string[]): A11yArgs {
   if (unknown.length) throw new Error(`Unknown option: ${unknown.join(' ')}. Options: ${[...known].join(' ')}`);
   return { json: argv.includes('--json'), requireBrowser: argv.includes('--require-browser'), keep: argv.includes('--keep') };
 }
-
-// ---------------------------------------------------------------------------
-// Pages
-// ---------------------------------------------------------------------------
 
 /**
  * Stands in for VS Code's webview API: messages the page posts are kept for the harness to read, state is kept in
@@ -187,9 +179,7 @@ export function remoteUrls(html: string): string[] {
   return [...new Set(loaded.map((m) => m[1]))];
 }
 
-// ---------------------------------------------------------------------------
 // The accessibility tree (Accessibility.getFullAXTree), analysed
-// ---------------------------------------------------------------------------
 
 export interface AXValue { type: string; value?: unknown }
 export interface AXProperty { name: string; value: AXValue }
@@ -277,9 +267,7 @@ export function missingRoles(nodes: readonly AXNode[], expected: readonly Expect
   return problems;
 }
 
-// ---------------------------------------------------------------------------
 // ID references (one tree scope at a time: the document and each shadow root)
-// ---------------------------------------------------------------------------
 
 export interface IdScope {
   scope: string;
@@ -304,9 +292,7 @@ export function idRefProblems(scopes: readonly IdScope[]): string[] {
   return [...new Set(problems)];
 }
 
-// ---------------------------------------------------------------------------
 // Tab order and visible focus
-// ---------------------------------------------------------------------------
 
 /** Where one press of Tab left focus. */
 export interface TabStep {
@@ -398,9 +384,7 @@ export function analyseTabWalk(expected: readonly string[], steps: readonly TabS
   return { unreached, backwards, trap, invisible: [...new Set(invisible)], reached: reached.size };
 }
 
-// ---------------------------------------------------------------------------
 // WAI-ARIA tabs
-// ---------------------------------------------------------------------------
 
 export interface TabsState {
   focused: number;
@@ -426,10 +410,6 @@ export function tabsProblems(want: number, state: TabsState): string[] {
   });
   return problems;
 }
-
-// ---------------------------------------------------------------------------
-// Motion
-// ---------------------------------------------------------------------------
 
 /** "0s, .15s, 200ms" in seconds. */
 export function seconds(list: string | undefined): number[] {
@@ -466,10 +446,6 @@ export function pageCss(html: string, pageUrl: string, read: (url: string) => st
 }
 
 export const claimsReducedMotion = (css: readonly string[]) => css.some((text) => /@media[^{]*prefers-reduced-motion:\s*reduce/.test(text));
-
-// ---------------------------------------------------------------------------
-// Results
-// ---------------------------------------------------------------------------
 
 export type Status = 'pass' | 'fail' | 'known' | 'warn' | 'skip';
 
@@ -532,9 +508,7 @@ export function formatTable(results: readonly CheckResult[], maxItems = 8): stri
   return out.join('\n');
 }
 
-// ---------------------------------------------------------------------------
 // The browser, over the DevTools pipe (src/pdfBrowser.ts)
-// ---------------------------------------------------------------------------
 
 type Send = (method: string, params?: Record<string, unknown>) => Promise<unknown>;
 
@@ -720,9 +694,7 @@ const KEYS = {
 
 const CTRL = 2;
 
-// ---------------------------------------------------------------------------
 // In the page: helpers the checks call (plain JavaScript, evaluated once per page)
-// ---------------------------------------------------------------------------
 
 const PAGE_HELPERS = String.raw`(() => {
   if (window.__a11y) return true;
@@ -863,9 +835,7 @@ const PAGE_HELPERS = String.raw`(() => {
   return true;
 })()`;
 
-// ---------------------------------------------------------------------------
 // The Block Editor's host: a BlockEditorSession on the sample, wired to the page through the stub
-// ---------------------------------------------------------------------------
 
 const SNIPPETS = JSON.parse(fs.readFileSync(path.join(EXTENSION, 'snippets', 'smd.json'), 'utf8')) as Record<string, Snippet>;
 
@@ -922,10 +892,6 @@ class EditorHost {
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Checks
-// ---------------------------------------------------------------------------
 
 interface PageSpec {
   /** "preview: showcase.smd" */
@@ -1249,9 +1215,7 @@ async function checkPage(b: Launched, spec: PageSpec): Promise<CheckResult[]> {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Building the pages and running everything
-// ---------------------------------------------------------------------------
 
 const PREVIEW_ROLES: ExpectedRole[] = [{ role: 'main', exactly: 1 }];
 const BLOCK_EDITOR_ROLES: ExpectedRole[] = [{ role: 'main', exactly: 1 }, { role: 'toolbar', name: 'Block editor', exactly: 1 }];

@@ -75,8 +75,6 @@ test('orderByPrerequisites handles long chains without recursion', () => {
   assert.equal(ordered[n - 1].text, 'T0');
 });
 
-// --- Gantt --------------------------------------------------------------------------------------------------------
-
 const GANTT = v2([
   '- [ ] Ship it @maya :due[2026-10-10] :depends[spec] {#ship}',
   '- [x] Spec it :due[2026-10-01] {#spec}',
@@ -163,8 +161,6 @@ test('R49: the Gantt chart with dependencies parses with the bundled Mermaid par
     assert.deepEqual(await checkMermaid(ganttDocument(chart), parse), [], chart);
   }
 });
-
-// --- CLI ----------------------------------------------------------------------------------------------------------
 
 // Requires `npm run build`.
 const cli = path.join(__dirname, '..', 'dist', 'cli.js');

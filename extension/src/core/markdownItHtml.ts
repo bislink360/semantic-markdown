@@ -29,9 +29,7 @@ const CALLOUT_ICONS: Record<string, string> = {
   note: '✎', info: 'ℹ', tip: '💡', success: '✔', warning: '⚠', danger: '⛔', question: '?',
 };
 
-// ---------------------------------------------------------------------------
 // Document header (front matter)
-// ---------------------------------------------------------------------------
 
 /**
  * The header card for front matter: status, version, title, summary, owners and tags. Empty without any of them.
@@ -83,10 +81,6 @@ function metaRow(label: string, items: string[], cls: string): string {
   if (!items.length) return '';
   return `<span class="smd-doc-meta-label">${label}</span>${items.map((i) => `<span class="${cls}">${escapeHtml(i)}</span>`).join(' ')}`;
 }
-
-// ---------------------------------------------------------------------------
-// Block containers
-// ---------------------------------------------------------------------------
 
 /** What a container's opening HTML is built from. */
 interface ContainerView {
@@ -300,9 +294,7 @@ function riskOpen(c: ContainerView): string {
     `<div class="smd-risk-facts">${facts}</div><div class="smd-risk-body">\n`;
 }
 
-// ---------------------------------------------------------------------------
 // Semantic tags (requirement, constraint, acceptance, assumption, evidence) and the question lifecycle
-// ---------------------------------------------------------------------------
 
 /** What the containers of a document's tokens say about each other: parents, answers, superseded decisions. */
 interface TokenTags {
@@ -705,10 +697,6 @@ const CONTAINERS = new Map<string, ContainerOpen>([
   ['deprecated', deprecatedOpen],
 ]);
 
-// ---------------------------------------------------------------------------
-// Inline directives
-// ---------------------------------------------------------------------------
-
 interface Directive {
   md: MarkdownIt;
   content: string;
@@ -890,9 +878,7 @@ export function dueState(date: string, today = new Date().toISOString().slice(0,
   return days <= 7 ? 'soon' : 'later';
 }
 
-// ---------------------------------------------------------------------------
 // Footnotes (GitHub's markup: ids, data-footnote-* attributes and the hidden "Footnotes" label)
-// ---------------------------------------------------------------------------
 
 /** The id of the n-th footnote's reference number `sub` (1-based): fnref-1, fnref-1-2… */
 const footnoteRefId = ({ n, sub }: FootnoteMeta) => (sub > 1 ? `fnref-${n}-${sub}` : `fnref-${n}`);
@@ -916,10 +902,6 @@ export const footnotesOpen = (m: (env: unknown) => Messages): RenderRule => (_to
 export const footnotesClose: RenderRule = () => '</ol>\n</section>\n';
 export const footnoteOpen: RenderRule = (tokens, idx) => `<li id="fn-${(tokens[idx].meta as FootnoteMeta).n}">\n`;
 export const footnoteClose: RenderRule = () => '</li>\n';
-
-// ---------------------------------------------------------------------------
-// Math and code fences
-// ---------------------------------------------------------------------------
 
 export function renderMath(tex: string, display: boolean): string {
   try {

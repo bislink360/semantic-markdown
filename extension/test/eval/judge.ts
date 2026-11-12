@@ -15,10 +15,6 @@ import { seededRandom, type JudgedRecord, type JudgePacket } from './score';
  * the judge stays blind. Only `judge` sends anything, and only with an explicit config and a key from the environment.
  */
 
-// ---------------------------------------------------------------------------
-// Packets and verdicts
-// ---------------------------------------------------------------------------
-
 /** Pass or fail on a judged share: an answer passes when it meets at least half of its rubric. */
 export const PASS_AT = 0.5;
 /** A task is rescored by people when judge and people disagree on more than this share of its sampled answers. */
@@ -96,10 +92,6 @@ export function parseVerdict(text: string, p: JudgePacket): { criteria: Record<s
     ...(typeof obj.reason === 'string' ? { reason: obj.reason } : {}),
   };
 }
-
-// ---------------------------------------------------------------------------
-// judge
-// ---------------------------------------------------------------------------
 
 export interface JudgeOptions {
   packets: JudgePacket[];
@@ -213,10 +205,6 @@ export async function runJudge(options: JudgeOptions, deps: RunDeps): Promise<Ju
   return summary;
 }
 
-// ---------------------------------------------------------------------------
-// sample
-// ---------------------------------------------------------------------------
-
 /**
  * The packets a person scores blind, in a seeded order. With `share`, the draw is stratified by task (at least one
  * answer of every task, then `share` of each task's answers rounded up), so every task can be checked for the
@@ -258,10 +246,6 @@ export function scoringSheet(packets: JudgePacket[]): string {
   }
   return out.join('\n') + '\n';
 }
-
-// ---------------------------------------------------------------------------
-// judge-agreement
-// ---------------------------------------------------------------------------
 
 export interface TaskAgreement { task: string; n: number; disagreements: number; share: number; rescore: boolean; packets: string[] }
 

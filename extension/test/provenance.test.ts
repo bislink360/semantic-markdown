@@ -41,9 +41,7 @@ const doc = [
 
 const lineOf = (text: string, needle: string) => text.split('\n').findIndex((l) => l.includes(needle)) + 1;
 
-// ---------------------------------------------------------------------------
 // C05: provenance
-// ---------------------------------------------------------------------------
 
 test('C05: sha256Hex is SHA-256 of the UTF-8 bytes, and the revision is the MCP one', () => {
   for (const s of ['', 'abc', 'héllo ✓ 𝄞', 'x'.repeat(55), 'x'.repeat(56), 'x'.repeat(64), doc]) {
@@ -183,9 +181,7 @@ test('C05: readDocument returns the manifest of what it showed, the outline incl
   assert.equal(readDocument(doc).provenance, undefined);
 });
 
-// ---------------------------------------------------------------------------
 // C04: constraints outside the selected sections (opt-in)
-// ---------------------------------------------------------------------------
 
 test('C04: the constraints pass is off by default; only the dangers of other sections are shown (decided 2026-11-06)', () => {
   const plain = agentView(doc, { sections: ['Requirements'] });

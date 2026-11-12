@@ -93,10 +93,6 @@ function printCheck(plans: Planned[]): void {
   console.log(`\n${plural(plans.length, 'file')} checked: ${need.length} to migrate to spec v2.${next}`);
 }
 
-// ---------------------------------------------------------------------------
-// Writing
-// ---------------------------------------------------------------------------
-
 /** What writing a file needs from `fs`, so a test can make a step fail. */
 export interface AtomicWriteIo {
   openSync: typeof fs.openSync;

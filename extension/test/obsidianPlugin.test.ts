@@ -8,9 +8,7 @@ import { EXTERNAL, buildOptions, loadEsbuild, readManifest } from '../../integra
 
 const pluginDir = join(__dirname, '../../integrations/obsidian');
 
-// ---------------------------------------------------------------------------
 // A fake DOM: just what the plugin's DOM code uses
-// ---------------------------------------------------------------------------
 
 class FakeNode {
   parent: FakeElement | null = null;
@@ -145,9 +143,7 @@ function sanitizedHtml(el: FakeElement): string[] {
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // A mock of the `obsidian` module
-// ---------------------------------------------------------------------------
 
 interface Calls {
   extensions: Array<[string[], string]>;
@@ -256,8 +252,6 @@ const NOTE = [
   '', //                         5
   'Ship :badge[Beta] today.', // 6
 ].join('\n');
-
-// ---------------------------------------------------------------------------
 
 test('the bundle needs nothing at runtime but the obsidian module', () => {
   const required = new Set([...mainJs.matchAll(/require\("([^"]+)"\)/g)].map((m) => m[1]));

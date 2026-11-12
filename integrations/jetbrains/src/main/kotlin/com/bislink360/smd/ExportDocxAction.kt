@@ -79,7 +79,6 @@ class ExportDocxAction : AnAction() {
         /** " (converted with /usr/bin/pandoc)" or " (written by the built-in writer)", from the CLI's last line. */
         fun engineNote(stderr: String): String = WRITTEN_BY.find(stderr.trim())?.groupValues?.get(1)?.let { " ($it)" }.orEmpty()
 
-        /** The `smd` arguments: the document, the .docx, and the engine and Pandoc from the settings. */
         fun arguments(source: Path, out: Path, settings: SmdSettings): List<String> = buildList {
             addAll(listOf("export", source.toString(), "--to", "docx", "-o", out.toString()))
             if (settings.docxEngine != SmdSettings.DOCX_ENGINES.first()) addAll(listOf("--engine", settings.docxEngine))

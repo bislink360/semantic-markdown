@@ -203,10 +203,6 @@ function frontMatterChanges(before: Record<string, unknown>, after: Record<strin
     .map((key) => ({ key, ...(Object.hasOwn(before, key) ? { before: before[key] } : {}), ...(Object.hasOwn(after, key) ? { after: after[key] } : {}) }));
 }
 
-// ---------------------------------------------------------------------------
-// Text output
-// ---------------------------------------------------------------------------
-
 function diffText(frontMatter: FrontMatterChange[], sections: SectionChange[], lineRefs: boolean): string {
   const blocks: string[] = [];
   if (frontMatter.length) blocks.push(['Front matter:', ...frontMatter.map((c) => `  ${c.key}: ${valueText(c.before)} → ${valueText(c.after)}`)].join('\n'));

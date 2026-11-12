@@ -152,8 +152,6 @@ test('R28: --constraints points only at constraints that apply nowhere, as polic
   assert.equal(view(['Refunds'], { constraints: true, provenance: true }).provenance?.constraints?.policy, 'constraints/2');
 });
 
-// --- Dependencies ---------------------------------------------------------------------------------------------------
-
 const DEPS = [
   '---', 'smd: 2', 'title: Deps', '---', '',
   '## Work', '',

@@ -117,10 +117,6 @@ function trimBlank(lines: readonly string[]): string[] {
   return lines.slice(a, b);
 }
 
-// ---------------------------------------------------------------------------
-// Writes
-// ---------------------------------------------------------------------------
-
 export type ReviewResult =
   | { ok: true; text: string; /** Zero-based opening line of the item written or changed, in the new text. */ line: number; message: string }
   | { ok: false; error: string };
@@ -341,8 +337,6 @@ function addBlock(doc: Doc, name: ReviewType, target: Target, attrs: ReadonlyArr
   const line = insertBlock(rows, insertAfter(doc, target), block);
   return { ok: true, text: rows.toString(), line, message };
 }
-
-// --- The transitions ----------------------------------------------------------
 
 /** Add a comment after the block with id `targetId`, against its current revision. */
 export function addComment(text: string, targetId: string, write: ReviewWrite & { kind?: string }): ReviewResult {

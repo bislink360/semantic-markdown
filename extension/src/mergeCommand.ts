@@ -48,10 +48,6 @@ export function runMerge(positional: string[], args: MergeArgs): number {
   return mergeDriver({ ancestor, current, other, markerSize, file: file ?? current });
 }
 
-// ---------------------------------------------------------------------------
-// The driver
-// ---------------------------------------------------------------------------
-
 interface DriverFiles { ancestor: string; current: string; other: string; markerSize: number; file: string }
 
 /** Git's line merge of the three files: its exit status (0 clean, else the number of conflicts) and output. */
@@ -131,10 +127,6 @@ function mergeDriver(f: DriverFiles): number {
   else if (outcome.note) console.error(`smd merge: ${f.file}: ${outcome.note}.`);
   return outcome.code;
 }
-
-// ---------------------------------------------------------------------------
-// --install and --uninstall
-// ---------------------------------------------------------------------------
 
 /**
  * The command Git runs: this CLI file with `node` from PATH, by its real path (an npm link or symlink resolved), so it

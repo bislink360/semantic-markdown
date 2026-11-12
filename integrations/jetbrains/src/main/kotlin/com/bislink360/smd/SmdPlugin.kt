@@ -9,7 +9,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
 
-/** Where the plugin's files are, and how it runs the `smd` CLI it ships. */
 object SmdPlugin {
     const val ID = "com.bislink360.styled-markdown"
     const val NOTIFICATIONS = "Semantic Markdown"
@@ -73,5 +72,4 @@ object SmdPlugin {
     }
 }
 
-/** A Semantic Markdown file: the `.smd` extension, as in the VS Code extension. */
 fun VirtualFile.isSmd(): Boolean = !isDirectory && extension == "smd"

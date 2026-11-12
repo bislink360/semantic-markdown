@@ -35,10 +35,6 @@ export const CALL = 20;
 /** `smd read`'s default budget. */
 export const READ_BUDGET = 2000;
 
-// ---------------------------------------------------------------------------
-// Fixed costs
-// ---------------------------------------------------------------------------
-
 export interface FixedCosts {
   /** Both skills' front matter (name + description): in context every session in Claude Code. */
   descriptions: number;
@@ -106,10 +102,6 @@ async function mcpCost(count: (t: string) => number): Promise<{ tokens: number; 
   return { tokens: count(JSON.stringify(reply.result.tools)), source: 'smdTools in process: tools/list only (run npm run build to add the instructions)' };
 }
 
-// ---------------------------------------------------------------------------
-// Reads
-// ---------------------------------------------------------------------------
-
 /** A document: its text, the folder its relative includes and embeds resolve in, and its path when it is a file on disk. */
 export interface Doc { name: string; text: string; dir: string; file?: string }
 
@@ -172,9 +164,7 @@ function readIn(dir: string, rel: string): string | undefined {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Coverage proxy: are the key lines of what the agent needed present in what it read?
-// ---------------------------------------------------------------------------
 
 const words = (s: string) => (s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(' ');
 
@@ -203,10 +193,6 @@ export function coverage(keys: string[], read: string): number {
   const hay = ` ${words(read.replace(/\{[^}\n]*\}/g, ' ').replace(/:[a-z][\w-]*\[/g, ' '))} `;
   return keys.filter((k) => hay.includes(` ${k} `)).length / keys.length;
 }
-
-// ---------------------------------------------------------------------------
-// Tasks
-// ---------------------------------------------------------------------------
 
 export interface Strategy { tokens: number; calls: number; coverage: number }
 export interface DocResult {
@@ -332,9 +318,7 @@ export function measure(doc: Doc, reader: Reader, count: (t: string) => number):
   };
 }
 
-// ---------------------------------------------------------------------------
 // Documents: the test samples, optionally the RFCs and requirements in docs/, and larger documents built from the samples
-// ---------------------------------------------------------------------------
 
 function smdFiles(dir: string): Doc[] {
   return fs.readdirSync(dir).filter((f) => f.endsWith('.smd')).sort()
@@ -382,10 +366,6 @@ export function composite(target: number, count: (t: string) => number): Doc {
   return { name: `composite ≈${Math.round(target / 1000)}k`, text: parts.join(''), dir };
 }
 
-// ---------------------------------------------------------------------------
-// Break-even
-// ---------------------------------------------------------------------------
-
 /** Least-squares line through (raw size, tokens): tokens ≈ a + b · raw. */
 function fit(points: Array<[number, number]>): { a: number; b: number } {
   const n = points.length;
@@ -401,10 +381,6 @@ export function breakEven(line: { a: number; b: number }, fixed: number): number
   if (line.b >= 1) return undefined;
   return Math.max(0, (line.a + fixed - CALL) / (1 - line.b));
 }
-
-// ---------------------------------------------------------------------------
-// Report
-// ---------------------------------------------------------------------------
 
 const n = (x: number) => Math.round(x).toLocaleString('en-US');
 const pct = (x: number) => `${Math.round(x * 100)}%`;

@@ -108,10 +108,6 @@ export class SmdLanguageServer {
     this.timers.clear();
   }
 
-  // -------------------------------------------------------------------------
-  // Lifecycle and document sync
-  // -------------------------------------------------------------------------
-
   private initialize(params: unknown) {
     const p = isObject(params) ? params : {};
     const general = isObject(p.capabilities) && isObject(p.capabilities.general) ? p.capabilities.general : {};
@@ -167,10 +163,6 @@ export class SmdLanguageServer {
     this.validations.delete(uri);
     this.endpoint.notify('textDocument/publishDiagnostics', { uri, diagnostics: [] });
   }
-
-  // -------------------------------------------------------------------------
-  // Diagnostics and quick fixes
-  // -------------------------------------------------------------------------
 
   /** Publishes problems at once; Mermaid syntax errors follow when parsing finishes, unless the document changed. */
   private validate(document: TextDocument): void {
@@ -229,10 +221,6 @@ export class SmdLanguageServer {
     });
   }
 
-  // -------------------------------------------------------------------------
-  // Symbols
-  // -------------------------------------------------------------------------
-
   private documentSymbols(params: { textDocument: { uri: string } }) {
     const document = this.documents.get(params.textDocument.uri);
     return document ? outlineSymbols(document) : null;
@@ -279,10 +267,6 @@ export class SmdLanguageServer {
       return [];
     }
   }
-
-  // -------------------------------------------------------------------------
-  // Hover, completion, go to definition, formatting
-  // -------------------------------------------------------------------------
 
   private hover(params: TextDocumentParams) {
     const document = this.documents.get(params.textDocument.uri);
@@ -352,9 +336,7 @@ export class SmdLanguageServer {
     return lines.length === 1 ? location(uri, lines[0]) : lines.map((l) => location(uri, l));
   }
 
-  // -------------------------------------------------------------------------
   // Find references and rename: block ids and headings, across the workspace
-  // -------------------------------------------------------------------------
 
   private references(params: TextDocumentParams & { context?: { includeDeclaration?: boolean } }) {
     const document = this.documents.get(params.textDocument.uri);
@@ -522,10 +504,6 @@ export class SmdLanguageServer {
     return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, ...(file ? { file } : {}), today: this.options.today, reviewBlocks: 'shown' }, theme) };
   }
 
-  // -------------------------------------------------------------------------
-  // Files
-  // -------------------------------------------------------------------------
-
   private assistEnv(document: TextDocument): AssistEnv {
     const file = filePath(document.uri);
     if (!file) return {};
@@ -558,10 +536,6 @@ export class SmdLanguageServer {
     return this.documents.all().find((d) => samePath(filePath(d.uri), file));
   }
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /** The paths of other documents an id use in `text` names. */
 function namedPaths(text: string): string[] {

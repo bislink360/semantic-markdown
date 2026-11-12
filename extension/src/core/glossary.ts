@@ -144,10 +144,6 @@ export function termMatcher<T extends { term: string }>(entries: Iterable<T>): T
   };
 }
 
-// ---------------------------------------------------------------------------
-// Line scanner
-// ---------------------------------------------------------------------------
-
 /** A defined term. Positions are zero-based; the columns span the term inside `**…**`. */
 export interface GlossaryEntry extends EntryText {
   /** The id of its `<dt>`; references link to it. */

@@ -5,7 +5,6 @@ name: Pages
 # search and a sidebar) at /guides/ and /reference/, and the web playground (playground/) at /playground/.
 # extension/scripts/stage-site.mjs gathers site/ and those docs into one folder first, pointing links that leave
 # the site at GitHub.
-# main only changes when a release is merged, so the site always matches the latest release.
 #
 # Until GitHub Pages is turned on for the repository (Settings → Pages → Source: GitHub Actions), only the deploy
 # job fails; the build job still checks that the homepage validates and the playground builds.

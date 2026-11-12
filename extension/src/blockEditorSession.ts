@@ -23,10 +23,6 @@ import { own as ownEntry } from './core/util';
 import { REVIEW_TRANSITIONS, reviewItems, type ReviewItem } from './core/review';
 import { shownValues, substituteLine, type Variables } from './core/variables';
 
-// ---------------------------------------------------------------------------
-// Protocol
-// ---------------------------------------------------------------------------
-
 /** Where a template goes when it isn't put after a block. */
 export type InsertPosition = 'start' | 'end';
 export type MoveDirection = 'up' | 'down';
@@ -316,9 +312,7 @@ export type HostMessage =
   | { type: 'notice'; editId?: string; text: string; fallback?: string }
   | { type: 'flush'; requestId: number };
 
-// ---------------------------------------------------------------------------
 // Message validation (as readPosition in previewSync.ts: anything malformed is ignored)
-// ---------------------------------------------------------------------------
 
 /** The longest text an edit may carry (characters). */
 export const MAX_TEXT = 4_000_000;
@@ -531,9 +525,7 @@ export function readEditorMessage(raw: unknown): EditorMessage | undefined {
   return READERS[m.type](m);
 }
 
-// ---------------------------------------------------------------------------
 // The log of text changes, and line ranges brought up to date through it
-// ---------------------------------------------------------------------------
 
 /** A change to the document as VS Code reports it: a range of the text before, replaced by `text`. */
 export interface TextChange {
@@ -611,9 +603,7 @@ export class EditLog {
   }
 }
 
-// ---------------------------------------------------------------------------
 // The document, as the session sees it
-// ---------------------------------------------------------------------------
 
 /** The document the session edits (a TextDocument in VS Code, a string in the tests). */
 export interface DocumentPort {
@@ -806,9 +796,7 @@ export function containerForm(line: string, name: string | undefined, version: S
   return { name: name.toLowerCase(), fields };
 }
 
-// ---------------------------------------------------------------------------
 // Inline directives and styled spans
-// ---------------------------------------------------------------------------
 
 /** The field of an inline form for the text in the brackets. */
 export const CONTENT_FIELD = 'content';
@@ -1072,7 +1060,6 @@ export class BlockEditorSession {
     return this.locate(key)?.start;
   }
 
-  /** Render the document as it is now and send it to the page. */
   update(): void {
     this.options.post(this.render());
   }

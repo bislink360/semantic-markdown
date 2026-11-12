@@ -107,9 +107,7 @@ test('issueDraft: title without markers, body with source and owners in a code s
   assert.equal(stripIssueRefs(`Fix it [#120](${URL120}) now acme/shop#3`), 'Fix it now');
 });
 
-// ---------------------------------------------------------------------------
 // The command, with a fake gh
-// ---------------------------------------------------------------------------
 
 interface FakeGh {
   calls: string[][];

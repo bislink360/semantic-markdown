@@ -1,4 +1,3 @@
-; Semantic Markdown (.smd) highlights.
 ;
 ; These cover the syntax .smd adds. Markdown itself (headings, emphasis, links, lists…) is
 ; highlighted by the injected markdown and markdown_inline grammars (see injections.scm).
@@ -9,11 +8,7 @@
 ; (CONTAINERS and INLINE_DIRECTIVES); extension/test/treeSitter.test.ts checks that they do.
 ; Names that are not known still parse and are highlighted as @tag / @function.
 
-; ---------------------------------------------------------------- front matter
-
 (front_matter_delimiter) @punctuation.delimiter
-
-; ---------------------------------------------------------------- containers
 
 (container_fence) @punctuation.special
 
@@ -35,8 +30,6 @@
 
 (container_title) @markup.heading
 
-; ---------------------------------------------------------------- attribute lists
-
 (attribute_list
   [
     "{"
@@ -53,8 +46,6 @@
 (attribute_id) @label
 
 (attribute_class) @type
-
-; ---------------------------------------------------------------- inline directives
 
 (directive
   ":" @punctuation.special)
@@ -77,8 +68,6 @@
 
 (directive_content) @string
 
-; ---------------------------------------------------------------- styled spans, highlight
-
 (span
   [
     "["
@@ -92,8 +81,6 @@
 
 (mark_content) @diff.plus
 
-; ---------------------------------------------------------------- math
-
 (math_block
   (math_delimiter) @punctuation.delimiter)
 
@@ -101,8 +88,6 @@
   "$" @punctuation.delimiter)
 
 (math_content) @markup.math
-
-; ---------------------------------------------------------------- variables, footnotes, tasks
 
 (variable
   [
@@ -120,8 +105,6 @@
 (task_checked) @markup.list.checked
 
 (task_unchecked) @markup.list.unchecked
-
-; ---------------------------------------------------------------- code
 
 (code_span) @markup.raw
 

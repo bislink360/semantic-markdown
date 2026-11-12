@@ -19,9 +19,7 @@ const ERROR: Severity = 'error';
 /** The message of `priority` on `:::agent` (an `attrs/unknown` warning since 2.0), which `smd migrate` looks for. */
 export const AGENT_PRIORITY_REMOVED = 'Unknown attribute "priority" on ":::agent". It was removed in Semantic Markdown 2.0, since no tool read it. Remove it.';
 
-// ---------------------------------------------------------------------------
 // Attribute list items
-// ---------------------------------------------------------------------------
 
 interface AttrItem {
   /** What a repeat of it is: `#` for every id, `.name` for a class, the key for the others. */
@@ -53,9 +51,7 @@ const without = (src: string, kept: AttrItem[]) => kept.map((it) => src.slice(it
 
 const quoted = (labels: string[]) => labels.map((l) => `"${l}"`).join(', ');
 
-// ---------------------------------------------------------------------------
 // attrs/duplicate
-// ---------------------------------------------------------------------------
 
 /**
  * A key, an id or a class given more than once in the attribute list between `open` (`{`) and `close` (`}`) on a line.
@@ -94,9 +90,7 @@ export function checkInlineAttrLists(raw: string, text: string, line: number, pu
   }
 }
 
-// ---------------------------------------------------------------------------
 // Containers: container/colons, container/title-conflict, priority on :::agent
-// ---------------------------------------------------------------------------
 
 /** The container a closing fence closes: its name, colon count and opening line. */
 export interface OpenContainer { name: string; len: number; line: number }
@@ -154,9 +148,7 @@ export function removedAgentPriority(line: number, raw: string, open: number, pu
   return true;
 }
 
-// ---------------------------------------------------------------------------
 // Headings: attrs/duplicate, heading/attrs-text
-// ---------------------------------------------------------------------------
 
 /**
  * The attribute list ending a heading: `start` is where the spaces before its `{` begin, `open` and `close` its braces.
@@ -191,9 +183,7 @@ function headingTextFix(at: { line: number; raw: string; start: number; open: nu
   return { line, column: open + 1, endColumn: close, replacement: without(raw.slice(open + 1, close), kept), title: `Remove ${quoted(words)}` };
 }
 
-// ---------------------------------------------------------------------------
 // Front matter: frontmatter/version
-// ---------------------------------------------------------------------------
 
 const DIGITS = /^\d+$/;
 const VERSION_CODE = 'frontmatter/version';

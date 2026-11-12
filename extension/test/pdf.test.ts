@@ -144,8 +144,6 @@ test('exportPdf prints the page from beside the document and removes it afterwar
   }
 });
 
-// ---- The page runtime and stylesheet ----
-
 const runtime = readFileSync(join(__dirname, '..', 'media', 'runtime.js'), 'utf8');
 const css = readFileSync(join(__dirname, '..', 'media', 'smd.css'), 'utf8');
 

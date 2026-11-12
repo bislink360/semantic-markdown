@@ -6,9 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parseSelector, querySmd, SelectorError } from '../src/core';
 
-// ---------------------------------------------------------------------------
 // T7: selectors that worked before tree selectors keep their matches, order and output
-// ---------------------------------------------------------------------------
 
 const TODAY = '2026-10-28';
 const FIXTURE = path.join(__dirname, 'compat', 'query-t7.json');
@@ -54,9 +52,7 @@ test('T7: selectors that worked before return the same matches, in the same orde
   assert.ok(Object.values(pinned).filter((rows) => rows.length).length >= 25);
 });
 
-// ---------------------------------------------------------------------------
 // T1 to T4
-// ---------------------------------------------------------------------------
 
 const plan = [
   '---', 'smd: 2', 'title: Plan', '---',

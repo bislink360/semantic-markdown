@@ -112,9 +112,7 @@ export function feedbackUpdates(oldText: string, newText: string, options: Updat
   };
 }
 
-// ---------------------------------------------------------------------------
 // Matching blocks across versions
-// ---------------------------------------------------------------------------
 
 interface Pair { old?: DocumentBlock; now?: DocumentBlock; matchedBy: 'id' | 'text' }
 
@@ -163,9 +161,7 @@ function base(kind: FeedbackKind, p: Pair, change: ChangeType): FeedbackChange {
   return { kind, change, id: idOf(b) ?? null, title: b.title, line: lineOf(p.now), oldLine: lineOf(p.old), matchedBy: p.matchedBy, affected: [] };
 }
 
-// ---------------------------------------------------------------------------
 // Questions, suggestions, comments, tasks
-// ---------------------------------------------------------------------------
 
 /** A question's status as read: `answered` or `incorporated` without an answer is still open (AF11). */
 function questionStatus(q: DocumentBlock, v: Version): string {
@@ -250,9 +246,7 @@ function taskChanges(before: Version, after: Version): FeedbackChange[] {
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // Requirements, constraints, acceptance criteria, decisions, assumptions, evidence
-// ---------------------------------------------------------------------------
 
 function contentChanges(before: Version, after: Version): FeedbackChange[] {
   const out: FeedbackChange[] = [];
@@ -278,9 +272,7 @@ function contentChanges(before: Version, after: Version): FeedbackChange[] {
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // Affected blocks and other lines
-// ---------------------------------------------------------------------------
 
 /** The blocks that point at the changed block, and a review block's target. */
 function affectedBy(c: FeedbackChange, v: Version): AffectedBlock[] {
@@ -364,10 +356,6 @@ function changedLines(a: string[], b: string[]): { removed: number[]; added: num
   while (j < m) added.push(start + j++);
   return { removed, added };
 }
-
-// ---------------------------------------------------------------------------
-// Text
-// ---------------------------------------------------------------------------
 
 export interface UpdatesFormat {
   /** How the checkpoint was named, e.g. `abc1234` or `rev:3f2a9c1b0d4e`. */

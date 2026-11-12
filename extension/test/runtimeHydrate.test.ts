@@ -12,9 +12,7 @@ const runtimePath = join(__dirname, '..', 'media', 'runtime.js');
 const source = readFileSync(runtimePath, 'utf8');
 const { carryState } = createRequire(__filename)(runtimePath);
 
-// ---------------------------------------------------------------------------
 // The pure part (exported when there is no DOM)
-// ---------------------------------------------------------------------------
 
 test('carryState keeps the state of keys still in the page and drops the rest, as the preview did', () => {
   assert.deepEqual(carryState({ 'a#0': 1, 'gone#0': 2 }, ['a#0', 'b#0'], [null, null]), { 'a#0': 1 });
@@ -31,9 +29,7 @@ test('carryState lets an element outside the scope take its state to its new key
   assert.deepEqual(carryState({ 'x#0': [false, true], 'y#0': [true, false] }, ['x#0', 'y#0'], ['x#0', null]), { 'x#0': [false, true], 'y#0': [true, false] });
 });
 
-// ---------------------------------------------------------------------------
 // A small DOM for the runtime
-// ---------------------------------------------------------------------------
 
 interface FakeEvent { target: FakeEl; key?: string; preventDefault(): void }
 type Listener = (e: FakeEvent) => void;
@@ -198,9 +194,7 @@ const tabButtons = (tabs: FakeEl) => tabs.children[0].children;
 const selectedTab = (tabs: FakeEl) => tabButtons(tabs).findIndex((b) => b.getAttribute('aria-selected') === 'true');
 const NPM = 'tabs:npm\u0001pnpm';
 
-// ---------------------------------------------------------------------------
 // hydrate(scope)
-// ---------------------------------------------------------------------------
 
 test('hydrating one block keeps the tab and details state of the others', async () => {
   const a = block(tabGroup('npm', 'pnpm'), details('Why'));
@@ -278,10 +272,6 @@ test('a reloaded Block Editor page restores tabs and details and keeps the app s
   await flush();
   assert.equal(p.posted.some((m) => m.type === 'position'), false, 'no scroll place in the Block Editor');
 });
-
-// ---------------------------------------------------------------------------
-// Mode and handle
-// ---------------------------------------------------------------------------
 
 function lineAndTask() {
   const line = new FakeEl('p');

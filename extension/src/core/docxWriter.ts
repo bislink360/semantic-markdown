@@ -69,9 +69,7 @@ export function docxParts(text: string, options: DocxWriterOptions = {}): { entr
   return { entries: parts.map(([name, data]) => ({ name, data: typeof data === 'string' ? encode(data) : data })), warnings: writer.warnings };
 }
 
-// ---------------------------------------------------------------------------
 // Measures (twentieths of a point, "twips", unless said otherwise)
-// ---------------------------------------------------------------------------
 
 /** A4 with 1-inch margins. */
 const PAGE = { width: 11906, height: 16838, margin: 1440 };
@@ -126,10 +124,6 @@ export function hexColour(css: string | undefined): string | undefined {
 
 const textColour = (value: string | undefined) => hexColour(cssColour(value, TEXT_COLOURS));
 const backgroundColour = (value: string | undefined) => hexColour(cssColour(value, BACKGROUNDS));
-
-// ---------------------------------------------------------------------------
-// Runs and paragraphs
-// ---------------------------------------------------------------------------
 
 interface RunProps {
   style?: string;
@@ -209,10 +203,6 @@ function paragraphXml(content: string, props: ParaProps): string {
   return `<w:p>${paragraphPropsXml(props)}${content}</w:p>`;
 }
 
-// ---------------------------------------------------------------------------
-// Images
-// ---------------------------------------------------------------------------
-
 interface ImageInfo { ext: 'png' | 'jpeg' | 'gif'; width: number; height: number }
 
 /** The format and pixel size of a PNG, JPEG or GIF image; else undefined. */
@@ -260,10 +250,6 @@ function safeDecode(value: string): string {
     return value;
   }
 }
-
-// ---------------------------------------------------------------------------
-// The writer
-// ---------------------------------------------------------------------------
 
 /** Where blocks are written: how far in, with which bar and tint, in which paragraph style. */
 interface Frame {
@@ -685,9 +671,7 @@ export function linkTarget(href: string): string | undefined {
 
 const shortSrc = (src: string) => (src.length > 80 ? `${src.slice(0, 77)}…` : src);
 
-// ---------------------------------------------------------------------------
 // The package's other parts
-// ---------------------------------------------------------------------------
 
 const NAMESPACES = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
   + `xmlns:r="${REL}" `

@@ -246,9 +246,7 @@ test('setAlign changes only the delimiter cell, as wide as it was; alignTable is
   assert.equal(done(alignTable(table(code), code)).edits.length, 0, 'a pipe in code: smd fmt leaves the table alone');
 });
 
-// ---------------------------------------------------------------------------
 // Properties over every table the grid can edit
-// ---------------------------------------------------------------------------
 
 const CELL_TEXTS = ['', 'x', 'Two words', 'a|b', 'a\\|b', '`code`', '`a\\|b`', ':badge[Done]{color=green}', '**bold**', '漢字 😀', '  padded  ', '42%', '[t]{bg=blue}'];
 const pick = <T>(r: Random, list: readonly T[]): T => list[Math.floor(r() * list.length)];

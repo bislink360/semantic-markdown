@@ -17,10 +17,6 @@ import { collectSources, isInside, outProblem, previousBuild, removeFiles, runBu
 const assets = { css: '/*css*/', runtimeJs: '/*runtime*/', siteCss: '/*site css*/', siteJs: '/*site js*/' };
 const fileOf = (build: ReturnType<typeof buildSite>, path: string) => build.files.find((f) => f.path === path)?.content ?? '';
 
-// ---------------------------------------------------------------------------
-// Paths and link rewriting
-// ---------------------------------------------------------------------------
-
 test('page paths mirror the source folders; relative hrefs climb only as far as needed', () => {
   assert.equal(pageOutput('guide/setup.smd'), 'guide/setup.html');
   assert.equal(pageOutput('README.md'), 'README.html');
@@ -85,10 +81,6 @@ test('siteBacklinks lists each linking document once, from links and related:, n
   assert.equal(backlinks.has('missing.smd'), false);
 });
 
-// ---------------------------------------------------------------------------
-// Navigation
-// ---------------------------------------------------------------------------
-
 const page = (source: string, title: string): SitePage => ({ source, output: pageOutput(source), title });
 
 test('navTree orders documents and folders by title; index or README is the folder overview', () => {
@@ -134,10 +126,6 @@ test('breadcrumbs and previous/next links', () => {
   assert.match(pager, /rel="next" href="deep\/x\.html"><span>Next<\/span>X &lt;y&gt;<\/a>/);
   assert.doesNotMatch(pagerHtml(order, x, linker()), /rel="next"/);
 });
-
-// ---------------------------------------------------------------------------
-// Search
-// ---------------------------------------------------------------------------
 
 test('searchDoc indexes the title, summary, intro and an excerpt of each section, human-only content included', () => {
   const text = '---\ntitle: Payments\nsummary: How we take money.\n---\nIntro about **cards**.\n\n## Refunds {#refunds}\n\n:::human\nOnly for people: refund window is 30 days.\n:::\n\n## Fees\n\n| Fee | Amount |\n|---|---|\n| Card | 2% |\n\n- [Docs](other.smd) explain it\n';
@@ -200,10 +188,6 @@ test('the site script builds results with DOM text nodes, never innerHTML', () =
   assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
 });
 
-// ---------------------------------------------------------------------------
-// Dashboard
-// ---------------------------------------------------------------------------
-
 test('dashboard lists open tasks overdue first, decisions and open risks with the matrix, linked and escaped', () => {
   const doc = (source: string, text: string) => ({ source, output: pageOutput(source), title: source, text, headings: renderSmd(text).headings });
   const documents = [
@@ -230,10 +214,6 @@ test('dashboard lists open tasks overdue first, decisions and open risks with th
   assert.doesNotMatch(risks, /Done risk|>Old</);
   assert.match(dashboardHtml([], { linker: linker(), output: 'dashboard.html' }), /No open tasks\.[\s\S]*No decisions\.[\s\S]*No open risks\./);
 });
-
-// ---------------------------------------------------------------------------
-// The whole site
-// ---------------------------------------------------------------------------
 
 const sources: SiteSource[] = [
   { path: 'README.md', text: '---\ntitle: Team <Docs>\n---\n# Welcome\n\nStart with [setup](guide/setup.smd#install). ![logo](img/logo.png)\n' },
@@ -373,9 +353,7 @@ test('buildSite writes descriptions, canonical links, sitemap.xml and llms.txt f
   assert.equal(linked.files.some((f) => f.path === 'llms.txt'), false, "the documents' own llms.txt wins");
 });
 
-// ---------------------------------------------------------------------------
 // Writing safely (siteBuild.ts)
-// ---------------------------------------------------------------------------
 
 function tempDir(): string {
   return mkdtempSync(join(tmpdir(), 'smd-site-'));

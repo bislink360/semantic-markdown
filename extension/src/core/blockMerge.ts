@@ -43,10 +43,6 @@ export interface BlockMergeDoubt {
 
 export const isMergeDoubt = (r: BlockMergeResult | BlockMergeDoubt): r is BlockMergeDoubt => 'doubt' in r;
 
-// ---------------------------------------------------------------------------
-// Lines and a line diff
-// ---------------------------------------------------------------------------
-
 /** The lines of a text, each with its line break (`\n` or `\r\n`); a last line without one stays as it is. */
 export function splitLines(text: string): string[] {
   const lines: string[] = [];
@@ -121,9 +117,7 @@ function lcsHunks(x: readonly number[], y: readonly number[]): Hunk[] {
   return hunks;
 }
 
-// ---------------------------------------------------------------------------
 // Three-way merge of sequences
-// ---------------------------------------------------------------------------
 
 type RegionKind = 'stable' | 'ours' | 'theirs' | 'same' | 'conflict';
 
@@ -220,9 +214,7 @@ function regionKind(group: readonly SideHunk[], ours: readonly string[], theirs:
   return o ? 'ours' : 'theirs';
 }
 
-// ---------------------------------------------------------------------------
 // Units: where a version's blocks, items, rows and front matter keys start
-// ---------------------------------------------------------------------------
 
 interface Units {
   /** Lines where a unit starts, with 0 and the line count. */
@@ -314,9 +306,7 @@ function cutUnits(lines: readonly string[], from: number, to: number, units: Uni
   return out;
 }
 
-// ---------------------------------------------------------------------------
 // Growing conflicting regions to whole units
-// ---------------------------------------------------------------------------
 
 interface Group {
   /** The regions wholly inside the span. */
@@ -397,9 +387,7 @@ function unitGroups(regions: readonly Region[], units: Three<Units>, counts: Thr
   return groups;
 }
 
-// ---------------------------------------------------------------------------
 // The merged text, as pieces
-// ---------------------------------------------------------------------------
 
 /** Merged lines, or a conflict between the sides' lines. `seam`: the piece starts a unit taken by the block merge. */
 interface Piece {
@@ -526,10 +514,6 @@ function allPieces(regions: readonly Region[], groups: readonly Group[], v: Vers
   }
   return pieces;
 }
-
-// ---------------------------------------------------------------------------
-// Checks and output
-// ---------------------------------------------------------------------------
 
 /** One side's text (every conflict resolved its way) and where the block merge's seams fall in it. */
 function projection(pieces: readonly Piece[], side: 'ours' | 'theirs'): { text: string; count: number; seams: number[] } {

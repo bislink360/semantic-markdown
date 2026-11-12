@@ -44,10 +44,6 @@ export class LspError extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Framing
-// ---------------------------------------------------------------------------
-
 const HEADER_END = Buffer.from('\r\n\r\n', 'ascii');
 
 /** One message with its `Content-Length` header; the length counts UTF-8 bytes, not characters. */
@@ -101,10 +97,6 @@ export function contentLength(headers: string): number | undefined {
   return undefined;
 }
 
-// ---------------------------------------------------------------------------
-// Dispatch and lifecycle
-// ---------------------------------------------------------------------------
-
 export type RequestHandler = (params: unknown) => unknown;
 export type NotificationHandler = (params: unknown) => void;
 
@@ -131,7 +123,6 @@ export class LspEndpoint {
     this.log = options.log ?? ((m) => console.error(m));
   }
 
-  /** Whether the client has sent `shutdown`. */
   get shutDown(): boolean {
     return this.state === 'shuttingDown';
   }

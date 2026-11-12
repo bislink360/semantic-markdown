@@ -46,9 +46,7 @@ function checkCase(text: string, options: MigrationOptions = {}, keepsV1 = true)
   return p;
 }
 
-// ---------------------------------------------------------------------------
 // 1. Closing fences (proposal 3)
-// ---------------------------------------------------------------------------
 
 test('migrate: closing fences get their container\'s colon count', () => {
   const p = checkCase(doc('::::tabs\n:::tab A\nOne\n::::\n:::tab B\nTwo\n:::\n:::'));
@@ -69,9 +67,7 @@ test('migrate: a closer is rewritten even where its hint is suppressed', () => {
   assert.deepEqual(edits(p, 'closer'), ['8::::→::::']);
 });
 
-// ---------------------------------------------------------------------------
 // 2. Duplicate attributes (proposal 4)
-// ---------------------------------------------------------------------------
 
 test('migrate: duplicate attributes are collapsed to the value v1 uses', () => {
   const text = doc('A [span]{color=red color=blue} and :badge[B]{color=red color=green}.\n\n:::note{#a #b} T\nx\n:::\n\n## H {.c .c}');
@@ -91,9 +87,7 @@ test('migrate: attribute lists in code are left alone', () => {
   assert.deepEqual(changes(checkCase(text), 'duplicate-attrs'), []);
 });
 
-// ---------------------------------------------------------------------------
 // 3. Title text that is not shown (proposal 4)
-// ---------------------------------------------------------------------------
 
 test('migrate: container title text that title="…" hides is removed', () => {
   const p = checkCase(doc(':::note{title="Shown"} Hidden\nx\n:::\n\n:::note{title="Only"}\ny\n:::\n\n:::warning Plain title\nz\n:::'));
@@ -114,9 +108,7 @@ test('migrate: title text next to a comment is a note, not a change', () => {
   assert.match(notes(p, 'title-text')[0].reason, /^Not rewritten: This title text is not shown/);
 });
 
-// ---------------------------------------------------------------------------
 // 4. $$ delimiters (proposal 2)
-// ---------------------------------------------------------------------------
 
 test('migrate: $$ with math on its line moves onto a line of its own', () => {
   const p = checkCase(doc('$$ a + b\nc\nd $$\n\nText.'));
@@ -143,9 +135,7 @@ test('migrate: own-line and one-line $$, and $$ in code, are left alone', () => 
   }
 });
 
-// ---------------------------------------------------------------------------
 // 5. Braces after headings (proposal 5)
-// ---------------------------------------------------------------------------
 
 test('migrate: an empty {} or a bare {word} after a heading is removed', () => {
   const p = checkCase(doc('## Object {}\n\n## Returns {ok}\n\n## Both {#id ok}'));
@@ -159,9 +149,7 @@ test('migrate: heading attributes v2 keeps are not rewritten, and {agent} is wri
   assert.deepEqual(notes(p, 'heading-braces'), []);
 });
 
-// ---------------------------------------------------------------------------
 // 6. Unknown directives (proposal 7b)
-// ---------------------------------------------------------------------------
 
 test('migrate: a literal :name[ outside the vocabulary is escaped', () => {
   const p = checkCase(doc('See :abbr[HTML], (:x[1]) and :Badge[wrong case].'));
@@ -191,9 +179,7 @@ test('migrate: known directives, code, math, HTML, links, attributes and other c
   assert.deepEqual(changes(checkCase(doc(body)), 'unknown-directive'), []);
 });
 
-// ---------------------------------------------------------------------------
 // 7. Include sections (proposal 9)
-// ---------------------------------------------------------------------------
 
 const files: Record<string, string> = { 'terms.smd': '---\nsmd: 1\n---\n\n## Refunds\n\nWithin 30 days.\n\n## Pricing\n\nMonthly.\n' };
 const readFile = (p: string) => files[p];
@@ -216,9 +202,7 @@ test('migrate: an include section that matches exactly is left alone', () => {
   }
 });
 
-// ---------------------------------------------------------------------------
 // 8. Enumerated values (proposal 11)
-// ---------------------------------------------------------------------------
 
 test('migrate: enumerated values are written in the vocabulary\'s case', () => {
   const text = doc(':::decision{status=Accepted} T\nx\n:::\n\n:::api{method=get path="/v1"}\nx\n:::\n\nRate :metric[3%]{label="Rate" trend=Up good=DOWN}.', 'smd: 1\nstatus: Draft\naudience: Both\ntheme: Dark');
@@ -239,9 +223,7 @@ test('migrate: values in their case, values outside the vocabulary and code are 
   assert.deepEqual(changes(checkCase(text), 'value-case'), []);
 });
 
-// ---------------------------------------------------------------------------
 // 9. Typography (proposal 8)
-// ---------------------------------------------------------------------------
 
 test('migrate: what the typographer changes is a note, or with keepTypography, typography: true', () => {
   const text = doc('"Quotes" -- dash... (c)\n\n`"code"` and $x--y$ stay.', 'smd: 1\ntitle: "It\'s here"');
@@ -273,9 +255,7 @@ test('migrate: keepTypography adds front matter to a document without it', () =>
   assert.equal(formatSmd(p.result), p.result);
 });
 
-// ---------------------------------------------------------------------------
 // 10. Fuzzy links (proposal 8)
-// ---------------------------------------------------------------------------
 
 test('migrate: a bare domain linked today is a note, or with linkDomains, a Markdown link to the same address', () => {
   const text = doc('Docs at example.com and docs.example.org/guide, not https://x.test, www.example.org, a@b.test or `c.test`.');
@@ -323,9 +303,7 @@ test('migrate: a bare domain in the title or summary is a note: the header links
   assert.match(n.reason, /"example\.com" in "summary" is linked in the header today/);
 });
 
-// ---------------------------------------------------------------------------
 // 11. Variables (proposal 10)
-// ---------------------------------------------------------------------------
 
 test('migrate: a shown value YAML reads differently is a note, or with quoteVariables, quoted', () => {
   // `estimate` is in no `{{…}}`, but the agent view's header lists it; `toc` is a key the headers leave out.
@@ -352,9 +330,7 @@ test('migrate: a value in a list or a nested key that shows differently is a not
   assert.match(notes(p, 'variable-spelling')[0].reason, /"tags" .*quote it by hand/);
 });
 
-// ---------------------------------------------------------------------------
 // 12. The smd key (versioning rules)
-// ---------------------------------------------------------------------------
 
 test('migrate: smd: 1, a missing key, an invalid value or no front matter become smd: 2', () => {
   assert.deepEqual(edits(checkCase(doc('x')), 'version'), ['2:smd: 1→smd: 2']);
@@ -385,10 +361,6 @@ test('migrate: smd: 2 needs nothing, a newer version and broken front matter are
   assert.deepEqual(changes(continued, 'version'), []);
   assert.match(notes(continued, 'version')[0].reason, /not written as a value on its own line/);
 });
-
-// ---------------------------------------------------------------------------
-// The plan as a whole
-// ---------------------------------------------------------------------------
 
 const corpusDir = path.join(__dirname, 'compat', 'corpus');
 const corpusRead = (rel: string) => {
@@ -518,10 +490,6 @@ test('migrate: the report groups steps by kind, with 1-based lines and short dif
   assert.match(migrationSummary([p, plan(doc('x', 'smd: 2'))]), /^\n2 files checked: 1 to migrate to spec v2 \(3 changes, 0 notes\)\.\nDry run: nothing was written\. Run it without --dry-run to migrate\.\n$/);
   assert.match(migrationSummary([p], 'Next.'), /\.\nNext\.\n$/, 'the editor says how it applies the plan');
 });
-
-// ---------------------------------------------------------------------------
-// The CLI
-// ---------------------------------------------------------------------------
 
 const cli = path.join(__dirname, '..', 'dist', 'cli.js');
 
