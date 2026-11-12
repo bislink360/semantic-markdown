@@ -17,7 +17,7 @@ const body = (html: string) => /<body>\n([\s\S]*)\n<\/body>/.exec(html)?.[1] ?? 
 const head = (html: string) => /<head>\n([\s\S]*)\n<\/head>/.exec(html)?.[1] ?? '';
 const pandocHtml = (source: string, options = {}) => body(smdToPandocHtml(source, { today: '2026-09-25', ...options }));
 
-// ---- htmlTree: the small parser the profile reshapes the renderer's output with ----
+// htmlTree: the small parser the profile reshapes the renderer's output with
 
 test('htmlTree: parses and serializes elements, void elements, attributes and text as written', () => {
   const html = '<p class="a" data-x=\'1 "q"\'>Text &amp; <b>bold</b><br>end</p><img src=x.png alt="A &lt; B">';
@@ -34,8 +34,6 @@ test('htmlTree: copes with raw HTML: stray and missing closing tags, comments, d
   assert.equal(textContent(script.slice(0, 1)), 'if (a < b) { "</p>" }');
   assert.equal(decodeEntities('&#x27;&#39;&quot;&nbsp;&unknown;&#0;'), `''"\u00a0&unknown;&#0;`);
 });
-
-// ---- smdToPandocHtml: one construct at a time ----
 
 test('pandoc profile: front matter becomes title, subtitle, authors, keywords and a table of contents', () => {
   const html = smdToPandocHtml('---\ntitle: Plan & scope\nsummary: The **plan**.\nstatus: review\nversion: 2\nowners: ["@a", "@b"]\ntags: [x, y]\ntoc: true\n---\n\n## One\n');
@@ -167,8 +165,6 @@ test('pandoc profile: labels follow the document language', () => {
   assert.match(smdToPandocHtml('Text\n', { lang: 'de' }), /<html lang="de">/);
 });
 
-// ---- Finding and running Pandoc ----
-
 test('findPandoc: --pandoc, then SMD_PANDOC, then pandoc on the PATH', () => {
   const files = new Set(['/opt/pandoc/bin/pandoc', '/custom/pandoc', 'C:\\Tools\\pandoc.exe', '/env/pandoc']);
   const isFile = (f: string) => files.has(f.replaceAll('\\', '/')) || files.has(f);
@@ -246,8 +242,6 @@ test('exportDocx: runs Pandoc with the HTML on stdin and returns its warnings; f
     (e: Error) => e instanceof DocxError && /Reference document not found: missing-reference\.docx/.test(e.message));
 });
 
-// ---- CLI (requires `npm run build`) ----
-
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 const samples = join(__dirname, 'samples');
 const showcase = join(samples, 'showcase.smd');
@@ -314,7 +308,7 @@ test('CLI: smd docx without Pandoc writes with the built-in writer; --engine pan
     }
   });
 
-// ---- Integration: only where Pandoc is installed (SMD_PANDOC or the PATH) ----
+// Integration: only where Pandoc is installed (SMD_PANDOC or the PATH)
 
 const pandoc = (() => { try { return findPandoc(); } catch { return undefined; } })();
 

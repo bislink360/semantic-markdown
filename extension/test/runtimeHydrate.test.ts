@@ -194,8 +194,6 @@ const tabButtons = (tabs: FakeEl) => tabs.children[0].children;
 const selectedTab = (tabs: FakeEl) => tabButtons(tabs).findIndex((b) => b.getAttribute('aria-selected') === 'true');
 const NPM = 'tabs:npm\u0001pnpm';
 
-// hydrate(scope)
-
 test('hydrating one block keeps the tab and details state of the others', async () => {
   const a = block(tabGroup('npm', 'pnpm'), details('Why'));
   const b = block(tabGroup('npm', 'pnpm'), details('Why'));

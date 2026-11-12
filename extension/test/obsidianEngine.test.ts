@@ -48,7 +48,6 @@ test('document() finds the outermost containers by line, past fences and nesting
 test('document() caches the last note and blanks the front matter before parsing', () => {
   const e = engine();
   assert.equal(e.document(NOTE), e.document(NOTE));
-  // A `:::` line inside the front matter is no container.
   assert.deepEqual(e.document('---\nx: ":::note"\n:::note\n---\nText').containers, []);
   // Containers inside a list are found where the engine sees them.
   assert.deepEqual(e.document('- item\n\n  :::note\n  Inside\n  :::\n').containers, [{ start: 2, end: 4 }]);
@@ -132,15 +131,11 @@ test('inlineSegments() splits a text node around what the engine renders', () =>
 test('planSection() keeps, renders or hides a section', () => {
   const containers = [{ start: 5, end: 15 }, { start: 18, end: 19 }];
   assert.deepEqual(planSection(containers, 3, 3), { kind: 'keep', owned: [] });
-  // The section with the opening line draws the whole container.
   assert.deepEqual(planSection(containers, 5, 6), { kind: 'render', start: 5, end: 15, partOf: undefined, owned: [containers[0]] });
-  // Sections inside it are hidden…
   assert.deepEqual(planSection(containers, 8, 10), { kind: 'hide', partOf: containers[0], owned: [] });
   assert.equal(planSection(containers, 12, 15).kind, 'hide');
-  // …and one that runs past its end keeps its own lines after it, here with the next container.
   assert.deepEqual(planSection(containers, 13, 18), { kind: 'render', start: 16, end: 19, partOf: containers[0], owned: [containers[1]] });
   assert.deepEqual(planSection(containers, 14, 16), { kind: 'render', start: 16, end: 16, partOf: containers[0], owned: [] });
-  // Text right before a container in the same section is drawn with it.
   assert.deepEqual(planSection(containers, 3, 5), { kind: 'render', start: 3, end: 15, partOf: undefined, owned: [containers[0]] });
 });
 
@@ -149,22 +144,15 @@ const NOTE_PATH = 'a.md';
 test('RenderSync asks for a full render only when an incremental render left a container stale', () => {
   const sync = new RenderSync();
   const c = { start: 0, end: 4 };
-  // First render: the drawing section and the hidden ones agree.
   assert.equal(sync.drawn(NOTE_PATH, 'v1', c, 'src1', 1), false);
   assert.equal(sync.hidden(NOTE_PATH, 'v1', c, 'src1'), false);
-  // An edit inside the container re-renders only the hidden section: the drawing is stale.
   assert.equal(sync.hidden(NOTE_PATH, 'v2', c, 'src2'), true);
-  // Asked once per text: the full render that follows doesn't ask again.
   assert.equal(sync.hidden(NOTE_PATH, 'v2', c, 'src2'), false);
   assert.equal(sync.drawn(NOTE_PATH, 'v2', c, 'src2', 1), false);
   assert.equal(sync.hidden(NOTE_PATH, 'v2', c, 'src2'), false);
-  // The container grows: the sections after its old end must be rendered again.
   assert.equal(sync.drawn(NOTE_PATH, 'v3', { start: 0, end: 6 }, 'src3', 1), true);
-  // A new container spanning other sections, after the first render.
   assert.equal(sync.drawn(NOTE_PATH, 'v4', { start: 8, end: 12 }, 'src4', 9), true);
-  // …but not one that fits in its own section.
   assert.equal(sync.drawn(NOTE_PATH, 'v5', { start: 20, end: 21 }, 'src5', 21), false);
-  // On a note's first render a hidden section may come before the one that draws its container.
   assert.equal(sync.hidden('b.md', 'w1', c, 'x'), false);
   sync.clear();
   assert.equal(sync.drawn(NOTE_PATH, 'v6', c, 'src', 1), false);

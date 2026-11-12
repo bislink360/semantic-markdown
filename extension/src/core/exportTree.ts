@@ -401,7 +401,6 @@ function listFact(name: string, value: unknown, shown: unknown): Inline[] {
 }
 
 const withTitle = (prefix: string, title: string) => (title ? `${prefix}: ${title}` : prefix);
-/** A bold title paragraph, then the body. */
 const titled = (c: ContainerCall): Block[] => (c.title ? [paragraph([text(c.title, { bold: true })]), ...c.body()] : c.body());
 
 function callout(c: ContainerCall): Block[] {

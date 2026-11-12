@@ -34,7 +34,6 @@ export const DOCX_MISSING_PANDOC = 'smd docx --engine pandoc needs Pandoc (3.0 o
   + 'smd docx <file.smd> --html-only -o page.html, then run pandoc page.html -f html -t docx -o page.docx in the '
   + 'document\'s folder.';
 
-/** The engines of `--engine`. */
 export const DOCX_ENGINES = ['builtin', 'pandoc'] as const;
 
 /** The engine that writes the .docx: the built-in writer, or Pandoc at a path. */

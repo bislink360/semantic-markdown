@@ -88,7 +88,6 @@ export class TextDocument {
     return { start: this.position(line, start), end: this.position(line, end) };
   }
 
-  /** From the start of `startLine` to the end of `endLine`. */
   lineRange(startLine: number, endLine: number): Range {
     return { start: { line: startLine, character: 0 }, end: this.position(endLine, this.lines[endLine]?.length ?? 0) };
   }

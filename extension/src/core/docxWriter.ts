@@ -671,8 +671,6 @@ export function linkTarget(href: string): string | undefined {
 
 const shortSrc = (src: string) => (src.length > 80 ? `${src.slice(0, 77)}…` : src);
 
-// The package's other parts
-
 const NAMESPACES = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
   + `xmlns:r="${REL}" `
   + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
@@ -732,7 +730,6 @@ function settingsXml(footnotes: boolean): string {
     + '</w:settings>';
 }
 
-/** A paragraph style. */
 function pStyle(id: string, name: string, pPr: string, rPr: string, extra = ''): string {
   return `<w:style w:type="paragraph" w:styleId="${id}"><w:name w:val="${name}"/>${extra}${pPr ? `<w:pPr>${pPr}</w:pPr>` : ''}${rPr ? `<w:rPr>${rPr}</w:rPr>` : ''}</w:style>`;
 }

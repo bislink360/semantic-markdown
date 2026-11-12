@@ -14,8 +14,6 @@ const runtimePath = join(__dirname, '..', 'media', 'runtime.js');
 const runtime = new vm.Script(readFileSync(runtimePath, 'utf8'), { filename: runtimePath });
 const { mapAnchor, newerPlace } = createRequire(__filename)(runtimePath);
 
-// The pure parts
-
 test('mapAnchor applies the edits made after the version an anchor was measured in', () => {
   const sync = { since: 3, edits: [[4, 0, 0, 2], [6, 10, 12, 0], [7, 0, 0, 1]] };
   const at = (line: number) => ({ line, offset: 5 });

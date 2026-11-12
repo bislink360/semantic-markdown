@@ -94,7 +94,6 @@ test('markdown-it plugin: nested containers, directives and math on a default in
   assert.match(html, /<span class="smd-mention">@ana<\/span>/);
   assert.match(html, /class="katex"/);
   assert.match(html, /<\/div><\/div>\n<\/div><\/div>\n$/);
-  // No heading ids or source lines unless asked for.
   assert.equal(new MarkdownIt().use(smd).render('# A'), '<h1>A</h1>\n');
 });
 

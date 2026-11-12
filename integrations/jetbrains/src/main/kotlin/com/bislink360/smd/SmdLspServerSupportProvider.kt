@@ -74,7 +74,6 @@ class SmdLspServerSupportProvider : LspServerSupportProvider {
 private class SmdLspServerDescriptor(project: Project) : ProjectWideLspServerDescriptor(project, "Semantic Markdown") {
     override fun isSupportedFile(file: VirtualFile): Boolean = file.isSmd()
 
-    // The server's requests beyond LSP, such as smd/renderHtml for the preview.
     override val lsp4jServerClass: Class<out LanguageServer> = SmdLanguageServerApi::class.java
 
     override fun createCommandLine(): GeneralCommandLine {

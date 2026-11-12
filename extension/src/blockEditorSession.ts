@@ -554,7 +554,6 @@ export function mapBoundary(line: number, c: TextChange, after: boolean): number
   return after ? c.startLine : c.startLine + breaks + 1;
 }
 
-/** The change starts after the start of `line`. */
 function startsAfter(c: TextChange, line: number): boolean {
   return c.startLine > line || (c.startLine === line && c.startCharacter > 0);
 }
@@ -602,8 +601,6 @@ export class EditLog {
     return { start, end: Math.max(start, end) };
   }
 }
-
-// The document, as the session sees it
 
 /** The document the session edits (a TextDocument in VS Code, a string in the tests). */
 export interface DocumentPort {
@@ -796,8 +793,6 @@ export function containerForm(line: string, name: string | undefined, version: S
   return { name: name.toLowerCase(), fields };
 }
 
-// Inline directives and styled spans
-
 /** The field of an inline form for the text in the brackets. */
 export const CONTENT_FIELD = 'content';
 const INLINE_LABELS: Readonly<Record<string, string>> = {
@@ -926,7 +921,6 @@ export function innermostSegment(segments: readonly Segment[], line: number): Se
   return innermostSegment(holder.children.filter((c) => c.kind === BLOCK), line) ?? holder;
 }
 
-/** The problems of each segment, by key. */
 type Problems = ReadonlyMap<string, readonly LineDiagnostic[]>;
 
 /** Each diagnostic with the innermost segment its line is in, by that segment's key. */

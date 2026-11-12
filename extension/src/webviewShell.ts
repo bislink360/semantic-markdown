@@ -10,7 +10,6 @@ export interface WebviewShellOptions {
   cspSource: string;
   /** For the CSP and every script; a fresh one when left out. Pass one only to test. */
   nonce?: string;
-  /** `<html lang>`. */
   lang: string;
   /** More attributes on `<html>` after `lang`, such as `data-smd-theme-pref`. */
   htmlAttributes?: Record<string, string>;
@@ -18,7 +17,6 @@ export interface WebviewShellOptions {
   baseHref?: string;
   /** Stylesheet URLs, in order. */
   styles: readonly string[];
-  /** `class` of `<body>`. */
   bodyClass: string;
   /**
    * `data-smd-mode` on `<body>`, which media/runtime.js reads: left out for the preview (its default), or

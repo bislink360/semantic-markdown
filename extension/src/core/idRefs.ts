@@ -203,7 +203,6 @@ export type ResolveDocument = (from: string, path: string) => string | undefined
 /** An id of one document. */
 export interface IdTargetRef { key: string; id: string }
 
-/** A use in a document of the workspace. */
 export interface WorkspaceIdUse { key: string; use: IdUse }
 
 /** The document and id a use names: its own document for a definition. */

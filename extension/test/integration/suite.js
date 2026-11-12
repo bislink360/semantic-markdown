@@ -560,7 +560,6 @@ const checks = {
     await vscode.commands.executeCommand('undo');
     await until((s) => s.text === '$(edit) Draft', 'the status after undo');
 
-    // An unknown status argument is refused without editing.
     assert.equal(await vscode.commands.executeCommand('smd.setStatus', 'final'), false);
     assert.match(doc.getText(), /status: "draft"/);
     await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');

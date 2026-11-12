@@ -223,7 +223,6 @@ function start(rt: Runtime): void {
     rootEl.replaceChildren(article);
   }
 
-  // ---- Items: blocks, children, the front matter and gaps with content ------------
   const itemsAll = () => Array.from(rootEl.querySelectorAll<HTMLElement>(`.${ITEM}`));
   const visible = (el: HTMLElement) => el.getClientRects().length > 0;
   const items = () => itemsAll().filter(visible);
@@ -486,7 +485,7 @@ function start(rt: Runtime): void {
     fmNode = node;
   }
 
-  // ---- Focus: one item is in the tab order, the arrow keys move between them -------
+  // Focus: one item is in the tab order, the arrow keys move between them
   function setCurrent(el: HTMLElement, focus: boolean): void {
     rootEl.querySelectorAll<HTMLElement>(`.${ITEM}[tabindex="0"]`).forEach((other) => {
       if (other !== el) other.setAttribute(TABINDEX, '-1');
@@ -1038,7 +1037,6 @@ function start(rt: Runtime): void {
     }
   }
 
-  /** An action on the current block. */
   function blockAction(action: 'edit' | 'grid' | 'up' | 'down' | 'del' | 'reveal'): void {
     const view = currentView();
     if (!view) return;
@@ -1068,7 +1066,6 @@ function start(rt: Runtime): void {
     post(view ? { type: 'insert', template: name, atKey: view.key, editId: nextId() } : { type: 'insert', template: name, position: 'end', editId: nextId() });
   }
 
-  // ---- Drag and drop: moving a block among its siblings ---------------------------------------
   // One drag handle (in a closed shadow root) shows next to the block under the mouse: a top-level block, or a block
   // inside a container. Dragged, a line shows where it would go among its siblings; dropped, the page sends move
   // with the key of the sibling it goes before (or 'end'), and the extension takes only those boundaries. Alt+↑/↓
@@ -1170,7 +1167,6 @@ function start(rt: Runtime): void {
     post({ type: 'move', key: d.view.key, to: dropTo(keys, index), editId });
   });
 
-  // ---- Images: pasted, or dropped from the file manager ------------------------------------------
   // A pasted image (Ctrl+V) goes after the current block; a dropped image file after the block it is dropped on. The
   // page reads the file's bytes (a webview gets the file itself, never its path) and sends them, base64, with its
   // type and name; the extension saves it where it saves images and inserts the link.
@@ -1321,7 +1317,7 @@ function start(rt: Runtime): void {
     noticeTimer = setTimeout(() => (noticeEl.textContent = ''), NOTICE_TIME);
   }
 
-  // ---- The insert menu (Ctrl+/) -----------------------------------------------------------
+  // The insert menu (Ctrl+/)
   let menuReturn: HTMLElement | null = null;
 
   function openMenu(returnTo: HTMLElement | null): void {
@@ -1877,7 +1873,6 @@ function start(rt: Runtime): void {
     if (refocus) ensureCurrent(true);
   }
 
-  // ---- Inline items: a small form for one directive or styled span -------------------------------
   // The editable items of the current block are tab stops right after it, so Tab from the block goes through them.
   // Clicking one, or Enter on it, opens its form; an item the form can't change opens the block's source instead.
   let inlineStops: HTMLElement[] = [];
@@ -2021,7 +2016,6 @@ function start(rt: Runtime): void {
     popHost.style.left = `${Math.max(0, rect.left + window.scrollX)}px`;
   }
 
-  // ---- Problems: the list of a block's problems, and their quick fixes ----------------------------------------
   // The badge on a block (or Ctrl+. on it, or Problems… in the toolbar) opens a list of its problems and asks the
   // extension for their quick fixes. The page shows their titles and sends the one chosen by number (applyFix); the
   // extension keeps the fixes themselves, and asks first when one changes more than the block.

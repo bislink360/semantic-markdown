@@ -178,7 +178,6 @@ export interface ParsedTokens {
   md: MarkdownIt;
   tokens: Token[];
   env: Env;
-  /** The front matter. */
   data: Record<string, unknown>;
   /** The front matter values the document shows, in `{{name}}` and the header: spelled as written in spec v2 (shownValues). */
   shown: Record<string, unknown>;

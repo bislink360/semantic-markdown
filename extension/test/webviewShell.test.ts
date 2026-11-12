@@ -46,7 +46,6 @@ test('webview shell: every script carries the nonce, in the order given, after t
   ]);
   assert.ok(html.indexOf('</main>') < html.indexOf('<script'));
   assert.match(html, /<\/script>\n<\/body>\n<\/html>$/);
-  // Another script list, as the Block Editor's.
   const editor = webviewShell({ ...options, scripts: ['a.js', 'b.js', 'c.js'] });
   assert.equal(editor.match(/<script nonce="abc\+\/=" src="[abc]\.js"><\/script>/g)?.length, 3);
   assert.doesNotMatch(editor, /<script(?![^>]*nonce=)/, 'no script without the nonce');

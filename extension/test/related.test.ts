@@ -46,7 +46,6 @@ test('no related documents: nothing to add, and outline itself is unchanged', ()
   assert.doesNotMatch(outline('---\ntitle: Doc\nrelated: [adr.smd]\n---\n# Doc\n'), /adr\.smd|Related/);
 });
 
-// Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd outline --related lists related documents, reading only inside the project', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const root = mkdtempSync(join(tmpdir(), 'smd-related-'));

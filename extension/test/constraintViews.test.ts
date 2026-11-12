@@ -234,8 +234,6 @@ test('AF15: dependencies survive brief condensation', () => {
   assert.match(agentView(doc, { sections: ['Work'], brief: true }).text, /WHY_BODY/);
 });
 
-// --- Budgets ------------------------------------------------------------------------------------------------------
-
 const filler = (word: string) => Array.from({ length: 150 }, (_, i) => `${word}${i}`).join(' ');
 
 test('AC6 (R25, R29): a scope=document constraint in section 1 stays in full when the budget cannot hold it and section 4', () => {
@@ -310,7 +308,7 @@ test('AF16: answered, incorporated and withdrawn questions are ordinary content 
   assert.deepEqual(omitted(doc(':::question Ship?').replace('for=Q1', 'for=Q8')).headings, ['Plain'], 'a question without the lifecycle reads as before');
 });
 
-// --- AC-C ---------------------------------------------------------------------------------------------------------
+// AC-C
 
 const ACC_FILES: Record<string, string> = {
   'rules.smd': [
@@ -361,7 +359,6 @@ test('AC-C (AF17): an include the host denies grants nothing: its text is not sh
   assert.deepEqual([denied?.target, denied?.line], ['secret.smd', 25]);
   assert.match(r.text, /- included file secret\.smd \[L25\]: not read \(cannot read the file\)/);
   assert.ok(r.provenance?.omissions.some((o) => o.kind === 'dependency' && o.lines[0] === 25));
-  // Whole views report it too.
   assert.equal(agentView(ACC, { readFile: accRead }).mandatory?.complete, false);
 });
 
@@ -477,7 +474,6 @@ test('AF15 (2026-11-10): a dependency brings the section rules of the section it
   for (const body of ['S1_BODY', 'S2_BODY', 'R2_BODY']) assert.equal(count(r.text, body), 1, body);
   // A section rule elsewhere stays out.
   assert.doesNotMatch(r.text, /S3_BODY/);
-  // The selected section's own view is unchanged when it adds nothing.
   assert.deepEqual(agentView(HOME, { sections: ['Rules'] }).mandatory?.constraints ?? [], []);
 });
 
@@ -515,7 +511,6 @@ test('R19/AF15 (2026-11-10): a dependency from another document brings its secti
   for (const body of ['L0_BODY', 'L1_BODY', 'L2_BODY', 'B1_BODY']) assert.equal(count(r.text, body), 1, body);
   assert.doesNotMatch(r.text, /L3_BODY|L4_BODY/);
   assert.equal(r.mandatory?.complete, true);
-  // A section that reads nothing from the library carries none of its rules.
   assert.deepEqual(agentView(USER, { file: 'user.smd', sections: ['Other'], readDocument: libReader }).mandatory?.constraints ?? [], []);
 });
 
@@ -573,8 +568,6 @@ test('NV-06: a target in another document that cannot be read is unresolved, and
   assert.doesNotMatch(other.text, /C9_BODY|C8_BODY/);
   assert.equal(other.mandatory?.complete, true);
 });
-
-// --- Completeness by part (t-63) ----------------------------------------------------------------------------------
 
 test('t-63: a cycle and a missing target fail resolution only, and complete stays the three parts together', () => {
   const r = agentView(DEPS, { sections: ['Work'], provenance: true });

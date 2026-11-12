@@ -857,7 +857,6 @@ details.smd-callout[open] > summary::after { transform: rotate(90deg); }
 details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-callout-icon { width: 1.2em; text-align: center; }
 
-/* ---------- Front matter that could not be read ---------- */
 .smd-frontmatter-error {
   margin: 0 0 1.2em; padding: 12px 16px; border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--smd-red) 30%, transparent);
@@ -883,7 +882,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 /* An unknown container keeps its title (spec \xA73): set as a card title, in the box's own text colour. */
 .smd-box-title { font-weight: 650; font-size: 1.05em; margin-bottom: 6px; }
 
-/* ---------- Includes (:::include) ---------- */
 /* Included text reads as part of the document; on hover, a faint rule in the margin shows how far it goes. */
 .smd-include { position: relative; }
 .smd-include::before {
@@ -941,12 +939,10 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-figure img { max-width: 100%; height: auto; }
 .smd-figure-caption { margin-top: .6em; font-size: .9em; color: var(--smd-fg-muted); text-align: center; }
 .smd-figure-label { font-weight: 650; color: var(--smd-fg); }
-/* Tables are captioned above, as is usual for tables. */
 .smd-figure-table > .smd-figure-caption { order: -1; margin: 0 0 .6em; }
 .smd-ref { white-space: nowrap; }
 .smd-ref-missing { color: var(--smd-red); text-decoration: underline dotted; }
 
-/* ---------- Glossary and defined terms ---------- */
 .smd-glossary { margin: 0 0 1.2em; }
 .smd-glossary-title { font-weight: 650; margin-bottom: .5em; }
 .smd-glossary-list { display: grid; grid-template-columns: minmax(6em, max-content) 1fr; gap: .45em 1.2em; margin: 0; }
@@ -986,7 +982,6 @@ details.smd-callout > summary::-webkit-details-marker { display: none; }
 .smd-quote-author { font-weight: 600; color: var(--smd-fg); }
 .smd-error { color: var(--smd-red); font-family: var(--smd-font-mono); font-size: .85em; white-space: pre-wrap; display: block; text-align: left; }
 
-/* ---------- Utility classes from {.class} ---------- */
 .smd-u-center { text-align: center; }
 .smd-u-muted { color: var(--smd-fg-muted); }
 .smd-u-lead { font-size: 1.15em; }
@@ -1231,10 +1226,8 @@ pre.smd-has-hl code { position: relative; }
 
   /* No screen-only UI; agent instructions are for agents, not readers of the printout. */
   .smd-copy, .smd-tabbar, .smd-agent, .smd-u-no-print { display: none !important; }
-  /* Included text prints as part of the page, without the hover rule. */
   .smd-include::before { display: none; }
 
-  /* Tabs print as stacked panes, each under its label. */
   .smd-tabs.smd-js .smd-tab:not(.smd-active), .smd-tabs.smd-js .smd-tab-label { display: block; }
   .smd-tab + .smd-tab { border-top: 1px solid var(--smd-border); }
 
@@ -1253,9 +1246,7 @@ pre.smd-has-hl code { position: relative; }
   /* A caption stays on the page of what it describes (above a table, below anything else). */
   .smd-figure-caption { break-before: avoid; page-break-before: avoid; }
   .smd-figure-table > .smd-figure-caption { break-after: avoid; page-break-after: avoid; }
-  /* An attribution stays with its quote. */
   .smd-quote-caption { break-before: avoid; page-break-before: avoid; }
-  /* A term stays on the page of its definition. */
   .smd-glossary-title, .smd-glossary-list > dt { break-after: avoid; page-break-after: avoid; }
   .smd-doc p { orphans: 3; widows: 3; }
 
@@ -1263,14 +1254,13 @@ pre.smd-has-hl code { position: relative; }
   .smd-footnotes li { break-inside: avoid; page-break-inside: avoid; }
   .smd-footnote-backref { display: none; }
 
-  /* {.page-break} on a heading or block starts it on a new page. */
   .smd-u-page-break { break-before: page; page-break-before: always; }
 }
 `,Ou=`/* Semantic Markdown runtime \u2014 used by the VS Code preview and by exported HTML. */
 (function () {
   'use strict';
 
-  // ---- Pure helpers (unit-tested in Node via module.exports) ---------------
+  // Pure helpers (unit-tested in Node via module.exports)
 
   /**
    * Map a 0-based source line through edits made since it was measured.
@@ -1399,7 +1389,6 @@ pre.smd-has-hl code { position: relative; }
     return String(caption || '').replace(/\\s+/g, ' ').trim() || diagramTitle(src) || fallback;
   }
 
-  // ---- Tabs (WAI-ARIA tabs pattern) ------------------------------------------
   // Built through the \`doc\` passed in, so tests can drive them with a small stand-in for the DOM.
 
   /** The tab a key moves focus to from \`index\` of \`count\`: arrows wrap, Home and End jump; -1 for other keys. */
@@ -1580,7 +1569,7 @@ pre.smd-has-hl code { position: relative; }
     });
   }
 
-  // ---- Open/closed <details> (collapsible callouts, details, agent blocks) --
+  // Open/closed <details> (collapsible callouts, details, agent blocks)
   const DETAILS_KEY = 'data-smd-key';
 
   /** A <details> being hydrated: remember its source default, and reopen or close it as the reader left it. */
@@ -1668,7 +1657,6 @@ pre.smd-has-hl code { position: relative; }
     });
   }
 
-  // ---- Keyboard access to wide blocks -------------------------------------
   // Code, tables, diagrams and math wider than the page scroll sideways; a keyboard can scroll them once focused.
   const SCROLLERS = '.smd-code pre, .smd-table-wrap, .smd-diagram, .smd-math-block, .smd-risk-matrix-wrap';
   let scrollersTimer;
@@ -1877,7 +1865,7 @@ pre.smd-has-hl code { position: relative; }
     }
   }
 
-  // ---- Editor integration (VS Code only) -----------------------------------
+  // Editor integration (VS Code only)
   function lineOf(el) {
     const node = el && el.closest ? el.closest('[data-line]') : null;
     return node ? Number(node.getAttribute('data-line')) : null;
@@ -2061,7 +2049,7 @@ pre.smd-has-hl code { position: relative; }
     openedForPrint = [];
   });
 
-  // ---- For the page's other scripts (the Block Editor's) ----------------------
+  // For the page's other scripts (the Block Editor's)
   window.smdRuntime = Object.freeze({
     /** 'preview' or 'block-editor', from <body data-smd-mode>. */
     mode,
@@ -2232,7 +2220,7 @@ body.smd-site { padding: 0; }
 (function () {
   'use strict';
 
-  // ---- Pure helpers (unit-tested in Node via module.exports) ---------------
+  // Pure helpers (unit-tested in Node via module.exports)
 
   const MAX_RESULTS = 20;
   const SNIPPET = 160;

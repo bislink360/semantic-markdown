@@ -226,7 +226,6 @@ test('changelog and quote: the corpus documents are valid and formatted', () => 
   assert.equal(formatSmd(':::quote{cite="https://x.test" source="S" author="A B"}\nq\n:::\n'), ':::quote{author="A B" source="S" cite="https://x.test"}\nq\n:::\n');
 });
 
-// Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('changelog and quote: smd validate reports only warnings, so it still exits 0', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'smd-cq-'));

@@ -60,8 +60,6 @@ export function taskCheckbox(line: string): { column: number; done: boolean } | 
   return m ? { column: m[1].length, done: m[2] !== ' ' } : undefined;
 }
 
-// Images: paste and drop
-
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.avif'];
 
 export const isImagePath = (file: string): boolean => IMAGE_EXTENSIONS.includes(path.extname(file).toLowerCase());

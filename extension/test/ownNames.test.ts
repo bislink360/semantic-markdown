@@ -60,7 +60,6 @@ test('own names: attribute values, keys and statuses', () => {
   assert.match(smdToMarkdown('Is :status[up]{color=constructor}.\n'), /⚪ up/);
   // A front matter key named like an inherited property is an unknown key, as any other is.
   assert.ok(validateSmd('---\nsmd: 1\nconstructor: x\n---\n\nText.\n').some((d) => d.code === 'frontmatter/unknown-key'));
-  // A rule named like one is unknown.
   assert.ok(validateSmd('Text. <!-- smd-disable-line constructor -->\n').some((d) => d.code === 'rules/unknown'));
 });
 

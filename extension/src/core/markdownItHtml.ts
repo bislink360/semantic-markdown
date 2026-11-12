@@ -29,8 +29,6 @@ const CALLOUT_ICONS: Record<string, string> = {
   note: '✎', info: 'ℹ', tip: '💡', success: '✔', warning: '⚠', danger: '⛔', question: '?',
 };
 
-// Document header (front matter)
-
 /**
  * The header card for front matter: status, version, title, summary, owners and tags. Empty without any of them.
  * `m` gives the labels in the document's language (English by default). `shown` is the front matter as the document
@@ -88,7 +86,6 @@ interface ContainerView {
   meta: ContainerMeta;
   attrs: Attrs;
   style: string;
-  /** ` data-line="…"` */
   dataLine: string;
   /** Inline Markdown for titles. */
   inline: (text: string) => string;

@@ -29,9 +29,7 @@ function decisions(result: ImportResult) {
   return decisionLog([{ path: 'adr.smd', text: result.text }]);
 }
 
-// ---------------------------------------------------------------------------
 // MADR
-// ---------------------------------------------------------------------------
 
 const madr2 = [
   '# Use Markdown Architectural Decision Records',
@@ -299,9 +297,7 @@ test('madr: the title falls back to the file name, CRLF input converts, and a fe
   assertValid(r);
 });
 
-// ---------------------------------------------------------------------------
 // Spec Kit
-// ---------------------------------------------------------------------------
 
 const tasksMd = [
   '---',
@@ -407,10 +403,6 @@ test('spec-kit: a file without front matter or H1 gets the file name as title', 
   assert.deepEqual(r.warnings, []);
   assertValid(r);
 });
-
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
 
 // Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');

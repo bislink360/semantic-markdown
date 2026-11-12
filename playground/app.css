@@ -225,7 +225,6 @@ button.primary {
 .diagnostic-info { border-left-color: var(--info); }
 .diagnostic-info .severity { color: var(--info); }
 
-/* Phones and narrow windows: the editor above the output. */
 @media (max-width: 768px) {
   body { height: auto; min-height: 100%; }
   .layout { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(60vh, auto); }

@@ -13,8 +13,6 @@ import { applyWhen, previewApplies, previewMode } from '../src/markdownPreviewGa
 
 const TODAY = '2026-01-01';
 
-// inlineText(line, options)
-
 test('inlineText takes its options as one object', () => {
   const line = 'Ship :badge[v2] by :due[2025-12-30], see :ref[fig-a], for {{team}}';
   const figures = new Map([['fig-a', { label: 'Figure 1', kind: 'figure', number: 1 }]]) as never;
@@ -35,8 +33,6 @@ test('inlineText: the 1.x positional arguments throw a TypeError that shows the 
   assert.throws(() => legacy(':due[2025-12-30]', TODAY, true), { name: 'TypeError', message: /inlineText\(line, \{ today, openTask: true \}\)/ });
   assert.throws(() => legacy('x', null), TypeError);
 });
-
-// readFile(relativePath, env?)
 
 const EMBED = '```ts file="a.ts"\n```\n\n:::include{file="part.smd"}\n:::\n';
 const FILES: Record<string, string> = { 'a.ts': 'const a = 1;\n', 'part.smd': 'Included :badge[x].\n' };
@@ -66,8 +62,6 @@ test('readFile: a one-argument function still works for both', () => {
   assert.match(new MarkdownIt().use(smd, { readFile }).render(EMBED), /Included <span class="smd-badge">x<\/span>/);
 });
 
-// The read-only vocabulary
-
 /** Every exported table of the vocabulary (spec.ts, through `export * from './spec'`). */
 const TABLES = [
   'NAMED_COLORS', 'DECISION_STATUS', 'RISK_LEVELS', 'RISK_STATUS', 'HTTP_METHODS', 'PRIORITY_VALUES', 'CALLOUT_TYPES', 'FIGURE_KINDS',
@@ -87,7 +81,6 @@ test('vocabulary: every exported table is deeply frozen', () => {
     assert.ok(exported[name] !== undefined, `${name} is exported`);
     assertDeeplyFrozen(exported[name], name);
   }
-  // Nested objects and arrays too.
   assert.ok(Object.isFrozen(api.CONTAINERS.decision.values?.status));
   assert.ok(Object.isFrozen(api.INLINE_DIRECTIVES.metric.attrs));
 });
@@ -111,8 +104,6 @@ test('vocabulary: changing a table throws in strict mode and changes nothing', (
   const mine = { ...api.CONTAINERS, mine: { description: 'Mine' } };
   assert.equal(mine.mine.description, 'Mine');
 });
-
-// The markdown-it plugin's preset: 'smd'
 
 const PRESET_DOC = [
   '---', 'title: Plan', 'status: draft', '---', '', '# Plan', '', '## Setup', '', '## Setup', '',

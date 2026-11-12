@@ -21,7 +21,6 @@ const MATH_IN_NOTE = ':::note\nBefore.\n\n$$\na\n:::\nb\n$$\n\nStill inside.\n::
 
 test('math: a ::: line inside $$ math inside a container does not close it', () => {
   const html = renderSmd(MATH_IN_NOTE).html;
-  // The math holds the ::: line, and the paragraph after it is still in the note's body.
   assert.match(html, /<annotation encoding="application\/x-tex">a\n:::\nb<\/annotation>/);
   assert.match(html, /smd-callout-body">[\s\S]*Still inside\.<\/p>\n<\/div><\/div>\n<p data-line="12">Outside\.<\/p>/);
   assert.deepEqual(codes(MATH_IN_NOTE), [], 'the validator always read it so');

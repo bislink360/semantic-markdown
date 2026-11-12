@@ -143,8 +143,6 @@ function sanitizedHtml(el: FakeElement): string[] {
   return out;
 }
 
-// A mock of the `obsidian` module
-
 interface Calls {
   extensions: Array<[string[], string]>;
   codeBlocks: Map<string, (source: string, el: FakeElement, ctx: unknown) => void>;

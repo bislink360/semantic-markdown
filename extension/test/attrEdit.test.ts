@@ -80,7 +80,6 @@ test('setAttr changes only the value: formatted values stay formatted, others ke
   assert.equal(setAttr('status=accepted', 'status', 'rejected'), 'status=rejected');
   // The last of a repeated key is the one parseAttrs keeps.
   assert.equal(setAttr('a=1 a=2', 'a', '3'), 'a=1 a=3');
-  // Flags.
   assert.equal(setAttr('collapsible', 'collapsible', 'false'), 'collapsible=false');
   assert.equal(setAttr('open=false', 'open', true), 'open');
   assert.equal(setAttr('open', 'open', true), 'open');
