@@ -3,6 +3,7 @@ import type { MandatoryContext } from './applicability';
 import type { FollowManifest } from './read';
 import type { ConstraintView } from './constraints';
 import type { Section } from './sections';
+import { accountBlocks, type BlockAccount } from './accounting';
 import { sha256Hex } from './sha256';
 import type { TaskViewReport } from './taskViews';
 
@@ -70,6 +71,8 @@ export interface TraceEntry {
   /** Zero-based line of the document that the entry hangs from: its own line, or the line of the outermost include. */
   root: number;
   text: string;
+  /** Whether the line is in the view's head (what it carries from elsewhere, and footnotes) or its body. */
+  part?: 'head' | 'body';
 }
 
 /** Internal: where agentView records emitted lines and omissions. */
@@ -155,6 +158,8 @@ export interface Provenance {
   sourceMap: SourceSpan[];
   /** Everything hidden, condensed or unresolved, with a reason: the document first, then included files. */
   omissions: Omission[];
+  /** Each block of the document with its one outcome in this view and where it appears (see accounting.ts, t-67). */
+  blocks: BlockAccount[];
   budget: { requested: number; tokens: number; tokenizer: string; fits: boolean; condensed: boolean } | null;
   /** The view's size and the file's, counted with `tokenizer`. */
   size: { tokens: number; originalTokens: number; tokenizer: string };
@@ -237,6 +242,7 @@ export function provenanceManifest(input: ManifestInput): Provenance {
     },
     sourceMap: sourceMap(matched, input.frontMatterLines, (f, from, to) => blankBetween(contents.get(f), from, to)),
     omissions,
+    blocks: accountBlocks({ text, file, bodyStart: input.frontMatterLines, matched, omissions }),
     budget: result.budget ? {
       requested: result.budget.maxTokens, tokens: result.budget.tokens, tokenizer, fits: result.budget.fits, condensed: result.budget.condensed,
     } : null,
@@ -291,6 +297,22 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
       if (selected.some((sel) => overlaps(s, sel)) || listed.some((l) => within(s, l))) continue;
       listed.push(s);
       out.push({ kind: 'not-selected', file, lines: [s.start + 1, s.end + 1], heading: s.heading.text, retrieve: read(s.heading.text), reason: 'outside the requested sections' });
+    }
+    // A section around a selected one: its heading and its own text outside the selection are left out too (t-67).
+    const inSelected = (line: number) => selected.some((sel) => line >= sel.start && line <= sel.end);
+    const isListed = (line: number) => out.some((o) => line + 1 >= o.lines[0] && line + 1 <= o.lines[1]);
+    const lines = input.text.split(/\r?\n/);
+    for (let l = sections[0]?.start ?? lines.length; l < lines.length; l++) {
+      if (inSelected(l) || isListed(l) || !lines[l].trim()) continue;
+      const holder = sections.filter((s) => l >= s.start && l <= s.end).at(-1)!;
+      let end = l;
+      while (end + 1 <= holder.end && !inSelected(end + 1) && !isListed(end + 1)) end++;
+      while (end > l && !lines[end].trim()) end--;
+      out.push({
+        kind: 'not-selected', file, lines: [l + 1, end + 1], heading: holder.heading.text, retrieve: read(holder.heading.text),
+        reason: 'outside the requested sections: the heading and text of a section around them',
+      });
+      l = end;
     }
     const preamble = preambleLeftOut(input, matched);
     if (preamble) {
@@ -425,7 +447,7 @@ function blankBetween(lines: string[] | undefined, from: number, to: number): bo
 const LOOKAHEAD = 200;
 
 /** A line of the view matched to a traced line, with its zero-based `line`, `end` and `root` (see TraceEntry); null when blank. */
-interface Mapped { kind: SourceSpan['kind']; file?: string; line?: number; end?: number; root?: number }
+interface Mapped { kind: SourceSpan['kind']; file?: string; line?: number; end?: number; root?: number; part?: 'head' | 'body' }
 
 /** Match the view's lines to the traced lines, in order. */
 function matchLines(text: string, entries: TraceEntry[], headerLines: number): Array<Mapped | null> {
@@ -437,9 +459,10 @@ function matchLines(text: string, entries: TraceEntry[], headerLines: number): A
     if (!out[k].trim()) { mapped.push(null); continue; }
     const limit = Math.min(entries.length, next + LOOKAHEAD);
     let q = next;
-    while (q < limit && entries[q].text !== out[k]) q++;
+    // The view is trimmed as a whole, so its first line may have lost the indentation it was traced with.
+    while (q < limit && entries[q].text !== out[k] && !(k === 0 && entries[q].text.trimStart() === out[k])) q++;
     if (q < limit) {
-      mapped.push({ kind: 'source', file: entries[q].file, line: entries[q].line, end: entries[q].end, root: entries[q].root });
+      mapped.push({ kind: 'source', file: entries[q].file, line: entries[q].line, end: entries[q].end, root: entries[q].root, part: entries[q].part });
       next = q + 1;
     } else {
       mapped.push({ kind: 'synthesized' });

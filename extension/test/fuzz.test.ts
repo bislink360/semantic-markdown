@@ -6,6 +6,7 @@ import {
   agentView, applyFixes, extractTasks, getDocumentInfo, markdownToSmd, outline, renderSmd, smdToMarkdown, validateSmd,
   type Diagnostic, type ValidateOptions,
 } from '../src/core';
+import { parseFrontMatter } from '../src/core/frontmatter';
 import { migrationPlan } from '../src/core/migrate';
 import { sampleDocuments, fuzzCase, prng } from './fuzz/generate';
 
@@ -110,6 +111,8 @@ function check(text: string): string | undefined {
       const view = timed(`agentView${brief ? ' (brief)' : ''}`, () => agentView(text, { brief, readFile: options.readFile, today: options.today }));
       if (!(view.tokens >= 0) || typeof view.text !== 'string') return 'agentView returned no text';
     }
+    const accounting = checkAccounting(text, lines);
+    if (accounting) return accounting;
     timed('outline', () => outline(text, { today: options.today }));
     const info = timed('getDocumentInfo', () => getDocumentInfo(text, options));
     if (info.tasks.done > info.tasks.total) return 'more tasks done than there are';
@@ -127,6 +130,38 @@ function check(text: string): string | undefined {
   } catch (e) {
     return `threw: ${(e as Error).stack?.split('\n').slice(0, 3).join(' | ') ?? e}`;
   }
+}
+
+/**
+ * Block accounting (t-67): in full, brief, section and budgeted views, the blocks cover every non-blank line after the
+ * front matter, nest or stay apart, and each has one outcome that agrees with where it appears.
+ */
+function checkAccounting(text: string, lines: string[]): string | undefined {
+  const heading = /^#{1,6}\s+(.+?)\s*$/m.exec(text.slice(text.indexOf('\n#') + 1))?.[1];
+  const routes = [{}, { brief: true }, { maxTokens: 120 }, ...(heading ? [{ sections: [heading] }] : [])];
+  for (const route of routes) {
+    const view = timed('agentView (provenance)', () => agentView(text, { ...route, provenance: true, readFile: options.readFile, today: options.today }));
+    const blocks = view.provenance!.blocks;
+    const label = `${JSON.stringify(route)}:`;
+    for (const b of blocks) {
+      if (b.outcome === 'unaccounted') return `${label} block ${b.kind} on lines ${b.lines.join('-')} has no outcome`;
+      if ((b.outcome === 'omitted' || b.outcome === 'unavailable') && b.placement !== 'none') return `${label} ${b.outcome} block ${b.kind} L${b.lines[0]} appears in the view`;
+      if (b.outcome === 'carried' && b.placement === 'none') return `${label} carried block ${b.kind} L${b.lines[0]} appears nowhere`;
+    }
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        const [a, c] = [blocks[i].lines, blocks[j].lines];
+        const apart = a[1] < c[0] || c[1] < a[0];
+        const nested = (c[0] >= a[0] && c[1] <= a[1]) || (a[0] >= c[0] && a[1] <= c[1]);
+        if (!apart && !nested) return `${label} blocks L${a.join('-')} and L${c.join('-')} overlap without nesting`;
+      }
+    }
+    const start = parseFrontMatter(text).bodyStartLine;
+    for (let l = start; l < lines.length; l++) {
+      if (lines[l].trim() && !blocks.some((b) => l + 1 >= b.lines[0] && l + 1 <= b.lines[1])) return `${label} line ${l + 1} is in no block`;
+    }
+  }
+  return undefined;
 }
 
 /** `smd migrate --to 2`: steps inside the document, and a plan of the result with nothing left to change. */

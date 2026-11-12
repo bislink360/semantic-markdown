@@ -137,6 +137,8 @@ export interface Manifest {
     carried?: Array<{ lines: Range; output: Range }>;
   }>;
   budget: { fits: boolean } | null;
+  /** One outcome per block of the document (view laws L6, target form). */
+  blocks?: Array<{ kind: string; lines: Range; outcome: string; placement: string }>;
   mandatory?: {
     unsatisfied: Array<{ kind: string; target: string }>;
     constraints?: Array<{ id?: string; hiddenTargets?: string[] }>;
@@ -305,6 +307,26 @@ function appears(m: Manifest, block: ScannedBlock): boolean {
     && normalize(s.file) === block.file && block.own.some((r) => overlaps(r, s.source!)));
 }
 
+/**
+ * L6 in its target form: every block of the document has an outcome, a block the laws require is shown or carried,
+ * and a block that must stay hidden is omitted, condensed or unavailable. The manifest's blocks are matched to the
+ * scanner's by line overlap, so the two need not agree on where one block ends.
+ */
+function checkAccounting(m: Manifest, required: ScannedBlock[], hidden: ScannedBlock[], doc: string): CheckResult {
+  const blocks = m.blocks ?? [];
+  const problems: string[] = blocks.filter((b) => b.outcome === 'unaccounted').map((b) => `${b.kind} L${b.lines[0]} has no outcome`);
+  const touching = (sb: ScannedBlock) => blocks.filter((b) => sb.own.some((r) => overlaps(r, b.lines)))
+    // The innermost manifest blocks around the scanned one decide; containers around them are judged on their own.
+    .filter((b, _i, all) => !all.some((o) => o !== b && o.lines[0] >= b.lines[0] && o.lines[1] <= b.lines[1] && sb.own.some((r) => overlaps(r, o.lines))));
+  for (const sb of required.filter((b) => b.file === normalize(doc))) {
+    for (const b of touching(sb)) if (b.outcome !== 'shown' && b.outcome !== 'carried') problems.push(`${label(sb)} is required but its block is ${b.outcome}`);
+  }
+  for (const sb of hidden.filter((b) => b.file === normalize(doc))) {
+    for (const b of touching(sb)) if (b.outcome === 'shown' || b.outcome === 'carried') problems.push(`${label(sb)} must stay hidden but its block is ${b.outcome}`);
+  }
+  return { name: 'accounting', ok: !problems.length, detail: problems.join('; ') || `${blocks.length} blocks, each with one outcome` };
+}
+
 const label = (b: ScannedBlock) => `${b.file}:${b.lines[0]} ${b.kind}${b.id ? `#${b.id}` : ''}`;
 const isTyped = (b: ScannedBlock) => !['heading', 'paragraph'].includes(b.kind) && !LAYOUT_CONTAINERS.has(b.kind);
 
@@ -412,6 +434,7 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
   for (const { ref, block, failure } of each(request.mustNotAppear)) {
     checks.push({ name: `hidden ${ref}`, ok: !appears(m, block), detail: `${label(block)} must not appear`, expectedFailure: failure });
   }
+  if (m.blocks) checks.push(checkAccounting(m, required.map((r) => r.block), each(request.mustNotAppear).map((r) => r.block), request.doc ?? 'doc.smd'));
   if (request.unsatisfied) checks.push({ ...checkUnsatisfied(m, request.unsatisfied), expectedFailure: xf.unsatisfied });
   if (request.complete !== undefined) {
     const complete = m.mandatory?.complete ?? true;

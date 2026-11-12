@@ -625,7 +625,10 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   }
   return provenanceManifest({
     text, file, result, omissions, dependencies,
-    entries: [...traces.external!.entries, ...traces.applying!.entries, ...traces.dependencies!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
+    entries: [
+      ...[traces.external!, traces.applying!, traces.dependencies!, traces.dangers!, traces.constraints!].flatMap((t) => t.entries.map((e) => ({ ...e, part: 'head' as const }))),
+      ...bodyEntries.map((e) => ({ ...e, part: 'body' as const })), ...traces.footnotes!.entries.map((e) => ({ ...e, part: 'head' as const })),
+    ],
     headerLines: head.header ? head.header.split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
     sections: scope.sections, selected: selectedWithPinned(scope), skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
@@ -1183,10 +1186,12 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   let doneTasks = 0;
   let doneFrom = 0;
   let doneTo = 0;
-  const flushDone = (at: number) => {
+  // The count stands for the tasks, so it goes with the last of them: a section read that ends with completed tasks
+  // still counts them when the line after them is outside the view (found by block accounting, t-67).
+  const flushDone = (_at: number) => {
     if (doneTasks) {
-      if (visibleAt(at)) omit({ kind: 'completed-tasks', reason: 'completed tasks are counted, not listed, in brief views', count: doneTasks }, doneFrom, doneTo);
-      emit(`- (${doneTasks} completed task${doneTasks > 1 ? 's' : ''} omitted)`, at);
+      if (visibleAt(doneTo)) omit({ kind: 'completed-tasks', reason: 'completed tasks are counted, not listed, in brief views', count: doneTasks }, doneFrom, doneTo);
+      emit(`- (${doneTasks} completed task${doneTasks > 1 ? 's' : ''} omitted)`, doneTo);
     }
     doneTasks = 0;
   };
@@ -1355,6 +1360,18 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     const converted = text(line, task ? task[2] === ' ' : false, asWritten ? inlineMath.get(i) : undefined, asWritten ? inlineItems.get(i) : undefined);
     emit(converted.trimEnd(), i);
   }
+  // A code fence never closed runs to the end, as rendering reads it: show it closed there instead of dropping its
+  // lines (found by block accounting, t-67).
+  if (fence) {
+    const last = lines.length - 1;
+    while (fence.body.length && !fence.body.at(-1)!.trim()) fence.body.pop();
+    const rendered = renderFence(fence, last, { ...options, brief: briefAt(fence.start) });
+    if (rendered.omission && visibleAt(fence.start)) omit(rendered.omission, fence.start, last);
+    for (const l of rendered.lines) emit(l, fence.start, true, last);
+    fence = null;
+  }
+  // A comment never closed hides the rest of the document, as rendering reads it: record it as left out.
+  if (inComment && visibleAt(commentStart)) omit(COMMENT, commentStart, lines.length - 1);
   alertView.end();
   flushDone(lines.length - 1);
   // Blocks left open at the end close there, for provenance (nothing is emitted for them, as before).

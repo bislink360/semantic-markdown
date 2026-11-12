@@ -144,8 +144,9 @@ test('AF23: the manifest records the author\'s policy and the agent\'s choices a
   assert.equal(view.paths[0].line, 31, 'one-based line of the edge');
   assert.deepEqual(view.unsatisfied.map((u) => `${u.kind} ${u.target}`), ['missing R9']);
   assert.equal(view.complete, false);
-  // Sections the view shows only part of are not reported as left out.
-  assert.ok(!r.provenance!.omissions.some((o) => o.heading === 'Requirements'));
+  // A section the view shows only part of is not reported as left out whole, only the part it leaves out: here R1,
+  // beside the pinned R3 (t-67).
+  assert.deepEqual(r.provenance!.omissions.filter((o) => o.heading === 'Requirements').map((o) => o.lines), [[27, 29]]);
   assert.ok(r.provenance!.omissions.some((o) => o.kind === 'not-selected' && o.heading === 'Background'));
 });
 
