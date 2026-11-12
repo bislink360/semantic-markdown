@@ -213,6 +213,22 @@ test('AF15: a dependency in an {agent=skip} section is not shown and is unsatisf
   assert.ok(r.mandatory?.unsatisfied.some((u) => u.kind === 'hidden' && u.target === 'R2'));
 });
 
+test('t-58, R18 hidden-target probe: a visible rule on a target hidden from agents is carried, and the target is listed as hidden', () => {
+  const doc = [
+    '---', 'smd: 2', '---', '',
+    '## Work', '', ':::requirement{#R1 depends-on=R2} Work item', 'R1_BODY', ':::', '',
+    '## Basis {agent=skip}', '', ':::requirement{#R2} Hidden base', 'R2_BODY', ':::', '',
+    '## Rules', '', ':::constraint{#C2 applies-to=R2} Rule on the hidden base', 'C2_BODY', ':::', '',
+  ].join('\n');
+  const r = agentView(doc, { sections: ['Work'] });
+  // The rule is agent-visible text, so carrying it breaks no audience mark. The target itself stays out.
+  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies]), [['C2', 'applies-to']]);
+  assert.match(r.text, /Constraints that apply here:\n<constraint id="C2"[^\n]*\nC2_BODY/);
+  assert.doesNotMatch(r.text, /R2_BODY/);
+  assert.deepEqual(r.mandatory?.unsatisfied.map((u) => [u.kind, u.target, u.via]), [['hidden', 'R2', 'R1']]);
+  assert.equal(r.mandatory?.complete, false);
+});
+
 test('AF15: dependencies survive brief condensation', () => {
   const doc = DEPS.replace('R2_BODY', ':::details Why\nWHY_BODY\n:::');
   assert.match(agentView(doc, { sections: ['Work'], brief: true }).text, /WHY_BODY/);
