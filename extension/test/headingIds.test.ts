@@ -25,7 +25,6 @@ test('slugify: lower-case, punctuation and `_` removed, whitespace runs to one h
   // Changelog headings: dots go, and the dash between version and date collapses into one hyphen.
   assert.equal(slugify('1.2.0 — 2026-03-01'), '120-2026-03-01');
   assert.equal(slugify('[1.1.0] - 2026-01-15'), '110-2026-01-15');
-  // Leading and trailing hyphens stay.
   assert.equal(slugify('Foo -'), 'foo-');
   assert.equal(slugify('- Foo'), '-foo');
   // Anything between < and > goes, even in code.
@@ -166,9 +165,7 @@ test('validate: a link by GitHub id is info, with a fix to the heading id; never
     '"#foo_bar" is the id GitHub gives the heading "foo_bar" in this document; its Semantic Markdown id is "#foobar". The link works on GitHub, but not in the preview or rendered HTML.');
   assert.deepEqual(diags[0].fix, { line: 7, column: 8, endColumn: 16, replacement: '#foobar', title: 'Change to "#foobar"' });
   assert.equal(diags[1].fix?.replacement, '#120-2026-03-01');
-  // A link that is neither id still warns.
   assert.deepEqual(found('## foo_bar\n\n[x](#foo_baz)'), ['2:link/missing-anchor:warning']);
-  // The rule can be configured like any other.
   assert.deepEqual(found('## foo_bar\n\n[x](#foo_bar)', { rules: { 'link/github-anchor': 'off' } }), []);
 });
 
@@ -187,7 +184,6 @@ test('to-md: an anchor with the heading id before each heading whose GitHub id d
   assert.equal(smdToMarkdown('## foo_bar\n\nText.\n\n## Plain\n'), '<a id="foobar"></a>\n## foo_bar\n\nText.\n\n## Plain\n');
   // `{#id}`, which GitHub can't read, keeps working through the anchor.
   assert.equal(smdToMarkdown('## Setup {#install}\n'), '<a id="install"></a>\n## Setup\n');
-  // Nothing changes where the ids agree.
   assert.equal(smdToMarkdown('# Title\n\n## Getting started\n\n## Getting started\n'), '# Title\n\n## Getting started\n\n## Getting started\n');
 });
 
@@ -202,12 +198,10 @@ test('to-md: lone carriage returns get no anchors rather than misplaced ones (fu
   const text = '- a\r- b\r- c\n### Sub {#custom .cls agent=skip}';
   assert.doesNotThrow(() => smdToMarkdown(text));
   assert.doesNotMatch(smdToMarkdown(text), /<a id=/);
-  // CRLF output still gets them.
   assert.match(smdToMarkdown('## foo_bar\r\n\r\nText.\r\n'), /<a id="foobar"><\/a>/);
 });
 
 test('to-md: GitHub numbers repeats over the converted headings, included ones too', () => {
-  // GitHub gives the third heading `a-1-1`; Semantic Markdown gives it `a-1`.
   assert.equal(smdToMarkdown('## A\n\n## A\n\n## A-1\n'), '## A\n\n## A\n\n<a id="a-1"></a>\n## A-1\n');
   const files: Record<string, string> = { 'part.smd': '## foo_bar\n\nIncluded.\n' };
   const md = smdToMarkdown('## Intro\n\n:::include{file="part.smd"}\n:::\n', { readFile: (p) => files[p] });

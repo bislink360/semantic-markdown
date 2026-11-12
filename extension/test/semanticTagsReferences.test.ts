@@ -227,7 +227,7 @@ test('R18: a heading rename moves the id attributes, :ref and :depends that name
   assert.deepEqual(namingUses(text, 'export', () => false), []);
 });
 
-// --- R19: validation ------------------------------------------------------------------------------------------------
+// R19: validation
 
 const files = (map: Record<string, string>) => ({
   fileExists: (p: string) => Object.hasOwn(map, p) || p === 'notes.txt',
@@ -288,7 +288,7 @@ test('R16: an id with a # that is not a document path is still ref/unknown, and 
   assert.match(d.message, /write the path of a \.smd or \.md file before the id, as in other\.smd#R1/);
 });
 
-// --- R19: rendering, exports and the graph --------------------------------------------------------------------------
+// R19: rendering, exports and the graph
 
 test('R19: :ref and id attributes to another document render as links to it, shown as written', () => {
   const html = renderSmd(PLAN).html;

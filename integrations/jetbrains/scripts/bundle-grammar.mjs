@@ -21,7 +21,6 @@ const out = join(here, '..', 'bundle', 'syntaxes', 'smd.tmLanguage.json');
 /** The scope of the plugin's copy of the Markdown grammar. */
 export const MARKDOWN_SCOPE = 'text.html.markdown.smd';
 
-/** The plugin's grammar, as the text of the JSON file. */
 export function bundleGrammar() {
   const read = (file) => JSON.parse(readFileSync(join(root, 'extension', 'syntaxes', file), 'utf8'));
   const main = read('smd.tmLanguage.json');

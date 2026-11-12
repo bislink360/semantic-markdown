@@ -252,7 +252,7 @@ function onInput(): void {
 source.addEventListener('input', onInput);
 source.addEventListener('scroll', () => { gutter.scrollTop = source.scrollTop; }, { passive: true });
 
-// ---- Tabs (WAI-ARIA tabs pattern) ----------------------------------------------
+// Tabs (WAI-ARIA tabs pattern)
 
 const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
 

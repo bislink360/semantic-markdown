@@ -64,7 +64,6 @@ test('fmt: container opening lines', () => {
   assert.deepEqual(fmt(['::: note   Title  ', 'x', ':::']), [':::note Title', 'x', ':::']);
   assert.deepEqual(fmt([':::warning{ collapsible   title=\'Heads up\' .wide #w1 }', 'x', ':::']),
     [':::warning{#w1 .wide title="Heads up" collapsible}', 'x', ':::']);
-  // Malformed attribute lists are left exactly as written.
   assert.deepEqual(fmt([':::note{title="x}', 'x', ':::']), [':::note{title="x}', 'x', ':::']);
 });
 

@@ -115,7 +115,7 @@ test('browserEngine tries each installed browser in turn and names every one tha
     e instanceof PdfError && /^First, Second could not start its browser: none of them would start:\n {2}First \(.*-1\): .*\n {2}Second \(.*-2\): /.test(e.message));
 });
 
-// ---- A real browser, when one is installed (Chrome on GitHub's runners) ----
+// A real browser, when one is installed (Chrome on GitHub's runners)
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 const browsers = findInstalledBrowsers();

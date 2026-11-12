@@ -1,6 +1,3 @@
-# Release: a pushed vX.Y.Z tag builds the artifacts from the tag, creates the GitHub Release
-# and publishes to the VS Code Marketplace, Open VSX, npm, PyPI and the JetBrains Marketplace
-# (smd-release skill, §6–7).
 #
 # - Run it by hand (Actions → Release → Run workflow) with a tag to rebuild, finish a release
 #   that failed half-way, or rehearse it: `dry_run` (default on) builds and verifies everything
@@ -160,7 +157,6 @@ jobs:
             unzip -tq "$zip"   # a real zip archive, not a tar named .zip
           done
           unzip -l "$vsix" | grep -E ' extension/LICENSE(\.txt)?$' > /dev/null || { echo "::error::$vsix has no LICENSE (Open VSX and the Marketplace show it)"; exit 1; }
-          # Sources, tests and local output (a coverage report, a downloaded VS Code) never ship; .vscodeignore lists them.
           if unzip -l "$vsix" | grep -E ' extension/(src|test|scripts|node_modules|coverage|\.vscode-test)/'; then echo "::error::$vsix packs files that .vscodeignore should exclude"; exit 1; fi
           unzip -p "$vsix" extension/package.json | node -e "const p=JSON.parse(require('fs').readFileSync(0,'utf8')); if (p.version!==process.env.VERSION) { console.error('::error::.vsix version '+p.version); process.exit(1); }"
           tar -tzf "$tgz" | grep -x 'package/LICENSE' > /dev/null || { echo "::error::$tgz has no LICENSE"; exit 1; }
@@ -180,7 +176,6 @@ jobs:
           for file in "lib/semantic-markdown-jetbrains-$VERSION.jar" server/smd.cjs bundle/package.json bundle/syntaxes/smd.tmLanguage.json; do
             unzip -l "$jetbrains" | grep " semantic-markdown-jetbrains/$file$" > /dev/null || { echo "::error::$jetbrains has no semantic-markdown-jetbrains/$file"; exit 1; }
           done
-          # The plugin's server is the tag's CLI bundle, and the plugin declares the release version.
           unzip -p "$jetbrains" semantic-markdown-jetbrains/server/smd.cjs | cmp - ../skills/semantic-markdown-reader/scripts/smd.cjs || { echo "::error::$jetbrains ships another smd.cjs"; exit 1; }
           unzip -p "$jetbrains" "semantic-markdown-jetbrains/lib/semantic-markdown-jetbrains-$VERSION.jar" > jetbrains.jar
           unzip -p jetbrains.jar META-INF/plugin.xml | grep "<version>$VERSION</version>" > /dev/null || { echo "::error::$jetbrains is not version $VERSION"; exit 1; }

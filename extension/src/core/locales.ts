@@ -1230,5 +1230,4 @@ const zh: Messages = {
   'column.mitigation': '缓解措施',
 };
 
-/** Every locale besides English, by lower-case language subtag. */
 export const LOCALES: Readonly<Record<string, Messages>> = { de, es, fr, ja, pt, zh };

@@ -95,7 +95,6 @@ export function minimalEdit(oldText: string, newText: string): TextEdit | null {
   return { from, to, insert: newText.slice(from, newText.length - tail) };
 }
 
-/** Apply a text edit. */
 export function applyTextEdit(text: string, edit: TextEdit): string {
   return text.slice(0, edit.from) + edit.insert + text.slice(edit.to);
 }

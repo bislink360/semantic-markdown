@@ -175,7 +175,6 @@ test('figures: an unknown kind is an attrs/value error with a fix, as on other c
   assert.deepEqual(codes(validateSmd(':::figure{caption=x}\nx\n:::\n')), ['0:attrs/unknown:warning']);
 });
 
-// Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('figures: since 2.0 smd validate exits 1 on a document with an unknown figure kind (1.6–1.10: exit 0, a figure/kind warning)', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'smd-fig-'));

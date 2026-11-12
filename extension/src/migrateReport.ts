@@ -25,7 +25,6 @@ const WIDTH = 100;
 const cut = (s: string) => (s.length > WIDTH ? `${s.slice(0, WIDTH - 1)}…` : s);
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** Changes and notes in a plan. */
 export function planCounts(plan: MigrationPlan): { changes: number; notes: number } {
   const notes = plan.steps.filter((s) => s.note).length;
   return { changes: plan.steps.length - notes, notes };

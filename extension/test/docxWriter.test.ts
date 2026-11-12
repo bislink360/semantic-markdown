@@ -195,7 +195,6 @@ test('docx: footnotes are Word footnotes with their own part', () => {
   assert.match(files.get('[Content_Types].xml')!, /PartName="\/word\/footnotes\.xml"/);
   assert.match(files.get('word/_rels/document.xml.rels')!, /Id="rId4" Type="[^"]+\/footnotes" Target="footnotes\.xml"/);
   assert.match(files.get('word/settings.xml')!, /<w:footnotePr><w:footnote w:id="-1"\/><w:footnote w:id="0"\/><\/w:footnotePr>/);
-  // Without footnotes, no part.
   assert.ok(!parts('No notes.\n').has('word/footnotes.xml'));
 });
 
@@ -220,7 +219,6 @@ test('docx: web links are hyperlink relationships; #links go to bookmarks; other
   assert.match(rels, new RegExp(`Id="${id}" Type="[^"]+/hyperlink" Target="https://example\\.com/a%20b\\?q=1&amp;r=2" TargetMode="External"`));
   assert.match(document, /<w:bookmarkStart w:id="0" w:name="smd_goals"\/><w:bookmarkEnd w:id="0"\/><w:r><w:t xml:space="preserve">Goals/);
   assert.match(document, /<w:hyperlink w:anchor="smd_goals" w:history="1"><w:r><w:rPr><w:rStyle w:val="Hyperlink"\/>/);
-  // A link to a place that isn't there stays text.
   assert.match(document, /<w:t xml:space="preserve">nowhere<\/w:t>/);
   assert.ok(!document.includes('w:anchor="smd_none"'));
   assert.equal(linkTarget('mailto:a@b.c'), 'mailto:a@b.c');

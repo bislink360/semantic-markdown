@@ -29,8 +29,6 @@ const run = (cwd: string, ...args: string[]) => spawnSync(process.execPath, [cli
 /** The document as spec v1 and v2 render it, comparable (no source lines). */
 const shown = (text: string, readFile?: MigrationOptions['readFile']) => comparableHtml(renderSmd(text, { readFile, today: TODAY }).html);
 
-// The check after writing
-
 test('checkMigration: a migrated document renders under spec v2 as the original under v1', () => {
   const original = doc('::::note\nx\n:::\n\nSee :abbr[HTML] and $$ x\ny $$');
   const plan = migrationPlan(original);
@@ -55,8 +53,6 @@ test('checkMigration: changes left in the written document are reported', () => 
   const check = checkMigration(doc('::::note\nx\n:::'), written, { from: 1, steps: [], result: written });
   assert.deepEqual(check.left.map((s) => s.kind), ['closer']);
 });
-
-// The editor command's edit
 
 /** Apply an edit to a text, as the editor does. */
 const applied = (text: string, plan: MigrationPlan) => {
@@ -97,8 +93,6 @@ test('migrationEdit: nothing to apply for a spec v2 document, or a plan with onl
   assert.equal(migrationEdit(broken, plan), undefined);
   assert.match(migrationNotes(plan), /^ {2}line 3, note: Spec version: Not rewritten: the front matter does not parse/);
 });
-
-// Writing a file whole or not at all
 
 test('writeFileAtomic: the new text replaces the file; a failed step leaves the file and no temporary file', () => {
   const dir = tempDir();

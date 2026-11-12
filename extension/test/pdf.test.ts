@@ -9,7 +9,7 @@ import {
   type PdfBrowser, type PdfEngine, type PdfPage,
 } from '../src/pdf';
 
-// ---- Stand-ins for Playwright and Puppeteer: launch → newPage → goto → waitForFunction → evaluate → pdf ----
+// Stand-ins for Playwright and Puppeteer: launch → newPage → goto → waitForFunction → evaluate → pdf
 
 interface Fake { calls: unknown[][]; browser: PdfBrowser; launch: () => Promise<PdfBrowser> }
 

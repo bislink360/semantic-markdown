@@ -189,7 +189,6 @@ const titleAttr = (title: string) => (title ? ` title="${title}"` : '');
 const titleAfter = (title: string, sep = ' ') => (title ? `${sep}${title}` : '');
 const attrList = (values: Record<string, string>, keys: string[]) => keys.filter((k) => values[k]).map((k) => ` ${k}="${values[k]}"`).join('');
 
-/** `<tag title="…">` … `</tag>` */
 const tagged = (tag: string) => ({ title }: HeadSource): ContainerHead => ({ line: `<${tag}${titleAttr(title)}>`, close: `</${tag}>` });
 
 /** ` id="…" key="…"`: the id, then the attributes in `keys` that have a value. */
@@ -1224,7 +1223,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       continue;
     }
 
-    // ---- indented code and display math: as written, like fenced code (no line of them is a task, a table or a comment) ----
+    // indented code and display math: as written, like fenced code (no line of them is a task, a table or a comment)
     if (literal.has(i)) {
       flushDone(i);
       emit(raw, i);

@@ -17,7 +17,6 @@ on:
 permissions:
   contents: read
 
-# One deployment at a time; a newer push waits rather than cancelling one in progress.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -74,7 +73,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Fails with "Get Pages site failed" until Pages is turned on with Source: GitHub Actions.
       - uses: actions/configure-pages@v5
       - id: deployment
         uses: actions/deploy-pages@v4

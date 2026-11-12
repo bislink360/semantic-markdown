@@ -29,7 +29,6 @@ export interface AssistItem {
   kind: number;
   detail?: string;
   documentation?: string;
-  /** Text to insert instead of the label. */
   insertText?: string;
   sortText?: string;
   /** Text the client matches what is typed against, instead of the label. */

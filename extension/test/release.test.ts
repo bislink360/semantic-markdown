@@ -264,7 +264,7 @@ test('uploadPlugin reads the zip and never reports a network error as success', 
   assert.deepEqual(offline, { ok: false, message: 'The JetBrains Marketplace upload failed: offline' });
 });
 
-// ---- release-check.mjs: the tag it compares with (.claude/skills/smd-release/scripts/base-tag.mjs) ----
+// release-check.mjs: the tag it compares with (.claude/skills/smd-release/scripts/base-tag.mjs)
 
 test('pickBaseTag: the newest release, or the one before when this tree is already released', () => {
   const tags = releaseTags(['v1.10.0', 'v1.6.0', 'v1.7.0', 'nightly', 'v1.7.0-rc.1', 'v1.9.0']);
@@ -282,8 +282,6 @@ test('pickBaseTag: the newest release, or the one before when this tree is alrea
   assert.deepEqual(pickBaseTag({ tags: ['v1.0.0'], version: '1.0.0', sameTree: () => true }), { base: undefined, released: true });
   assert.deepEqual(pickBaseTag({ tags: [], version: '1.0.0', sameTree: never }), { base: undefined, released: false });
 });
-
-// ---- What the .vsix never packs ----
 
 test('.vscodeignore keeps sources, tests and local output out of the .vsix, and the release checks the same list', () => {
   const ignored = readFileSync(join(__dirname, '..', '.vscodeignore'), 'utf8').split(/\r?\n/);

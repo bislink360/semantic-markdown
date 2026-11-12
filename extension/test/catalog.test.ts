@@ -103,7 +103,6 @@ test('each catalog entry has its document\'s spec version, as every reader reads
   assert.deepEqual({ ...v2, smd: 1 }, v1);
 });
 
-// Requires `npm run build`.
 const cli = join(__dirname, '..', 'dist', 'cli.js');
 test('CLI: smd index writes a JSON catalog with paths relative to the working directory', { skip: !existsSync(cli) && 'run npm run build first' }, () => {
   const root = join(__dirname, '..', '..');

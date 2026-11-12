@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  // ---- Pure helpers (unit-tested in Node via module.exports) ---------------
+  // Pure helpers (unit-tested in Node via module.exports)
 
   /**
    * Map a 0-based source line through edits made since it was measured.
@@ -131,7 +131,6 @@
     return String(caption || '').replace(/\s+/g, ' ').trim() || diagramTitle(src) || fallback;
   }
 
-  // ---- Tabs (WAI-ARIA tabs pattern) ------------------------------------------
   // Built through the `doc` passed in, so tests can drive them with a small stand-in for the DOM.
 
   /** The tab a key moves focus to from `index` of `count`: arrows wrap, Home and End jump; -1 for other keys. */
@@ -312,7 +311,7 @@
     });
   }
 
-  // ---- Open/closed <details> (collapsible callouts, details, agent blocks) --
+  // Open/closed <details> (collapsible callouts, details, agent blocks)
   const DETAILS_KEY = 'data-smd-key';
 
   /** A <details> being hydrated: remember its source default, and reopen or close it as the reader left it. */
@@ -400,7 +399,6 @@
     });
   }
 
-  // ---- Keyboard access to wide blocks -------------------------------------
   // Code, tables, diagrams and math wider than the page scroll sideways; a keyboard can scroll them once focused.
   const SCROLLERS = '.smd-code pre, .smd-table-wrap, .smd-diagram, .smd-math-block, .smd-risk-matrix-wrap';
   let scrollersTimer;
@@ -609,7 +607,7 @@
     }
   }
 
-  // ---- Editor integration (VS Code only) -----------------------------------
+  // Editor integration (VS Code only)
   function lineOf(el) {
     const node = el && el.closest ? el.closest('[data-line]') : null;
     return node ? Number(node.getAttribute('data-line')) : null;
@@ -793,7 +791,7 @@
     openedForPrint = [];
   });
 
-  // ---- For the page's other scripts (the Block Editor's) ----------------------
+  // For the page's other scripts (the Block Editor's)
   window.smdRuntime = Object.freeze({
     /** 'preview' or 'block-editor', from <body data-smd-mode>. */
     mode,

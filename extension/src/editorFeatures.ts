@@ -38,8 +38,6 @@ async function onEnterKey(editor: vscode.TextEditor): Promise<void> {
   await editor.insertSnippet(new vscode.SnippetString(`\n${escape(action.prefix)}$0${escape(action.suffix)}`), selection.active);
 }
 
-// Images: drop files, paste from the clipboard
-
 /** Where images for a document are saved: `smd.images.folder` in its workspace folder. */
 export function targetFolder(document: vscode.TextDocument): string {
   const folder = vscode.workspace.getConfiguration('smd.images', document.uri).get<string>('folder', 'docs/images');

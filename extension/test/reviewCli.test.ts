@@ -11,7 +11,6 @@ function args(positional: string[], values: Record<string, string> = {}, flags: 
   return { positional, flags: new Set(flags), values: new Map(Object.entries(values).map(([k, v]) => [k, [v]])) };
 }
 
-/** Run with console output captured. */
 function run(a: ReviewArgs): { code: number; out: string; err: string } {
   const out: string[] = [];
   const err: string[] = [];

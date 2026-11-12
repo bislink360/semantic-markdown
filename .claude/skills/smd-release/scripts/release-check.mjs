@@ -37,7 +37,6 @@ const log = (s) => process.stderr.write(`[release-check] ${s}\n`);
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 const EXT = join(ROOT, 'extension');
 
-// Findings
 const breaking = [];   // incompatible for users/agents/CI → needs a MAJOR bump
 const review = [];     // behaviour changes a human must confirm are intended
 const features = [];   // additive changes → at least a MINOR bump

@@ -38,7 +38,6 @@ test('condensing as brief comes first', () => {
   const r = budgeted(brief.tokens);
   assert.equal(r.text, brief.text);
   assert.deepEqual([r.budget?.condensed, r.budget?.fits, r.budget?.omitted], [true, true, []]);
-  // Already brief: nothing to condense.
   assert.equal(budgeted(brief.tokens, { brief: true }).budget?.condensed, false);
 });
 

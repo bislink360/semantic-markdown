@@ -183,9 +183,6 @@ export function loadCases(dir = CASES_DIR): LoadedCase[] {
     .map((name) => ({ name, dir: join(dir, name), spec: JSON.parse(readFileSync(join(dir, name, 'case.json'), 'utf8')) as CaseSpec }));
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// Drivers
-
 /** As `smd agent <doc> [--section …] [--brief] [--max-tokens n] --provenance <file>` (src/cli.ts printAgentView). */
 export function runLibrary(dir: string, doc: string, route: Route): Observation {
   const abs = join(dir, doc);
@@ -230,9 +227,6 @@ export function runCli(dir: string, doc: string, route: Route): Observation {
 export function observe(driver: Driver, dir: string, doc: string, route: Route): Observation {
   return driver === 'cli' ? runCli(dir, doc, route) : runLibrary(dir, doc, route);
 }
-
-// ---------------------------------------------------------------------------------------------------------------
-// Fixture model
 
 interface Fixture {
   dir: string;
@@ -343,9 +337,6 @@ function inScope(fx: Fixture, route: Route): ScannedBlock[] {
     .flatMap((i) => i.file.blocks.filter((b) => isTyped(b) && !hidden(i.file, b, () => false)));
   return [...own, ...included];
 }
-
-// ---------------------------------------------------------------------------------------------------------------
-// Checks
 
 const kinds = (k: string | string[]) => (Array.isArray(k) ? k : [k]);
 /** `B{1..3}` → B1, B2, B3. */

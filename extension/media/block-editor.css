@@ -31,17 +31,14 @@
 }
 .smd-ed-pending { opacity: 0.8; }
 
-/* An item's controls (problem badge): a line of no height at the top of the block, over its content. */
 .smd-ed-chrome { position: absolute; top: 2px; left: 0; right: 0; height: 0; z-index: 1; }
 .smd-ed-chrome-child { position: relative; top: 0; display: block; margin: 0; padding: 0; }
 
-/* Inline directives and styled spans: a click (or Enter, once the block is current) opens a small form. */
 .smd-ed-item [data-smd-inline] { cursor: pointer; border-radius: 3px; }
 .smd-ed-item [data-smd-inline]:hover { outline: 1px dashed var(--vscode-focusBorder, #0078d4); outline-offset: 1px; }
 .smd-ed-item [data-smd-inline]:focus { outline: 2px solid var(--vscode-focusBorder, #0078d4); outline-offset: 2px; }
 .smd-ed-pop-host { position: absolute; z-index: 30; }
 
-/* Drag and drop: the handle next to the block under the mouse, and the line where a dragged block would go. */
 .smd-ed-drag-host { position: absolute; z-index: 15; }
 .smd-ed-drop {
   position: absolute;

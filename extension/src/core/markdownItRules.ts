@@ -870,7 +870,6 @@ function markTaskList(tokens: Token[], item: number): void {
 
 /** Where tokens spliced in by `:::include` came from (see markdownItInclude.ts). */
 export interface IncludedFrom {
-  /** The scope of the included document. */
   scope: IncludeScope;
   /** Slugs of the included headings in their own document, by base. */
   slugs: Map<string, number>;

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  // ---- Pure helpers (unit-tested in Node via module.exports) ---------------
+  // Pure helpers (unit-tested in Node via module.exports)
 
   const MAX_RESULTS = 20;
   const SNIPPET = 160;
