@@ -1,0 +1,34 @@
+---
+smd: 2
+title: Other document
+---
+
+:::constraint{#CY}
+Never log card numbers OTHER-TOP.
+:::
+
+## Spec
+
+:::constraint{#CS}
+Spec rules SPEC-RULE.
+:::
+
+:::requirement{#R7}
+Run the fraud check R7-BODY.
+:::
+
+## Rules
+
+:::constraint{#CX scope=document}
+All amounts are in minor units OTHER-RULE.
+:::
+
+## Unrelated
+
+:::constraint{#CU}
+Unrelated rule.
+:::
+
+:::requirement{#R9}
+Unrelated R9-BODY.
+:::

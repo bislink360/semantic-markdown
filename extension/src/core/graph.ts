@@ -74,7 +74,18 @@ export interface GraphOptions {
   /** Reads a file the graph was not given, by its normalized path. Without it such files are denied. */
   readDocument?: (path: string) => DocumentRead;
   today?: string;
+  /**
+   * Resolves an id written in a document whose ids are those of a larger rendered document, a file and the files it
+   * includes (see includedIds.ts). Undefined leaves the id to the document's own ids.
+   */
+  ids?: (path: string, id: string) => SharedId | undefined;
 }
+
+/** What an id names across a document and its includes: a block in one of the files, several blocks, or none. */
+export type SharedId =
+  | { status: 'resolved'; file: string; line: number }
+  | { status: 'ambiguous'; lines: number[] }
+  | { status: 'missing' };
 
 /** Edge types that expand automatically: their targets are part of what the source needs (research contract). */
 export const MANDATORY_EDGES: readonly string[] = Object.keys(EDGE_KINDS).filter((t) => EDGE_KINDS[t] === 'mandatory');
@@ -195,14 +206,23 @@ export class DocumentGraph {
   resolve(path: string, id: string): { status: TargetStatus; node?: GraphNode; lines?: number[] } {
     const doc = this.document(path);
     if (!('text' in doc)) return { status: doc.status };
-    const found = resolveId(doc.text, id);
+    const shared = this.options.ids?.(path, id);
+    if (shared?.status === 'resolved') return this.blockOf(shared.file, shared.line, id);
+    const found = shared ?? resolveId(doc.text, id);
     if (found.status === 'ambiguous') return { status: 'ambiguous', lines: found.lines };
     if (found.status === 'missing') return { status: 'missing' };
     if (found.line === undefined) return { status: 'resolved', node: { file: path, type: 'anchor', title: id, id, section: null } };
-    const block = doc.blocks.find((b) => b.line === found.line);
+    return this.blockOf(path, found.line, id);
+  }
+
+  /** The block that gives `id` on `line` of a document, or an anchor there when no block starts on it. */
+  private blockOf(path: string, line: number, id: string): { status: TargetStatus; node?: GraphNode } {
+    const doc = this.document(path);
+    if (!('text' in doc)) return { status: doc.status };
+    const block = doc.blocks.find((b) => b.line === line);
     if (block) return { status: 'resolved', node: toNode(path, block) };
-    const section = doc.blocks.filter((b) => b.type === 'heading' && b.line < found.line!).at(-1)?.title ?? null;
-    return { status: 'resolved', node: { file: path, type: 'anchor', title: id, id, line: found.line, endLine: found.line, section } };
+    const section = doc.blocks.filter((b) => b.type === 'heading' && b.line < line).at(-1)?.title ?? null;
+    return { status: 'resolved', node: { file: path, type: 'anchor', title: id, id, line, endLine: line, section } };
   }
 
   /** Every edge written in a document, in source order, with targets resolved (other files read as needed). */

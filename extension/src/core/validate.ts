@@ -10,6 +10,7 @@ import { dueState, HEADING_ATTRS, type Heading } from './render';
 import { findFootnotes, type FootnoteDefinition, type FootnoteReference } from './footnotes';
 import { anchorIds, findLinks, isDocumentPath, splitTarget } from './links';
 import { checkIncludes, documentIds, includedFigureIds, includedTermIds } from './includeCheck';
+import { documentIdIndex, type DocumentIds, type IdSite } from './includedIds';
 import { aliasedHeading } from './headingAliases';
 import { parseFenceInfo, sliceLines } from './fence';
 import { figureTargets, findRefs, type Figure, type FigureRef } from './figures';
@@ -232,9 +233,12 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   checkIncludes(text, (line, column, endColumn, code, message, severity = 'warning', fix) => push(line, column, endColumn, severity, code, message, fix), options);
   // Documents that id attributes and `:ref` name (`other.smd#R1`), each read once.
   const others = otherDocuments(options);
-  checkFigures(text, lines, fm.bodyStartLine, pushText, { included: () => includedFigureIds(text, options.readFile), others });
+  // The ids the document gives once its includes are read, as rendering and reads see them (includedIds.ts), made once.
+  let index: DocumentIds | undefined;
+  const sites = () => (index ??= documentIdIndex(text, options.readFile));
+  checkFigures(text, lines, fm.bodyStartLine, pushText, { included: () => includedFigureIds(text, options.readFile), others, sites });
   checkDuplicateIds(text, lines, pushText);
-  checkIdAttributes(text, idAttrBlocks, pushText, others);
+  checkIdAttributes(text, idAttrBlocks, pushText, others, sites);
   checkDependencies(text, lines, idAttrBlocks, pushText, options.today);
   if (hasReviewBlocks(text)) checkReview(text, lines, fm.data, push);
   checkSemanticTags(text, lines, pushText, { today: options.today, fileExists: options.fileExists, spec });
@@ -909,9 +913,9 @@ function ambiguousAnchor(
     `"#${anchor}" is the id of ${owners.length} blocks ${where} (lines ${listLines(owners)}), so the link resolves to none of them. Give each block its own id.`);
 }
 
-/** "6 and 8", "6, 8 and 12": one-based lines. */
-function listLines(owners: readonly IdBlock[]): string {
-  const lines = owners.map((o) => String(o.line + 1));
+/** "6 and 8", "6, 8 and 12": one-based lines, with the file for a line of an included file ("6 and 3 of inc.smd"). */
+function listLines(owners: ReadonlyArray<{ line: number; file?: string }>): string {
+  const lines = owners.map((o) => (o.file ? `${o.line + 1} of ${o.file}` : String(o.line + 1)));
   return lines.length > 1 ? `${lines.slice(0, -1).join(', ')} and ${lines[lines.length - 1]}` : lines.join('');
 }
 
@@ -955,9 +959,10 @@ function missingAnchor(
  * blocks give names neither: `ref/ambiguous` (R17). `:ref[other.smd#id]` names a block of another document (R19).
  */
 function checkFigures(
-  text: string, lines: string[], bodyStart: number, push: Push, from: { included: () => Set<string>; others: OtherDocuments },
+  text: string, lines: string[], bodyStart: number, push: Push,
+  from: { included: () => Set<string>; others: OtherDocuments; sites: () => DocumentIds },
 ): void {
-  const { included, others } = from;
+  const { included, others, sites } = from;
   const { figures, spec } = parseSmd(text);
   const targets = figureTargets(figures);
   for (const f of figures) {
@@ -965,8 +970,10 @@ function checkFigures(
     if (first && first !== f) duplicateFigure(f, first, lines[f.line], push);
   }
   let fromIncludes: Set<string> | undefined;
-  const owners = idOwners(text);
-  for (const ref of findRefs(lines, bodyStart, spec)) {
+  const refs = findRefs(lines, bodyStart, spec);
+  // Blocks of included files count, and an include's fallback text doesn't once the file is read (t-15).
+  const owners = refs.length ? sites().owners : new Map<string, readonly IdSite[]>();
+  for (const ref of refs) {
     const target = splitIdRef(ref.id);
     if (target.path) {
       otherDocumentRef(ref, target, lines[ref.line] ?? '', others, push);
@@ -975,12 +982,11 @@ function checkFigures(
     if (targets.has(ref.id)) continue;
     const blocks = owners.get(ref.id);
     if (blocks?.length === 1) continue;
-    if (blocks) {
-      ambiguousRef(ref.id, blocks, ':ref', { line: ref.line, column: ref.column, end: ref.endColumn }, push);
-      continue;
-    }
+    // A figure an include brings in comes before any other block, as rendering resolves it.
     fromIncludes ??= included();
-    if (!fromIncludes.has(ref.id)) unknownRef(ref, [...new Set([...targets.keys(), ...fromIncludes, ...owners.keys()])], push);
+    if (fromIncludes.has(ref.id)) continue;
+    if (blocks) ambiguousRef(ref.id, blocks, ':ref', { line: ref.line, column: ref.column, end: ref.endColumn }, push);
+    else unknownRef(ref, [...new Set([...targets.keys(), ...fromIncludes, ...owners.keys()])], push);
   }
 }
 
@@ -1021,9 +1027,11 @@ interface IdAttrBlock { line: number; raw: string; info: ContainerInfo }
  * `ref/unknown` when it names nothing (R16), with a fix to the closest id, and `ref/ambiguous` when two blocks give it
  * (R17). An id in another document (`other.smd#R1`) is checked in that document, as links are (R19).
  */
-function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: Push, others: OtherDocuments): void {
+function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: Push, others: OtherDocuments, sites: () => DocumentIds): void {
   if (!blocks.length) return;
   const owners = idOwners(text);
+  // A read resolves applies-to and depends-on through what the includes show (t-59), so these do too.
+  const shared = blocks.some((b) => SHARED_KEYS.some((k) => b.info.attrs.values[k] !== undefined)) ? sites().owners : owners;
   const known = [...owners.keys()];
   for (const { line, raw, info } of blocks) {
     for (const [key, names] of Object.entries(ID_ATTRIBUTES)) {
@@ -1036,13 +1044,16 @@ function checkIdAttributes(text: string, blocks: readonly IdAttrBlock[], push: P
           otherDocumentAttr({ target, written: id, key, name: info.name, at: { line, column, end }, others, push });
           continue;
         }
-        const found = owners.get(id);
+        const found = (SHARED_KEYS.includes(key) ? shared : owners).get(id);
         if (found && found.length > 1) ambiguousRef(id, found, key, { line, column, end }, push);
-        else if (!found) unknownIdAttr(id, key, info.name, known, { line, column, end }, push);
+        else if (!found) unknownIdAttr(id, key, info.name, SHARED_KEYS.includes(key) ? [...shared.keys()] : known, { line, column, end }, push);
       }
     }
   }
 }
+
+/** Id attributes a read resolves through included content, as the mandatory edges of a view (applicability.ts). */
+const SHARED_KEYS: readonly string[] = ['applies-to', 'depends-on'];
 
 /**
  * `depends-on` and `supersedes` chains that return to their start (`depends/cycle`), and accepted decisions that depend
@@ -1222,7 +1233,7 @@ function otherDocumentRef(ref: FigureRef, target: IdTarget, raw: string, others:
 }
 
 /** An id two or more blocks give, named by `where` (`:ref` or an id attribute): it resolves to none of them (R17). */
-function ambiguousRef(id: string, owners: readonly IdBlock[], where: string, at: { line: number; column: number; end: number }, push: Push): void {
+function ambiguousRef(id: string, owners: ReadonlyArray<{ line: number; file?: string }>, where: string, at: { line: number; column: number; end: number }, push: Push): void {
   push(at.line, at.column, at.end, 'warning', 'ref/ambiguous',
     `"${id}" in ${where} is the id of ${owners.length} blocks (lines ${listLines(owners)}), so it names none of them. Give each block its own id.`);
 }

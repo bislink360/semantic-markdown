@@ -1,0 +1,22 @@
+---
+smd: 2
+title: External documents
+---
+
+## Work
+
+:::requirement{#R1 depends-on=other.smd#R7}
+Charge the card after the fraud check.
+:::
+
+## Broken
+
+:::requirement{#R2 depends-on=gone.smd#R8}
+Refund within a day.
+:::
+
+## Outside
+
+:::requirement{#R3 depends-on="../../../../../../../../../../../../../../outside.smd#R1"}
+Use the shared limits.
+:::

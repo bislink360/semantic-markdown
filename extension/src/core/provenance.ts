@@ -41,6 +41,22 @@ export interface Omission {
   tokens?: number;
   /** A command that shows it. */
   retrieve?: string;
+  /**
+   * Lines of the range that the view shows anyway, carried into its head (a danger, an agent block, a rule or a
+   * dependency, or a danger kept out of a condensed block), and the output lines where they appear (t-61). Only on
+   * `not-selected`, `budget`, `details` and `deprecated` ranges of the document that hold such blocks.
+   */
+  carried?: CarriedLines[];
+}
+
+/** Lines of an omitted range that the view shows elsewhere, and where (see Omission's `carried`). */
+export interface CarriedLines {
+  /** One-based first and last source line, in the omission's file or in `file`. */
+  lines: [number, number];
+  /** One-based first and last line of the view's text. */
+  output: [number, number];
+  /** The included file the lines are in, when an `:::include` inside the range brought them. */
+  file?: string;
 }
 
 /** One emitted line and where it came from. Internal: what agentView records while it makes a view again. */
@@ -175,7 +191,10 @@ export function provenanceManifest(input: ManifestInput): Provenance {
   const sourceLines = text.split(/\r?\n/);
   const contents = new Map<string, string[]>([[file, sourceLines]]);
   for (const [path, content] of input.dependencies) if (content !== undefined) contents.set(path, content.split(/\r?\n/));
-  const omissions = [...input.omissions, ...sectionOmissions(input)].sort((a, b) =>
+  const matched = matchLines(result.text, input.entries, input.headerLines);
+  const own = [...input.omissions, ...sectionOmissions(input, matched)];
+  addCarried(own, file, matched);
+  const omissions = own.sort((a, b) =>
     Number(a.file !== file) - Number(b.file !== file) || a.file.localeCompare(b.file) || a.lines[0] - b.lines[0] || a.lines[1] - b.lines[1]);
   const tokenizer = result.counted?.tokenizer ?? 'estimate';
   return {
@@ -193,7 +212,7 @@ export function provenanceManifest(input: ManifestInput): Provenance {
       missing: input.missing,
       ambiguous: input.resolved.filter((r) => r.headings.length > 1).map((r) => r.query),
     },
-    sourceMap: sourceMap(result.text, input.entries, input.headerLines, input.frontMatterLines, (f, from, to) => blankBetween(contents.get(f), from, to)),
+    sourceMap: sourceMap(matched, input.frontMatterLines, (f, from, to) => blankBetween(contents.get(f), from, to)),
     omissions,
     budget: result.budget ? {
       requested: result.budget.maxTokens, tokens: result.budget.tokens, tokenizer, fits: result.budget.fits, condensed: result.budget.condensed,
@@ -223,8 +242,12 @@ export function outlineProvenance(provenance: Provenance, outlineText: string, t
   };
 }
 
-/** Sections left out: marked {agent=skip}, outside the requested sections, or omitted for the budget. */
-function sectionOmissions(input: ManifestInput): Omission[] {
+/**
+ * Sections left out: marked {agent=skip}, outside the requested sections, or omitted for the budget. A range the view
+ * still shows part of says which lines and where (t-61). Text above the first heading that a section read leaves out
+ * is a range of its own (t-60).
+ */
+function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | null>): Omission[] {
   const { file, selected, sections } = input;
   const overlaps = (a: Section, b: Section) => a.start <= b.end && b.start <= a.end;
   const within = (inner: Section, outer: Section) => inner.start >= outer.start && inner.end <= outer.end;
@@ -245,6 +268,13 @@ function sectionOmissions(input: ManifestInput): Omission[] {
       listed.push(s);
       out.push({ kind: 'not-selected', file, lines: [s.start + 1, s.end + 1], heading: s.heading.text, retrieve: read(s.heading.text), reason: 'outside the requested sections' });
     }
+    const preamble = preambleLeftOut(input, matched);
+    if (preamble) {
+      out.push({
+        kind: 'not-selected', file, lines: preamble, retrieve: `smd agent ${file}`,
+        reason: 'text above the first heading, outside the requested sections (a read of the whole document shows it)',
+      });
+    }
   }
   for (const o of input.result.budget?.omitted ?? []) {
     out.push({
@@ -253,6 +283,67 @@ function sectionOmissions(input: ManifestInput): Omission[] {
     });
   }
   return out;
+}
+
+/** Omissions of a range of the document whose blocks a view may still carry (see Omission's `carried`). */
+const CARRYING: ReadonlySet<OmissionKind> = new Set(['not-selected', 'budget', 'details', 'deprecated']);
+
+/** Add to each omitted range of the document the lines the view shows anyway, and where (t-61). */
+function addCarried(omissions: Omission[], file: string, matched: ReadonlyArray<Mapped | null>): void {
+  for (const o of omissions) {
+    if (!CARRYING.has(o.kind) || o.file !== file) continue;
+    // A condensed block's pointer stands on its opening line: it is the condensed block, not content carried out of it.
+    const pointer = o.kind === 'details' || o.kind === 'deprecated' ? o.lines[0] - 1 : undefined;
+    const carried = carriedIn(o.lines, file, matched.map((m) => (m && m.file === file && m.line === pointer ? null : m)));
+    if (carried.length) o.carried = carried;
+  }
+}
+
+/** Whether the view shows a zero-based line of the document: as source, or as included content that hangs from it. */
+const showsLine = (matched: ReadonlyArray<Mapped | null>, file: string, line: number) =>
+  matched.some((m) => m?.kind === 'source' && ((m.file === file && line >= m.line! && line <= m.end!) || m.root === line));
+
+/**
+ * The one-based lines of text above the first heading that a section read leaves out, from the first to the last line
+ * of it the view doesn't show. Blank lines, HTML comments, fence lines and blocks the view carries are not text left
+ * out, so a preamble of only those, or no preamble, gives nothing.
+ */
+function preambleLeftOut(input: ManifestInput, matched: ReadonlyArray<Mapped | null>): [number, number] | undefined {
+  const all = input.text.split(/\r?\n/);
+  const lines = all.slice(0, input.sections[0]?.start ?? all.length);
+  // HTML comments are in no view: blank them, keeping the lines.
+  const plain = lines.join('\n').replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, ' ')).split('\n');
+  const left: number[] = [];
+  for (let i = input.frontMatterLines; i < plain.length; i++) {
+    const raw = plain[i].trim();
+    if (!raw || /^:{3,}$/.test(raw) || showsLine(matched, input.file, i)) continue;
+    left.push(i);
+  }
+  return left.length ? [left[0] + 1, left.at(-1)! + 1] : undefined;
+}
+
+/**
+ * The lines of a one-based range of the document that the view shows anyway, as runs of neighbouring output lines: the
+ * document's own lines, or an included file's when an `:::include` in the range brought them.
+ */
+function carriedIn(range: [number, number], file: string, matched: ReadonlyArray<Mapped | null>): CarriedLines[] {
+  const runs: CarriedLines[] = [];
+  let last: { run: CarriedLines; k: number } | undefined;
+  matched.forEach((m, k) => {
+    if (m?.kind !== 'source' || m.root === undefined || m.root + 1 < range[0] || m.root + 1 > range[1]) return;
+    const from = m.file === file ? undefined : m.file;
+    // Neighbouring output lines, a blank line between them at most, from the same file make one run.
+    if (last && last.run.file === from && k <= last.k + 2) {
+      last.run.output[1] = k + 1;
+      last.run.lines = [Math.min(last.run.lines[0], m.line! + 1), Math.max(last.run.lines[1], m.end! + 1)];
+      last.k = k;
+      return;
+    }
+    const run: CarriedLines = { lines: [m.line! + 1, m.end! + 1], output: [k + 1, k + 1], ...(from ? { file: from } : {}) };
+    runs.push(run);
+    last = { run, k };
+  });
+  return runs;
 }
 
 /** A container fence (`:::tabs`, `:::`): layout that the view shows as nothing or as a label. */
@@ -271,15 +362,11 @@ function blankBetween(lines: string[] | undefined, from: number, to: number): bo
 /** How far ahead in the traced lines an output line is looked for. */
 const LOOKAHEAD = 200;
 
-interface Mapped { kind: SourceSpan['kind']; file?: string; line?: number; end?: number }
+/** A line of the view matched to a traced line, with its zero-based `line`, `end` and `root` (see TraceEntry); null when blank. */
+interface Mapped { kind: SourceSpan['kind']; file?: string; line?: number; end?: number; root?: number }
 
-/**
- * Match the view's lines to the traced lines, in order, and join neighbouring lines into spans. Lines of the same file
- * join when only blank source lines lie between them, so a span never claims a line the view left out.
- */
-function sourceMap(
-  text: string, entries: TraceEntry[], headerLines: number, frontMatterLines: number, blank: (file: string, from: number, to: number) => boolean,
-): SourceSpan[] {
+/** Match the view's lines to the traced lines, in order. */
+function matchLines(text: string, entries: TraceEntry[], headerLines: number): Array<Mapped | null> {
   const out = text.replace(/\n$/, '').split('\n');
   const mapped: Array<Mapped | null> = [];
   let next = 0;
@@ -290,12 +377,20 @@ function sourceMap(
     let q = next;
     while (q < limit && entries[q].text !== out[k]) q++;
     if (q < limit) {
-      mapped.push({ kind: 'source', file: entries[q].file, line: entries[q].line, end: entries[q].end });
+      mapped.push({ kind: 'source', file: entries[q].file, line: entries[q].line, end: entries[q].end, root: entries[q].root });
       next = q + 1;
     } else {
       mapped.push({ kind: 'synthesized' });
     }
   }
+  return mapped;
+}
+
+/**
+ * Join neighbouring matched lines into spans. Lines of the same file join when only blank source lines lie between
+ * them, so a span never claims a line the view left out.
+ */
+function sourceMap(mapped: ReadonlyArray<Mapped | null>, frontMatterLines: number, blank: (file: string, from: number, to: number) => boolean): SourceSpan[] {
   const spans: SourceSpan[] = [];
   let last: { span: SourceSpan; end: number } | undefined;
   for (let k = 0; k < mapped.length; k++) {

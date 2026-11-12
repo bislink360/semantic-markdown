@@ -1,0 +1,36 @@
+---
+smd: 2
+title: Hidden targets
+---
+
+## Work
+
+:::requirement{#R1 depends-on=R2}
+Export the monthly report.
+:::
+
+## Mail
+
+:::requirement{#R5 depends-on=RH}
+Mail the report.
+:::
+
+## Rules
+
+:::constraint{#C2 applies-to=R2}
+The ledger is read through the replica.
+:::
+
+## Notes {agent=skip}
+
+:::requirement{#R2}
+The ledger snapshot exists HIDDEN-R2.
+:::
+
+## People
+
+::::human
+:::requirement{#RH}
+Ask finance for sign-off HIDDEN-RH.
+:::
+::::

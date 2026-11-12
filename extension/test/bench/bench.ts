@@ -93,6 +93,33 @@ for (const size of SIZES) {
     rows.push([c.name, String(lines), ms.toFixed(1), String(runs), limit === undefined ? '-' : String(limit), over ? 'OVER' : 'ok']);
   }
 }
+
+/**
+ * A rule chain the applicability rounds walk one step per round (t-58): rule Ci applies to Ri and depends on R(i+1),
+ * so a section read of R0 adds one rule and one dependency per round. Each round looks at every rule again, so the
+ * cost grows with the square of the chain, and the 50-block closure limit bounds it: 49 rules is the longest chain
+ * that stays complete, and longer ones stop at the limit and report it. On a laptop with a cold parse cache, 49 rules
+ * take a median of 31 ms and 60 rules 28 ms (the rounds stop at the limit); the limit is about ten times that.
+ */
+function ruleChain(n: number): string {
+  const out = ['---', 'smd: 2', '---', '', '## Work', '', ':::requirement{#R0} Start', 'R0 text.', ':::', '', '## Rules', ''];
+  for (let i = 0; i < n; i++) out.push(`:::constraint{#C${i} applies-to=R${i} depends-on=R${i + 1}} Rule ${i}`, `Rule ${i} text.`, ':::', '');
+  out.push('## Store', '');
+  for (let i = 1; i <= n; i++) out.push(`:::requirement{#R${i}} Item ${i}`, `Item ${i} text.`, ':::', '');
+  return out.join('\n');
+}
+const FIXED: Array<{ name: string; text: string; run: (text: string) => unknown; limit: number }> = [
+  { name: 'agentView (rule chain, 49 rounds)', text: ruleChain(49), run: (t) => agentView(t, { sections: ['Work'], today: options.today }), limit: 250 },
+  { name: 'agentView (rule chain past the limit)', text: ruleChain(60), run: (t) => agentView(t, { sections: ['Work'], today: options.today }), limit: 250 },
+];
+for (const c of FIXED) {
+  const measure = (budgetMs: number) => time(() => { resetParseCache(); c.run(c.text); }, budgetMs);
+  let { median: ms, runs } = measure(1500);
+  if (ms > c.limit) ({ median: ms, runs } = measure(5000));
+  const over = ms > c.limit;
+  if (check && over) failures.push(`${c.name}: ${ms.toFixed(1)} ms > limit ${c.limit} ms`);
+  rows.push([c.name, String(c.text.split('\n').length), ms.toFixed(1), String(runs), String(c.limit), over ? 'OVER' : 'ok']);
+}
 console.warn = warn;
 
 const header = ['case', 'lines', 'median ms', 'runs', 'limit ms', ''];

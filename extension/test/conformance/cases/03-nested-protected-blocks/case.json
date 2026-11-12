@@ -1,0 +1,62 @@
+{
+  "description": "Nested protected blocks (L1): a danger inside a details block of another section, an agent block nested in a container, a CAUTION alert, a non-goals list and an agent block from an included file appear in every content-bearing view, brief and budgeted ones too. Audience comes first: a danger in an {agent=skip} section and an agent block inside :::human never appear.",
+  "requests": [
+    {
+      "name": "section Work carries the protected blocks of other sections",
+      "route": { "sections": ["Work"] },
+      "laws": ["L1"],
+      "mustAppear": ["~WORK-TEXT", "~DANGER-NESTED", "~AGENT-NESTED", "~CAUTION-ALERT", "~NONGOAL-ITEM", "inc.smd~INC-AGENT"],
+      "mustNotAppear": ["~DANGER-HIDDEN", "~AGENT-IN-HUMAN"],
+      "omissions": [
+        { "kind": "not-selected", "heading": "Reference", "lines": [10, 35] },
+        { "kind": ["skipped-section", "not-selected"], "heading": "Archive", "lines": [36, 41] }
+      ]
+    },
+    {
+      "name": "brief section Work carries them too",
+      "route": { "sections": ["Work"], "brief": true },
+      "laws": ["L1"],
+      "mustAppear": ["~WORK-TEXT", "~DANGER-NESTED", "~AGENT-NESTED", "~CAUTION-ALERT", "~NONGOAL-ITEM", "inc.smd~INC-AGENT"],
+      "mustNotAppear": ["~DANGER-HIDDEN", "~AGENT-IN-HUMAN"]
+    },
+    {
+      "name": "brief full view keeps blocks nested in the details it condenses",
+      "route": { "brief": true },
+      "laws": ["L1"],
+      "mustAppear": ["~DANGER-NESTED", "~AGENT-NESTED", "~CAUTION-ALERT", "~NONGOAL-ITEM", "inc.smd~INC-AGENT"],
+      "mustNotAppear": ["~DANGER-HIDDEN", "~AGENT-IN-HUMAN"],
+      "omissions": [
+        { "kind": "details", "lines": [12, 12] },
+        { "kind": "skipped-section", "heading": "Archive", "lines": [36, 41] },
+        { "kind": "human", "lines": [44, 48] }
+      ]
+    },
+    {
+      "name": "full view shows everything eligible and records the hidden parts",
+      "route": { },
+      "laws": ["L1", "L6"],
+      "mustAppear": ["~WORK-TEXT", "~DANGER-NESTED", "~AGENT-NESTED", "~CAUTION-ALERT", "~NONGOAL-ITEM", "inc.smd~INC-AGENT"],
+      "mustNotAppear": ["~DANGER-HIDDEN", "~AGENT-IN-HUMAN"],
+      "omissions": [
+        { "kind": "skipped-section", "heading": "Archive", "lines": [36, 41] },
+        { "kind": "human", "lines": [44, 48] }
+      ]
+    },
+    {
+      "name": "a tiny budget still carries every protected block",
+      "route": { "maxTokens": 20 },
+      "laws": ["L1", "L5"],
+      "mustAppear": ["~DANGER-NESTED", "~AGENT-NESTED", "~CAUTION-ALERT", "~NONGOAL-ITEM", "inc.smd~INC-AGENT"],
+      "mustNotAppear": ["~DANGER-HIDDEN", "~AGENT-IN-HUMAN"],
+      "budgetFits": false
+    },
+    {
+      "name": "section History leaves the agent block inside :::human out",
+      "route": { "sections": ["History"] },
+      "laws": ["L1"],
+      "mustAppear": ["~DANGER-NESTED", "~AGENT-NESTED", "~CAUTION-ALERT", "~NONGOAL-ITEM", "inc.smd~INC-AGENT"],
+      "mustNotAppear": ["~AGENT-IN-HUMAN", "~DANGER-HIDDEN"],
+      "omissions": [{"kind": "human", "lines": [44, 48]}]
+    }
+  ]
+}
