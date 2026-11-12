@@ -145,6 +145,8 @@ The table describes main after PR #189, which made the applicability rounds reac
 
 No law is called complete until the conformance suite (t-64), written without reading the renderer, passes on the snapshot the paper measures.
 
+The suite is in `extension/test/conformance` and runs in CI. `npm run conformance` prints recall and precision per request. It has 12 cases and 53 requests over full, brief, section and budgeted views, judged from the manifest's source map. Every required block appears. Two findings are open and marked as expected failures. A document with no constraint and no dependency does not report an include it cannot read, so the view never says it is incomplete. A `depends-on` cycle is listed by section reads that reach it but not by the full view that shows both blocks.
+
 ## Correspondence with earlier drafts {#correspondence}
 
 The novelty analysis drafted five laws, named preservation, omission completeness, determinism, closure honesty and status fidelity. They are L1, L6, L7, L3 and L4 here. L2 states scoped applicability, which that draft did not cover, and L5 states the overflow policy, which the draft folded into preservation. The paper's read contract numbers the same properties P1 to P7 in the same order.

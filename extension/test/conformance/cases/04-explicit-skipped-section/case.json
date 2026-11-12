@@ -27,13 +27,11 @@
     },
     {
       "name": "full view keeps them hidden and records the skipped section",
-      "route": {},
+      "route": { },
       "laws": ["L1", "L6"],
       "mustAppear": ["~MAIN-TEXT"],
       "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
-      "omissions": [
-        { "kind": "skipped-section", "heading": "Notes", "lines": [10, 29] }
-      ]
+      "omissions": [{"kind": "skipped-section", "heading": "Notes", "lines": [10, 29]}]
     },
     {
       "name": "brief section Later keeps them hidden",

@@ -7,10 +7,9 @@
       "laws": ["L2", "L3"],
       "mustAppear": ["R1", "C2"],
       "mustNotAppear": ["~HIDDEN-R2"],
-      "unsatisfied": [{ "kind": "hidden", "target": "R2" }],
+      "unsatisfied": [{"kind": "hidden", "target": "R2"}],
       "complete": false,
-      "completeness": { "coverage": false, "resolution": true, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": false, "resolution": true, "budget": true }
     },
     {
       "name": "section Mail withholds a target inside :::human",
@@ -18,7 +17,7 @@
       "laws": ["L3"],
       "mustAppear": ["R5"],
       "mustNotAppear": ["~HIDDEN-RH"],
-      "unsatisfied": [{ "kind": "hidden", "target": "RH" }],
+      "unsatisfied": [{"kind": "hidden", "target": "RH"}],
       "complete": false
     },
     {
@@ -28,20 +27,22 @@
       "mustAppear": ["R1", "R2", "C2"],
       "unsatisfied": [],
       "complete": true,
-      "completeness": { "coverage": true, "resolution": true, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": true, "resolution": true, "budget": true }
     },
     {
       "name": "full view lists both hidden targets",
-      "route": {},
+      "route": { },
       "laws": ["L3"],
       "mustAppear": ["R1", "R5", "C2"],
       "mustNotAppear": ["~HIDDEN-R2", "~HIDDEN-RH"],
-      "unsatisfied": [{ "kind": "hidden", "target": "R2" }, { "kind": "hidden", "target": "RH" }],
+      "unsatisfied": [{"kind": "hidden", "target": "R2"}, {"kind": "hidden", "target": "RH"}],
       "complete": false
     }
   ],
   "todos": [
-    { "task": "t-66", "note": "C2 is carried into the Work view for a target (R2) the view does not show; the target law marks such a rule as applying to a hidden target. Add the check once the manifest has a field for the mark." }
+    {
+      "task": "t-66",
+      "note": "C2 is carried into the Work view for a target (R2) the view does not show; the target law marks such a rule as applying to a hidden target. Add the check once the manifest has a field for the mark."
+    }
   ]
 }

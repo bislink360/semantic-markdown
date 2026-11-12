@@ -6,10 +6,9 @@
       "route": { "sections": ["Missing"] },
       "laws": ["L2", "L3"],
       "mustAppear": ["R1", "C99"],
-      "unsatisfied": [{ "kind": "missing", "target": "NOPE" }, { "kind": "unresolved-target", "target": "R99" }],
+      "unsatisfied": [{"kind": "missing", "target": "NOPE"}, {"kind": "unresolved-target", "target": "R99"}],
       "complete": false,
-      "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": true, "resolution": false, "budget": true }
     },
     {
       "name": "section Ambiguous resolves the duplicate id to nothing",
@@ -17,41 +16,44 @@
       "laws": ["L2", "L3"],
       "mustAppear": ["R2", "C99"],
       "mustNotAppear": ["~DUP-ONE", "~DUP-TWO"],
-      "unsatisfied": [{ "kind": "ambiguous", "target": "DUP" }, { "kind": "unresolved-target", "target": "R99" }],
+      "unsatisfied": [{"kind": "ambiguous", "target": "DUP"}, {"kind": "unresolved-target", "target": "R99"}],
       "complete": false,
-      "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": true, "resolution": false, "budget": true }
     },
     {
       "name": "section Cycle adds R4 and lists the cycle",
       "route": { "sections": ["Cycle"] },
       "laws": ["L2", "L3"],
       "mustAppear": ["R3", "R4", "C99"],
-      "unsatisfied": [{ "kind": "cycle" }, { "kind": "unresolved-target", "target": "R99" }],
+      "unsatisfied": [{"kind": "cycle"}, {"kind": "unresolved-target", "target": "R99"}],
       "complete": false,
-      "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": true, "resolution": false, "budget": true }
     },
     {
       "name": "section Store reaches the cycle from the other side and still lists the unresolved target",
       "route": { "sections": ["Store"] },
       "laws": ["L2", "L3"],
       "mustAppear": ["~DUP-ONE", "~DUP-TWO", "R4", "R3", "C99"],
-      "unsatisfied": [{ "kind": "cycle" }, { "kind": "unresolved-target", "target": "R99" }],
+      "unsatisfied": [{"kind": "cycle"}, {"kind": "unresolved-target", "target": "R99"}],
       "complete": false
     },
     {
       "name": "full view lists every kind",
-      "route": {},
+      "route": { },
       "laws": ["L2", "L3"],
       "mustAppear": ["R1", "R2", "R3", "R4", "C99"],
       "unsatisfied": [
-        { "kind": "missing", "target": "NOPE" }, { "kind": "ambiguous", "target": "DUP" }, { "kind": "cycle" },
+        { "kind": "missing", "target": "NOPE" },
+        { "kind": "ambiguous", "target": "DUP" },
+        { "kind": "cycle" },
         { "kind": "unresolved-target", "target": "R99" }
       ],
       "complete": false,
       "xfail": {
-        "unsatisfied": { "task": "unknown", "note": "the R3/R4 depends-on cycle is listed by section reads of either end but not by the full view, which shows both blocks: the closure starts from shown blocks and never walks an edge between two of them" }
+        "unsatisfied": {
+          "task": "unknown",
+          "note": "the R3/R4 depends-on cycle is listed by section reads of either end but not by the full view, which shows both blocks: the closure starts from shown blocks and never walks an edge between two of them"
+        }
       }
     },
     {
@@ -60,7 +62,7 @@
       "laws": ["L2", "L5"],
       "mustAppear": ["R1", "C99"],
       "budgetFits": false,
-      "unsatisfied": [{ "kind": "missing", "target": "NOPE" }, { "kind": "unresolved-target", "target": "R99" }],
+      "unsatisfied": [{"kind": "missing", "target": "NOPE"}, {"kind": "unresolved-target", "target": "R99"}],
       "complete": false
     }
   ]

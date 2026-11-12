@@ -8,15 +8,18 @@
       "mustAppear": ["~ALPHA-TEXT"],
       "omissions": [
         {
-          "kind": "not-selected", "heading": null, "lines": [6, 6], "reason": "first heading", "retrieve": "smd agent doc.smd",
-          "expectedFailure": { "task": "t-60", "note": "a section read drops text above the first heading without recording it" }
+          "kind": "not-selected",
+          "heading": null,
+          "lines": [6, 6],
+          "reason": "first heading",
+          "retrieve": "smd agent doc.smd"
         },
         { "kind": "not-selected", "heading": "Beta", "lines": [12, 14] }
       ]
     },
     {
       "name": "full view shows the preamble and records no omission for it",
-      "route": {},
+      "route": { },
       "laws": ["L6"],
       "mustAppear": ["~PREAMBLE-NOTE", "~ALPHA-TEXT"],
       "omissions": [

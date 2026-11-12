@@ -1,5 +1,5 @@
 import {
-  completenessOf, incompleteLine, keepsTies, mandatoryPlan, PART_OF, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan,
+  completenessOf, incompleteLine, keepsTies, mandatoryPlan, PART_OF, pickTest, ROOT_DOC, type ExtraBlock, type MandatoryContext, type MandatoryPlan,
 } from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
@@ -426,6 +426,17 @@ function pickedText(scope: ViewScope, options: TransformOptions, picks: Mandator
 }
 
 /**
+ * A block carried from a file no include reaches, wrapped in `<included file="…">`. With a trace, its lines are traced
+ * to the block's lines in that file, so the source map names the file and stays in step with the view after it. They
+ * hang from no line of the document.
+ */
+function extraText(extra: ExtraBlock, trace?: Trace): string {
+  const body = extra.text.trim();
+  if (trace) for (const text of body.split('\n')) trace.entries.push({ file: extra.file, line: extra.line, end: extra.end, root: -1, text });
+  return `<included file="${extra.file}">\n${body}\n</included>`;
+}
+
+/**
  * The constraints that apply to a section view from outside its sections, in full, after the agent instructions and
  * before the dangers (semantic tags D6). A whole-document view shows them in place.
  */
@@ -433,7 +444,7 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   const plan = scope.mandatory!;
   const parts = [pickedText(scope, options, plan.applying, trace)];
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
-  for (const extra of plan.applyingExtra) parts.push(`<included file="${extra.file}">\n${extra.text.trim()}\n</included>`);
+  for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
   const text = parts.filter(Boolean).join('\n');
   return text ? `Constraints that apply here:\n${text}\n\n` : '';
 }
@@ -445,7 +456,7 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
 function dependencyHead(scope: ViewScope, options: TransformOptions, trace?: Trace): string {
   const plan = scope.mandatory!;
   const parts = [pickedText(scope, options, plan.dependencies, trace)];
-  for (const extra of plan.extra) parts.push(`<included file="${extra.file}">\n${extra.text.trim()}\n</included>`);
+  for (const extra of plan.extra) parts.push(extraText(extra, trace));
   if (plan.unsatisfied.length) parts.push(['Not satisfied:', ...plan.unsatisfied, incompleteLine(plan.context.unsatisfied)].join('\n'));
   const text = parts.filter(Boolean).join('\n');
   return text ? `Dependencies of the selected content:\n${text}\n\n` : '';

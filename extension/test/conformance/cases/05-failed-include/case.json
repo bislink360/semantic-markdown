@@ -3,17 +3,23 @@
   "requests": [
     {
       "name": "full view lists the unread include and is incomplete",
-      "route": {},
+      "route": { },
       "laws": ["L3", "L6"],
       "mustAppear": ["## Work", "~WORK-TEXT", "~OTHER-TEXT"],
-      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "unsatisfied": [{"kind": ["include", "unread"], "target": "missing.smd"}],
       "complete": false,
       "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "omissions": [{ "kind": "include", "lines": [10, 10] }],
+      "omissions": [{"kind": "include", "lines": [10, 10]}],
       "xfail": {
-        "unsatisfied": { "task": "unknown", "note": "a document with no constraint and no dependency gets no mandatory context, so the unread include is never listed as unsatisfied" },
-        "complete": { "task": "unknown", "note": "no mandatory context, so the view never reports itself incomplete (no [incomplete] line, no stderr warning)" },
-        "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" }
+        "unsatisfied": {
+          "task": "unknown",
+          "note": "a document with no constraint and no dependency gets no mandatory context, so the unread include is never listed as unsatisfied"
+        },
+        "complete": {
+          "task": "unknown",
+          "note": "no mandatory context, so the view never reports itself incomplete (no [incomplete] line, no stderr warning)"
+        },
+        "completeness": { "task": "unknown", "note": "no mandatory context, so there is no completeness to report" }
       }
     },
     {
@@ -21,9 +27,9 @@
       "route": { "sections": ["Work"] },
       "laws": ["L3", "L6"],
       "mustAppear": ["~WORK-TEXT"],
-      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "unsatisfied": [{"kind": ["include", "unread"], "target": "missing.smd"}],
       "complete": false,
-      "omissions": [{ "kind": "include", "lines": [10, 10] }],
+      "omissions": [{"kind": "include", "lines": [10, 10]}],
       "xfail": {
         "unsatisfied": { "task": "unknown", "note": "no mandatory context in a document without constraints or dependencies" },
         "complete": { "task": "unknown", "note": "no mandatory context in a document without constraints or dependencies" }
@@ -32,14 +38,13 @@
     {
       "name": "with a rule: full view lists the unread include and is incomplete",
       "doc": "doc-rule.smd",
-      "route": {},
+      "route": { },
       "laws": ["L3", "L6"],
       "mustAppear": ["~WORK-TEXT", "~OTHER-TEXT", "CO"],
-      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "unsatisfied": [{"kind": ["include", "unread"], "target": "missing.smd"}],
       "complete": false,
       "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "omissions": [{ "kind": "include", "lines": [10, 10] }],
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "omissions": [{"kind": "include", "lines": [10, 10]}]
     },
     {
       "name": "with a rule: section Work lists the unread include and is incomplete",
@@ -47,11 +52,10 @@
       "route": { "sections": ["Work"] },
       "laws": ["L3", "L6"],
       "mustAppear": ["~WORK-TEXT"],
-      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "unsatisfied": [{"kind": ["include", "unread"], "target": "missing.smd"}],
       "complete": false,
       "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "omissions": [{ "kind": "include", "lines": [10, 10] }],
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "omissions": [{"kind": "include", "lines": [10, 10]}]
     },
     {
       "name": "with a rule: section Other is incomplete too",
@@ -59,7 +63,7 @@
       "route": { "sections": ["Other"] },
       "laws": ["L1", "L3"],
       "mustAppear": ["~OTHER-TEXT", "CO"],
-      "unsatisfied": [{ "kind": ["include", "unread"], "target": "missing.smd" }],
+      "unsatisfied": [{"kind": ["include", "unread"], "target": "missing.smd"}],
       "complete": false
     }
   ]

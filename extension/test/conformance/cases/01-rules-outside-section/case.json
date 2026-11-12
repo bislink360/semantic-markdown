@@ -8,9 +8,7 @@
       "mustAppear": ["RSTORE", "CTOP", "CPARENT", "CDOC"],
       "unsatisfied": [],
       "complete": true,
-      "omissions": [
-        { "kind": "not-selected", "heading": "Billing", "lines": [28, 40] }
-      ]
+      "omissions": [{"kind": "not-selected", "heading": "Billing", "lines": [28, 40]}]
     },
     {
       "name": "section Billing carries its own rules, the rule on its target and the global ones",
@@ -37,7 +35,7 @@
     },
     {
       "name": "full view shows every rule",
-      "route": {},
+      "route": { },
       "laws": ["L2"],
       "mustAppear": ["CTOP", "CPARENT", "RSTORE", "CDOC", "CBILL", "CON", "RBILL"],
       "unsatisfied": [],

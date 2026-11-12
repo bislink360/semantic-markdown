@@ -7,23 +7,15 @@
       "laws": ["L2", "L3"],
       "mustAppear": ["RI", "C3"],
       "unsatisfied": [],
-      "complete": true,
-      "xfail": {
-        "unsatisfied": { "task": "t-59", "note": "RI from the include is not resolvable, so C3 goes through the unplaced path and RI is listed as unresolved-target" },
-        "complete": { "task": "t-59", "note": "incomplete because of the unresolved-target RI" }
-      }
+      "complete": true
     },
     {
       "name": "full view carries RI and C3 and is complete",
-      "route": {},
+      "route": { },
       "laws": ["L2", "L3"],
       "mustAppear": ["RI", "C3", "~OTHER-TEXT"],
       "unsatisfied": [],
-      "complete": true,
-      "xfail": {
-        "unsatisfied": { "task": "t-59", "note": "RI is listed as unresolved-target" },
-        "complete": { "task": "t-59", "note": "incomplete because of the unresolved-target RI" }
-      }
+      "complete": true
     },
     {
       "name": "section Other does not show RI and lists nothing",
@@ -31,11 +23,7 @@
       "laws": ["L2", "L3"],
       "mustAppear": ["~OTHER-TEXT"],
       "unsatisfied": [],
-      "complete": true,
-      "xfail": {
-        "unsatisfied": { "task": "t-59", "note": "C3 is unplaced today, so every view lists RI as unresolved-target" },
-        "complete": { "task": "t-59", "note": "incomplete because of the unresolved-target RI" }
-      }
+      "complete": true
     }
   ]
 }

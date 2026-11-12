@@ -8,8 +8,7 @@
       "mustAppear": ["R1", "T1", "R6", "C1", "R2", "C3", "R3", "C4", "R4", "C5", "CSTORE"],
       "unsatisfied": [],
       "complete": true,
-      "completeness": { "coverage": true, "resolution": true, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": true, "resolution": true, "budget": true }
     },
     {
       "name": "brief section Work carries the whole rule chain",
@@ -25,7 +24,8 @@
       "laws": ["L2", "L3", "L5"],
       "mustAppear": ["R1", "T1", "R6", "C1", "R2", "C3", "R3", "C4", "R4", "C5", "CSTORE"],
       "unsatisfied": [],
-      "complete": true,
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": true, "budget": false },
       "budgetFits": false
     },
     {
@@ -34,10 +34,9 @@
       "route": { "sections": ["Work"] },
       "laws": ["L3"],
       "mustAppear": ["R1", "D1", "D2", "D3", "D4", "D5"],
-      "unsatisfied": [{ "kind": "depth", "target": "D6" }],
+      "unsatisfied": [{"kind": "depth", "target": "D6"}],
       "complete": false,
-      "completeness": { "coverage": false, "resolution": true, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": false, "resolution": true, "budget": true }
     },
     {
       "name": "a rule chain past 50 blocks is cut with limit",
@@ -46,10 +45,9 @@
       "laws": ["L3"],
       "mustAppear": ["R1", "CL"],
       "context": ["B{1..60}"],
-      "unsatisfied": [{ "kind": "limit" }],
+      "unsatisfied": [{"kind": "limit"}],
       "complete": false,
-      "completeness": { "coverage": false, "resolution": true, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": false, "resolution": true, "budget": true }
     }
   ]
 }

@@ -152,6 +152,9 @@ export function incompleteLine(unsatisfied: readonly UnsatisfiedDependency[]): s
   return `[incomplete: ${parts.join('; ')}]`;
 }
 
+/** A block a view carries from a file no include of the document reaches, with its zero-based first and last line there. */
+export interface ExtraBlock { file: string; text: string; line: number; end: number }
+
 /** Omitting the section that holds `holder` needs every line of `needs` omitted too; `always` never allows it. */
 export interface Tie { holder: number; needs: number[]; always?: boolean }
 
@@ -160,10 +163,10 @@ export interface MandatoryPlan {
   context: MandatoryContext;
   applying: Picks;
   dependencies: Picks;
-  /** Dependencies in included text that no include of the document reaches: file and agent view. */
-  extra: Array<{ file: string; text: string }>;
-  /** Applying constraints of documents read for a dependency, which no include reaches: file and agent view. */
-  applyingExtra: Array<{ file: string; text: string }>;
+  /** Dependencies in included text that no include of the document reaches: file, agent view and lines. */
+  extra: ExtraBlock[];
+  /** Applying constraints of documents read for a dependency, which no include reaches: file, agent view and lines. */
+  applyingExtra: ExtraBlock[];
   unsatisfied: string[];
   /** Budget rules (see Tie), lines of the document. */
   ties: Tie[];
@@ -514,7 +517,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   }
   for (const c of constraints) if (c.inPlace && c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   for (const rule of round.far) {
-    plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node) });
+    plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node), line: rule.block.line, end: rule.block.endLine });
     plan.context.constraints.push({ ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why });
   }
 
@@ -542,7 +545,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       ...(b.node.id ? { id: b.node.id } : {}), type: b.node.type, title: b.node.title, file: fileName(doc), line: line + 1, via: name(b.via), depth: b.depth,
     });
     if (doc === ROOT_DOC || includes.some((r) => r.ok && r.path === doc && line >= r.start && line <= r.end)) addPick(plan.dependencies, doc, line, end);
-    else plan.extra.push({ file: doc, text: b.text });
+    else plan.extra.push({ file: doc, text: b.text, line, end });
   }
   const reasons: Record<UnsatisfiedKind, (u: { path?: GraphNode[]; lines?: number[] }) => string> = {
     missing: () => 'no block has this id',

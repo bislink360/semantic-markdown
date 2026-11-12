@@ -9,15 +9,9 @@
       "mustNotAppear": ["~OPS-TEXT", "~OPS-MORE", "~RESTORE-TEXT"],
       "omissions": [
         { "kind": "not-selected", "heading": "Operations", "lines": [10, 19] },
-        {
-          "kind": "not-selected", "heading": "Operations", "lines": [10, 19], "carried": [[14, 16]],
-          "expectedFailure": { "task": "t-61", "note": "the omission has no carried field, so it claims the danger's lines as left out" }
-        },
+        { "kind": "not-selected", "heading": "Operations", "lines": [10, 19], "carried": [[14, 16]] },
         { "kind": "not-selected", "heading": "Runbook", "lines": [20, 29] },
-        {
-          "kind": "not-selected", "heading": "Runbook", "lines": [20, 29], "carried": [[25, 27]],
-          "expectedFailure": { "task": "t-61", "note": "the omission has no carried field" }
-        }
+        { "kind": "not-selected", "heading": "Runbook", "lines": [20, 29], "carried": [[25, 27]] }
       ]
     },
     {
@@ -26,13 +20,7 @@
       "laws": ["L1", "L6"],
       "mustAppear": ["~DANGER-CARRIED", "~DANGER-IN-DETAILS"],
       "mustNotAppear": ["~RESTORE-TEXT"],
-      "omissions": [
-        { "kind": "details", "lines": [22, 22] },
-        {
-          "kind": "details", "lines": [22, 22], "carried": [[25, 27]],
-          "expectedFailure": { "task": "t-61", "note": "the details omission has no carried field" }
-        }
-      ]
+      "omissions": [{"kind": "details", "lines": [22, 22]}, {"kind": "details", "lines": [22, 22], "carried": [[25, 27]]}]
     }
   ]
 }

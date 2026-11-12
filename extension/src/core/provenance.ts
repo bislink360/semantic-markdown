@@ -43,8 +43,8 @@ export interface Omission {
   retrieve?: string;
   /**
    * Lines of the range that the view shows anyway, carried into its head (a danger, an agent block, a rule or a
-   * dependency), and the output lines where they appear (t-61). Only on `not-selected` and `budget` ranges that hold
-   * such blocks.
+   * dependency, or a danger kept out of a condensed block), and the output lines where they appear (t-61). Only on
+   * `not-selected`, `budget`, `details` and `deprecated` ranges of the document that hold such blocks.
    */
   carried?: CarriedLines[];
 }
@@ -192,7 +192,9 @@ export function provenanceManifest(input: ManifestInput): Provenance {
   const contents = new Map<string, string[]>([[file, sourceLines]]);
   for (const [path, content] of input.dependencies) if (content !== undefined) contents.set(path, content.split(/\r?\n/));
   const matched = matchLines(result.text, input.entries, input.headerLines);
-  const omissions = [...input.omissions, ...sectionOmissions(input, matched)].sort((a, b) =>
+  const own = [...input.omissions, ...sectionOmissions(input, matched)];
+  addCarried(own, file, matched);
+  const omissions = own.sort((a, b) =>
     Number(a.file !== file) - Number(b.file !== file) || a.file.localeCompare(b.file) || a.lines[0] - b.lines[0] || a.lines[1] - b.lines[1]);
   const tokenizer = result.counted?.tokenizer ?? 'estimate';
   return {
@@ -280,12 +282,21 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
       reason: 'left out to fit the token budget',
     });
   }
-  for (const o of out) {
-    if (o.kind !== 'not-selected' && o.kind !== 'budget') continue;
-    const carried = carriedIn(o.lines, file, matched);
+  return out;
+}
+
+/** Omissions of a range of the document whose blocks a view may still carry (see Omission's `carried`). */
+const CARRYING: ReadonlySet<OmissionKind> = new Set(['not-selected', 'budget', 'details', 'deprecated']);
+
+/** Add to each omitted range of the document the lines the view shows anyway, and where (t-61). */
+function addCarried(omissions: Omission[], file: string, matched: ReadonlyArray<Mapped | null>): void {
+  for (const o of omissions) {
+    if (!CARRYING.has(o.kind) || o.file !== file) continue;
+    // A condensed block's pointer stands on its opening line: it is the condensed block, not content carried out of it.
+    const pointer = o.kind === 'details' || o.kind === 'deprecated' ? o.lines[0] - 1 : undefined;
+    const carried = carriedIn(o.lines, file, matched.map((m) => (m && m.file === file && m.line === pointer ? null : m)));
     if (carried.length) o.carried = carried;
   }
-  return out;
 }
 
 /** Whether the view shows a zero-based line of the document: as source, or as included content that hangs from it. */

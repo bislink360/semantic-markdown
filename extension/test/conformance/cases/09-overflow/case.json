@@ -12,11 +12,7 @@
       "completeness": { "coverage": true, "resolution": true, "budget": false },
       "omissions": [
         { "kind": "budget", "heading": "Filler A", "lines": [22, 25], "retrieve": "smd agent doc.smd" }
-      ],
-      "xfail": {
-        "complete": { "task": "t-63", "note": "complete ignores the budget today; t-63 makes it the conjunction of coverage, resolution and budget" },
-        "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" }
-      }
+      ]
     },
     {
       "name": "a section read over budget keeps the section and the rules",
@@ -24,8 +20,7 @@
       "laws": ["L1", "L2", "L5"],
       "mustAppear": ["R1", "~AGENT-TOP", "CD", "~DANGER-B"],
       "budgetFits": false,
-      "completeness": { "coverage": true, "resolution": true, "budget": false },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": { "coverage": true, "resolution": true, "budget": false }
     },
     {
       "name": "a brief view over budget keeps the required content",
@@ -43,8 +38,7 @@
       "unsatisfied": [],
       "complete": true,
       "completeness": { "coverage": true, "resolution": true, "budget": true },
-      "omissions": [{ "kind": "budget", "absent": true }],
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "omissions": [{"kind": "budget", "absent": true}]
     }
   ]
 }

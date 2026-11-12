@@ -3,52 +3,35 @@
   "requests": [
     {
       "name": "section Work adds R7 from other.smd with the constraints that come with it",
-      "route": { "sections": ["Work"] },
+      "route": {"sections": ["Work"]},
       "laws": ["L2", "L3", "L6"],
-      "mustAppear": [
-        "R1",
-        { "ref": "## Work", "expectedFailure": { "task": "unknown", "note": "after text carried from another document the source map marks the rest of the view synthesized and maps a stray line to the closing ::: of R1, so the section's own lines are unmapped" } },
-        { "ref": "other.smd#R7", "expectedFailure": { "task": "unknown", "note": "R7 is in the view text but the source map calls its lines synthesized, with no file" } },
-        { "ref": "other.smd#CY", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } },
-        { "ref": "other.smd#CX", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } },
-        { "ref": "other.smd#CS", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } }
-      ],
+      "mustAppear": ["R1", "## Work", "other.smd#R7", "other.smd#CY", "other.smd#CX", "other.smd#CS"],
       "unsatisfied": [],
       "complete": true
     },
     {
       "name": "section Broken lists the dependency in a file that does not exist",
-      "route": { "sections": ["Broken"] },
+      "route": {"sections": ["Broken"]},
       "laws": ["L3"],
       "mustAppear": ["R2", "## Broken"],
-      "unsatisfied": [{ "kind": ["missing", "denied"], "target": "gone.smd#R8" }],
+      "unsatisfied": [{"kind": ["missing", "denied"], "target": "gone.smd#R8"}],
       "complete": false,
-      "completeness": { "coverage": true, "resolution": false, "budget": true },
-      "xfail": { "completeness": { "task": "t-63", "note": "mandatory.completeness is not reported yet" } }
+      "completeness": {"coverage": true, "resolution": false, "budget": true}
     },
     {
       "name": "section Outside lists the dependency outside what the host allows",
-      "route": { "sections": ["Outside"] },
+      "route": {"sections": ["Outside"]},
       "laws": ["L3"],
       "mustAppear": ["R3", "## Outside"],
-      "unsatisfied": [{ "kind": ["denied", "unread"] }],
+      "unsatisfied": [{"kind": ["denied", "unread"]}],
       "complete": false
     },
     {
       "name": "full view adds R7 and lists both unreadable files",
       "route": {},
       "laws": ["L2", "L3", "L6"],
-      "mustAppear": [
-        "R1", "R2", "R3",
-        { "ref": "## Work", "expectedFailure": { "task": "unknown", "note": "the document's own lines after carried cross-document text are mapped as synthesized" } },
-        { "ref": "## Broken", "expectedFailure": { "task": "unknown", "note": "the document's own lines after carried cross-document text are mapped as synthesized" } },
-        { "ref": "## Outside", "expectedFailure": { "task": "unknown", "note": "the document's own lines after carried cross-document text are mapped as synthesized" } },
-        { "ref": "other.smd#R7", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } },
-        { "ref": "other.smd#CY", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } },
-        { "ref": "other.smd#CX", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } },
-        { "ref": "other.smd#CS", "expectedFailure": { "task": "unknown", "note": "carried from other.smd but mapped as synthesized" } }
-      ],
-      "unsatisfied": [{ "kind": ["missing", "denied"], "target": "gone.smd#R8" }, { "kind": ["denied", "unread"] }],
+      "mustAppear": ["R1", "R2", "R3", "## Work", "## Broken", "## Outside", "other.smd#R7", "other.smd#CY", "other.smd#CX", "other.smd#CS"],
+      "unsatisfied": [{"kind": ["missing", "denied"], "target": "gone.smd#R8"}, {"kind": ["denied", "unread"]}],
       "complete": false
     }
   ]
