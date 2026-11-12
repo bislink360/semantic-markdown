@@ -92,13 +92,64 @@ export interface UnsatisfiedDependency {
 
 /**
  * The mandatory context of a view: the constraints from outside the selected sections it shows, the dependencies it
- * adds, and what it could not satisfy. `complete` is false when anything is unsatisfied.
+ * adds, and what it could not satisfy. `complete` is the three parts of `completeness` together.
  */
 export interface MandatoryContext {
   constraints: AppliedConstraint[];
   dependencies: IncludedDependency[];
   unsatisfied: UnsatisfiedDependency[];
   complete: boolean;
+  /** Which part of completeness failed, if any (t-63). */
+  completeness: Completeness;
+}
+
+/**
+ * The three ways a view can fall short of what it must carry (research contract, view laws L3 and L5; t-63). A
+ * problem belongs to one part, by its kind (see PART_OF).
+ */
+export interface Completeness {
+  /** Every applicable rule and every dependency the view needs was carried: none hidden from agents or cut at a limit. */
+  coverage: boolean;
+  /** Every rule target, dependency and include resolved: none missing, ambiguous, denied, unread or in a cycle. */
+  resolution: boolean;
+  /** What the view must carry fit its token budget; true without a budget. */
+  budget: boolean;
+}
+
+/** The part of completeness each kind of problem breaks. */
+export const PART_OF: Readonly<Record<MandatoryProblem, 'coverage' | 'resolution'>> = {
+  hidden: 'coverage', depth: 'coverage', limit: 'coverage',
+  missing: 'resolution', ambiguous: 'resolution', denied: 'resolution', cycle: 'resolution', include: 'resolution', 'unresolved-target': 'resolution',
+};
+
+/** Completeness from the problems a view has, and whether its budget fit. */
+export function completenessOf(unsatisfied: readonly UnsatisfiedDependency[], fits = true): Completeness {
+  return {
+    coverage: !unsatisfied.some((u) => PART_OF[u.kind] === 'coverage'),
+    resolution: !unsatisfied.some((u) => PART_OF[u.kind] === 'resolution'),
+    budget: fits,
+  };
+}
+
+/**
+ * The line that ends a view's "Not satisfied" list: which part failed and for what, e.g. `[incomplete: resolution
+ * failed for 1 rule target and 1 include; coverage failed for 2 dependencies]`. A rule target is not a dependency.
+ */
+export function incompleteLine(unsatisfied: readonly UnsatisfiedDependency[]): string {
+  const parts: string[] = [];
+  for (const part of ['resolution', 'coverage'] as const) {
+    const mine = unsatisfied.filter((u) => PART_OF[u.kind] === part);
+    if (!mine.length) continue;
+    const count = (n: number, one: string, many: string) => (n ? [`${n} ${n === 1 ? one : many}`] : []);
+    const targets = mine.filter((u) => u.kind === 'unresolved-target').length;
+    const includes = mine.filter((u) => u.kind === 'include').length;
+    const items = [
+      ...count(targets, 'rule target', 'rule targets'), ...count(includes, 'include', 'includes'),
+      ...count(mine.length - targets - includes, 'dependency', 'dependencies'),
+    ];
+    parts.push(`${part} failed for ${items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0]}`);
+  }
+  return `[incomplete: ${parts.join('; ')}]`;
 }
 
 /** Omitting the section that holds `holder` needs every line of `needs` omitted too; `always` never allows it. */
@@ -451,7 +502,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   }
 
   const plan: MandatoryPlan = {
-    context: { constraints: [], dependencies: [], unsatisfied: [], complete: true },
+    context: { constraints: [], dependencies: [], unsatisfied: [], complete: true, completeness: completenessOf([]) },
     applying: emptyPicks(), dependencies: emptyPicks(), extra: [], applyingExtra: [], unsatisfied: [], ties: [],
     constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints,
   };
@@ -521,6 +572,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       });
     }
   }
+  plan.context.completeness = completenessOf(plan.context.unsatisfied);
   plan.context.complete = plan.context.unsatisfied.length === 0;
 
   // Budget rules, on the document's lines: what applies or is depended on keeps its section.

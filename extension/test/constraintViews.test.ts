@@ -177,7 +177,7 @@ test('AF15: a section view adds the dependency closure of what it shows, with li
 
 test('AF15/AF20: a cycle and a missing target are reported as unsatisfied and mark the view incomplete', () => {
   const r = agentView(DEPS, { sections: ['Work'], file: 'deps.smd', provenance: true });
-  assert.match(r.text, /Not satisfied:\n- R3 depends on R1 \[L20\]: the chain returns to its start \(R1 → R2 → R3 → R1\)\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: 2 mandatory dependencies are not satisfied\]/);
+  assert.match(r.text, /Not satisfied:\n- R3 depends on R1 \[L20\]: the chain returns to its start \(R1 → R2 → R3 → R1\)\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: resolution failed for 2 dependencies\]/);
   assert.equal(r.mandatory?.complete, false);
   assert.deepEqual(r.mandatory?.unsatisfied.map((u) => u.kind), ['cycle', 'missing']);
   assert.deepEqual(r.provenance?.mandatory, r.mandatory);
@@ -190,7 +190,7 @@ test('AF15: a dependency the view already shows is not repeated, and a whole vie
   assert.equal(count(both, 'R2_BODY'), 1);
   const whole = agentView(DEPS).text;
   assert.equal(count(whole, 'R2_BODY'), 1);
-  assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: 1 mandatory dependency is not satisfied\]/);
+  assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: resolution failed for 1 dependency\]/);
 });
 
 test('AF15: an applying constraint brings its own dependencies, and a constraint whose applies-to names a dependency applies', () => {
@@ -401,7 +401,7 @@ test('AF15/AF20: a chain past the block limit is cut there, reported, and makes 
   assert.equal(r.mandatory?.dependencies.length, CLOSURE_LIMITS.blocks);
   assert.equal(r.mandatory?.complete, false);
   assert.ok(r.mandatory?.unsatisfied.some((u) => u.kind === 'limit'));
-  assert.match(r.text, /\[incomplete: 1 mandatory dependency is not satisfied\]/);
+  assert.match(r.text, /\[incomplete: coverage failed for 1 dependency\]/);
 });
 
 const BASE = [
@@ -572,4 +572,54 @@ test('NV-06: a target in another document that cannot be read is unresolved, and
   const other = agentView(fixed, { sections: ['Other'] });
   assert.doesNotMatch(other.text, /C9_BODY|C8_BODY/);
   assert.equal(other.mandatory?.complete, true);
+});
+
+// --- Completeness by part (t-63) ----------------------------------------------------------------------------------
+
+test('t-63: a cycle and a missing target fail resolution only, and complete stays the three parts together', () => {
+  const r = agentView(DEPS, { sections: ['Work'], provenance: true });
+  assert.deepEqual(r.mandatory?.completeness, { coverage: true, resolution: false, budget: true });
+  assert.equal(r.mandatory?.complete, false);
+  assert.deepEqual(r.provenance?.mandatory?.completeness, r.mandatory?.completeness);
+});
+
+test('t-63: a dependency hidden from agents or cut at the block limit fails coverage only', () => {
+  const hidden = agentView(HOME, { sections: ['Other'] });
+  assert.deepEqual(hidden.mandatory?.completeness, { coverage: false, resolution: true, budget: true });
+  assert.match(hidden.text, /\[incomplete: coverage failed for 1 dependency\]/);
+  const cut = agentView(chain(CLOSURE_LIMITS.blocks + 3), { sections: ['Work'] });
+  assert.deepEqual(cut.mandatory?.completeness, { coverage: false, resolution: true, budget: true });
+});
+
+test('t-63: an unresolved rule target is called a rule target, not a mandatory dependency, and an unread include an include', () => {
+  const doc = [
+    '---', 'smd: 2', '---', '',
+    '## Work', '', ':::requirement{#R1 depends-on=R9} Needs a missing one', 'R1_BODY', ':::', '',
+    ':::include{file="gone.smd"}', ':::', '',
+    '## Rules', '', ':::constraint{#C9 applies-to=R99} Names nothing', 'C9_BODY', ':::', '',
+  ].join('\n');
+  const r = agentView(doc, { sections: ['Work'], readFile: () => undefined, provenance: true, file: 'doc.smd' });
+  assert.deepEqual(r.mandatory?.completeness, { coverage: true, resolution: false, budget: true });
+  assert.match(r.text, /\[incomplete: resolution failed for 1 rule target, 1 include and 1 dependency\]/);
+  assert.doesNotMatch(r.text, /mandatory dependenc/);
+  const reasons = r.provenance!.omissions.filter((o) => o.kind === 'dependency').map((o) => o.reason.split(':')[0]);
+  assert.deepEqual(reasons.sort(), ['a mandatory dependency is not resolved', 'a rule target is not resolved', 'an include is not read']);
+});
+
+test('t-63: required content over the budget fails the budget part, and complete with it', () => {
+  const doc = [
+    '---', 'smd: 2', '---', '',
+    '## One', '', ':::constraint{#C1 scope=document} Workspace only', filler('rule'), ':::', '',
+    '## Two', '', filler('two'), '',
+  ].join('\n');
+  const over = agentView(doc, { sections: ['Two'], maxTokens: 100, provenance: true });
+  assert.equal(over.budget?.fits, false);
+  assert.deepEqual(over.mandatory?.completeness, { coverage: true, resolution: true, budget: false });
+  assert.equal(over.mandatory?.complete, false);
+  assert.deepEqual(over.provenance?.mandatory?.completeness, over.mandatory?.completeness);
+  // Nothing is unsatisfied, so the view has no "Not satisfied" list: its budget line says it does not fit.
+  assert.doesNotMatch(over.text, /\[incomplete:/);
+  const fits = agentView(doc, { sections: ['Two'], maxTokens: 5000 });
+  assert.deepEqual(fits.mandatory?.completeness, { coverage: true, resolution: true, budget: true });
+  assert.equal(fits.mandatory?.complete, true);
 });

@@ -1,4 +1,6 @@
-import { keepsTies, mandatoryPlan, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan } from './applicability';
+import {
+  completenessOf, incompleteLine, keepsTies, mandatoryPlan, PART_OF, pickTest, ROOT_DOC, type MandatoryContext, type MandatoryPlan,
+} from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
 import type { DocumentRead } from './graph';
@@ -444,10 +446,7 @@ function dependencyHead(scope: ViewScope, options: TransformOptions, trace?: Tra
   const plan = scope.mandatory!;
   const parts = [pickedText(scope, options, plan.dependencies, trace)];
   for (const extra of plan.extra) parts.push(`<included file="${extra.file}">\n${extra.text.trim()}\n</included>`);
-  if (plan.unsatisfied.length) {
-    const n = plan.unsatisfied.length;
-    parts.push(['Not satisfied:', ...plan.unsatisfied, `[incomplete: ${n} mandatory dependenc${n === 1 ? 'y is' : 'ies are'} not satisfied]`].join('\n'));
-  }
+  if (plan.unsatisfied.length) parts.push(['Not satisfied:', ...plan.unsatisfied, incompleteLine(plan.context.unsatisfied)].join('\n'));
   const text = parts.filter(Boolean).join('\n');
   return text ? `Dependencies of the selected content:\n${text}\n\n` : '';
 }
@@ -594,7 +593,9 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   const cut = result.budget?.omitted ?? [];
   const bodyEntries = body.entries.filter((e) => !cut.some((o) => e.root >= o.line && e.root <= o.endLine));
   for (const u of scope.mandatory?.context.unsatisfied ?? []) {
-    omissions.push({ kind: 'dependency', file: u.file, lines: [u.line, u.line], reason: `a mandatory dependency is not satisfied: ${u.reason}` });
+    const what = u.kind === 'unresolved-target' ? 'a rule target is not resolved' : u.kind === 'include' ? 'an include is not read'
+      : `a mandatory dependency is not ${PART_OF[u.kind] === 'coverage' ? 'carried' : 'resolved'}`;
+    omissions.push({ kind: 'dependency', file: u.file, lines: [u.line, u.line], reason: `${what}: ${u.reason}` });
   }
   return provenanceManifest({
     text, file, result, omissions, dependencies,
@@ -639,7 +640,12 @@ function viewResult(
   if (tokenizer) result.counted = { tokenizer: tokenizer.name, tokens: tokenizer.count(out), originalTokens: tokenizer.count(text) };
   if (budget) result.budget = budget;
   if (constraints) result.constraints = constraints;
-  if (scope.mandatory) result.mandatory = scope.mandatory.context;
+  if (scope.mandatory) {
+    // What the view must carry is never omitted, so a budget it doesn't fit is a budget the required content is over.
+    const { context } = scope.mandatory;
+    const completeness = completenessOf(context.unsatisfied, budget?.fits ?? true);
+    result.mandatory = { ...context, completeness, complete: completeness.coverage && completeness.resolution && completeness.budget };
+  }
   return result;
 }
 
