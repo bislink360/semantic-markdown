@@ -628,7 +628,8 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
       ...[traces.external!, traces.applying!, traces.dependencies!, traces.dangers!, traces.constraints!].flatMap((t) => t.entries.map((e) => ({ ...e, part: 'head' as const }))),
       ...bodyEntries.map((e) => ({ ...e, part: 'body' as const })), ...traces.footnotes!.entries.map((e) => ({ ...e, part: 'head' as const })),
     ],
-    headerLines: head.header ? head.header.split('\n').length : 0,
+    // Counted as assemble prints it: runs of blank lines (in unread front matter) become one.
+    headerLines: head.header ? head.header.replace(/\n{3,}/g, '\n\n').trim().split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
     sections: scope.sections, selected: selectedWithPinned(scope), skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
     missing: scope.missingSections,
@@ -1173,13 +1174,20 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const closeFrame = (frame: Frame, at: number) => {
     if (frame.close) emit(frame.close, at);
     if (evidenceAfter && frame.visible) for (const l of evidenceAfter(frame.name, frame.start, at)) emit(l, at, false);
-    if (!frame.visible) return;
+    // A :::human block, or a block brief views condense, that opens outside the view but runs into it (one never
+    // closed) hides lines the view selects.
+    const hides = (frame.drop && frame.name === 'human') || !!frame.condensed;
+    const reachesView = hides && !frame.visible && Array.from({ length: at - frame.start }, (_, k) => frame.start + 1 + k).some(inScope);
+    if (!frame.visible && !reachesView) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
     if (frame.condensed === 'details') omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
     if (frame.condensed === 'deprecated') omit({ kind: 'deprecated', reason: 'a deprecated requirement is condensed in brief views' }, frame.start, at);
   };
 
   let fence: { marker: string; start: number; body: string[]; info: string } | null = null;
+  // The first lines of the code blocks, as the parse reads them (made once, when a fence-like line is met).
+  let starts: Set<number> | undefined;
+  const codeStarts = () => (starts ??= new Set(parseSmd(lines.join('\n')).code.map(([a]) => a)));
   let inComment = false;
   let commentStart = 0;
   let doneTasks = 0;
@@ -1217,7 +1225,9 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       continue;
     }
     const f = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(raw);
-    if (f) {
+    // A fence opens only where rendering opens one: not after a backtick in its info string ("```>`"), and not inside
+    // a raw HTML block or display math, so the line must start a code block as the parse reads it.
+    if (f && codeStarts().has(i) && !(f[1][0] === '`' && f[2].includes('`'))) {
       flushDone(i);
       fence = { marker: f[1], start: i, body: [], info: f[2] };
       continue;
@@ -1233,10 +1243,17 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     let line = raw;
     if (inComment) {
       const end = line.indexOf('-->');
-      if (end < 0) continue;
-      line = line.slice(end + 3);
-      inComment = false;
-      if (visibleAt(i)) omit(COMMENT, commentStart, i);
+      // A comment never closed inside a container ends with the container, as rendering reads it.
+      const containerEnds = end < 0 && stack.length > 0 && commentStart > stack.at(-1)!.start && CONTAINER_CLOSE.test(line);
+      if (containerEnds) {
+        inComment = false;
+        if (visibleAt(commentStart)) omit(COMMENT, commentStart, i - 1);
+      } else {
+        if (end < 0) continue;
+        line = line.slice(end + 3);
+        inComment = false;
+        if (visibleAt(i)) omit(COMMENT, commentStart, i);
+      }
     }
     const uncommented = line.replace(/<!--[\s\S]*?-->/g, '');
     if (uncommented !== line && visibleAt(i)) omit(COMMENT, i, i);
@@ -1374,7 +1391,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   alertView.end();
   flushDone(lines.length - 1);
   // Blocks left open at the end close there, for provenance (nothing is emitted for them, as before).
-  if (trace?.omissions) for (const frame of stack) if (frame.visible) closeFrame({ ...frame, close: undefined }, lines.length - 1);
+  if (trace?.omissions) for (const frame of stack) closeFrame({ ...frame, close: undefined }, lines.length - 1);
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 

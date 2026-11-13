@@ -4,6 +4,7 @@ import type { FollowManifest } from './read';
 import type { ConstraintView } from './constraints';
 import type { Section } from './sections';
 import { accountBlocks, type BlockAccount } from './accounting';
+import { htmlCommentLines } from './parse';
 import { sha256Hex } from './sha256';
 import type { TaskViewReport } from './taskViews';
 
@@ -395,13 +396,14 @@ const showsLine = (matched: ReadonlyArray<Mapped | null>, file: string, line: nu
  */
 function preambleLeftOut(input: ManifestInput, matched: ReadonlyArray<Mapped | null>): [number, number] | undefined {
   const all = input.text.split(/\r?\n/);
-  const lines = all.slice(0, input.sections[0]?.start ?? all.length);
-  // HTML comments are in no view: blank them, keeping the lines.
-  const plain = lines.join('\n').replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, ' ')).split('\n');
+  const end = input.sections[0]?.start ?? all.length;
+  // HTML comments are in no view: block-level ones as the parse reads them, and ones inside a line.
+  const comments = htmlCommentLines(input.text);
+  const inComment = (line: number) => comments.some(([a, b]) => line >= a && line < b);
   const left: number[] = [];
-  for (let i = input.frontMatterLines; i < plain.length; i++) {
-    const raw = plain[i].trim();
-    if (!raw || /^:{3,}$/.test(raw) || showsLine(matched, input.file, i)) continue;
+  for (let i = input.frontMatterLines; i < end; i++) {
+    const raw = all[i].replace(/<!--.*?-->/g, '').trim();
+    if (!raw || inComment(i) || /^:{3,}$/.test(raw) || showsLine(matched, input.file, i)) continue;
     left.push(i);
   }
   return left.length ? [left[0] + 1, left.at(-1)! + 1] : undefined;

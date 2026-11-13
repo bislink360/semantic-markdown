@@ -68,3 +68,18 @@ test('t-67: the omission panel builds a matrix of sections against protected blo
     ['Rules', ['constraint C1:carried']],
   ]);
 });
+
+test('t-67: the view reads fences and comments as rendering does, so no selected heading is lost', () => {
+  const read = (text: string, sections: string[]) => agentView(text, { sections, provenance: true });
+  // A backtick in a backtick fence's info string makes it text, not a fence.
+  assert.match(read('```>`\n## Section\n\nText.\n', ['Section']).text, /## Section/);
+  // A fence-like line inside a raw HTML block is HTML text.
+  assert.match(read('</div>\n```ts\n\n## Section\n\nText.\n', ['Section']).text, /## Section {2}\[L4\]/);
+  // A comment never closed inside a container ends with the container.
+  assert.match(read(':::details More\n<!-- note\n:::\n## Open\n\nQ.\n', ['Open']).text, /## Open {2}\[L4\]/);
+  // A fence-like line inside display math is math.
+  assert.match(read('$$\n````\n$$\n# Title\n\nT.\n', ['Title']).text, /# Title {2}\[L4\]/);
+  for (const text of ['```>`\n## Section\n', '</div>\n```ts\n\n## Section\n', '$$\n````\n$$\n# Title\n']) {
+    assert.ok(read(text, ['Section', 'Title']).provenance!.blocks.every((b) => b.outcome !== 'unaccounted'), text);
+  }
+});

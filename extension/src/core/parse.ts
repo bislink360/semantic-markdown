@@ -92,6 +92,8 @@ interface Block {
   noteRefs: Array<{ label: string; inside: number }>;
   /** GitHub alerts in the block (inside containers too), body-relative. */
   alerts: AlertLines[];
+  /** Block-level HTML comments in the block (inside containers too), [first, end) with body-relative lines. */
+  comments: Array<[number, number]>;
   /** The lines where task list items have their checkbox (see renderedTaskLines), body-relative. */
   tasks: number[];
   /** The lines of table rows, header and body (see tableRowLines), body-relative. */
@@ -427,6 +429,7 @@ export function parseSmd(text: string): ParseResult {
   };
   fenceStarts.set(result, state.blocks.flatMap((b) => b.fences).map((line) => line + fm.bodyStartLine));
   alertsOf.set(result, state.blocks.flatMap((b) => b.alerts).map((a) => shiftAlert(a, fm.bodyStartLine)));
+  commentsOf.set(result, state.blocks.flatMap((b) => b.comments).map(inDocument));
   ownersOf.set(result, owners);
   tasksOf.set(result, new Set(state.blocks.flatMap((b) => b.tasks).map((line) => line + fm.bodyStartLine)));
   rowsOf.set(result, new Set(state.blocks.flatMap((b) => b.rows).map((line) => line + fm.bodyStartLine)));
@@ -674,6 +677,7 @@ function shift(block: Block, delta: number): Block {
     fences: block.fences.map((line) => line + delta),
     definitions: block.definitions.map((d) => ({ ...d, line: d.line + delta })),
     alerts: block.alerts.map((a) => shiftAlert(a, delta)),
+    comments: block.comments.map(([start, end]) => [start + delta, end + delta]),
     idLines: block.idLines.map((line) => line + delta),
     tasks: block.tasks.map((line) => line + delta),
     rows: block.rows.map((line) => line + delta),
@@ -726,7 +730,7 @@ function parseRange(
     const block: Block = {
       start: g.start, end: g.end, headings: [], bases: [], ids: [], idLines: [], figures: figuresIn(g.tokens, from), code: linesOf(g.tokens, from, CODE_TOKENS),
       math: linesOf(g.tokens, from, MATH_TOKENS), inlineMath: multiLineMath(g.tokens, lines, from),
-      fences: linesOf(g.tokens, from, ['fence']).map(([first]) => first), definitions: [], notes: [], noteRefs: [], alerts: alertsIn(g.tokens, from),
+      fences: linesOf(g.tokens, from, ['fence']).map(([first]) => first), definitions: [], notes: [], noteRefs: [], alerts: alertsIn(g.tokens, from), comments: commentsIn(g.tokens, from),
       tasks: taskLinesIn(g.tokens, from), rows: linesOf(g.tokens, from, ['tr_open']).map(([first]) => first), items: multiLineItems(g.tokens, lines, from, items),
     };
     while (h < env.headings.length && env.headings[h].line < g.end) {
@@ -836,6 +840,25 @@ const CODE_TOKENS = ['code_block', 'fence'];
 const MATH_TOKENS = ['smd_math_block'];
 
 /** The lines of the tokens of these types among a block's tokens, nested ones too, body-relative. */
+/** The block-level HTML comments among tokens (an html_block that starts with `<!--`), [first, end) lines. */
+function commentsIn(tokens: Token[], from: number): Array<[number, number]> {
+  return tokens
+    .filter((t) => t.map && t.type === 'html_block' && t.content.trimStart().startsWith('<!--'))
+    .map((t): [number, number] => [from + t.map![0], from + t.map![1]]);
+}
+
+/** The block-level HTML comments of each result (see htmlCommentLines). */
+const commentsOf = new WeakMap<ParseResult, ReadonlyArray<readonly [number, number]>>();
+
+/**
+ * The block-level HTML comments of a document as markdown-it reads them, [first, end) zero-based lines in the whole
+ * document: a `<!--` that opens an HTML block, up to the line with `-->` or the end. One inside another HTML block,
+ * or in code, is not one.
+ */
+export function htmlCommentLines(text: string): ReadonlyArray<readonly [number, number]> {
+  return commentsOf.get(parseSmd(text)) ?? [];
+}
+
 function linesOf(tokens: Token[], from: number, types: string[]): Array<[number, number]> {
   return tokens
     .filter((t) => t.map && types.includes(t.type))

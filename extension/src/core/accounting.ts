@@ -1,4 +1,4 @@
-import { alertLines, parseSmd } from './parse';
+import { alertLines, htmlCommentLines, parseSmd } from './parse';
 import type { Omission, OmissionKind } from './provenance';
 import { tagBlocks } from './semanticTags';
 
@@ -64,8 +64,14 @@ export function documentUnits(text: string, bodyStart: number): Unit[] {
   const lines = text.split(/\r?\n/);
   const owner = new Array<number | undefined>(lines.length);
   const units: Unit[] = [];
-  // Containers, outermost first, so a nested one takes its lines from its parent.
-  const containers = tagBlocks(text).filter((b) => b.line >= bodyStart).sort((a, b) => a.line - b.line || b.endLine - a.endLine);
+  // Containers, outermost first, so a nested one takes its lines from its parent. One inside an HTML comment is
+  // comment text, as rendering reads it.
+  const comments = commentLines(text);
+  const parsed = parseSmd(text);
+  // Code and math are literal text: a container line inside them opens nothing.
+  const literal = (line: number) => [...parsed.code, ...parsed.math].some(([a, b]) => line >= a && line < b);
+  const containers = tagBlocks(text).filter((b) => b.line >= bodyStart && !comments.has(b.line) && !literal(b.line))
+    .sort((a, b) => a.line - b.line || b.endLine - a.endLine);
   const index = new Map<object, number>();
   for (const b of containers) {
     const parent = b.parent ? index.get(b.parent) : undefined;
@@ -73,8 +79,7 @@ export function documentUnits(text: string, bodyStart: number): Unit[] {
     units.push({ kind: b.name, ...(b.id ? { id: b.id } : {}), start: b.line, end: b.endLine, own: [], ...(parent === undefined ? {} : { parent }) });
     for (let i = b.line; i <= b.endLine; i++) owner[i] = units.length - 1;
   }
-  const parsed = parseSmd(text);
-  const add = (kind: string, start: number, end: number, id?: string, title?: string) => {
+  const add =(kind: string, start: number, end: number, id?: string, title?: string) => {
     if (start < bodyStart || owner[start] !== undefined) return;
     units.push({ kind, ...(id ? { id } : {}), ...(title ? { title } : {}), start, end, own: [] });
     for (let i = start; i <= end; i++) if (owner[i] === undefined) owner[i] = units.length - 1;
@@ -124,7 +129,8 @@ export function accountBlocks(input: {
     const body = where.filter((w) => w.part === 'body');
     const head = where.filter((w) => w.part === 'head');
     const parent = u.parent === undefined ? undefined : out[u.parent];
-    const left = covering(u.start);
+    // The range around the block: at its first line, else at the first of its own lines that one covers.
+    const left = covering(u.start) ?? u.own.map(covering).find(Boolean);
     // The block sits in a part the view leaves out or condenses: a range around it, or a parent that is not shown.
     const outside = (!!left && left.lines[0] - 1 !== u.start) || (!!parent && parent.outcome !== 'shown' && parent.outcome !== 'carried');
     const self = own.find((o) => CONDENSING.has(o.kind) && (o.lines[0] - 1 === u.start
@@ -152,8 +158,16 @@ export function accountBlocks(input: {
   // it holds. Innermost first, so nested layout settles first.
   // A block whose own text is all left out for a recorded reason (a column holding only a comment) takes that outcome.
   const lines = input.text.split(/\r?\n/);
+  const comments = commentLines(input.text);
   for (let i = out.length - 1; i >= 0; i--) {
     if (out[i].outcome !== 'unaccounted') continue;
+    // A block that is only an HTML comment is in no view, whether or not the view reached it.
+    const content = units[i].own.filter((l) => !FENCE.test(lines[l]));
+    const onlyComment = content.length > 0 && content.every((l) => comments.has(l) || !lines[l].replace(/<!--.*?-->/g, '').trim());
+    if (out[i].kind === 'text' && onlyComment) {
+      Object.assign(out[i], { outcome: 'omitted' as const, omission: { kind: 'comment' as const, reason: 'HTML comments are not part of the view' } });
+      continue;
+    }
     const text = units[i].own.filter((l) => !FENCE.test(lines[l]));
     const why = text.map((l) => covering(l));
     if (why.some((o) => !o)) continue;
@@ -166,6 +180,13 @@ export function accountBlocks(input: {
     else if (hidden) Object.assign(out[i], { outcome: hidden.outcome, ...(hidden.omission ? { omission: hidden.omission } : {}) });
   }
   return out;
+}
+
+/** The lines of the document's block-level HTML comments, as the parse reads them (see htmlCommentLines). */
+function commentLines(text: string): Set<number> {
+  const inside = new Set<number>();
+  for (const [a, b] of htmlCommentLines(text)) for (let l = a; l < b; l++) inside.add(l);
+  return inside;
 }
 
 /** A fence line: a container's opening or closing colons, a code fence, or a display math delimiter. */
