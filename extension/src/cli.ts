@@ -449,21 +449,30 @@ function fromMd(file: string, from: string | undefined, out: string | undefined,
 /** `smd validate` output formats: `--json` is short for `--format json`. */
 const VALIDATE_FORMATS = ['text', 'json', 'github'];
 
-interface Validation { files: number; report: FileReport[]; configProblems: ConfigProblem[]; errors: number; warnings: number }
+/** A path given to `smd validate` that could not be checked (t-08): listed in `inputErrors`, and the exit code is 2. */
+interface InputError { path: string; message: string }
+
+interface Validation {
+  files: number; report: FileReport[]; configProblems: ConfigProblem[]; errors: number; warnings: number; inputErrors: InputError[];
+}
 
 async function validate(targets: string[], args: Args, today?: string, staleAfterDays?: number): Promise<number> {
   const format = validateFormat(args);
   if (!format) return fail(`--format needs one of: ${VALIDATE_FORMATS.join(', ')} (--json is --format json).`);
-  const files = targets.flatMap((t) => collect(t));
-  if (!files.length) return fail('No .smd files found.');
-  const { report, configProblems } = await checkFiles(files, args, { today, staleAfterDays });
+  // A missing path never hides behind the files that were found: the rest are still checked, and the run exits 2.
+  const inputErrors: InputError[] = targets.filter((t) => !fs.existsSync(t)).map((t) => ({ path: t, message: `Not found: ${t}` }));
+  const files = targets.filter((t) => fs.existsSync(t)).flatMap((t) => collect(t));
+  if (!files.length && !inputErrors.length) return fail('No .smd files found.');
+  if (format !== 'json') for (const e of inputErrors) console.error(e.message);
+  const { report, configProblems } = files.length ? await checkFiles(files, args, { today, staleAfterDays }) : { report: [], configProblems: [] };
   const all = report.flatMap((r) => r.diagnostics);
   const errors = all.filter((d) => d.severity === 'error').length;
   const warnings = all.filter((d) => d.severity === 'warning').length + configProblems.length;
-  const result: Validation = { files: files.length, report, configProblems, errors, warnings };
-  VALIDATE_PRINTERS[format](result);
+  const result: Validation = { files: files.length, report, configProblems, errors, warnings, inputErrors };
+  if (files.length || format === 'json') VALIDATE_PRINTERS[format](result);
   const summary = args.values.get('--summary')?.[0];
-  if (summary) fs.appendFileSync(summary, validationSummary(ciResult(result), { linkBase: blobBase(process.env) }) + '\n');
+  if (summary && files.length) fs.appendFileSync(summary, validationSummary(ciResult(result), { linkBase: blobBase(process.env) }) + '\n');
+  if (inputErrors.length) return 2;
   return errors > 0 || (args.flags.has('--strict') && warnings > 0) ? 1 : 0;
 }
 
@@ -505,7 +514,9 @@ function reportConfigProblems(config: LoadedConfig, seen: ConfigProblem[]): void
 
 const VALIDATE_PRINTERS: Record<string, (result: Validation) => void> = {
   text: printValidationText,
-  json: ({ report, errors, warnings }) => process.stdout.write(JSON.stringify({ files: report, errors, warnings }, null, 2) + '\n'),
+  // `inputErrors` appears only when a given path was missing, so other reports stay byte for byte as before.
+  json: ({ report, errors, warnings, inputErrors }) =>
+    process.stdout.write(JSON.stringify({ files: report, errors, warnings, ...(inputErrors.length ? { inputErrors } : {}) }, null, 2) + '\n'),
   github: (result) => {
     for (const line of githubAnnotations(ciResult(result))) console.log(line);
   },
