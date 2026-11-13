@@ -224,12 +224,7 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
   const paths = closure.blocks.map((b) => ({ from: block(b.via), edge: b.edge.type, line: b.edge.line + 1, to: block(b.node), depth: b.depth, shownInPlace: inPlace(b) }));
   const elsewhere = closure.blocks.filter((b) => !inPlace(b));
 
-  // Headings above each pinned block, so it reads in its place.
-  const context = ranges.filter(([a]) => !inSelected(a)).flatMap(([a]) => headingsAbove(sections, a).map((s) => [s.start, s.start] as const));
-  // With the blank lines around each block, so blocks stay apart as in the document.
-  const blank = (l: number) => l >= 0 && l < lines.length && !lines[l].trim();
-  const padded = [...ranges, ...context].map(([a, b]) => [blank(a - 1) ? a - 1 : a, blank(b + 1) ? b + 1 : b] as const);
-  const pinnedRanges = merged(padded);
+  const pinnedRanges = pinLines(lines, sections, ranges, inSelected);
   const shownAt = (line: number) => inSelected(line) || pinnedRanges.some(([a, b]) => line >= a && line <= b);
 
   const optional: TaskViewReport['optional'] = spec.optional.map((id) => {
@@ -295,6 +290,19 @@ function closureProblem(u: Unsatisfied): ViewUnsatisfied {
     limit: `was left out: at most ${CLOSURE_LIMITS.blocks} dependencies are included`,
   };
   return { kind: u.kind, target: u.edge.target, via: u.edge.type, line: u.edge.line + 1, reason: reasons[u.kind] };
+}
+
+/**
+ * The lines a view pins to show `ranges` in place: each range with the headings above it (unless `inSelected` already
+ * shows its first line) and the blank lines around it, so blocks stay apart as in the document. Sorted and joined.
+ */
+export function pinLines(
+  lines: readonly string[], sections: readonly Section[], ranges: ReadonlyArray<readonly [number, number]>, inSelected: (line: number) => boolean = () => false,
+): Array<readonly [number, number]> {
+  const context = ranges.filter(([a]) => !inSelected(a)).flatMap(([a]) => headingsAbove(sections, a).map((s) => [s.start, s.start] as const));
+  const blank = (l: number) => l >= 0 && l < lines.length && !lines[l].trim();
+  const padded = [...ranges, ...context].map(([a, b]) => [blank(a - 1) ? a - 1 : a, blank(b + 1) ? b + 1 : b] as const);
+  return merged(padded);
 }
 
 /** The headings whose sections hold `line`, outermost first, without the one that starts on it. */

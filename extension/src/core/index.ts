@@ -57,6 +57,8 @@ export {
   taskViews, findTaskView, taskView, taskViewProblems, formatTaskViewInspection, formatTaskViewList, TaskViewError, VIEW_KEYS, VIEW_EVIDENCE,
 } from './taskViews';
 export type { TaskViewSpec, TaskViewOptions, TaskViewResult, TaskViewReport, ViewBlock, ViewUnsatisfied, TaskViewProblem } from './taskViews';
+export { queryView } from './queryView';
+export type { QueryViewOptions, QueryViewResult, QueryViewBlock } from './queryView';
 export { feedbackUpdates, formatFeedbackUpdates, UPDATES_NOTE } from './updates';
 export type { FeedbackUpdates, FeedbackChange, FeedbackKind, ChangeType, AffectedBlock, UpdatesOptions, UpdatesFormat } from './updates';
 export { blockRevision, revisionOfText } from './revision';

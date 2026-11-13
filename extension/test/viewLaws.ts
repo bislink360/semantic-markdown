@@ -43,6 +43,7 @@ const GR = 'graph.test.ts';
 const P1 = 'semanticTagsPhase1.test.ts';
 const P2 = 'semanticTagsPhase2.test.ts';
 const P3 = 'semanticTagsPhase3.test.ts';
+const QC = 'queryContract.test.ts';
 
 export const LAW_TESTS: Record<Law, LawTest[]> = {
   L1: [
@@ -68,6 +69,8 @@ export const LAW_TESTS: Record<Law, LawTest[]> = {
     t(RC, 'G1 (AF15): a parent section is kept when a subsection holds a danger, and its other subsections can go'),
     t(P3, 'R57: a section view that leaves out the non-goals still shows them, as it shows :::agent blocks'),
     t(P3, 'R57: a budget never omits the section that holds non-goals'),
+    t(QC, 'contract query (L1): dangers and agent blocks of hidden parts stay out, those of other sections come in'),
+    t(QC, 'contract query: R1 of the ledger runbook carries what the section read of Cutover carries'),
   ],
   L2: [
     t(CV, 'R25: a scope=document constraint is in every section view, in full and with its line'),
@@ -93,6 +96,9 @@ export const LAW_TESTS: Record<Law, LawTest[]> = {
     t(II, 't-59: validation stops reporting ref/unknown for an included target, and still reports it when the include cannot be read'),
     t(II, 't-59: a section include gives only the ids of its section'),
     t(TV, 'AF15: mandatory blocks come with their dependency closure, and stay whole when the view is condensed'),
+    t(QC, 'contract query: R1 of the ledger runbook carries what the section read of Cutover carries'),
+    t(QC, 'contract query (L2): a scope=section rule of the section around the match applies; one of a sibling section does not'),
+    t(QC, 'contract query (L2, L3): an unresolved rule target and a missing dependency make the view incomplete, by part'),
   ],
   L3: [
     t(CV, 'AF15: a section view adds the dependency closure of what it shows, with line refs'),
@@ -122,6 +128,7 @@ export const LAW_TESTS: Record<Law, LawTest[]> = {
     t(GR, 'the closure depth limit counts the fewest steps, so a long path walked first does not cut a near dependency'),
     t(RF, 'G4, G5: mandatory edges come in full once, and what cannot be satisfied makes the result incomplete'),
     t(RF, 'R19, G5: a section read and its followed edges agree on a dependency in another file, and complete says what the view says'),
+    t(QC, 'contract query (L2, L3): an unresolved rule target and a missing dependency make the view incomplete, by part'),
     t(RF, 'R19: the view reads a dependency from the documents given and through readDocument, with or without follow'),
     t(TV, 'AF15: mandatory blocks come with their dependency closure, and stay whole when the view is condensed'),
     t(TV, 'AF15: a mandatory id that names nothing is unsatisfied, reported in the view, and the view is incomplete'),

@@ -1,0 +1,24 @@
+---
+smd: 2
+title: Frontier fixture
+---
+## Work
+
+:::requirement{#RW depends-on=RMISSING} Work with a lost prerequisite
+RW-TEXT
+:::
+:::requirement{#RHID depends-on=RSKIP} Work with a hidden prerequisite
+RHID-TEXT
+:::
+
+## Rules
+
+:::constraint{#CGONE applies-to=NOWHERE} Rule with a lost target
+CGONE-TEXT
+:::
+
+## Archive {agent=skip}
+
+:::requirement{#RSKIP} Hidden prerequisite
+RSKIP-TEXT
+:::

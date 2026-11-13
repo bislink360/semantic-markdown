@@ -9,7 +9,8 @@ import { cliBuilt, loadCases, runRequest, type Driver, type LoadedCase, type Req
  * lands, its test fails here until the marker is removed, so a fix never goes unnoticed. `npm run conformance` prints
  * recall and precision per request.
  *
- * The library driver (agentView with the options and file reader of `smd agent`) runs without a build. The CLI driver
+ * The library driver (agentView with the options and file reader of `smd agent`, or queryView for a contract-aware
+ * query) runs without a build. The CLI driver
  * spawns dist/cli.js with --provenance and is skipped until `npm run build` has run.
  */
 
@@ -46,6 +47,7 @@ test('conformance: every case has requests and the suite covers the views the la
   assert.ok(routes.some((r) => r.brief), 'a brief view');
   assert.ok(routes.some((r) => r.sections?.length), 'a section view');
   assert.ok(routes.some((r) => r.maxTokens !== undefined), 'a budgeted view');
+  assert.ok(routes.some((r) => r.query !== undefined), 'a contract-aware query');
   const kinds = new Set(cases.flatMap((c) => c.spec.requests.flatMap((r) => (r.unsatisfied ?? []).flatMap((u) => (Array.isArray(u.kind) ? u.kind : [u.kind])))));
   for (const kind of ['missing', 'ambiguous', 'hidden', 'denied', 'cycle', 'depth', 'limit', 'include', 'unresolved-target']) assert.ok(kinds.has(kind), `an unsatisfied ${kind}`);
 });

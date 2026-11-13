@@ -1,0 +1,63 @@
+---
+smd: 2
+title: Contract query fixture
+---
+:::danger Preamble danger
+PREAMBLE-DANGER never replay a settlement batch.
+:::
+:::constraint{#CDOC scope=document} Document rule
+CDOC-TEXT run inside the change window.
+:::
+
+## Prepare
+
+:::requirement{#RPRE status=accepted} Snapshot first
+RPRE-TEXT take a snapshot before any write.
+:::
+:::constraint{#CPRE} Replica only
+CPRE-TEXT run preparation on the replica.
+:::
+
+## Operations
+
+:::constraint{#COPS} Two people
+COPS-TEXT two people on every change.
+:::
+
+### Cutover
+
+:::requirement{#RCUT status=accepted depends-on=RPRE} Switch writes
+RCUT-TEXT point the writer at the new ledger.
+:::
+:::agent
+AGENT-CUT stop and ask a person when a check fails.
+:::
+
+### Rollback
+
+:::constraint{#CRB} Keep the old ledger warm
+CRB-TEXT keep the old ledger running for a day.
+:::
+:::requirement{#RRB status=accepted} Roll back
+RRB-TEXT switch the writer back.
+:::
+
+## Rules
+
+:::constraint{#CON applies-to=RCUT} Rule on the target
+CON-TEXT announce the cutover first.
+:::
+:::decision{#D1 status=accepted} Single cutover
+D1-TEXT switch in one step.
+:::
+
+## Notes
+
+> [!CAUTION]
+> CAUTION-NOTE back up the ledger first.
+
+## History {agent=skip}
+
+:::danger Hidden danger
+HIDDEN-DANGER for people only.
+:::

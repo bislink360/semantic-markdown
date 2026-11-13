@@ -7,6 +7,7 @@ import { accountBlocks, type BlockAccount } from './accounting';
 import { htmlCommentLines } from './parse';
 import { sha256Hex } from './sha256';
 import type { TaskViewReport } from './taskViews';
+import type { QueryViewBlock } from './queryView';
 
 /**
  * Projection provenance (`agentView(text, { provenance: true })`, `smd agent --provenance <file>`): an optional,
@@ -167,6 +168,8 @@ export interface Provenance {
   constraints: ConstraintView | null;
   /** An author task view (`--view`): the author's policy and the agent's choices apart, the paths followed, and what is unsatisfied. */
   view?: TaskViewReport;
+  /** A contract-aware query (`smd query --contract`): the selector and the blocks it matched, with one-based lines. */
+  query?: { selector: string; matches: QueryViewBlock[] };
   /** Only for a document with constraints or dependencies: what the view must carry and what it could not (see applicability.ts). */
   mandatory?: MandatoryContext;
   /** A read with `follow` (`smd read --follow`): the edges followed, the pointers and dependencies added, and what is unsatisfied. */

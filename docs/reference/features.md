@@ -70,6 +70,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd query … --follow "*" [--direction in] [--depth 2]` | Also the blocks each match links to, as one-line pointers with their cost, and what it depends on in full (`depends-on`, `applies-to`, `include`) |
 | `smd read <file> --section … --follow "*"` | The same for what a read shows: after the view, the blocks it links to as pointers and what it depends on in full, counted in the budget ([below](#following-references-from-a-read)) |
 | `smd query … --constraints` | Also the documents' `:::agent` blocks and document-wide `:::constraint` blocks. Without it, a line says when a document has some |
+| `smd query … --contract [--json] [--provenance <file.json>]` | Each document's matches as a section read carries them: their agent instructions and dangers, the constraints that apply, what they depend on, and whether the result is complete ([below](#with-the-read-contract)) |
 | `smd review <file>` · `smd review accept\|reject\|resolve … <item> --by @me` | Open comments and suggestions with their targets and whether each is stale; each review step is its own command ([below](#review-comments-and-suggestions-smd-review)) |
 | `smd trace <paths> [--uncovered]` | Each requirement with its status, acceptance criteria, task claims, evidence and acceptance by a person, kept apart; `smd agent --evidence` shows the evidence in the view ([below](#tracing-requirements-smd-trace)) |
 | `smd updates <file> --since <ref\|rev:…>` | What changed in the document's feedback since a checkpoint: answers, accepted and rejected suggestions, checked tasks, changed requirements |
@@ -841,7 +842,24 @@ docs/spec.smd:33-34  — Requirements  (applies-to from L33)
 - **Mandatory edges** are followed to their closure, whatever the direction. What a match `depends-on` or `include`s, and the constraints that `applies-to` it, come in full under "Dependencies (mandatory edges, included in full)", then what those need, up to 5 hops and 50 blocks. A dependency that is missing, ambiguous, outside the paths given, in a cycle, or past those limits gets an "Unsatisfied dependency" line, and the match ends with "the result is incomplete". The summary on stderr then says "Incomplete".
 - **Other files** are read only inside the files and folders given on the command line. A link to a file outside them is `denied`, and its content, or even whether it exists, stays unknown.
 - **JSON.** With `--follow` or `--constraints`, `--json` prints an object instead of the array. It has `matches` (each with `ancestors`, and with `--follow` its `neighbors`, `dependencies`, `unsatisfied` and `cut`), `constraints`, `edges`, `complete` and `tokens` (`shown`, `pointers`, `dependencies`).
-- **Library.** The npm package exports `queryDocuments`, `DocumentGraph`, `mandatoryClosure`, `followEdges`, `edgeTypes`, `dependencyProblems`, `formatQueryResult` and `queryResultJson`. The MCP `query` tool is unchanged.
+- **Library.** The npm package exports `queryDocuments`, `DocumentGraph`, `mandatoryClosure`, `followEdges`, `edgeTypes`, `dependencyProblems`, `formatQueryResult` and `queryResultJson`.
+
+#### With the read contract
+
+`--constraints` and `--follow` add parts of what a match needs, but an agent that acts on a match needs all of it. `--contract` gives each document's matches the safeguards a section read carries, worked out by the same rules.
+
+```bash
+smd query "requirement[id=R1]" docs/runbook.smd --contract
+```
+
+- **What it prints.** For each document with matches, an agent view of the matched blocks under their headings, with the header line `(excerpt — query: requirement[id=R1]; 1 block)`. Above them come the document's `:::agent` blocks and non-goals, then "Constraints that apply here", then "Dependencies of the selected content" and anything not satisfied, then the dangers. A section read of the match's section carries the same constraints, dependencies and dangers.
+- **Which constraints apply.** A document-scoped one, or one above the first heading. A `scope=section` one whose section holds a match, or holds a section that holds one. One whose `applies-to` names a match, a dependency or a heading above either. The `scope=section` ones of the section a dependency sits in. One whose `applies-to` names nothing the reader can find applies to every result and makes it incomplete. Sections marked `{agent=skip}` and `:::human` blocks stay out, as in every view.
+- **Dependencies** are the `depends-on` and `:depends` closure of the matches and of the constraints that apply, up to 5 hops and 50 blocks, read from other files as `smd agent` reads them. What can't be carried is listed under "Not satisfied" with its kind (`missing`, `ambiguous`, `hidden`, `denied`, `cycle`, `depth`, `limit`, `include` or `unresolved-target`), and stderr warns that the view is incomplete.
+- **Several documents.** One document's view is printed as it is. With matches in several, each view follows a `==> docs/a.smd <==` line.
+- **JSON.** `--json` prints `documents` (each with `file`, `matches` with one-based lines, `text` and `mandatory`: `constraints`, `dependencies`, `unsatisfied`, `complete` and `completeness`), then `complete` and `completeness` over all of them. `completeness` has `coverage`, `resolution` and `budget`.
+- **Provenance.** `--provenance <file.json>` writes the manifest of each view (`smd-projection/1`, as `smd agent --provenance`), as a JSON array in document order. Each manifest's `query` has the selector and the matched blocks, and its output lines count from its own view's first line.
+- **Not with** `--follow` or `--titles` (exit code 2). `--constraints` adds nothing to it. Without `--contract` the output is what it always was.
+- **MCP and library.** The MCP `query` tool takes `contract: true` and returns the same views and summary. The npm package exports `queryView(text, selector, options)`, which returns the view of one document's matches, with `matches`, `mandatory` and, with `provenance`, the manifest, or null when nothing matches.
 
 #### Following references from a read
 
