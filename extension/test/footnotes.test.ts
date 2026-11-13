@@ -5,7 +5,8 @@ import * as path from 'node:path';
 import MarkdownIt from 'markdown-it';
 import smd from '../src/core/markdownIt';
 import { agentView, applyFixes, formatSmd, parseSmd, renderSmd, smdToMarkdown, validateSmd } from '../src/core';
-import { findFootnotes, footnoteLabelPrefix, maskCodeSpans } from '../src/core/footnotes';
+import { findFootnotes, footnoteLabelPrefix } from '../src/core/footnotes';
+import { maskCodeSpans } from '../src/core/codeSpans';
 import { completionsAt, hoverAt } from '../src/lspAssist';
 
 const html = (src: string) => renderSmd(src, { today: '2026-01-01' }).html;

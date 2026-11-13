@@ -7,6 +7,7 @@ import { CONTAINERS, ID_ATTRIBUTES, idList } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { scanTasks } from './taskLines';
 import { own } from './util';
+import { dependsOnLine } from './codeSpans';
 
 /**
  * The semantic tags (requirement, constraint, acceptance, assumption, evidence) and the lifecycle of questions and
@@ -191,9 +192,7 @@ export function tagContext(text: string, file?: string): TagContext | undefined 
 
 /** The ids `:depends[…]` lists on a line (spec v2 only), in order. */
 export function dependsIds(line: string, spec: SpecVersion): string[] {
-  if (spec < 2) return [];
-  const ids = [...line.replace(/`[^`]*`/g, '').matchAll(/(?:^|[\s([{>*_~"'-]):depends\[([^\]]*)\]/gi)].flatMap((m) => idList(m[1]));
-  return [...new Set(ids)];
+  return spec < 2 ? [] : dependsOnLine(line);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { maskCodeSpans } from './footnotes';
+import { maskCodeSpans } from './codeSpans';
 import { suggest } from './util';
 import type { Diagnostic, Severity } from './validate';
 
