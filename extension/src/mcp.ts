@@ -1,10 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { agentView, outline, parseSelector, SelectorError, type Diagnostic, type Selector } from './core';
+import { agentView, outline, parseSelector, queryView, SelectorError, type Diagnostic, type Selector } from './core';
 import { loadRuleConfig, type LoadedConfig } from './config';
 import { loadMermaidParser } from './mermaidLoader';
 import { McpServer, serveLines, ToolError, type McpTool, type ToolInputSchema } from './mcpProtocol';
 import { revisionOf, suggestTool, writeTools } from './mcpWrite';
+import { contractSummary, contractText } from './queryCommand';
 import { readDocument, READ_BUDGET, READ_MODES, type ReadMode } from './readView';
 import { collect, diagnose, isInside, queryRows, querySummary, queryText, read, readerFor, taskLine, taskRows, taskSummary } from './workspace';
 
@@ -128,13 +129,13 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
     }),
     tool({
       name: 'query',
-      description: 'Blocks matching a selector: decision[status=accepted], risk[impact>=high], '
-        + 'task[owner=@me][done=false], "question, risk". Ops: = != *= ^= $= < <= > >=, a|b.',
+      description: 'Blocks matching: decision[status=accepted], task[done=false], "question, risk". Ops: = != *= ^= $= < <= > >=, a|b.',
       inputSchema: schema({
         selector: { type: 'string' },
         paths: PATHS,
         brief: SHORT_BRIEF,
-        titles: { type: 'boolean', description: 'One line per match.' },
+        titles: { type: 'boolean' },
+        contract: { type: 'boolean', description: 'With rules, deps, dangers.' },
       }, ['selector']),
       run: (args) => queryTool(box, args),
     }),
@@ -230,8 +231,23 @@ function tasksTool(box: Sandbox, args: Args): string {
 function queryTool(box: Sandbox, args: Args): string {
   const selectors = selectorsOf(text(args, 'selector')!);
   const files = box.documents(list(args, 'paths'));
+  if (flag(args, 'contract')) return contractQueryTool(box, text(args, 'selector')!, files, args);
   const rows = queryRows(files, selectors, { brief: flag(args, 'brief') }, (f) => box.name(f));
   return `${queryText(rows, flag(args, 'titles'))}${rows.length ? '\n' : ''}${querySummary(rows, files.length)}\n`;
+}
+
+/**
+ * `query` with `contract`: each document's matches as a section read carries them (see queryView), as `smd query
+ * --contract` prints them, then its summary without the `[smd]` prefix.
+ */
+function contractQueryTool(box: Sandbox, selector: string, files: string[], args: Args): string {
+  if (flag(args, 'titles')) throw new ToolError('"contract" shows each match with what it needs, so it does not go with "titles".');
+  const views = files.flatMap((f) => {
+    const result = queryView(read(f), selector, { brief: flag(args, 'brief'), readFile: box.reader(f), file: box.name(f) });
+    return result ? [{ file: box.name(f), result }] : [];
+  });
+  const summary = contractSummary(views, files.length).replace(/^\[smd\] /gm, '');
+  return `${contractText(views)}${views.length ? '\n' : ''}${summary}`;
 }
 
 function selectorsOf(selector: string): Selector[] {

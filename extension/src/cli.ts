@@ -120,6 +120,7 @@ Reading (token-efficient, for agents):
       --uncovered  only requirements no acceptance criterion covers
   smd query "<selector>" <files|dirs...> [--json] [--titles] [--brief] [--no-lines] [--constraints]
             [--follow <types|*> [--direction out|in|both] [--depth 1-3]]
+  smd query "<selector>" <files|dirs...> --contract [--json] [--brief] [--no-lines] [--provenance <file.json>]
       Blocks selected by type and attributes, each in the agent view. Exit code 1 when nothing matches.
         decision[status=accepted]      risk[impact>=high][status!=closed]      api[method=POST|PUT]
         task[owner=@maya][done=false]  task[due<today]    question, risk       heading[level=2]
@@ -136,6 +137,13 @@ Reading (token-efficient, for agents):
                      include, applies-to and depends-on targets come in full, with what they need in turn.
                      Other files are read only inside the paths given. --direction (default out) and
                      --depth (default 1) say which edges and how far.
+      --contract     each document's matches as a section read carries them: an agent view of the
+                     matched blocks under their headings, with the document's agent instructions and
+                     dangers, the constraints that apply to the matches, the depends-on closure with
+                     what it could not satisfy, and completeness (coverage, resolution, budget). Several
+                     documents each follow a "==> file <==" line. --json: per document its matches,
+                     view and mandatory context. --provenance writes one manifest per document, as an
+                     array. Goes with neither --follow nor --titles.
   smd diff <old.smd> <new.smd> [--json] [--brief] [--no-lines] [--exit-code]
   smd diff <files|dirs...> --since <git-ref> [--json] [--brief] [--no-lines] [--exit-code]
       Only the sections that changed, in the agent view of the new version: front-matter changes,
@@ -334,7 +342,8 @@ function main(argv: string[]): number | Promise<number> {
       return query(positional[0], positional.slice(1), {
         json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
         constraints: flags.has('--constraints'), follow: value('--follow'), direction: value('--direction'), depth: value('--depth'),
-      });
+        contract: flags.has('--contract'),
+      }, args);
     case 'rev': {
       const out = runRev(positional[0], positional.slice(1), flags.has('--json'));
       process.stdout.write(out.stdout);
@@ -652,8 +661,12 @@ function risks(targets: string[], args: Args): number {
   return write(out, args.flags.has('--json') ? JSON.stringify(register, null, 2) + '\n' : riskRegisterText(register));
 }
 
-function query(selector: string | undefined, targets: string[], flags: QueryFlags): number {
-  const { code, stdout, stderr } = runQuery(selector, targets, flags);
+function query(selector: string | undefined, targets: string[], flags: QueryFlags, args: Args): number {
+  // --provenance goes with --contract; without it the option is ignored, as it always was.
+  const manifest = flags.contract ? provenanceTarget(args) : undefined;
+  if (manifest === null) return fail(PROVENANCE_USAGE);
+  const { code, stdout, stderr, manifests } = runQuery(selector, targets, { ...flags, provenance: manifest !== undefined });
+  if (manifest && manifests) writeProvenanceList(manifest, manifests);
   process.stdout.write(stdout);
   process.stderr.write(stderr);
   return code;
@@ -790,6 +803,12 @@ function warnIncomplete(mandatory: AgentViewResult['mandatory']): void {
 
 function writeProvenance(target: string, manifest: Provenance): void {
   fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
+}
+
+/** `smd query --contract --provenance <file>`: the manifests of the views, one per document with matches, as an array. */
+function writeProvenanceList(target: string, manifests: Provenance[]): void {
+  const tool = `smd ${pkg.version}`;
+  fs.writeFileSync(target, JSON.stringify(manifests.map((m) => ({ ...m, settings: { tool, ...m.settings } })), null, 2) + '\n');
 }
 
 function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 'maxTokens' | 'tokenizer' | 'today'>): number {

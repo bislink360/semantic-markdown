@@ -126,6 +126,12 @@ export interface PinnedSelection {
   selects: boolean;
   label: string;
   appendix: string;
+  /**
+   * The blocks the view selects, without the headings and blank lines pinned around them. Given, each counts as a
+   * selected part of the section that holds it when the view works out which constraints apply, so a `scope=section`
+   * constraint of that section or of one around it applies (view laws L2). Left out, only `sections` count.
+   */
+  blocks?: ReadonlyArray<readonly [number, number]>;
 }
 
 export interface AgentViewResult {
@@ -561,10 +567,22 @@ const documentReader = (readFile: (relativePath: string) => string | undefined) 
 /** The constraints and dependencies a view must carry (see applicability.ts); undefined for a document with none. */
 function mandatoryOf(text: string, scope: ViewScope, options: AgentViewOptions): MandatoryPlan | undefined {
   return mandatoryPlan({
-    text, lines: scope.lines, bodyStart: scope.bodyStart, sections: scope.sections, selected: scope.selected, skipped: scope.skipped,
+    text, lines: scope.lines, bodyStart: scope.bodyStart, sections: scope.sections, selected: selectedWithBlocks(scope), skipped: scope.skipped,
     inScope: scope.inScope, includeHuman: !!options.includeHuman, includes: options.includes !== false, readFile: options.readFile,
     readDocument: options.readDocument ?? (options.readFile && documentReader(options.readFile)), file: options.file ?? '<file>',
   });
+}
+
+/** The selected sections, and each pinned block (see PinnedSelection.blocks) as a part of the section that holds it. */
+function selectedWithBlocks(scope: ViewScope): Section[] | null {
+  const blocks = scope.pinned?.blocks;
+  if (!blocks?.length) return scope.selected;
+  const holder = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1);
+  const parts = blocks.flatMap(([start, end]) => {
+    const s = holder(start);
+    return s ? [{ ...s, start, end }] : [];
+  });
+  return [...(scope.selected ?? []), ...parts];
 }
 
 /**

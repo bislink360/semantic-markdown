@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
-import { agentView } from '../../src/core';
+import { agentView, queryView } from '../../src/core';
 import { readerFor } from '../../src/workspace';
 import { blockAt, hidden, LAYOUT_CONTAINERS, scan, type Range, type ScannedBlock, type ScannedFile, type ScannedSection } from './scan';
 
@@ -21,7 +21,9 @@ import { blockAt, hidden, LAYOUT_CONTAINERS, scan, type Range, type ScannedBlock
  *
  * Drivers: `library` calls agentView with the options and the file reader `smd agent` uses (src/cli.ts printAgentView),
  * so it runs without a build. `cli` spawns the built CLI (`dist/cli.js agent … --provenance`) and reads its stdout and
- * manifest. Both are judged by the same expectations.
+ * manifest. Both are judged by the same expectations. A route with `query` is a contract-aware query (`smd query
+ * --contract`): the library driver calls queryView, the CLI driver runs `smd query <selector> <doc> --contract
+ * --provenance`, which writes an array of manifests, one per document with matches.
  */
 
 export const CASES_DIR = join(__dirname, 'cases');
@@ -29,6 +31,11 @@ export const CLI = join(__dirname, '..', '..', 'dist', 'cli.js');
 
 export interface Route {
   sections?: string[];
+  /**
+   * A selector, for a contract-aware query of the document. The oracle does not evaluate selectors, so the blocks it
+   * matches are listed by hand in `mustAppear` (Shown(r) of the laws).
+   */
+  query?: string;
   brief?: boolean;
   maxTokens?: number;
 }
@@ -186,6 +193,7 @@ export function loadCases(dir = CASES_DIR): LoadedCase[] {
 /** As `smd agent <doc> [--section …] [--brief] [--max-tokens n] --provenance <file>` (src/cli.ts printAgentView). */
 export function runLibrary(dir: string, doc: string, route: Route): Observation {
   const abs = join(dir, doc);
+  if (route.query !== undefined) return runLibraryQuery(abs, doc, route.query, route);
   const result = agentView(readFileSync(abs, 'utf8'), {
     sections: route.sections,
     exactSections: false,
@@ -204,6 +212,15 @@ export function runLibrary(dir: string, doc: string, route: Route): Observation 
   return { text: result.text, manifest: result.provenance as unknown as Manifest };
 }
 
+/** As `smd query <selector> <doc> [--brief] --contract --provenance <file>` (src/queryCommand.ts contractQuery). */
+function runLibraryQuery(abs: string, doc: string, selector: string, route: Route): Observation {
+  const result = queryView(readFileSync(abs, 'utf8'), selector, {
+    brief: !!route.brief, lineRefs: true, provenance: true, readFile: readerFor(abs), file: doc,
+  });
+  if (!result?.provenance) throw new Error(`the query ${selector} matched nothing in ${doc}`);
+  return { text: result.text, manifest: result.provenance as unknown as Manifest };
+}
+
 export function cliBuilt(): boolean {
   return existsSync(CLI);
 }
@@ -212,13 +229,19 @@ export function runCli(dir: string, doc: string, route: Route): Observation {
   const tmp = mkdtempSync(join(tmpdir(), 'smd-conformance-'));
   const out = join(tmp, 'view.json');
   try {
-    const args = [CLI, 'agent', doc, ...(route.sections ?? []).flatMap((s) => ['--section', s])];
+    const args = route.query !== undefined
+      ? [CLI, 'query', route.query, doc, '--contract']
+      : [CLI, 'agent', doc, ...(route.sections ?? []).flatMap((s) => ['--section', s])];
     if (route.brief) args.push('--brief');
     if (route.maxTokens !== undefined) args.push('--max-tokens', String(route.maxTokens));
     args.push('--provenance', out);
     const run = spawnSync(process.execPath, args, { cwd: dir, encoding: 'utf8' });
-    if (run.status !== 0) throw new Error(`smd agent exited with ${run.status}: ${run.stderr}`);
-    return { text: run.stdout, manifest: JSON.parse(readFileSync(out, 'utf8')) as Manifest };
+    if (run.status !== 0) throw new Error(`smd ${args[1]} exited with ${run.status}: ${run.stderr}`);
+    const written = JSON.parse(readFileSync(out, 'utf8')) as Manifest | Manifest[];
+    // The query writes one manifest per document with matches; it is given one document.
+    const manifest = Array.isArray(written) ? written[0] : written;
+    if (!manifest) throw new Error(`smd query wrote no manifest: ${run.stderr}`);
+    return { text: run.stdout, manifest };
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -326,6 +349,8 @@ const isTyped = (b: ScannedBlock) => !['heading', 'paragraph'].includes(b.kind) 
 
 /** Typed blocks inside the requested scope that no audience mark hides (Shown(r) of the laws, without dependencies). */
 function inScope(fx: Fixture, route: Route): ScannedBlock[] {
+  // A query's matched blocks are listed in mustAppear, since the oracle does not evaluate selectors.
+  if (route.query !== undefined) return [];
   const doc = fx.files.get(fx.doc)!;
   const queries = (route.sections ?? []).map((q) => q.toLowerCase());
   const selected = doc.sections.filter((s) => queries.includes((s.heading.text ?? '').toLowerCase()));

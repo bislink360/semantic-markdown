@@ -1,0 +1,74 @@
+{
+  "description": "A contract-aware query (smd query --contract) is a content-bearing route (definitions, Routes) whose requested scope is the blocks its selector matches. Shown(r) is the matched blocks, and each sits in its section, so a constraint whose section encloses a match applies (L2). The view carries the agent blocks and dangers of the document (L1), the document-scoped rules, the rules of the sections around a match, the rules whose applies-to names a match, the prerequisite closure and the rules of a prerequisite's section (L2, L3), and lists what it cannot carry or resolve (L3). Matched blocks are listed in mustAppear by hand, since the oracle does not evaluate selectors.",
+  "requests": [
+    {
+      "name": "query RCUT carries the rules, the prerequisite and the protected blocks of the document",
+      "route": { "query": "requirement[id=RCUT]" },
+      "laws": ["L1", "L2", "L3", "L6", "L7"],
+      "mustAppear": ["RCUT", "CDOC", "COPS", "CON", "RPRE", "CPRE", "~PREAMBLE-DANGER", "~AGENT-CUT", "~CAUTION-NOTE"],
+      "mustNotAppear": ["~HIDDEN-DANGER", "RRB"],
+      "unsatisfied": [],
+      "complete": true,
+      "completeness": { "coverage": true, "resolution": true, "budget": true },
+      "deterministic": true,
+      "omissions": [
+        { "kind": "not-selected", "heading": "Rollback", "lines": [38, 43] },
+        { "kind": ["skipped-section", "not-selected"], "heading": "History" }
+      ]
+    },
+    {
+      "name": "brief query RCUT carries the same blocks",
+      "route": { "query": "requirement[id=RCUT]", "brief": true },
+      "laws": ["L1", "L2", "L3"],
+      "mustAppear": ["RCUT", "CDOC", "COPS", "CON", "RPRE", "CPRE", "~PREAMBLE-DANGER", "~AGENT-CUT", "~CAUTION-NOTE"],
+      "mustNotAppear": ["~HIDDEN-DANGER"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "a query matching blocks in two sections carries the rules of both",
+      "route": { "query": "requirement[id=RCUT], decision[id=D1]" },
+      "laws": ["L1", "L2", "L3"],
+      "mustAppear": ["RCUT", "D1", "CDOC", "COPS", "CON", "RPRE", "CPRE", "~PREAMBLE-DANGER", "~AGENT-CUT", "~CAUTION-NOTE"],
+      "mustNotAppear": ["~HIDDEN-DANGER"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "a query of a prerequisite carries the rules of its own section and the global ones",
+      "route": { "query": "requirement[id=RPRE]" },
+      "laws": ["L1", "L2"],
+      "mustAppear": ["RPRE", "CPRE", "CDOC", "~PREAMBLE-DANGER", "~AGENT-CUT", "~CAUTION-NOTE"],
+      "mustNotAppear": ["~HIDDEN-DANGER"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "a query whose match has a missing prerequisite lists it, and the rule with a lost target applies unplaced",
+      "doc": "doc-frontier.smd",
+      "route": { "query": "requirement[id=RW]" },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["RW", "CGONE"],
+      "unsatisfied": [
+        { "kind": "missing", "target": "RMISSING" },
+        { "kind": "unresolved-target", "target": "NOWHERE" }
+      ],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": false, "budget": true }
+    },
+    {
+      "name": "a query whose match needs a block hidden from agents withholds it and lists it as hidden",
+      "doc": "doc-frontier.smd",
+      "route": { "query": "requirement[id=RHID]" },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["RHID", "CGONE"],
+      "mustNotAppear": ["~RSKIP-TEXT"],
+      "unsatisfied": [
+        { "kind": "hidden", "target": "RSKIP" },
+        { "kind": "unresolved-target", "target": "NOWHERE" }
+      ],
+      "complete": false,
+      "completeness": { "coverage": false, "resolution": false, "budget": true }
+    }
+  ]
+}
