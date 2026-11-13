@@ -20,6 +20,7 @@ import { runRev } from './revCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
+import { type Args, parseArgs, reads } from './cliOptions';
 import { fail, langOption, LANG_USAGE, reportCrash, requireFile, write } from './cliIo';
 import { loadRuleConfig, readConfigFile, type LoadedConfig } from './config';
 import { runMcpServer } from './mcp';
@@ -281,45 +282,13 @@ Agent skills:
 
 const SKILLS_USAGE = 'Usage: smd skills install [--dir <dir>] [--global] [--only reader|writer] [--target claude|cursor|copilot|agents]';
 
-interface Args { command?: string; positional: string[]; flags: Set<string>; values: Map<string, string[]> }
-
-const VALUE_OPTIONS = new Set([
-  '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
-  '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
-  '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
-  '--follow', '--direction', '--depth', '--view', '--order', '--from',
-  '--text', '--by', '--reason', '--kind',
-]);
-
-function parseArgs(argv: string[]): Args {
-  const [command, ...rest] = argv;
-  const args: Args = { command, positional: [], flags: new Set(), values: new Map() };
-  for (let i = 0; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === '--') {
-      // End of options: the rest are files, even ones that start with "-" (as Git hooks may pass them).
-      args.positional.push(...rest.slice(i + 1));
-      break;
-    }
-    if (VALUE_OPTIONS.has(a)) {
-      const list = args.values.get(a) ?? [];
-      list.push(rest[++i] ?? '');
-      args.values.set(a, list);
-    } else if (a.startsWith('-')) {
-      args.flags.add(a);
-    } else {
-      args.positional.push(a);
-    }
-  }
-  return args;
-}
-
 function main(argv: string[]): number | Promise<number> {
-  const args = parseArgs(argv);
+  const args = parseArgs(argv, (message) => console.error(`[smd] warning: ${message}`));
   const { command, positional, flags } = args;
   const value = (name: string) => args.values.get(name)?.[0];
   const today = value('--today');
-  const staleAfter = value('--stale-after');
+  // Only the commands that read --stale-after check it (t-07).
+  const staleAfter = reads(command, '--stale-after') ? value('--stale-after') : undefined;
   const staleAfterDays = staleAfter === undefined ? undefined : Number(staleAfter);
   if (staleAfterDays !== undefined && !(staleAfterDays >= 0)) return fail('--stale-after needs a number of days (0 turns the check off).');
 
@@ -765,6 +734,7 @@ function readCommand(file: string, args: Args, today?: string): number {
     const result = readDocument(read(file), {
       mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
       readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined,
+      ...(flags.has('--evidence') ? { evidence: 'full' as const } : {}),
       ...(follow !== undefined ? { follow, ...graph, readDocument: graphReader([folder]), ...(others ? { documents: others } : {}) } : {}),
     });
     if (result.missingSections.length) {
