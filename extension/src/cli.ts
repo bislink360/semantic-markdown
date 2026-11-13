@@ -20,7 +20,7 @@ import { runRev } from './revCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
-import { fail, langOption, LANG_USAGE, requireFile, write } from './cliIo';
+import { fail, langOption, LANG_USAGE, reportCrash, requireFile, write } from './cliIo';
 import { loadRuleConfig, readConfigFile, type LoadedConfig } from './config';
 import { runMcpServer } from './mcp';
 import { readDocument, READ_BUDGET, type ReadMode, type ReadResult } from './readView';
@@ -1270,4 +1270,7 @@ function removeLegacySkill(folder: string): void {
   console.log(`Removed ${folder}  (the same skill under its pre-3.0 name)`);
 }
 
-void Promise.resolve(main(process.argv.slice(2))).then((code) => { process.exitCode = code; });
+// The error boundary: a throw or a rejected promise from any command becomes one line on stderr and an exit code.
+void Promise.resolve()
+  .then(() => main(process.argv.slice(2)))
+  .then((code) => { process.exitCode = code; }, (error: unknown) => { process.exitCode = reportCrash(error); });
