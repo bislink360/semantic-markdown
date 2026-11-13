@@ -51,10 +51,11 @@ const runEnd = (line: string, i: number): number => {
 
 /** The end of the next run of exactly `length` backticks from `from`, or -1. Inside code a backslash is text. */
 function closingRun(line: string, from: number, length: number): number {
-  for (let i = line.indexOf('`', from); i >= 0; i = line.indexOf('`', i)) {
+  let i = line.indexOf('`', from);
+  while (i >= 0) {
     const end = runEnd(line, i);
     if (end - i === length) return end;
-    i = end;
+    i = line.indexOf('`', end);
   }
   return -1;
 }
