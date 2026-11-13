@@ -83,9 +83,11 @@ test('t-07: smd lsp accepts the options editors pass, and migrate keeps its own 
 });
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
+/** The CLI tests run the built bundle; a test run without a build skips them, as the other CLI tests do. */
+const skip = !fs.existsSync(cli) && 'run npm run build first';
 const run = (args: string[], cwd: string) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', cwd });
 
-test('t-07: from the CLI the warning goes to stderr, JSON stays parseable and the exit code is unchanged', () => {
+test('t-07: from the CLI the warning goes to stderr, JSON stays parseable and the exit code is unchanged', { skip }, () => {
   const dir = fs.mkdtempSync(join(os.tmpdir(), 'smd-options-'));
   fs.writeFileSync(join(dir, 'ok.smd'), '---\nsmd: 2\ntitle: Ok\n---\n\n# Ok\n\n- [ ] Task\n');
   const r = run(['validate', 'ok.smd', '--json', '--strcit'], dir);
@@ -94,7 +96,7 @@ test('t-07: from the CLI the warning goes to stderr, JSON stays parseable and th
   assert.equal(r.stderr, '[smd] warning: Unknown option --strcit for smd validate (did you mean --strict?); it is ignored.\n');
 });
 
-test('t-07: --stale-after is checked only by the commands that read it', () => {
+test('t-07: --stale-after is checked only by the commands that read it', { skip }, () => {
   const dir = fs.mkdtempSync(join(os.tmpdir(), 'smd-options-'));
   fs.writeFileSync(join(dir, 'ok.smd'), '---\nsmd: 2\ntitle: Ok\n---\n\n# Ok\n\n- [ ] Task\n');
   const tasks = run(['tasks', 'ok.smd', '--stale-after', 'soon'], dir);
@@ -105,7 +107,7 @@ test('t-07: --stale-after is checked only by the commands that read it', () => {
   assert.match(validate.stderr, /--stale-after needs a number of days/);
 });
 
-test('t-07: smd read --evidence, which the changelog documents, now reaches the view', () => {
+test('t-07: smd read --evidence, which the changelog documents, now reaches the view', { skip }, () => {
   const dir = fs.mkdtempSync(join(os.tmpdir(), 'smd-options-'));
   fs.writeFileSync(join(dir, 'ev.smd'), [
     '---', 'smd: 2', 'title: Ev', '---', '',

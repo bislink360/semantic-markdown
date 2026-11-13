@@ -10,6 +10,8 @@ import { join } from 'node:path';
  */
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
+/** The CLI tests run the built bundle; a test run without a build skips them, as the other CLI tests do. */
+const skip = !fs.existsSync(cli) && 'run npm run build first';
 const run = (args: string[], cwd?: string) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', cwd });
 
 function workspace(): string {
@@ -20,7 +22,7 @@ function workspace(): string {
   return dir;
 }
 
-test('t-08: a valid file plus a missing path checks the file, lists the path and exits 2', () => {
+test('t-08: a valid file plus a missing path checks the file, lists the path and exits 2', { skip }, () => {
   const dir = workspace();
   const text = run(['validate', 'ok.smd', 'gone.smd'], dir);
   assert.equal(text.status, 2);
@@ -36,7 +38,7 @@ test('t-08: a valid file plus a missing path checks the file, lists the path and
   }
 });
 
-test('t-08: the exit code is 2 whatever the findings, and readable targets are still reported', () => {
+test('t-08: the exit code is 2 whatever the findings, and readable targets are still reported', { skip }, () => {
   const dir = workspace();
   const json = run(['validate', 'bad.smd', 'gone.smd', '--json'], dir);
   assert.equal(json.status, 2);
@@ -45,7 +47,7 @@ test('t-08: the exit code is 2 whatever the findings, and readable targets are s
   assert.equal(report.inputErrors.length, 1);
 });
 
-test('t-08: every explicit target missing still prints the JSON report and exits 2', () => {
+test('t-08: every explicit target missing still prints the JSON report and exits 2', { skip }, () => {
   const dir = workspace();
   const json = run(['validate', 'a.smd', 'b', '--json'], dir);
   assert.equal(json.status, 2);
@@ -59,7 +61,7 @@ test('t-08: every explicit target missing still prints the JSON report and exits
   assert.match(text.stderr, /Not found: a\.smd/);
 });
 
-test('t-08: an existing folder with no .smd files is not a missing path', () => {
+test('t-08: an existing folder with no .smd files is not a missing path', { skip }, () => {
   const dir = workspace();
   const empty = run(['validate', 'empty'], dir);
   assert.equal(empty.status, 2);

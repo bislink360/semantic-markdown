@@ -11,6 +11,8 @@ import { reportCrash, requireFile, UsageError } from '../src/cliIo';
  */
 
 const cli = join(__dirname, '..', 'dist', 'cli.js');
+/** The CLI tests run the built bundle; a test run without a build skips them, as the other CLI tests do. */
+const skip = !fs.existsSync(cli) && 'run npm run build first';
 const run = (args: string[], cwd?: string) => spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', cwd });
 
 function workspace(): string {
@@ -46,7 +48,7 @@ test('t-09: reportCrash prints one line and maps usage errors to 2 and anything 
   assert.match(lines[4], /^Error: with stack\n\s+at /, 'SMD_DEBUG adds the stack');
 });
 
-test('t-09: a folder or missing file given to a file command is a one-line usage error with exit 2, not a stack', () => {
+test('t-09: a folder or missing file given to a file command is a one-line usage error with exit 2, not a stack', { skip }, () => {
   const dir = workspace();
   for (const args of [['read', 'empty'], ['agent', 'gone.smd'], ['outline'], ['export', 'empty', '--to', 'md'], ['diff', 'ok.smd', 'gone.smd']]) {
     const r = run(args, dir);
