@@ -1300,6 +1300,7 @@ Underneath it is `smd validate --format github`, which prints one [workflow comm
 - `%`, carriage returns and line feeds are escaped in messages (`%25`, `%0D`, `%0A`), and also `:` and `,` in the path and title (`%3A`, `%2C`), so every problem is one line.
 - `--summary <file>` appends the Markdown summary to a file with any output format, e.g. `--summary "$GITHUB_STEP_SUMMARY"`. Links point at the commit when `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY` and `GITHUB_SHA` are set.
 - The exit code is the same as for text output, and `--format json` is `--json`.
+- A path you name that doesn't exist is listed on stderr, or in `inputErrors` (`path`, `message`) with `--format json`. The other files are still checked and reported, and the exit code is 2 whatever they hold. A folder with no `.smd` files is not a missing path.
 
 ### Configuring rules
 
@@ -1620,6 +1621,18 @@ smd --version
 ```
 
 `validate` and `fmt` take any number of files and directories, so Git hooks pass them just the staged files (setups for pre-commit, lint-staged and plain Git hooks are in [guides/install.md](../guides/github-and-ci.md#pre-commit-hooks)). After `--`, every argument is a file, even one whose name starts with `-`.
+
+Options that take a value also take it as `--name=value`. An option the command doesn't read is ignored with a warning on stderr, and a suggestion when a known option is close, so machine output stays parseable; in a later minor release it becomes an error. `smd lsp` accepts any option, since editors pass their own.
+
+**Exit codes** are the same for every command:
+
+| Code | Meaning |
+|---|---|
+| `0` | Done, or nothing to report |
+| `1` | Problems found (validation errors, `--strict` warnings, `fmt --check` or `migrate --check` changes, `diff --exit-code` changes, a query with no match), or an unexpected error, printed as one line `smd: <message>` (`SMD_DEBUG=1` adds the stack) |
+| `2` | Usage error: an unknown command, a missing or wrong argument, a file argument that is missing or is a folder, or a path given to `smd validate` that doesn't exist |
+
+Machine output (`--json`, `--format github`, CSV) goes to stdout and messages go to stderr, whatever the exit code.
 
 ### Migrating to spec v2: `smd migrate`
 
