@@ -304,6 +304,9 @@ function containerHead(name: string, source: HeadSource): ContainerHead {
 /** What the view reads included files with: nothing when includes are only pointers. */
 const viewReader = (options: AgentViewOptions) => (options.includes === false ? undefined : options.readFile);
 
+/** Blocks a section view carries into its head from elsewhere, which say where they are (t-71). */
+const CARRIED_HEADS: ReadonlySet<string> = new Set(['agent', 'non-goals', 'danger']);
+
 /** Front matter keys the agent view's header leaves out of its facts. */
 export const AGENT_HEADER_HIDDEN: ReadonlySet<string> = new Set(['smd', 'theme', 'accent', 'toc', 'title', 'summary']);
 
@@ -444,8 +447,20 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   const parts = [pickedText(scope, options, plan.applying, trace)];
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
   for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
-  const text = parts.filter(Boolean).join('\n');
+  const text = markHiddenTargets(parts.filter(Boolean).join('\n'), plan.hiddenTargets);
   return text ? `Constraints that apply here:\n${text}\n\n` : '';
+}
+
+/**
+ * A carried rule whose `applies-to` names a block hidden from agents says so on its tag, `hidden-target="R2"`, so an
+ * agent knows the rule binds something it can't see (t-66). The rule's text is shown as it is.
+ */
+function markHiddenTargets(text: string, hidden: ReadonlySet<string>): string {
+  if (!hidden.size) return text;
+  return text.replace(/^(<constraint\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
+    const names = idList(targets).filter((t) => hidden.has(t));
+    return names.length ? `${start} hidden-target="${names.join(',')}"` : open;
+  });
 }
 
 /**
@@ -609,8 +624,12 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   }
   return provenanceManifest({
     text, file, result, omissions, dependencies,
-    entries: [...traces.external!.entries, ...traces.applying!.entries, ...traces.dependencies!.entries, ...traces.dangers!.entries, ...traces.constraints!.entries, ...bodyEntries, ...traces.footnotes!.entries],
-    headerLines: head.header ? head.header.split('\n').length : 0,
+    entries: [
+      ...[traces.external!, traces.applying!, traces.dependencies!, traces.dangers!, traces.constraints!].flatMap((t) => t.entries.map((e) => ({ ...e, part: 'head' as const }))),
+      ...bodyEntries.map((e) => ({ ...e, part: 'body' as const })), ...traces.footnotes!.entries.map((e) => ({ ...e, part: 'head' as const })),
+    ],
+    // Counted as assemble prints it: runs of blank lines (in unread front matter) become one.
+    headerLines: head.header ? head.header.replace(/\n{3,}/g, '\n\n').trim().split('\n').length : 0,
     frontMatterLines: scope.bodyStart,
     sections: scope.sections, selected: selectedWithPinned(scope), skipped: scope.skipped, resolved: scope.selected ? scope.resolved : null,
     missing: scope.missingSections,
@@ -1143,6 +1162,10 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     if (inKept()) options.onAgentLine?.(at);
     if (traced) trace?.entries.push({ file: trace.file, line: at, end, root: trace.root ?? at, text: line });
   };
+  // A block the head carries from elsewhere (an agent block, non-goals, a danger) says where it is, so a host can
+  // check where carried instructions come from (t-71). Inside an <included> block the line is that file's.
+  const carriedRef = lineRefs && (options.onlyAgentBlocks || options.onlyDangers || options.onlyConstraints);
+  const withRef = (line: string, at: number) => (carriedRef && !/\[L\d+\]$/.test(line) ? `${line} [L${at + 1}]` : line);
   /** Record lines [start, end] (zero-based) as left out of the view, when provenance is asked for. */
   const omit = (o: Omit<Omission, 'file' | 'lines'>, start: number, end: number) => {
     if (trace?.omissions) addOmission(trace.omissions, { ...o, file: trace.file, lines: [start + 1, end + 1] });
@@ -1151,29 +1174,38 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const closeFrame = (frame: Frame, at: number) => {
     if (frame.close) emit(frame.close, at);
     if (evidenceAfter && frame.visible) for (const l of evidenceAfter(frame.name, frame.start, at)) emit(l, at, false);
-    if (!frame.visible) return;
+    // A :::human block, or a block brief views condense, that opens outside the view but runs into it (one never
+    // closed) hides lines the view selects.
+    const hides = (frame.drop && frame.name === 'human') || !!frame.condensed;
+    const reachesView = hides && !frame.visible && Array.from({ length: at - frame.start }, (_, k) => frame.start + 1 + k).some(inScope);
+    if (!frame.visible && !reachesView) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
     if (frame.condensed === 'details') omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
     if (frame.condensed === 'deprecated') omit({ kind: 'deprecated', reason: 'a deprecated requirement is condensed in brief views' }, frame.start, at);
   };
 
   let fence: { marker: string; start: number; body: string[]; info: string } | null = null;
+  // The first lines of the code blocks, as the parse reads them (made once, when a fence-like line is met).
+  let starts: Set<number> | undefined;
+  const codeStarts = () => (starts ??= new Set(parseSmd(lines.join('\n')).code.map(([a]) => a)));
   let inComment = false;
   let commentStart = 0;
   let doneTasks = 0;
   let doneFrom = 0;
   let doneTo = 0;
-  const flushDone = (at: number) => {
+  // The count stands for the tasks, so it goes with the last of them: a section read that ends with completed tasks
+  // still counts them when the line after them is outside the view (found by block accounting, t-67).
+  const flushDone = (_at: number) => {
     if (doneTasks) {
-      if (visibleAt(at)) omit({ kind: 'completed-tasks', reason: 'completed tasks are counted, not listed, in brief views', count: doneTasks }, doneFrom, doneTo);
-      emit(`- (${doneTasks} completed task${doneTasks > 1 ? 's' : ''} omitted)`, at);
+      if (visibleAt(doneTo)) omit({ kind: 'completed-tasks', reason: 'completed tasks are counted, not listed, in brief views', count: doneTasks }, doneFrom, doneTo);
+      emit(`- (${doneTasks} completed task${doneTasks > 1 ? 's' : ''} omitted)`, doneTo);
     }
     doneTasks = 0;
   };
   const sink = options.constraintSink;
   const alertView = alertTags(alerts, lines, emit, flushDone, (callout, at) => {
     if (sink && inScope(at) && !dropping() && !inAgent() && !inDanger()) recordConstraint(sink, callout, '', at);
-  });
+  }, withRef);
 
   for (let i = from; i < lines.length; i++) {
     current = i;
@@ -1193,7 +1225,9 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       continue;
     }
     const f = /^\s{0,3}(`{3,}|~{3,})(.*)$/.exec(raw);
-    if (f) {
+    // A fence opens only where rendering opens one: not after a backtick in its info string ("```>`"), and not inside
+    // a raw HTML block or display math, so the line must start a code block as the parse reads it.
+    if (f && codeStarts().has(i) && !(f[1][0] === '`' && f[2].includes('`'))) {
       flushDone(i);
       fence = { marker: f[1], start: i, body: [], info: f[2] };
       continue;
@@ -1209,10 +1243,17 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     let line = raw;
     if (inComment) {
       const end = line.indexOf('-->');
-      if (end < 0) continue;
-      line = line.slice(end + 3);
-      inComment = false;
-      if (visibleAt(i)) omit(COMMENT, commentStart, i);
+      // A comment never closed inside a container ends with the container, as rendering reads it.
+      const containerEnds = end < 0 && stack.length > 0 && commentStart > stack.at(-1)!.start && CONTAINER_CLOSE.test(line);
+      if (containerEnds) {
+        inComment = false;
+        if (visibleAt(commentStart)) omit(COMMENT, commentStart, i - 1);
+      } else {
+        if (end < 0) continue;
+        line = line.slice(end + 3);
+        inComment = false;
+        if (visibleAt(i)) omit(COMMENT, commentStart, i);
+      }
     }
     const uncommented = line.replace(/<!--[\s\S]*?-->/g, '');
     if (uncommented !== line && visibleAt(i)) omit(COMMENT, i, i);
@@ -1295,7 +1336,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         title, values: info.attrs.values, id: info.attrs.id, figure: ownFigures.get(i), requirement,
         ...(tags ? { tags: { block: tags.byLine.get(i), context: tags } } : {}),
       });
-      if (head.line !== undefined) emit(head.line, i);
+      if (head.line !== undefined) emit(CARRIED_HEADS.has(info.name) ? withRef(head.line, i) : head.line, i);
       frame.close = head.close;
       continue;
     }
@@ -1335,10 +1376,22 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     const converted = text(line, task ? task[2] === ' ' : false, asWritten ? inlineMath.get(i) : undefined, asWritten ? inlineItems.get(i) : undefined);
     emit(converted.trimEnd(), i);
   }
+  // A code fence never closed runs to the end, as rendering reads it: show it closed there instead of dropping its
+  // lines (found by block accounting, t-67).
+  if (fence) {
+    const last = lines.length - 1;
+    while (fence.body.length && !fence.body.at(-1)!.trim()) fence.body.pop();
+    const rendered = renderFence(fence, last, { ...options, brief: briefAt(fence.start) });
+    if (rendered.omission && visibleAt(fence.start)) omit(rendered.omission, fence.start, last);
+    for (const l of rendered.lines) emit(l, fence.start, true, last);
+    fence = null;
+  }
+  // A comment never closed hides the rest of the document, as rendering reads it: record it as left out.
+  if (inComment && visibleAt(commentStart)) omit(COMMENT, commentStart, lines.length - 1);
   alertView.end();
   flushDone(lines.length - 1);
   // Blocks left open at the end close there, for provenance (nothing is emitted for them, as before).
-  if (trace?.omissions) for (const frame of stack) if (frame.visible) closeFrame({ ...frame, close: undefined }, lines.length - 1);
+  if (trace?.omissions) for (const frame of stack) closeFrame({ ...frame, close: undefined }, lines.length - 1);
   return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
@@ -1382,7 +1435,7 @@ const QUOTE_MARKER = /^ {0,3}> ?/;
  */
 function alertTags(
   alerts: readonly AlertLines[], lines: string[], emit: (line: string, at: number) => void, flush: (at: number) => void,
-  opened?: (callout: string, at: number) => void,
+  opened?: (callout: string, at: number) => void, opening: (line: string, at: number) => string = (line) => line,
 ) {
   const byStart = new Map(alerts.map((a) => [a.start, a]));
   let open: { alert: AlertLines; last: number } | undefined;
@@ -1404,7 +1457,7 @@ function alertTags(
         flush(i);
         opened?.(alert.callout, i);
         open = { alert, last };
-        emit(`<${alert.callout}>`, i);
+        emit(opening(`<${alert.callout}>`, i), i);
       }
       if (!open) return raw;
       return i === open.alert.marker ? undefined : raw.replace(QUOTE_MARKER, '');

@@ -105,7 +105,7 @@ test('D6: the head blocks come in order: agent instructions, constraints, depend
   assert.ok(at('Constraints that apply here:') < at('Dependencies of the selected content:'));
   assert.ok(at('Dependencies of the selected content:') < at('Dangers elsewhere in the document:'));
   assert.ok(at('Dangers elsewhere in the document:') < at('### Refunds'));
-  assert.match(text, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger">\nDANGER_BODY\n<\/danger>\n\n### Refunds/);
+  assert.match(text, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger"> \[L\d+\]\nDANGER_BODY\n<\/danger>\n\n### Refunds/);
 });
 
 test('R25: --brief keeps applying constraints whole', () => {
@@ -185,12 +185,12 @@ test('AF15/AF20: a cycle and a missing target are reported as unsatisfied and ma
   assert.equal(agentView(DEPS, { sections: ['Work'], file: 'deps.smd' }).text, r.text, 'provenance leaves the text unchanged');
 });
 
-test('AF15: a dependency the view already shows is not repeated, and a whole view only reports what is unsatisfied', () => {
+test('AF15: a dependency the view already shows is not repeated, and a whole view reports what is unsatisfied and the cycle it shows (decided 2026-11-12)', () => {
   const both = agentView(DEPS, { sections: ['Work', 'Basis'] }).text;
   assert.equal(count(both, 'R2_BODY'), 1);
   const whole = agentView(DEPS).text;
   assert.equal(count(whole, 'R2_BODY'), 1);
-  assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n\[incomplete: resolution failed for 1 dependency\]/);
+  assert.match(whole, /Dependencies of the selected content:\nNot satisfied:\n- R1 depends on R9 \[L8\]: no block has this id\n- R3 depends on R1 \[L20\]: the chain returns to its start \(R1 → R2 → R3 → R1\)\n\[incomplete: resolution failed for 2 dependencies\]/);
 });
 
 test('AF15: an applying constraint brings its own dependencies, and a constraint whose applies-to names a dependency applies', () => {
@@ -222,8 +222,13 @@ test('t-58, R18 hidden-target probe: a visible rule on a target hidden from agen
   ].join('\n');
   const r = agentView(doc, { sections: ['Work'] });
   // The rule is agent-visible text, so carrying it breaks no audience mark. The target itself stays out.
-  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies]), [['C2', 'applies-to']]);
-  assert.match(r.text, /Constraints that apply here:\n<constraint id="C2"[^\n]*\nC2_BODY/);
+  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies, c.hiddenTargets]), [['C2', 'applies-to', ['R2']]]);
+  // t-66: the rule says its target is hidden from agents, and its text is still shown.
+  assert.match(r.text, /Constraints that apply here:\n<constraint id="C2" applies-to="R2" hidden-target="R2" level="must">[^\n]*\nC2_BODY/);
+  // Named together with the skipped section, the target is shown and the mark goes away.
+  const both = agentView(doc, { sections: ['Work', 'Basis'] });
+  assert.doesNotMatch(both.text, /hidden-target/);
+  assert.ok(!both.mandatory?.constraints.some((c) => c.hiddenTargets));
   assert.doesNotMatch(r.text, /R2_BODY/);
   assert.deepEqual(r.mandatory?.unsatisfied.map((u) => [u.kind, u.target, u.via]), [['hidden', 'R2', 'R1']]);
   assert.equal(r.mandatory?.complete, false);
@@ -615,4 +620,51 @@ test('t-63: required content over the budget fails the budget part, and complete
   const fits = agentView(doc, { sections: ['Two'], maxTokens: 5000 });
   assert.deepEqual(fits.mandatory?.completeness, { coverage: true, resolution: true, budget: true });
   assert.equal(fits.mandatory?.complete, true);
+});
+
+// --- Includes and cycles in documents without rules (decided 2026-11-12) ---------------------------------------------
+
+test('an include that fails to read leaves the view incomplete even in a document with no rule and no dependency', () => {
+  const doc = ['---', 'smd: 2', '---', '', '## Work', '', ':::include{file="missing.smd"}', ':::', '', '## Other', '', 'Other text.', ''].join('\n');
+  for (const sections of [undefined, ['Other']]) {
+    const r = agentView(doc, { sections, readFile: () => undefined, file: 'doc.smd' });
+    assert.deepEqual(r.mandatory?.unsatisfied.map((u) => [u.kind, u.target]), [['include', 'missing.smd']], String(sections));
+    assert.deepEqual(r.mandatory?.completeness, { coverage: true, resolution: false, budget: true });
+    assert.match(r.text, /\[incomplete: resolution failed for 1 include\]/);
+  }
+  // Includes turned off on purpose, or a host with no file reader, change nothing for such a document.
+  assert.equal(agentView(doc, { includes: false, readFile: () => undefined }).mandatory, undefined);
+  assert.equal(agentView(doc, {}).mandatory, undefined);
+  // An include that reads stays silent too.
+  assert.equal(agentView(doc, { readFile: () => '---\nsmd: 2\n---\n\nIncluded.\n' }).mandatory, undefined);
+});
+
+test('a cycle between blocks a whole view shows is listed, as a section read that walks into it lists it', () => {
+  const doc = [
+    '---', 'smd: 2', '---', '',
+    '## A', '', ':::requirement{#R3 depends-on=R4} Three', 'R3_BODY', ':::', '',
+    '## B', '', ':::requirement{#R4 depends-on=R3} Four', 'R4_BODY', ':::', '',
+  ].join('\n');
+  for (const sections of [undefined, ['A'], ['B'], ['A', 'B']]) {
+    const r = agentView(doc, { sections });
+    assert.deepEqual(r.mandatory?.unsatisfied.map((u) => u.kind), ['cycle'], String(sections));
+    assert.equal(r.mandatory?.completeness.resolution, false);
+  }
+});
+
+test('t-71: a carried agent block, non-goals list or danger names its line, in the file an <included> block names', () => {
+  const files: Record<string, string> = { 'inc.smd': ['---', 'smd: 2', '---', '', ':::agent', 'INC_AGENT', ':::', '', ':::danger', 'INC_DANGER', ':::', ''].join('\n') };
+  const doc = [
+    '---', 'smd: 2', '---', '', ':::agent', 'TOP_AGENT', ':::', '', ':::non-goals', '- No billing.', ':::', '',
+    '## Work', '', 'Work text.', '', '## Shared', '', ':::include{file="inc.smd"}', ':::', '', ':::danger', 'OWN_DANGER', ':::', '',
+  ].join('\n');
+  const r = agentView(doc, { sections: ['Work'], readFile: (p) => files[p] });
+  assert.match(r.text, /^<agent-instructions> \[L5\]\nTOP_AGENT$/m);
+  assert.match(r.text, /^<non-goals> \[L9\]\n- No billing\.$/m);
+  assert.match(r.text, /<included file="inc\.smd">\n<agent-instructions> \[L5\]\nINC_AGENT/);
+  assert.match(r.text, /<included file="inc\.smd">\n<danger> \[L9\]\nINC_DANGER/);
+  assert.match(r.text, /^<danger> \[L22\]\nOWN_DANGER$/m);
+  // Blocks in place keep their tags as they were, and --no-lines leaves the references out.
+  assert.match(agentView(doc).text, /^<agent-instructions>\nTOP_AGENT$/m);
+  assert.doesNotMatch(agentView(doc, { sections: ['Work'], readFile: (p) => files[p], lineRefs: false }).text, /\[L\d+\]/);
 });

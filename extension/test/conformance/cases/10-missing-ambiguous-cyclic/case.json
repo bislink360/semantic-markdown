@@ -48,13 +48,7 @@
         { "kind": "cycle" },
         { "kind": "unresolved-target", "target": "R99" }
       ],
-      "complete": false,
-      "xfail": {
-        "unsatisfied": {
-          "task": "unknown",
-          "note": "the R3/R4 depends-on cycle is listed by section reads of either end but not by the full view, which shows both blocks: the closure starts from shown blocks and never walks an edge between two of them"
-        }
-      }
+      "complete": false
     },
     {
       "name": "a tiny budget never omits the unplaced constraint",

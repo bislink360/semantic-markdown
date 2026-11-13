@@ -202,7 +202,7 @@ const once = (text: string, word: string) => assert.equal(text.split(word).lengt
 
 test('C04: a section view shows the dangers of other sections and included files in full, once each', () => {
   const view = agentView(scoped, { readFile: riskyRead, sections: ['B'] }).text;
-  assert.match(view, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger">\nROOT_DANGER\n<\/danger>/);
+  assert.match(view, /Dangers elsewhere in the document:\n<danger title="Never drop the ledger"> \[L\d+\]\nROOT_DANGER\n<\/danger>/);
   for (const word of ['ROOT_DANGER', 'ALERT_DANGER', 'INCLUDED_DANGER', 'AGENT_DANGER']) once(view, word);
   assert.match(view, /<included file="risky.smd">\n<danger title="Included danger">/);
 });

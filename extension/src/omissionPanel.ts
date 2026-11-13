@@ -1,4 +1,5 @@
 import type { Omission, OmissionKind, Provenance } from './core';
+import { protectedMatrix } from './core/accounting';
 
 /**
  * The editor's "What the Agent View Leaves Out" list: what the agent view hid, condensed or could not resolve, why,
@@ -47,6 +48,24 @@ export interface OmissionItem {
 }
 
 /** One list item per omission, in the manifest's order (the document first, then included files). */
+/** One row of the protected-blocks matrix: a section, and each protected block in it with its outcome in this view. */
+export interface ProtectedRow { section: string; blocks: Array<{ label: string; outcome: string; line: number }> }
+
+/**
+ * Sections against the protected blocks they hold (agent blocks, non-goals, dangers and CAUTION alerts, constraints),
+ * with each block's outcome in this view, from the manifest's block accounting (t-67). Text above the first heading is
+ * the row "(before the first heading)".
+ */
+export function protectedRows(p: Provenance): ProtectedRow[] {
+  const rows = new Map<string, ProtectedRow>();
+  for (const { section, block } of protectedMatrix(p.blocks)) {
+    const name = section ?? '(before the first heading)';
+    if (!rows.has(name)) rows.set(name, { section: name, blocks: [] });
+    rows.get(name)!.blocks.push({ label: block.id ? `${block.kind} ${block.id}` : block.kind, outcome: block.outcome, line: block.lines[0] });
+  }
+  return [...rows.values()];
+}
+
 export function omissionItems(p: Provenance): OmissionItem[] {
   return p.omissions.map((o) => item(o, p.source.file));
 }
@@ -62,7 +81,7 @@ function item(o: Omission, document: string): OmissionItem {
   return {
     label: `$(${ICONS[o.kind]}) ${name}${o.heading ? `: ${o.heading}` : ''}`,
     description: [own ? lines : `${o.file} ${lines}`, extra].filter(Boolean).join(' · '),
-    detail: `${capitalize(o.reason)}.${o.retrieve ? ` Shown by: ${o.retrieve}` : ''}`,
+    detail: `${capitalize(o.reason)}.${o.retrieve ? ` Shown by: ${o.retrieve}` : o.noRetrieve ? ` No command shows it: ${o.noRetrieve}.` : ''}`,
     kind: o.kind, file: o.file, start: a - 1, end: b - 1, own,
   };
 }

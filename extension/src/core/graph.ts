@@ -585,6 +585,40 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
   return { blocks, unsatisfied, complete: unsatisfied.length === 0 };
 }
 
+/** A cycle of edges among a set of nodes: the edge that closes it, the node it leaves from, and the nodes in order. */
+export interface Cycle { edge: GraphEdge; via: GraphNode; path: GraphNode[] }
+
+/** The same cycle whichever node it is entered from: its nodes' keys, sorted. */
+export const cycleKey = (path: readonly GraphNode[]): string => [...new Set(path.map(nodeKey))].sort((a, b) => a.localeCompare(b)).join('|');
+
+/**
+ * Each cycle that `types` edges make among `nodes`, once. mandatoryClosure finds a cycle only along a path it walks
+ * from a start, so a cycle whose nodes a view already shows needs this (decided 2026-11-12: every view that holds part
+ * of a cycle lists it).
+ */
+export function cyclesAmong(graph: DocumentGraph, nodes: readonly GraphNode[], types: readonly string[]): Cycle[] {
+  const byKey = new Map(nodes.map((n) => [nodeKey(n), n]));
+  const state = new Map<string, 'open' | 'done'>();
+  const found: Cycle[] = [];
+  const seen = new Set<string>();
+  const visit = (node: GraphNode, path: GraphNode[]): void => {
+    state.set(nodeKey(node), 'open');
+    for (const edge of graph.outgoing(node)) {
+      if (!types.includes(edge.type) || edge.status !== 'resolved' || !edge.to || contains(node, edge.to)) continue;
+      const to = byKey.get(nodeKey(edge.to));
+      if (!to) continue;
+      if (state.get(nodeKey(to)) === 'open') {
+        const cycle = [...path.slice(path.findIndex((p) => nodeKey(p) === nodeKey(to))), to];
+        const key = cycleKey(cycle);
+        if (!seen.has(key)) { seen.add(key); found.push({ edge, via: node, path: cycle }); }
+      } else if (!state.has(nodeKey(to))) visit(to, [...path, to]);
+    }
+    state.set(nodeKey(node), 'done');
+  };
+  for (const n of nodes) if (!state.has(nodeKey(n))) visit(n, [n]);
+  return found;
+}
+
 // Validator rules (G7)
 
 export interface DependencyProblem {

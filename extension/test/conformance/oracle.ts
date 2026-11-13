@@ -79,7 +79,7 @@ export interface Completeness {
   budget: boolean;
 }
 
-export type ScalarCheck = 'unsatisfied' | 'complete' | 'completeness' | 'budgetFits';
+export type ScalarCheck = 'unsatisfied' | 'complete' | 'completeness' | 'budgetFits' | 'hiddenTargets';
 
 export interface RequestSpec {
   name: string;
@@ -99,6 +99,18 @@ export interface RequestSpec {
   unsatisfied?: UnsatisfiedExpectation[];
   complete?: boolean;
   completeness?: Completeness;
+  /**
+   * The carried constraints, by id, that name a target hidden from agents, and those targets: exactly these, and no
+   * other carried constraint marked (boundary table, t-66).
+   */
+  hiddenTargets?: Record<string, string[]>;
+  /**
+   * L4: a block's tag as the view must print it, matched as the start of one of the output lines the source map ties to
+   * the block, so the check needs no knowledge of how other kinds render.
+   */
+  labels?: Array<{ ref: Ref; tag: string }>;
+  /** L7: the same request made again gives the same view text and the same manifest, byte for byte. */
+  deterministic?: boolean;
   omissions?: OmissionExpectation[];
   budgetFits?: boolean;
   xfail?: Partial<Record<ScalarCheck, ExpectedFailure>>;
@@ -125,8 +137,11 @@ export interface Manifest {
     carried?: Array<{ lines: Range; output: Range }>;
   }>;
   budget: { fits: boolean } | null;
+  /** One outcome per block of the document (view laws L6, target form). */
+  blocks?: Array<{ kind: string; lines: Range; outcome: string; placement: string }>;
   mandatory?: {
     unsatisfied: Array<{ kind: string; target: string }>;
+    constraints?: Array<{ id?: string; hiddenTargets?: string[] }>;
     complete: boolean;
     completeness?: Completeness;
   };
@@ -286,6 +301,26 @@ function appears(m: Manifest, block: ScannedBlock): boolean {
     && normalize(s.file) === block.file && block.own.some((r) => overlaps(r, s.source!)));
 }
 
+/**
+ * L6 in its target form: every block of the document has an outcome, a block the laws require is shown or carried,
+ * and a block that must stay hidden is omitted, condensed or unavailable. The manifest's blocks are matched to the
+ * scanner's by line overlap, so the two need not agree on where one block ends.
+ */
+function checkAccounting(m: Manifest, required: ScannedBlock[], hidden: ScannedBlock[], doc: string): CheckResult {
+  const blocks = m.blocks ?? [];
+  const problems: string[] = blocks.filter((b) => b.outcome === 'unaccounted').map((b) => `${b.kind} L${b.lines[0]} has no outcome`);
+  const touching = (sb: ScannedBlock) => blocks.filter((b) => sb.own.some((r) => overlaps(r, b.lines)))
+    // The innermost manifest blocks around the scanned one decide; containers around them are judged on their own.
+    .filter((b, _i, all) => !all.some((o) => o !== b && o.lines[0] >= b.lines[0] && o.lines[1] <= b.lines[1] && sb.own.some((r) => overlaps(r, o.lines))));
+  for (const sb of required.filter((b) => b.file === normalize(doc))) {
+    for (const b of touching(sb)) if (b.outcome !== 'shown' && b.outcome !== 'carried') problems.push(`${label(sb)} is required but its block is ${b.outcome}`);
+  }
+  for (const sb of hidden.filter((b) => b.file === normalize(doc))) {
+    for (const b of touching(sb)) if (b.outcome === 'shown' || b.outcome === 'carried') problems.push(`${label(sb)} must stay hidden but its block is ${b.outcome}`);
+  }
+  return { name: 'accounting', ok: !problems.length, detail: problems.join('; ') || `${blocks.length} blocks, each with one outcome` };
+}
+
 const label = (b: ScannedBlock) => `${b.file}:${b.lines[0]} ${b.kind}${b.id ? `#${b.id}` : ''}`;
 const isTyped = (b: ScannedBlock) => !['heading', 'paragraph'].includes(b.kind) && !LAYOUT_CONTAINERS.has(b.kind);
 
@@ -376,7 +411,7 @@ function checkSourceMap(fx: Fixture, obs: Observation): CheckResult {
   return { name: 'sourceMap', ok: !problems.length, detail: problems.join('; ') || 'well-formed, every non-blank output line mapped' };
 }
 
-export function evaluate(caseName: string, dir: string, request: RequestSpec, obs: Observation): RequestResult {
+export function evaluate(caseName: string, dir: string, request: RequestSpec, obs: Observation, again?: Observation): RequestResult {
   const fx = loadFixture(dir, request.doc ?? 'doc.smd');
   const m = obs.manifest;
   const checks: CheckResult[] = [checkSourceMap(fx, obs)];
@@ -390,6 +425,7 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
   for (const { ref, block, failure } of each(request.mustNotAppear)) {
     checks.push({ name: `hidden ${ref}`, ok: !appears(m, block), detail: `${label(block)} must not appear`, expectedFailure: failure });
   }
+  if (m.blocks) checks.push(checkAccounting(m, required.map((r) => r.block), each(request.mustNotAppear).map((r) => r.block), request.doc ?? 'doc.smd'));
   if (request.unsatisfied) checks.push({ ...checkUnsatisfied(m, request.unsatisfied), expectedFailure: xf.unsatisfied });
   if (request.complete !== undefined) {
     const complete = m.mandatory?.complete ?? true;
@@ -400,6 +436,25 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
     const e = request.completeness;
     const ok = !!got && got.coverage === e.coverage && got.resolution === e.resolution && got.budget === e.budget;
     checks.push({ name: 'completeness', ok, detail: `expected ${JSON.stringify(e)}, reported ${JSON.stringify(got ?? null)}`, expectedFailure: xf.completeness });
+  }
+  if (request.hiddenTargets) {
+    const got = Object.fromEntries((m.mandatory?.constraints ?? []).filter((c) => c.hiddenTargets?.length).map((c) => [c.id ?? '?', [...c.hiddenTargets!].sort()]));
+    const want = Object.fromEntries(Object.entries(request.hiddenTargets).map(([id, t]) => [id, [...t].sort()]));
+    const ok = JSON.stringify(Object.entries(got).sort()) === JSON.stringify(Object.entries(want).sort());
+    checks.push({ name: 'hiddenTargets', ok, detail: `expected ${JSON.stringify(want)}, reported ${JSON.stringify(got)}`, expectedFailure: xf.hiddenTargets });
+  }
+  for (const { ref, tag } of request.labels ?? []) {
+    const block = resolveRef(fx, ref);
+    const out = obs.text.split('\n');
+    const lines = m.sourceMap.filter((s) => s.kind === 'source' && s.file !== undefined && s.source !== undefined
+      && normalize(s.file) === block.file && block.own.some((r) => overlaps(r, s.source!)))
+      .flatMap((s) => out.slice(s.output[0] - 1, s.output[1]));
+    const ok = lines.some((l) => l.startsWith(tag));
+    checks.push({ name: `label ${ref}`, ok, detail: `expected a line of ${label(block)} to start with ${tag}; mapped lines: ${JSON.stringify(lines.slice(0, 3))}` });
+  }
+  if (request.deterministic) {
+    const same = !!again && again.text === obs.text && JSON.stringify(again.manifest) === JSON.stringify(obs.manifest);
+    checks.push({ name: 'deterministic', ok: same, detail: 'the same request made twice must give the same text and manifest' });
   }
   if (request.budgetFits !== undefined) {
     const fits = m.budget?.fits;
@@ -433,7 +488,8 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
 
 export function runRequest(c: LoadedCase, request: RequestSpec, driver: Driver = 'library'): RequestResult {
   const obs = observe(driver, c.dir, request.doc ?? 'doc.smd', request.route);
-  return evaluate(c.name, c.dir, request, obs);
+  const again = request.deterministic ? observe(driver, c.dir, request.doc ?? 'doc.smd', request.route) : undefined;
+  return evaluate(c.name, c.dir, request, obs, again);
 }
 
 export function runAll(driver: Driver = 'library', cases = loadCases()): RequestResult[] {

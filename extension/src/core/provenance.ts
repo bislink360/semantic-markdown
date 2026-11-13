@@ -3,6 +3,8 @@ import type { MandatoryContext } from './applicability';
 import type { FollowManifest } from './read';
 import type { ConstraintView } from './constraints';
 import type { Section } from './sections';
+import { accountBlocks, type BlockAccount } from './accounting';
+import { htmlCommentLines } from './parse';
 import { sha256Hex } from './sha256';
 import type { TaskViewReport } from './taskViews';
 
@@ -41,6 +43,8 @@ export interface Omission {
   tokens?: number;
   /** A command that shows it. */
   retrieve?: string;
+  /** Why no command shows it, when `retrieve` is absent (t-65). */
+  noRetrieve?: string;
   /**
    * Lines of the range that the view shows anyway, carried into its head (a danger, an agent block, a rule or a
    * dependency, or a danger kept out of a condensed block), and the output lines where they appear (t-61). Only on
@@ -68,6 +72,8 @@ export interface TraceEntry {
   /** Zero-based line of the document that the entry hangs from: its own line, or the line of the outermost include. */
   root: number;
   text: string;
+  /** Whether the line is in the view's head (what it carries from elsewhere, and footnotes) or its body. */
+  part?: 'head' | 'body';
 }
 
 /** Internal: where agentView records emitted lines and omissions. */
@@ -133,6 +139,16 @@ export interface Provenance {
     dependencies: Dependency[];
   };
   settings: ProvenanceSettings;
+  /**
+   * The date overdue marks, due states and lifecycle checks used, YYYY-MM-DD: `settings.today` when the caller fixed it,
+   * else the UTC date the view was made on (t-68).
+   */
+  effectiveDate: string;
+  /**
+   * SHA-256 of the settings as recorded here (keys sorted, without the `tool` a CLI adds) and of the view's text, so two
+   * manifests show at a glance whether they describe the same request and the same output (t-68).
+   */
+  digests: { settings: string; output: string };
   /** With sections: each query, the headings it selected (one-based lines), and the queries that matched none or several. */
   selection: {
     queries: string[];
@@ -143,6 +159,8 @@ export interface Provenance {
   sourceMap: SourceSpan[];
   /** Everything hidden, condensed or unresolved, with a reason: the document first, then included files. */
   omissions: Omission[];
+  /** Each block of the document with its one outcome in this view and where it appears (see accounting.ts, t-67). */
+  blocks: BlockAccount[];
   budget: { requested: number; tokens: number; tokenizer: string; fits: boolean; condensed: boolean } | null;
   /** The view's size and the file's, counted with `tokenizer`. */
   size: { tokens: number; originalTokens: number; tokenizer: string };
@@ -153,6 +171,13 @@ export interface Provenance {
   mandatory?: MandatoryContext;
   /** A read with `follow` (`smd read --follow`): the edges followed, the pointers and dependencies added, and what is unsatisfied. */
   follow?: FollowManifest;
+}
+
+/** JSON with object keys sorted at every level, so equal values give equal text and equal digests. */
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    : v));
 }
 
 /** Add an omission; HTML comments on neighbouring lines become one. */
@@ -194,9 +219,11 @@ export function provenanceManifest(input: ManifestInput): Provenance {
   const matched = matchLines(result.text, input.entries, input.headerLines);
   const own = [...input.omissions, ...sectionOmissions(input, matched)];
   addCarried(own, file, matched);
+  addRecovery(own, input);
   const omissions = own.sort((a, b) =>
     Number(a.file !== file) - Number(b.file !== file) || a.file.localeCompare(b.file) || a.lines[0] - b.lines[0] || a.lines[1] - b.lines[1]);
   const tokenizer = result.counted?.tokenizer ?? 'estimate';
+  const settings: ProvenanceSettings = { ...input.settings, datePolicy: input.settings.today ? 'fixed' : 'clock' };
   return {
     schema: PROVENANCE_SCHEMA,
     projection: 'agent-view',
@@ -205,7 +232,9 @@ export function provenanceManifest(input: ManifestInput): Provenance {
       dependencies: [...input.dependencies].sort(([a], [b]) => a.localeCompare(b)).map(([path, content]) => (
         content === undefined ? { path, sha256: null, status: 'unavailable' } : { path, sha256: sha256Hex(content), status: 'read' })),
     },
-    settings: { ...input.settings, datePolicy: input.settings.today ? 'fixed' : 'clock' },
+    settings,
+    effectiveDate: input.settings.today ?? new Date().toISOString().slice(0, 10),
+    digests: { settings: sha256Hex(canonicalJson(settings)), output: sha256Hex(result.text) },
     selection: input.resolved && {
       queries: input.resolved.map((r) => r.query),
       resolved: input.resolved.map((r) => ({ query: r.query, headings: r.headings.map((h) => ({ ...h, line: h.line + 1 })) })),
@@ -214,6 +243,7 @@ export function provenanceManifest(input: ManifestInput): Provenance {
     },
     sourceMap: sourceMap(matched, input.frontMatterLines, (f, from, to) => blankBetween(contents.get(f), from, to)),
     omissions,
+    blocks: accountBlocks({ text, file, bodyStart: input.frontMatterLines, matched, omissions }),
     budget: result.budget ? {
       requested: result.budget.maxTokens, tokens: result.budget.tokens, tokenizer, fits: result.budget.fits, condensed: result.budget.condensed,
     } : null,
@@ -231,6 +261,7 @@ export function outlineProvenance(provenance: Provenance, outlineText: string, t
   return {
     ...view,
     projection: 'outline',
+    digests: { ...view.digests, output: sha256Hex(outlineText) },
     sourceMap: [{ output: [1, lines], kind: 'synthesized' }],
     omissions: [{
       kind: 'outline', file: view.source.file, lines: [1, view.source.lines], retrieve: command,
@@ -268,6 +299,23 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
       listed.push(s);
       out.push({ kind: 'not-selected', file, lines: [s.start + 1, s.end + 1], heading: s.heading.text, retrieve: read(s.heading.text), reason: 'outside the requested sections' });
     }
+    // A section around a selected one: its heading and its own text outside the selection are left out too (t-67).
+    const inSelected = (line: number) => selected.some((sel) => line >= sel.start && line <= sel.end);
+    const isListed = (line: number) => out.some((o) => line + 1 >= o.lines[0] && line + 1 <= o.lines[1]);
+    const lines = input.text.split(/\r?\n/);
+    let l = sections[0]?.start ?? lines.length;
+    while (l < lines.length) {
+      if (inSelected(l) || isListed(l) || !lines[l].trim()) { l++; continue; }
+      const holder = sections.filter((s) => l >= s.start && l <= s.end).at(-1)!;
+      let end = l;
+      while (end + 1 <= holder.end && !inSelected(end + 1) && !isListed(end + 1)) end++;
+      while (end > l && !lines[end].trim()) end--;
+      out.push({
+        kind: 'not-selected', file, lines: [l + 1, end + 1], heading: holder.heading.text, retrieve: read(holder.heading.text),
+        reason: 'outside the requested sections: the heading and text of a section around them',
+      });
+      l = end + 1;
+    }
     const preamble = preambleLeftOut(input, matched);
     if (preamble) {
       out.push({
@@ -283,6 +331,44 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
     });
   }
   return out;
+}
+
+/** What brief views and budgets condense: a read without `--brief` and `--max-tokens` shows it. */
+const CONDENSED: ReadonlySet<OmissionKind> = new Set(['details', 'diagram', 'code', 'completed-tasks', 'deprecated']);
+
+/** Why no command shows an omission of these kinds. */
+const NO_RETRIEVE: Partial<Record<OmissionKind, string>> = {
+  comment: 'HTML comments are in no agent view: read the source lines',
+  dependency: 'it names something the reader could not show, for the reason given',
+};
+
+/**
+ * Give each omission without a command the one that shows it: the view's own command with the option that hid it
+ * changed (`--include-human` for a :::human block, no `--brief` or `--max-tokens` for what they condense, `--embed`
+ * for a code embed, no `--no-includes` for an include). An omission no command can show says why instead (t-65).
+ */
+function addRecovery(omissions: Omission[], input: ManifestInput): void {
+  const s = input.settings;
+  const command = (change: { human?: boolean; condensed?: boolean; embed?: boolean; includes?: boolean }) => [
+    `smd agent ${input.file}`,
+    ...(s.sections ?? []).map((q) => `--section "${q.replace(/"/g, '')}"`),
+    ...(s.exactSections ? ['--exact'] : []),
+    ...(s.brief && !change.condensed ? ['--brief'] : []),
+    ...(s.includeHuman || change.human ? ['--include-human'] : []),
+    ...(s.embed || change.embed ? ['--embed'] : []),
+    ...(!s.includes && !change.includes ? ['--no-includes'] : []),
+    ...(s.maxTokens !== null && !change.condensed ? [`--max-tokens ${s.maxTokens}`] : []),
+    ...(s.constraints ? ['--constraints'] : []),
+  ].join(' ');
+  for (const o of omissions) {
+    if (o.retrieve || o.noRetrieve) continue;
+    if (o.kind === 'human') o.retrieve = command({ human: true });
+    else if (CONDENSED.has(o.kind)) o.retrieve = command({ condensed: true });
+    else if (o.kind === 'embed') o.retrieve = command({ embed: true });
+    else if (o.kind === 'include' && !s.includes) o.retrieve = command({ includes: true });
+    else if (o.kind === 'include') o.noRetrieve = 'the included file could not be read, so no command shows it';
+    else o.noRetrieve = NO_RETRIEVE[o.kind] ?? 'no command shows it';
+  }
 }
 
 /** Omissions of a range of the document whose blocks a view may still carry (see Omission's `carried`). */
@@ -310,13 +396,14 @@ const showsLine = (matched: ReadonlyArray<Mapped | null>, file: string, line: nu
  */
 function preambleLeftOut(input: ManifestInput, matched: ReadonlyArray<Mapped | null>): [number, number] | undefined {
   const all = input.text.split(/\r?\n/);
-  const lines = all.slice(0, input.sections[0]?.start ?? all.length);
-  // HTML comments are in no view: blank them, keeping the lines.
-  const plain = lines.join('\n').replace(/<!--[\s\S]*?-->/g, (c) => c.replace(/[^\n]/g, ' ')).split('\n');
+  const end = input.sections[0]?.start ?? all.length;
+  // HTML comments are in no view: block-level ones as the parse reads them, and ones inside a line.
+  const comments = htmlCommentLines(input.text);
+  const inComment = (line: number) => comments.some(([a, b]) => line >= a && line < b);
   const left: number[] = [];
-  for (let i = input.frontMatterLines; i < plain.length; i++) {
-    const raw = plain[i].trim();
-    if (!raw || /^:{3,}$/.test(raw) || showsLine(matched, input.file, i)) continue;
+  for (let i = input.frontMatterLines; i < end; i++) {
+    const raw = all[i].replace(/<!--.*?-->/g, '').trim();
+    if (!raw || inComment(i) || /^:{3,}$/.test(raw) || showsLine(matched, input.file, i)) continue;
     left.push(i);
   }
   return left.length ? [left[0] + 1, left.at(-1)! + 1] : undefined;
@@ -363,7 +450,7 @@ function blankBetween(lines: string[] | undefined, from: number, to: number): bo
 const LOOKAHEAD = 200;
 
 /** A line of the view matched to a traced line, with its zero-based `line`, `end` and `root` (see TraceEntry); null when blank. */
-interface Mapped { kind: SourceSpan['kind']; file?: string; line?: number; end?: number; root?: number }
+interface Mapped { kind: SourceSpan['kind']; file?: string; line?: number; end?: number; root?: number; part?: 'head' | 'body' }
 
 /** Match the view's lines to the traced lines, in order. */
 function matchLines(text: string, entries: TraceEntry[], headerLines: number): Array<Mapped | null> {
@@ -375,9 +462,10 @@ function matchLines(text: string, entries: TraceEntry[], headerLines: number): A
     if (!out[k].trim()) { mapped.push(null); continue; }
     const limit = Math.min(entries.length, next + LOOKAHEAD);
     let q = next;
-    while (q < limit && entries[q].text !== out[k]) q++;
+    // The view is trimmed as a whole, so its first line may have lost the indentation it was traced with.
+    while (q < limit && entries[q].text !== out[k] && !(k === 0 && entries[q].text.trimStart() === out[k])) q++;
     if (q < limit) {
-      mapped.push({ kind: 'source', file: entries[q].file, line: entries[q].line, end: entries[q].end, root: entries[q].root });
+      mapped.push({ kind: 'source', file: entries[q].file, line: entries[q].line, end: entries[q].end, root: entries[q].root, part: entries[q].part });
       next = q + 1;
     } else {
       mapped.push({ kind: 'synthesized' });

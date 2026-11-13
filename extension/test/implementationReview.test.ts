@@ -326,7 +326,7 @@ test('C04: constraints that disagree are all listed as written, in document orde
     ['warning', 'Delete old audit logs nightly', 'Cleanup'],
   ]);
   assert.equal(r.constraints!.shown, 1);
-  assert.match(r.text, /<danger title="Never delete audit logs">\nAUDIT_LOGS_STAY\.\n<\/danger>/);
+  assert.match(r.text, /<danger title="Never delete audit logs"> \[L\d+\]\nAUDIT_LOGS_STAY\.\n<\/danger>/);
   assert.match(r.text, /- accepted decision "Keep logs 30 days" \[L\d+\] in "Storage"\n- accepted decision "Keep logs 365 days" \[L\d+\] in "Cleanup"\n- warning "Delete old audit logs nightly" \[L\d+\] in "Cleanup"/);
   assert.doesNotMatch(r.text, /conflict|supersede|overrid|wins|priority/i, 'no ranking or resolution added');
   // Swapping the sections swaps the list: the order is the document's, not a ranking.
@@ -340,12 +340,12 @@ test('C04: smd agent --section --constraints lists the constraints elsewhere; wi
   writeFileSync(file, conflicting);
   const plain = smd('agent', file, '--section', 'Scope');
   assert.equal(plain.status, 0, plain.stderr);
-  assert.match(plain.stdout, /Dangers elsewhere in the document:\n<danger title="Never delete audit logs">\nAUDIT_LOGS_STAY\.\n<\/danger>/, 'dangers apply to every section (decided 2026-11-06)');
+  assert.match(plain.stdout, /Dangers elsewhere in the document:\n<danger title="Never delete audit logs"> \[L\d+\]\nAUDIT_LOGS_STAY\.\n<\/danger>/, 'dangers apply to every section (decided 2026-11-06)');
   assert.doesNotMatch(plain.stdout, /Constraints elsewhere|Keep logs|Delete old audit logs/, 'decisions and warnings stay behind --constraints');
   const out = smd('agent', file, '--section', 'Scope', '--constraints');
   assert.equal(out.status, 0, out.stderr);
   assert.match(out.stdout, /SCOPE_TEXT/);
-  assert.match(out.stdout, /Constraints elsewhere in the document:\n<danger title="Never delete audit logs">\nAUDIT_LOGS_STAY\.\n<\/danger>/);
+  assert.match(out.stdout, /Constraints elsewhere in the document:\n<danger title="Never delete audit logs"> \[L\d+\]\nAUDIT_LOGS_STAY\.\n<\/danger>/);
   for (const pointer of ['accepted decision "Keep logs 30 days"', 'accepted decision "Keep logs 365 days"', 'warning "Delete old audit logs nightly"']) {
     assert.ok(out.stdout.includes(`- ${pointer} [L`), pointer);
   }

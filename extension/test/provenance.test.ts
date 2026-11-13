@@ -185,14 +185,14 @@ test('C04: the constraints pass is off by default; only the dangers of other sec
   const plain = agentView(doc, { sections: ['Requirements'] });
   assert.doesNotMatch(plain.text, /Constraints elsewhere/);
   assert.equal(plain.constraints, undefined);
-  assert.match(plain.text, /Dangers elsewhere in the document:\n<danger title="No card numbers in logs">\nMask every PAN before logging\.\n<\/danger>/);
+  assert.match(plain.text, /Dangers elsewhere in the document:\n<danger title="No card numbers in logs"> \[L\d+\]\nMask every PAN before logging\.\n<\/danger>/);
   assert.doesNotMatch(plain.text, /warning "Rate limits"|accepted decision "Use Postgres"/, 'warnings and decisions stay behind --constraints');
 });
 
 test('C04: dangers in full, other constraints as pointers, and nothing that is not a constraint', () => {
   const r = agentView(doc, { sections: ['Requirements'], constraints: true });
-  assert.match(r.text, /Constraints elsewhere in the document:\n<danger title="No card numbers in logs">\nMask every PAN before logging\.\n<\/danger>/);
-  assert.match(r.text, /<danger>\nNever retry a capture twice\.\n<\/danger>/, 'a CAUTION alert is a danger');
+  assert.match(r.text, /Constraints elsewhere in the document:\n<danger title="No card numbers in logs"> \[L\d+\]\nMask every PAN before logging\.\n<\/danger>/);
+  assert.match(r.text, /<danger> \[L\d+\]\nNever retry a capture twice\.\n<\/danger>/, 'a CAUTION alert is a danger');
   assert.match(r.text, /- warning "Rate limits" \[L\d+\] in "Operations"/);
   assert.match(r.text, /- accepted decision "Use Postgres" \[L\d+\] in "Decisions"/);
   assert.match(r.text, /- open question "Should refunds be partial\?" \[L\d+\] in "Open questions"/);
@@ -285,7 +285,7 @@ test('t-61: an omitted range that holds a carried block says which lines were ca
   // The output lines are where the danger is in the view.
   const out = r.text.split('\n');
   const [a, b] = other.carried![0].output;
-  assert.deepEqual(out.slice(a - 1, b), ['<danger>', 'OTHER_DANGER', '</danger>']);
+  assert.deepEqual(out.slice(a - 1, b), ['<danger> [L14]', 'OTHER_DANGER', '</danger>']);
   // A range with nothing carried has no such field.
   const plain = agentView(text.replace(/:::danger\nOTHER_DANGER\n:::\n/, ''), { sections: ['Work'], provenance: true, file: 'plan.smd' });
   assert.equal(plain.provenance!.omissions.find((o) => o.heading === 'Other')!.carried, undefined);
@@ -298,4 +298,48 @@ test('t-61: lines an include in the omitted range brings are named by their file
   const carried = r.provenance!.omissions.find((o) => o.heading === 'Other')!.carried!;
   assert.deepEqual(carried.map((c) => [c.file ?? 'plan.smd', c.lines]), [['plan.smd', [14, 16]], ['inc.smd', [5, 7]]]);
   assert.match(r.text.split('\n').slice(carried[1].output[0] - 1, carried[1].output[1]).join('\n'), /INC_DANGER/);
+});
+
+test('t-65: human and condensed omissions carry the command that shows them, and the rest say why none does', () => {
+  const text = [
+    '---', 'smd: 2', '---', '', '## Work', '',
+    ':::human', 'People only.', ':::', '',
+    ':::details More', 'Detail.', ':::', '',
+    '<!-- an editor note -->', '',
+    ':::include{file="gone.smd"}', ':::', '',
+    '## Other', '', 'Other text.', '',
+  ].join('\n');
+  const brief = agentView(text, { sections: ['Work'], brief: true, provenance: true, file: 'plan.smd', readFile: () => undefined }).provenance!;
+  const by = (kind: string) => brief.omissions.find((o) => o.kind === kind)!;
+  assert.equal(by('human').retrieve, 'smd agent plan.smd --section "Work" --brief --include-human');
+  assert.equal(by('details').retrieve, 'smd agent plan.smd --section "Work"');
+  assert.match(by('comment').noRetrieve!, /in no agent view/);
+  assert.match(by('include').noRetrieve!, /could not be read/);
+  // Every omission has one or the other, never both.
+  for (const o of brief.omissions) assert.ok(!!o.retrieve !== !!o.noRetrieve, JSON.stringify(o));
+  // A budget condenses as --brief does: the command drops --max-tokens.
+  const budget = agentView(text, { maxTokens: 30, provenance: true, file: 'plan.smd', readFile: () => undefined }).provenance!;
+  const details = budget.omissions.find((o) => o.kind === 'details');
+  if (details) assert.equal(details.retrieve, 'smd agent plan.smd');
+  // Includes turned off: the command turns them back on.
+  const off = agentView(text, { includes: false, provenance: true, file: 'plan.smd' }).provenance!;
+  assert.equal(off.omissions.find((o) => o.kind === 'include')?.retrieve, 'smd agent plan.smd');
+});
+
+test('t-68: the manifest records the effective date and digests of its settings and of the view text', () => {
+  const text = ['---', 'smd: 2', '---', '', '## Work', '', '- [ ] Ship it :due[2026-01-01]', ''].join('\n');
+  const fixed = agentView(text, { today: '2026-11-12', provenance: true, file: 'plan.smd' });
+  const p = fixed.provenance!;
+  assert.equal(p.schema, 'smd-projection/1');
+  assert.equal(p.effectiveDate, '2026-11-12');
+  assert.equal(p.digests.output, sha256Hex(fixed.text));
+  assert.match(p.digests.settings, /^[0-9a-f]{64}$/);
+  // Equal requests have equal digests; another setting or another date gives another settings digest.
+  assert.deepEqual(agentView(text, { today: '2026-11-12', provenance: true, file: 'plan.smd' }).provenance!.digests, p.digests);
+  assert.notEqual(agentView(text, { today: '2026-11-13', provenance: true, file: 'plan.smd' }).provenance!.digests.settings, p.digests.settings);
+  assert.notEqual(agentView(text, { today: '2026-11-12', brief: true, provenance: true, file: 'plan.smd' }).provenance!.digests.settings, p.digests.settings);
+  // Without a fixed date the manifest still says which date the view used.
+  const clock = agentView(text, { provenance: true, file: 'plan.smd' }).provenance!;
+  assert.equal(clock.settings.datePolicy, 'clock');
+  assert.equal(clock.effectiveDate, new Date().toISOString().slice(0, 10));
 });
