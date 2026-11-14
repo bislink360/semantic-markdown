@@ -12,7 +12,10 @@ import { blockAt, hidden, LAYOUT_CONTAINERS, scan, type Range, type ScannedBlock
  * oracle runs each request through a driver, then decides from the view's manifest alone:
  *
  * - which blocks appear: a block appears when a `source` span of the manifest's source map, in the block's file,
- *   overlaps the block's own lines (its lines without the containers nested in it). Text is never compared.
+ *   overlaps the block's own lines (its lines without the containers nested in it), and the output lines that span
+ *   maps hold the block's text: one of its own content lines, or the title of a container without a body, after
+ *   both are normalised (line references, emphasis marks and spacing dropped). Since 4.1.0, so a manifest that maps
+ *   a block to lines that do not show it fails.
  * - recall: the required blocks (`mustAppear`, from L1, L2 and L3) that appear, over the required blocks.
  * - precision: the typed blocks that appear and are required or inside the requested scope, over all typed blocks
  *   that appear. The rest is extra context (permitted, reported apart, never counted as coverage).
@@ -319,9 +322,41 @@ function resolveRef(fx: Fixture, ref: Ref): ScannedBlock {
 
 const overlaps = (a: Range, b: Range) => a[0] <= b[1] && b[0] <= a[1];
 
-function appears(m: Manifest, block: ScannedBlock): boolean {
-  return m.sourceMap.some((s) => s.kind === 'source' && s.file !== undefined && s.source !== undefined
-    && normalize(s.file) === block.file && block.own.some((r) => overlaps(r, s.source!)));
+/** The output lines that the source map says show some of the block's own lines. */
+function mappedLines(obs: Observation, block: ScannedBlock): string[] {
+  const out = obs.text.split('\n');
+  return obs.manifest.sourceMap.filter((s) => s.kind === 'source' && s.file !== undefined && s.source !== undefined
+    && normalize(s.file) === block.file && block.own.some((r) => overlaps(r, s.source!)))
+    .flatMap((s) => out.slice(s.output[0] - 1, s.output[1]));
+}
+
+/** Text compared without what the projection is known to change: a line reference, emphasis marks, case and spacing. */
+const plainText = (s: string) => s.replace(/\s*\[L\d+\]\s*$/, '').replace(/\{[^}]*\}\s*$/, '').replace(/[*_`~]/g, '')
+  .replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * What of a block the output must show: its own content lines (not fences, container fences or blank lines), or,
+ * for a container with no content of its own, the title after its attributes.
+ */
+function blockText(fx: Fixture, block: ScannedBlock): string[] {
+  const lines = fx.files.get(block.file)?.lines ?? [];
+  const own = block.own.flatMap(([a, b]) => lines.slice(a - 1, b));
+  // The projection drops a quote's `>` (an alert is shown as a danger block) and rewrites inline directives
+  // (`:depends[R6]` becomes `(depends on R6)`), so a line is compared up to its first directive.
+  const comparable = (l: string) => l.replace(/^(\s*>\s?)+/, '').replace(/^\s*\[!\w+\]\s*$/, '').split(/\s:[a-z][\w-]*\[/i)[0];
+  const content = own.filter((l) => l.trim() && !/^\s*(:{3,}|`{3,}|~{3,})/.test(l)).map(comparable).map(plainText).filter((l) => l.length >= 3);
+  if (content.length) return content;
+  const title = /^\s*:{3,}\s*[\w-]+(?:\{[^}]*\})?\s*(.*)$/.exec(own[0] ?? '')?.[1];
+  return title && plainText(title).length >= 3 ? [plainText(title)] : [];
+}
+
+function appears(obs: Observation, fx: Fixture, block: ScannedBlock): boolean {
+  const shown = mappedLines(obs, block);
+  if (!shown.length) return false;
+  const want = blockText(fx, block);
+  if (!want.length) return true;
+  const text = shown.map(plainText).join('\n');
+  return want.some((w) => text.includes(w));
 }
 
 /**
@@ -445,10 +480,10 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
   const each = (items: RefItem[] = []) => items.flatMap((item) => expand(refOf(item)).map((ref) => ({ ref, block: resolveRef(fx, ref), failure: failureOf(item) })));
   const required = each(request.mustAppear);
   for (const { ref, block, failure } of required) {
-    checks.push({ name: `appears ${ref}`, ok: appears(m, block), detail: `${label(block)} lines ${block.own.map((r) => r.join('-')).join(',')}`, expectedFailure: failure });
+    checks.push({ name: `appears ${ref}`, ok: appears(obs, fx, block), detail: `${label(block)} lines ${block.own.map((r) => r.join('-')).join(',')}`, expectedFailure: failure });
   }
   for (const { ref, block, failure } of each(request.mustNotAppear)) {
-    checks.push({ name: `hidden ${ref}`, ok: !appears(m, block), detail: `${label(block)} must not appear`, expectedFailure: failure });
+    checks.push({ name: `hidden ${ref}`, ok: !appears(obs, fx, block), detail: `${label(block)} must not appear`, expectedFailure: failure });
   }
   if (m.blocks) checks.push(checkAccounting(m, required.map((r) => r.block), each(request.mustNotAppear).map((r) => r.block), request.doc ?? 'doc.smd'));
   if (request.unsatisfied) checks.push({ ...checkUnsatisfied(m, request.unsatisfied), expectedFailure: xf.unsatisfied });
@@ -489,10 +524,10 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
 
   // Recall over the required blocks; precision over the typed blocks that appear.
   const requiredBlocks = required.map((r) => r.block);
-  const appearedRequired = requiredBlocks.filter((b) => appears(m, b));
+  const appearedRequired = requiredBlocks.filter((b) => appears(obs, fx, b));
   const context = (request.context ?? []).flatMap(expand).map((ref) => resolveRef(fx, ref));
   const expected = new Set<ScannedBlock>([...requiredBlocks, ...context, ...inScope(fx, request.route)]);
-  const typed = [...fx.files.values()].flatMap((f) => f.blocks.filter(isTyped)).filter((b) => appears(m, b));
+  const typed = [...fx.files.values()].flatMap((f) => f.blocks.filter(isTyped)).filter((b) => appears(obs, fx, b));
   const key = (b: ScannedBlock) => `${b.file}:${b.lines[0]}`;
   const expectedKeys = new Set([...expected].map(key));
   const extra = typed.filter((b) => !expectedKeys.has(key(b)));
