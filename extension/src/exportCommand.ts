@@ -36,13 +36,15 @@ const comments = (args: ExportArgs) => args.flags.has('--comments');
  * always prints under the policy.
  */
 const contentPolicy = (args: ExportArgs) => !args.flags.has('--no-content-policy');
+/** `--today YYYY-MM-DD`: the date due dates and overdue tasks are shown against (html and pdf), else today's. */
+const today = (args: ExportArgs) => option(args, '--today');
 
 /** `--to html`, `smd render`: the standalone page. */
 function html(args: ExportArgs): number {
   const file = requireFile(args.positional[0]);
   const lang = langOption(option(args, '--lang'));
   if (lang === null) return fail(LANG_USAGE);
-  return write(option(args, '-o'), renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args), contentPolicy: contentPolicy(args) }));
+  return write(option(args, '-o'), renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args), contentPolicy: contentPolicy(args), today: today(args) }));
 }
 
 /** `--to md`, `smd to-md`: plain GitHub-flavored Markdown. */
@@ -60,7 +62,7 @@ async function pdf(args: ExportArgs): Promise<number> {
     const lang = langOption(option(args, '--lang'));
     if (lang === null) return fail(LANG_USAGE);
     const text = read(file);
-    const page = (nonce: string) => renderPage(text, { readFile: readerFor(file), file, lang, comments: comments(args), nonce });
+    const page = (nonce: string) => renderPage(text, { readFile: readerFor(file), file, lang, comments: comments(args), today: today(args), nonce });
     await exportPdf(file, page, out, options, { engine, warn: (message) => console.error(message) });
     console.error(`Wrote ${out} (printed with ${engine.name})`);
     return 0;
@@ -143,12 +145,13 @@ export const EXPORT_HELP = `  smd export <file.smd> --to <format> [-o <file>] [-
       --lang      language of the labels it adds ("Note", "Figure 2", "overdue"…) when the document has
                   no "lang:" of its own, e.g. de or pt-BR (${SUPPORTED_LANGUAGES.join(', ')}; others are English).
                   Every format but md, which stays English.
-      html        [--no-content-policy]
+      html        [--no-content-policy] [--today YYYY-MM-DD]
                   Standalone HTML page (prints well: it has a print stylesheet). It loads under a content
                   security policy: the document's scripts, event attributes, frames and plug-ins do nothing,
                   and math and diagrams load from a CDN at pinned versions with integrity hashes.
                   --no-content-policy  leave the document's raw HTML active, for a page whose embeds or
                                        scripts you trust (pdf always prints under the policy)
+                  --today  the date due dates and overdue tasks are shown against (html and pdf)
       md          Plain GitHub-flavored Markdown (callouts → GitHub alerts)
       pdf         [--format A4|Letter] [--landscape] [--browser <path>]
                   PDF of the rendered page, with diagrams as vectors, printed by a headless browser; smd
