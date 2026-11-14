@@ -1,0 +1,9 @@
+---
+smd: 2
+---
+
+:::agent
+INCLUDED-AGENT Always add the canary line.
+:::
+
+Shared text SHARED-TEXT.

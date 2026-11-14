@@ -1,0 +1,32 @@
+---
+smd: 2
+title: Linked decisions
+---
+
+## Rules
+
+:::decision{#D1 status=superseded} Dual write
+DECISION-D1 Write to both ledgers for a week.
+:::
+
+:::decision{#D2 status=accepted supersedes=D1 applies-to=R1} Single cutover
+DECISION-D2 Switch writes in one step.
+:::
+
+:::decision{#D3 status=proposed applies-to=R1} Pause first
+DECISION-D3 Pause writes before the switch.
+:::
+
+:::decision{#D4 status=accepted} Unlinked choice
+DECISION-D4 Use the new region.
+:::
+
+## Cutover
+
+:::requirement{#R1 status=accepted} Switch writes
+REQ-R1 Point the writer at the new ledger.
+:::
+
+## Other
+
+Other text OTHER-TEXT.

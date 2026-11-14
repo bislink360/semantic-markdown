@@ -41,6 +41,8 @@ export interface Route {
   query?: string;
   brief?: boolean;
   maxTokens?: number;
+  /** The host setting for the :::agent blocks of included files (4.1.0); `off` is `--included-instructions off`. */
+  includedInstructions?: 'carry' | 'off';
 }
 
 /** A known gap: the task that closes it and what the code does today. */
@@ -210,6 +212,7 @@ export function runLibrary(dir: string, doc: string, route: Route): Observation 
     readFile: readerFor(abs),
     file: doc,
     maxTokens: route.maxTokens,
+    ...(route.includedInstructions ? { includedInstructions: route.includedInstructions } : {}),
   });
   if (!result.provenance) throw new Error('agentView returned no manifest');
   return { text: result.text, manifest: result.provenance as unknown as Manifest };
@@ -219,6 +222,7 @@ export function runLibrary(dir: string, doc: string, route: Route): Observation 
 function runLibraryQuery(abs: string, doc: string, selector: string, route: Route): Observation {
   const result = queryView(readFileSync(abs, 'utf8'), selector, {
     brief: !!route.brief, lineRefs: true, provenance: true, readFile: readerFor(abs), file: doc,
+    ...(route.includedInstructions ? { includedInstructions: route.includedInstructions } : {}),
   });
   if (!result?.provenance) throw new Error(`the query ${selector} matched nothing in ${doc}`);
   return { text: result.text, manifest: result.provenance as unknown as Manifest };
@@ -237,6 +241,7 @@ export function runCli(dir: string, doc: string, route: Route): Observation {
       : [CLI, 'agent', doc, ...(route.sections ?? []).flatMap((s) => ['--section', s])];
     if (route.brief) args.push('--brief');
     if (route.maxTokens !== undefined) args.push('--max-tokens', String(route.maxTokens));
+    if (route.includedInstructions) args.push('--included-instructions', route.includedInstructions);
     args.push('--provenance', out);
     const run = spawnSync(process.execPath, args, { cwd: dir, encoding: 'utf8' });
     if (run.status !== 0) throw new Error(`smd ${args[1]} exited with ${run.status}: ${run.stderr}`);
