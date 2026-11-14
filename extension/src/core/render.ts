@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it';
 import './review';
 import type { Token } from 'markdown-it';
 import hljs from 'highlight.js/lib/common';
+import { blockActiveContent, printPolicy } from './activeContent';
 import { escapeHtml, resolveColor } from './attrs';
 import { type FrontMatter, parseFrontMatter, unreadFrontMatter } from './frontmatter';
 import { documentLanguage, EN, isEnglish, isEnglishMessages, messagesFor, runtimeLabels, type Messages } from './i18n';
@@ -245,16 +246,26 @@ function renderToc(headings: Heading[], m: Messages): string {
  * picks the page's theme; without one it is `fallbackTheme` (`auto` follows the reader's system).
  */
 export function renderStandaloneHtml(
-  text: string, css: string, runtimeJs: string, options: RenderOptions = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto',
+  text: string, css: string, runtimeJs: string, options: RenderOptions & PagePolicy = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto',
 ): string {
-  const result = renderSmd(text, options);
+  const { nonce, ...renderOptions } = options;
+  const result = renderSmd(text, renderOptions);
   const title = typeof result.frontMatter.title === 'string' ? result.frontMatter.title : result.headings[0]?.text ?? 'Document';
   const named = String(result.frontMatter.theme).toLowerCase();
   const theme = ['light', 'dark'].includes(named) ? named : fallbackTheme;
-  return pageHtml({ title, theme, body: result.html, css, runtimeJs, cdn: true, lang: result.lang });
+  return pageHtml({ title, theme, body: result.html, css, runtimeJs, cdn: true, lang: result.lang, nonce });
 }
 
-export interface PageParts {
+/** How a standalone page treats the document's active content. */
+export interface PagePolicy {
+  /**
+   * Print under the content policy (activeContent.ts): the page's own scripts carry this nonce, the document's
+   * scripts and event attributes don't run, and its frames, plug-ins, `meta` and `base` elements are inert.
+   */
+  nonce?: string;
+}
+
+export interface PageParts extends PagePolicy {
   title: string;
   /** `light`, `dark` or `auto` (follow the reader's system). */
   theme: string;
@@ -270,13 +281,16 @@ export interface PageParts {
 
 /** The standalone page around rendered HTML: stylesheet, theme preference and runtime inlined. */
 export function pageHtml(page: PageParts): string {
+  const nonce = page.nonce === undefined ? '' : ` nonce="${page.nonce}"`;
+  const policy = page.nonce === undefined ? '' : `<meta http-equiv="Content-Security-Policy" content="${printPolicy(page.nonce)}">\n`;
+  const body = page.nonce === undefined ? page.body : blockActiveContent(page.body);
   const katex = page.cdn ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">\n' : '';
-  const mermaid = page.cdn ? '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>\n' : '';
+  const mermaid = page.cdn ? `<script${nonce} src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>\n` : '';
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(page.lang ?? 'en')}" data-smd-theme-pref="${page.theme}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+${policy}<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Semantic Markdown">
 <title>${escapeHtml(page.title)}</title>
 ${katex}<style>
@@ -284,8 +298,8 @@ ${page.css}
 </style>
 </head>
 <body class="smd-body">
-<main id="smd-root">${page.body}</main>
-${mermaid}<script>
+<main id="smd-root">${body}</main>
+${mermaid}<script${nonce}>
 ${page.runtimeJs}
 </script>
 </body>
