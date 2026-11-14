@@ -68,6 +68,7 @@ Every `.md` file is already valid `.smd`, so you can rename a file and start add
 | `smd.export.browserPath` | `""` | The browser that prints Export to PDF (user setting; empty: `SMD_BROWSER`, then Playwright or Puppeteer in the workspace, then an installed Chrome, Edge, Chromium or Brave) |
 | `smd.export.pdfFormat` | `A4` | Paper size for Export to PDF: `A4` or `Letter` |
 | `smd.export.pdfLandscape` | `false` | Export to PDF in landscape |
+| `smd.export.contentPolicy` | `true` | Write Export to HTML pages under a content security policy, so the document's scripts, event attributes, frames and plug-ins do nothing. Turn it off only for documents whose embeds or scripts you trust |
 | `smd.status.updateDate` | `true` | Set Document Status also sets the front matter `updated` date to today, when the document has that key |
 
 ## Syntax at a glance
