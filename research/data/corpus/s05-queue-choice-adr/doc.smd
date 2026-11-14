@@ -329,7 +329,7 @@ Notes from the architecture review, kept for the people who were not there. Pres
 - Joaquin asked whether legal had signed off on data residency. Nobody in the room had seen it. Ines found it after the meeting: legal had confirmed on 2026-07-09, but the e-mail was not forwarded until 2026-07-15. No impact on the decision.
 - Agreed to accept option C, subject to the finance approval, which came on 2026-07-17. ADR status set to accepted on 2026-07-21.
 
-## Revision history {agent=skip}
+## Revision history
 
 - 2026-06-05: first draft by Ines Okafor, requirements only.
 - 2026-06-26: options and load test results added. Option D marked rejected.

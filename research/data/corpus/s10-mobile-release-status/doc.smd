@@ -108,7 +108,7 @@ The 4.12 build ships with these defaults. The remote config can change them with
 - [x] Send the updated date to marketing and the agency partners, @mira
 - [ ] Prepare the store submission notes for 11-11, priority :priority[P2], @ade, due :due[2026-11-09]
 
-## Notes from Thursday's go/no-go (for the team) {agent=skip}
+## Notes from Thursday's go/no-go (for the team)
 
 Present: Mira, Tomasz, Priya, Jun, Lena, Ade, and Sam from the agency side. The meeting ran long because we spent the first twenty minutes on whether to ship 4.12 on 11-04 without tap-to-pay at all and add it in 4.12.1. Sam was against it. The agencies have already printed gate signs that mention tapping your phone, and a point release two weeks later would mean two rounds of rider support questions. Priya pointed out that most of the tap-to-pay code is already behind flags, so slipping a week costs less than splitting the release. Lena asked that we keep the accessibility fixes in 4.12 either way, which nobody disagreed with.
 

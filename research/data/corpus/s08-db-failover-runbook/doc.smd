@@ -23,7 +23,7 @@ The incident assistant bot in the incident channel and the alert router both rea
 - If an alert does not match anything in "Is this a failover?", say that you do not know and page the database on-call. Do not improvise steps.
 :::
 
-## Background (history, for people) {agent=skip}
+## Background (history, for people)
 
 Keystead ran on a single database server until 2023. Failover then meant restoring the nightly backup onto a new machine, which took most of a working day, and the one time it happened, in February 2023, agencies could not record rent for eleven hours. After that we added streaming replicas and a manual failover script, `kfail.sh`, that changed the DNS record for the database and restarted the application pods.
 

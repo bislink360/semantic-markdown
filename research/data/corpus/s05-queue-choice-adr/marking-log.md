@@ -12,3 +12,6 @@ L285: :::agent — "## Notes for automated reviewers", "The platform team asks t
 L309: {agent=skip} — "## Background", "This section is for people who want to know how the pipeline got here. Nothing in it is needed to build against the decision above."
 L321: {agent=skip} — "## Review meeting notes (2026-07-14)", "Notes from the architecture review, kept for the people who were not there."
 L332: {agent=skip} — "## Revision history"
+
+Revision of 2026-11-14 (people-only sections that held rules):
+L332: {agent=skip} removed from "## Revision history". The section records the current consumer retry rule ("from 5 attempts to 3 attempts with backoff", "The ADR-006 rule of 5 deliveries no longer applies"), which agents need. Item consumer-retry-rule-changed was hidden from agent views before. The validator's audience checks of 4.1.0 did not flag it, since the sentence has no rule words.

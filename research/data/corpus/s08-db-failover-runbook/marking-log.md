@@ -9,3 +9,6 @@ L289: :::question — "Undecided: whether `kdb-main-report` in north-2 should be
 L295: :::decision{status=accepted date=2026-03-11} — "Decision (accepted 2026-03-11): automatic failover is turned on for `kdb-main`"
 L299: :::decision{status=accepted date=2026-08-04} — "Decision (accepted 2026-08-04): the lag limit for promoting `kdb-main-c` by hand is 16 MB of WAL or 5 seconds."
 L303: {agent=skip} — "## Notes from the March 2026 game day (for the team)"
+
+Revision of 2026-11-14 (people-only sections that held rules):
+L26: {agent=skip} removed from "## Background (history, for people)". The section holds a current restriction ("`kfail.sh` was retired in October 2025 and should not be used even if you find it on an old bastion host"), which agents need. The heading text is the source's and stays. Item kfail-retired was hidden from agent views before. The validator's audience/normative-in-skip check of 4.1.0 flagged it (info, L32).

@@ -9,3 +9,6 @@ L106: :priority[P1] :due[2026-11-02] — "priority P1, @jun, due 2026-11-02"
 L107: :priority[P2] :due[2026-11-06] — "priority P2, @tomasz, due 2026-11-06"
 L109: :priority[P2] :due[2026-11-09] — "priority P2, @ade, due 2026-11-09"
 L111: {agent=skip} — "Notes from Thursday's go/no-go (for the team)"
+
+Revision of 2026-11-14 (people-only sections that held rules):
+L111: {agent=skip} removed from "## Notes from Thursday's go/no-go (for the team)". The notes record the rejected option to ship 4.12 without tap-to-pay and add it in 4.12.1, the only place that decision is written, which agents need. The heading text is the source's and stays. Item split-release-rejected was hidden from agent views before. The validator's audience checks of 4.1.0 did not flag it.
