@@ -23,6 +23,8 @@ export const RULE_CODES: Record<string, string> = {
   'container/colons': 'A closing fence has another colon count than the container it closes, which spec v2 pairs by count (in spec v2: no open container has its count)',
   'container/title-conflict': 'A container has both `title=` and title text after its attributes; the text is not shown',
   'container/agent-in-skip': '`:::agent` block inside a section marked `{agent=skip}`, which agent views leave out',
+  'audience/rule-in-skip': 'A constraint, danger, requirement or accepted decision inside a section marked `{agent=skip}` or a `:::human` block, so agents never see the rule',
+  'audience/normative-in-skip': 'Prose that reads like a rule ("must not", "never", "do not") in a section marked `{agent=skip}` or a `:::human` block, which agent views leave out',
   'attrs/syntax': 'Malformed `{…}` attribute list',
   'attrs/unknown': 'Attribute not accepted in this position',
   'attrs/value': 'Invalid attribute value',

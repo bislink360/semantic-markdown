@@ -63,9 +63,10 @@ Reading (token-efficient, for agents):
   smd savings <files|dirs...> [--json]
       Tokens an agent saves by reading the agent view instead of the raw files, per document and in
       total, as a number and a percentage.
-  smd outline <file.smd> [--related] [--tokenizer <name>]
+  smd outline <file.smd> [--related] [--compact] [--tokenizer <name>]
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost
+      --compact    one unpadded row per heading, as smd read returns the outline
   smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
                        [--evidence]
@@ -334,7 +335,7 @@ function main(argv: string[]): number | Promise<number> {
     case 'savings':
       return runSavings(positional.length ? positional : ['.'], { json: flags.has('--json'), price: value('--price'), today });
     case 'outline':
-      return outlineFile(requireFile(positional[0]), flags.has('--related'), today, value('--tokenizer'));
+      return outlineFile(requireFile(positional[0]), flags.has('--related'), today, value('--tokenizer'), flags.has('--compact'));
     case 'agent':
       return agentFile(requireFile(positional[0]), args, today);
     case 'tasks':
@@ -693,10 +694,10 @@ async function lsp(flags: Set<string>): Promise<number> {
   return runLanguageServer({ version: pkg.version });
 }
 
-function outlineFile(file: string, related: boolean, today?: string, tokenizerName?: string): number {
+function outlineFile(file: string, related: boolean, today?: string, tokenizerName?: string, compactOutline = false): number {
   return withTokenizer(tokenizerName, (tokenizer) => {
     const text = read(file);
-    process.stdout.write(outline(text, { readFile: readerFor(file), today, tokenizer }));
+    process.stdout.write(outline(text, { readFile: readerFor(file), today, tokenizer, compactOutline }));
     if (related) process.stdout.write(relatedBlock(file, text, today));
     return 0;
   });

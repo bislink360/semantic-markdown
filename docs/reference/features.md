@@ -55,7 +55,7 @@ The short version of this guide; each item is described in full in the sections 
 |---|---|
 | `smd read <file> [--max-tokens N]` | One call for agents: the whole agent view when it fits the budget (default 2,000 tokens), else the outline and how to read single sections |
 | `smd index <dir> [-o catalog.json]` | JSON catalog of every doc (title, summary, status, owners, tags, sections, token costs, open tasks, risks…) so agents pick which docs to read |
-| `smd outline <file> [--related]` | Sections with line ranges and token costs; `--related` adds each `related:` doc's title, status, summary and cost |
+| `smd outline <file> [--related] [--compact]` | Sections with line ranges and token costs; `--related` adds each `related:` doc's title, status, summary and cost; `--compact` prints one unpadded row per heading (`21-26 ## Why laws ≈203`), the form `smd read` returns |
 | `smd agent <file> [--section …] [--brief] [--max-tokens N]` | Compact agent view; `--max-tokens` condenses it and leaves out the least important sections (with pointers) to fit |
 | `smd agent <file> --provenance view.json` | Also writes a JSON manifest of the view: source hashes, settings, selected sections, a source map and every omission with its reason (also on `smd read`) |
 | `smd agent <file> --section … --constraints` | Experimental: also lists the constraints outside those sections (danger blocks in full, warnings, accepted decisions and open questions as pointers). Without it, a section view still shows the danger blocks of other sections |
@@ -508,7 +508,7 @@ Start in week 1; Google Pay can launch alone.
 
 | Block | Attributes | Agent view |
 |---|---|---|
-| `decision` | `status`: proposed · accepted · rejected · superseded · deprecated; `date`; `owner`; `supersedes`; `depends-on` | `<decision status="accepted" …> title …</decision>`, with `superseded-by` when another decision supersedes it |
+| `decision` | `status`: proposed · accepted · rejected · superseded · deprecated; `date`; `owner`; `supersedes`; `depends-on`; `applies-to` | `<decision status="accepted" …> title …</decision>`, with `superseded-by` when another decision supersedes it |
 | `risk` | `impact`, `likelihood`: low · medium · high · critical; `owner`; `status`: open · mitigated · accepted · closed; `depends-on` | `<risk impact="high" …> title …</risk>` |
 | `timeline` | — (checked items show as done) | the list |
 | `risk-matrix` | title after the name; no body | `[risk matrix: title — …]` pointer (the risks are already `<risk>` blocks) |
@@ -554,7 +554,7 @@ The section-read tests pass.
 - **Preview.** Each tag is a panel with its kind, its id, pills that say their value in words as well as in colour, and its facts. Ids in `verifies`, `applies-to`, `supports`, `contradicts` and `depends-on` link to their blocks. An unvalidated assumption past its `review-by` date says "overdue". The exports (HTML, PDF, Word, Confluence, Notion) show the same panels.
 - **People set the states.** A requirement without `status` is `proposed`, and the agent view says so. Acceptance criteria say how to check a requirement. They don't prove that it passed, and no tool marks a requirement `verified` by itself. An acceptance block nested in a requirement verifies it.
 - **Evidence** records a check for or against a block. `method=acceptance` with a person in `by` records that a person accepted the result. `rev` keeps the revision of each block it supports, as `R1@3f2a9c1b0d4e` ([revisions](spec.md#310-review-comments-and-suggestions)).
-- **Constraints for agents.** A constraint with `scope=document`, or one above the first heading, binds the whole document. `applies-to` names the blocks or headings it binds. `smd query --constraints` adds the document-wide ones to a result, and `--follow` brings the `applies-to` constraints of each match ([below](#selecting-by-tree-and-graph-smd-query)). `smd agent --section` and `smd read --section` show the constraints that apply from other sections under "Constraints that apply here", and the blocks the selected content depends on under "Dependencies of the selected content", including one in another file (`depends-on=other.smd#R1`) that the host may read. A dependency that can't be shown makes the view say it is incomplete: one that is missing, outside what the host may read, or in an `{agent=skip}` section or `:::human` block of its file. `--max-tokens` keeps the sections those need.
+- **Constraints for agents.** A constraint with `scope=document`, or one above the first heading, binds the whole document. `applies-to` names the blocks or headings it binds. `smd query --constraints` adds the document-wide ones to a result, and `--follow` brings the `applies-to` constraints of each match ([below](#selecting-by-tree-and-graph-smd-query)). An accepted decision with `applies-to` binds what it names in the same way (since 4.1.0). `smd agent --section` and `smd read --section` show the constraints that apply from other sections under "Constraints that apply here" ("Constraints and decisions that apply here" when a linked decision is among them), and the blocks the selected content depends on under "Dependencies of the selected content", including one in another file (`depends-on=other.smd#R1`) that the host may read. A dependency that can't be shown makes the view say it is incomplete: one that is missing, outside what the host may read, or in an `{agent=skip}` section or `:::human` block of its file. `--max-tokens` keeps the sections those need.
 - **Budgets.** `smd agent --max-tokens` keeps a section with an accepted, implemented or verified requirement, or an unvalidated assumption, longer. `--brief` condenses a deprecated requirement to one line, `[requirement R7 (deprecated): Title — omitted, see L12]`.
 - **Catalog.** `smd index` counts the tags each document has under `counts.tags`, as `{"requirement": 3, "constraint": 1}`. Documents without tags have no `tags` key.
 - **Editor.** The outline and workspace symbols list each tag as `R1 — Title` with its state. Typing an id attribute offers the document's ids (requirement ids for `verifies`), and hovering a tag shows its defaults. Go to definition, hover, find references and rename work on block ids as they do on headings ([§13](#13-vs-code-editing-assistance)). The snippets are `requirement` (also `req`), `constraint`, `acceptance` (also `given`), `assumption` and `evidence`.
@@ -1185,6 +1185,8 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | `:::api{method=POST}` | `attrs/required` | — |
 | unclosed `:::` | `container/unclosed` | adds the closing `:::` at the end |
 | `:::agent` under a `## … {agent=skip}` heading | `container/agent-in-skip` | — (move the block out, or drop `agent=skip`) |
+| A constraint, danger, requirement or accepted decision under `{agent=skip}` or in `:::human` | `audience/rule-in-skip` | — (move it out, or drop the mark) |
+| "Must not", "never" or "do not" in prose under `{agent=skip}` or in `:::human` (info) | `audience/normative-in-skip` | — (move the rule out, or write it as a `:::constraint`) |
 | unclosed ```` ``` ```` | `fence/unclosed` | adds the closing fence at the end |
 | ```` ```mermaid flowchat ```` | `mermaid/type` | → `flowchart` |
 | `A->>B hi` in a sequence diagram | `mermaid/syntax` (an error since 2.0) | — (reported on the line, with what was expected) |
@@ -1560,7 +1562,7 @@ Rendered pages (the preview, `smd export --to html`, `smd build` sites and `smd 
 ```text
 smd read <file> [--max-tokens <n>]                   one call for agents: the whole agent view if it fits n tokens
                  (default 2000), else the outline and how to read sections with smd agent --section
-smd outline <file> [--related] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs
+smd outline <file> [--related] [--compact] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs; --compact as smd read returns it
 smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
                  [--max-tokens <n>] [--tokenizer <name>]   fit the view into n tokens; exact counts
                  --no-includes: a pointer per :::include instead of the included text

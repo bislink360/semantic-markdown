@@ -147,10 +147,11 @@ export function contractSummary(views: ReadonlyArray<ContractView>, fileCount: n
   const matches = views.reduce((n, v) => n + v.result.matches.length, 0);
   const constraints = views.reduce((n, v) => n + (v.result.mandatory?.constraints.length ?? 0), 0);
   const dependencies = views.reduce((n, v) => n + (v.result.mandatory?.dependencies.length ?? 0), 0);
+  const decisions = views.reduce((n, v) => n + (v.result.mandatory?.decisions?.length ?? 0), 0);
   const tokens = views.reduce((n, v) => n + v.result.tokens, 0);
   const incomplete = views.filter((v) => v.result.mandatory?.unsatisfied.length);
   const lines = [
-    `[smd] ${matches} match(es) in ${views.length} of ${fileCount} file(s). With the read contract: ${constraints} constraint(s) and `
+    `[smd] ${matches} match(es) in ${views.length} of ${fileCount} file(s). With the read contract: ${constraints} constraint(s)${decisions ? `, ${decisions} decision(s)` : ''} and `
     + `${dependencies} dependenc${dependencies === 1 ? 'y' : 'ies'} carried, ≈${tokens} tokens shown${incomplete.length ? '' : ', complete'}.`,
   ];
   for (const v of incomplete) {

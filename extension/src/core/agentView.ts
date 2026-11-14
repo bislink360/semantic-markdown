@@ -63,6 +63,12 @@ export interface AgentViewOptions {
    */
   includedInstructions?: 'carry' | 'off';
   /**
+   * The outline in its compact form (4.1.0): one row per heading as `21-26 ## Why laws ≈203 notes`, with no column
+   * padding, no indent and a one-line footer. `smd read` and the MCP `read` tool use it; `smd outline` prints the
+   * aligned table unless `--compact` is given. Only the outline reads it.
+   */
+  compactOutline?: boolean;
+  /**
    * Match `sections` exactly: a heading's id, or its whole text in any case (as spec v2's `:::include{section}`). By
    * default a part of the text is enough, so "API" also selects "API details".
    */
@@ -244,8 +250,8 @@ function decisionHead({ title, values, id, tags }: HeadSource): ContainerHead {
   const by = id ? tags?.context.supersededBy.get(id) : undefined;
   const shown = by ? { ...values, 'superseded-by': by.join(',') } : values;
   // Its id only with a link, so decisions without one read as before.
-  const linked = id && (by || shown.supersedes || shown['depends-on']) ? id : undefined;
-  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
+  const linked = id && (by || shown.supersedes || shown['depends-on'] || shown['applies-to']) ? id : undefined;
+  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'applies-to', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
 }
 
 function apiHead({ title, values: v }: HeadSource): ContainerHead {
@@ -460,7 +466,9 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
   for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
   const text = markHiddenTargets(parts.filter(Boolean).join('\n'), plan.hiddenTargets);
-  return text ? `Constraints that apply here:\n${text}\n\n` : '';
+  // Accepted decisions with applies-to are carried with the constraints (4.1.0); the head names them when there are any.
+  const head = plan.context.decisions?.length ? 'Constraints and decisions that apply here:' : 'Constraints that apply here:';
+  return text ? `${head}\n${text}\n\n` : '';
 }
 
 /**
@@ -469,7 +477,7 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
  */
 function markHiddenTargets(text: string, hidden: ReadonlySet<string>): string {
   if (!hidden.size) return text;
-  return text.replace(/^(<constraint\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
+  return text.replace(/^(<(?:constraint|decision)\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
     const names = idList(targets).filter((t) => hidden.has(t));
     return names.length ? `${start} hidden-target="${names.join(',')}"` : open;
   });
@@ -516,7 +524,7 @@ function constraintsOutside(scope: ViewScope, options: TransformOptions): { text
   const sectionAt = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1)?.heading.text ?? null;
   // A constraint that applies is shown in full above; one that applies nowhere in the view is a pointer (constraints/2).
   const applying = scope.mandatory?.applyingLines;
-  const pointers = found.filter((p) => p.type !== 'constraint' || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
+  const pointers = found.filter((p) => (p.type !== 'constraint' && p.type !== 'decision') || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
   const view: ConstraintView = {
     policy: scope.mandatory?.hasConstraints ? 'constraints/2' : 'constraints/1',
     complete: !pointers.some((p) => p.type === 'include'),
@@ -1922,10 +1930,18 @@ function outlineOf(text: string, options: AgentViewOptions): string {
       ...SECTION_MARKS.map((mark) => (marked(mark, s.start, s.end) ? mark.note : '')),
       s.heading.agent === 'skip' ? 'skipped for agents' : '',
     ].filter(Boolean).join(', ');
+    if (options.compactOutline) {
+      return { range: `${s.start + 1}-${s.end + 1}`, head: `${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };
+    }
     const range = `L${s.start + 1}-${s.end + 1}`;
     const indent = '  '.repeat(Math.max(0, s.heading.level - 2));
     return { range, head: `${indent}${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };
   });
+  if (options.compactOutline) {
+    for (const r of rows) out.push(`${r.range} ${r.head} ${r.tokens.trim()}${r.notes ? ` ${r.notes}` : ''}`);
+    out.push('', 'Read: smd agent <file> --section "<heading>"');
+    return out.join('\n') + '\n';
+  }
   const w1 = Math.max(...rows.map((r) => r.range.length), 5);
   const w2 = Math.max(...rows.map((r) => r.head.length), 10);
   const w3 = costWidth(rows.map((r) => r.tokens), options.tokenizer);
