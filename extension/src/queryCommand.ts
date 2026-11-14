@@ -18,6 +18,8 @@ export interface QueryFlags extends FollowFlags {
   contract?: boolean;
   /** With `contract`: also return each view's provenance manifest. */
   provenance?: boolean;
+  /** With `contract`: what the views do with the agent blocks of included files (4.1.0). */
+  includedInstructions?: 'carry' | 'off';
 }
 
 export interface QueryOutput {
@@ -113,6 +115,7 @@ function contractQuery(selector: string, files: string[], flags: QueryFlags): Qu
   for (const file of files) {
     const result = queryView(read(file), selector, {
       brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today, readFile: readerFor(file), file, provenance: !!flags.provenance,
+      ...(flags.includedInstructions ? { includedInstructions: flags.includedInstructions } : {}),
     });
     if (result) views.push({ file, result });
   }

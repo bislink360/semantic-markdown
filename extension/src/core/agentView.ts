@@ -57,6 +57,12 @@ export interface AgentViewOptions {
   /** Only include these sections (heading text or id, case-insensitive; subsections included). */
   sections?: string[];
   /**
+   * What a view does with `:::agent` blocks inside included files (4.1.0), a host's choice. `carry` (default) shows
+   * them as the document's own. `off` shows a one-line pointer in their place and records an omission, so a host that
+   * does not trust included files keeps their instructions out of every view.
+   */
+  includedInstructions?: 'carry' | 'off';
+  /**
    * The outline in its compact form (4.1.0): one row per heading as `21-26 ## Why laws ≈203 notes`, with no column
    * padding, no indent and a one-line footer. `smd read` and the MCP `read` tool use it; `smd outline` prints the
    * aligned table unless `--compact` is given. Only the outline reads it.
@@ -632,7 +638,8 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   const traced = { ...options, readFile, brief: options.brief || result.budget?.condensed };
   const omissions: Omission[] = [];
   const traces: HeadTraces = {
-    external: { file, entries: [] }, applying: { file, entries: [] }, dependencies: { file, entries: [] }, dangers: { file, entries: [] },
+    // The head's agent pass records nothing else, but an included file's kept-out instructions are named (4.1.0).
+    external: { file, entries: [], instructionOmissions: omissions }, applying: { file, entries: [] }, dependencies: { file, entries: [] }, dangers: { file, entries: [] },
     constraints: { file, entries: [] }, footnotes: { file, entries: [] },
   };
   const body: Trace = { file, entries: [], omissions };
@@ -665,6 +672,7 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
       includeHuman: !!options.includeHuman, includes: options.includes !== false, embed: !!options.embed, lineRefs: options.lineRefs ?? true,
       today: options.today ?? null, tokenizer: options.tokenizer?.name ?? 'estimate', maxTokens: options.maxTokens ?? null,
       constraints: !!options.constraints,
+      ...(options.includedInstructions === 'off' ? { includedInstructions: 'off' as const } : {}),
     },
   });
 }
@@ -1138,13 +1146,15 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const text = (s: string, openTask = false, math?: ReadonlyArray<[number, number]>, parts?: ReadonlyArray<InlinePart>) => {
     const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec, counts };
     // An item that runs over several lines is read whole, as rendering reads it; each line shows its part.
-    return styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read)));
+    return neutralWrapper(styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read))));
   };
   const changelogs = options.changelogs ?? changelogEntries(lines, 0, spec);
   // `condensed`: a :::details in a brief view. Its content is left out, except :::agent blocks inside it, which every view keeps.
   // `visible`: its opening line was in the view (for provenance).
   interface Frame {
     name: string; colons: number; close?: string; drop: boolean; condensed?: 'details' | 'deprecated'; start: number; visible?: boolean; id?: string;
+    /** An included file's :::agent block that the host keeps out (`includedInstructions: 'off'`). */
+    instructionsOff?: boolean;
   }
   const stack: Frame[] = [];
   // What the document's blocks say about each other (answers, supersedes), read on the first question or decision.
@@ -1206,6 +1216,10 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     const reachesView = hides && !frame.visible && Array.from({ length: at - frame.start }, (_, k) => frame.start + 1 + k).some(inScope);
     if (!frame.visible && !reachesView) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
+    if (frame.instructionsOff) {
+      const sink = trace?.omissions ?? trace?.instructionOmissions;
+      if (sink && trace) addOmission(sink, { kind: 'included-instructions', file: trace.file, lines: [frame.start + 1, at + 1], reason: 'agent instructions in an included file, which this host keeps out', noRetrieve: 'the host turned instructions from included files off' });
+    }
     if (frame.condensed === 'details') omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
     if (frame.condensed === 'deprecated') omit({ kind: 'deprecated', reason: 'a deprecated requirement is condensed in brief views' }, frame.start, at);
   };
@@ -1307,6 +1321,13 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       const frame: Frame = { name: info.name, colons: open[2].length, drop: false, start: i, visible: inScope(i) && !dropping() };
       stack.push(frame);
       if (info.name === 'human' && !options.includeHuman) { frame.drop = true; continue; }
+      // An included file's agent instructions, when the host keeps them out: a pointer in their place (4.1.0).
+      if (info.name === 'agent' && options.includedInstructions === 'off' && options.docPath !== undefined) {
+        emit(`[agent instructions in ${options.docPath} L${i + 1} not shown: this host keeps instructions from included files out]`, i);
+        frame.drop = true;
+        frame.instructionsOff = true;
+        continue;
+      }
       if (REVIEW_CONTAINERS.includes(info.name)) {
         const review = reviewHead(info.name, (options.review ?? reviewOf(lines)).get(i), info.attrs.values, title, !!options.includeReview);
         if (!review) {
@@ -1338,7 +1359,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
           // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
           // blocks still apply, as the document's own do (C01).
-          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined }, onlyMandatory: true });
+          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined, instructionOmissions: trace.omissions ?? trace.instructionOmissions }, onlyMandatory: true });
           if (rules.length > 2) {
             for (const l of rules) {
               out.push(l);
@@ -1872,6 +1893,14 @@ function sectionMarks(text: string, lines: string[]): (mark: SectionMark, start:
   const isLiteral = lazyLineSet(() => literalLines(text));
   const counts = (mark: SectionMark, i: number) => (mark.fence ? opensFence(i) : !isLiteral(i));
   return (mark, start, end) => lines.slice(start, end + 1).some((l, k) => mark.line.test(l) && counts(mark, start + k));
+}
+
+/**
+ * A body line that would read as a wrapper the view itself writes, `<included …>` or `<agent-instructions>`, gets
+ * its `<` written as `&lt;`, so text in a document cannot pretend to be carried instructions or another file (4.1.0).
+ */
+function neutralWrapper(line: string): string {
+  return line.replace(/^(\s*)<(\/?(?:included|agent-instructions)\b)/i, '$1&lt;$2');
 }
 
 export function outline(text: string, viewOptions: AgentViewOptions = {}): string {

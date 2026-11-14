@@ -29,7 +29,7 @@ export const READ_MODES = ['auto', 'outline', 'full'] as const;
 export type ReadMode = (typeof READ_MODES)[number];
 
 export interface ReadOptions
-  extends Pick<AgentViewOptions, 'readFile' | 'today' | 'tokenizer' | 'file' | 'lineRefs' | 'exactSections' | 'constraints' | 'provenance'> {
+  extends Pick<AgentViewOptions, 'readFile' | 'today' | 'tokenizer' | 'file' | 'lineRefs' | 'exactSections' | 'constraints' | 'provenance' | 'includedInstructions'> {
   /** auto (default): whole view within the budget, else the outline. */
   mode?: ReadMode;
   /**
