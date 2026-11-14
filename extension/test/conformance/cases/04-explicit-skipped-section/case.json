@@ -22,7 +22,7 @@
       "mustAppear": ["~MAIN-TEXT"],
       "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
       "omissions": [
-        { "kind": ["skipped-section", "not-selected"], "heading": "Notes", "lines": [10, 29] }
+        { "kind": "skipped-section", "heading": "Notes", "lines": [10, 29] }
       ]
     },
     {

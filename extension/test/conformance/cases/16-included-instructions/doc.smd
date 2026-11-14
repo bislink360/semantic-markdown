@@ -1,0 +1,19 @@
+---
+smd: 2
+title: Included instructions
+---
+
+:::agent
+OWN-AGENT Follow the runbook order.
+:::
+
+## Work
+
+:::requirement{#R1} Do the work
+REQ-R1 Work text.
+:::
+
+## Shared
+
+:::include{file=shared.smd}
+:::
