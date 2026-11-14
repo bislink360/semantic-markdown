@@ -57,6 +57,18 @@ export interface AgentViewOptions {
   /** Only include these sections (heading text or id, case-insensitive; subsections included). */
   sections?: string[];
   /**
+   * What a view does with `:::agent` blocks inside included files (4.1.0), a host's choice. `carry` (default) shows
+   * them as the document's own. `off` shows a one-line pointer in their place and records an omission, so a host that
+   * does not trust included files keeps their instructions out of every view.
+   */
+  includedInstructions?: 'carry' | 'off';
+  /**
+   * The outline in its compact form (4.1.0): one row per heading as `21-26 ## Why laws ≈203 notes`, with no column
+   * padding, no indent and a one-line footer. `smd read` and the MCP `read` tool use it; `smd outline` prints the
+   * aligned table unless `--compact` is given. Only the outline reads it.
+   */
+  compactOutline?: boolean;
+  /**
    * Match `sections` exactly: a heading's id, or its whole text in any case (as spec v2's `:::include{section}`). By
    * default a part of the text is enough, so "API" also selects "API details".
    */
@@ -238,8 +250,8 @@ function decisionHead({ title, values, id, tags }: HeadSource): ContainerHead {
   const by = id ? tags?.context.supersededBy.get(id) : undefined;
   const shown = by ? { ...values, 'superseded-by': by.join(',') } : values;
   // Its id only with a link, so decisions without one read as before.
-  const linked = id && (by || shown.supersedes || shown['depends-on']) ? id : undefined;
-  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
+  const linked = id && (by || shown.supersedes || shown['depends-on'] || shown['applies-to']) ? id : undefined;
+  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'applies-to', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
 }
 
 function apiHead({ title, values: v }: HeadSource): ContainerHead {
@@ -454,7 +466,9 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
   for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
   const text = markHiddenTargets(parts.filter(Boolean).join('\n'), plan.hiddenTargets);
-  return text ? `Constraints that apply here:\n${text}\n\n` : '';
+  // Accepted decisions with applies-to are carried with the constraints (4.1.0); the head names them when there are any.
+  const head = plan.context.decisions?.length ? 'Constraints and decisions that apply here:' : 'Constraints that apply here:';
+  return text ? `${head}\n${text}\n\n` : '';
 }
 
 /**
@@ -463,7 +477,7 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
  */
 function markHiddenTargets(text: string, hidden: ReadonlySet<string>): string {
   if (!hidden.size) return text;
-  return text.replace(/^(<constraint\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
+  return text.replace(/^(<(?:constraint|decision)\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
     const names = idList(targets).filter((t) => hidden.has(t));
     return names.length ? `${start} hidden-target="${names.join(',')}"` : open;
   });
@@ -510,7 +524,7 @@ function constraintsOutside(scope: ViewScope, options: TransformOptions): { text
   const sectionAt = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1)?.heading.text ?? null;
   // A constraint that applies is shown in full above; one that applies nowhere in the view is a pointer (constraints/2).
   const applying = scope.mandatory?.applyingLines;
-  const pointers = found.filter((p) => p.type !== 'constraint' || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
+  const pointers = found.filter((p) => (p.type !== 'constraint' && p.type !== 'decision') || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
   const view: ConstraintView = {
     policy: scope.mandatory?.hasConstraints ? 'constraints/2' : 'constraints/1',
     complete: !pointers.some((p) => p.type === 'include'),
@@ -624,7 +638,8 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
   const traced = { ...options, readFile, brief: options.brief || result.budget?.condensed };
   const omissions: Omission[] = [];
   const traces: HeadTraces = {
-    external: { file, entries: [] }, applying: { file, entries: [] }, dependencies: { file, entries: [] }, dangers: { file, entries: [] },
+    // The head's agent pass records nothing else, but an included file's kept-out instructions are named (4.1.0).
+    external: { file, entries: [], instructionOmissions: omissions }, applying: { file, entries: [] }, dependencies: { file, entries: [] }, dangers: { file, entries: [] },
     constraints: { file, entries: [] }, footnotes: { file, entries: [] },
   };
   const body: Trace = { file, entries: [], omissions };
@@ -657,6 +672,7 @@ function provenanceOf(text: string, scope: ViewScope, options: TransformOptions,
       includeHuman: !!options.includeHuman, includes: options.includes !== false, embed: !!options.embed, lineRefs: options.lineRefs ?? true,
       today: options.today ?? null, tokenizer: options.tokenizer?.name ?? 'estimate', maxTokens: options.maxTokens ?? null,
       constraints: !!options.constraints,
+      ...(options.includedInstructions === 'off' ? { includedInstructions: 'off' as const } : {}),
     },
   });
 }
@@ -1130,13 +1146,15 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
   const text = (s: string, openTask = false, math?: ReadonlyArray<[number, number]>, parts?: ReadonlyArray<InlinePart>) => {
     const read: TextContext = { today: options.today, openTask, figures: figures.byId, blocks: figures.blocks, variables, spec, counts };
     // An item that runs over several lines is read whole, as rendering reads it; each line shows its part.
-    return styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read)));
+    return neutralWrapper(styledText(s, read, math, convertedParts(parts, (whole) => styledText(whole, read))));
   };
   const changelogs = options.changelogs ?? changelogEntries(lines, 0, spec);
   // `condensed`: a :::details in a brief view. Its content is left out, except :::agent blocks inside it, which every view keeps.
   // `visible`: its opening line was in the view (for provenance).
   interface Frame {
     name: string; colons: number; close?: string; drop: boolean; condensed?: 'details' | 'deprecated'; start: number; visible?: boolean; id?: string;
+    /** An included file's :::agent block that the host keeps out (`includedInstructions: 'off'`). */
+    instructionsOff?: boolean;
   }
   const stack: Frame[] = [];
   // What the document's blocks say about each other (answers, supersedes), read on the first question or decision.
@@ -1198,6 +1216,10 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     const reachesView = hides && !frame.visible && Array.from({ length: at - frame.start }, (_, k) => frame.start + 1 + k).some(inScope);
     if (!frame.visible && !reachesView) return;
     if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
+    if (frame.instructionsOff) {
+      const sink = trace?.omissions ?? trace?.instructionOmissions;
+      if (sink && trace) addOmission(sink, { kind: 'included-instructions', file: trace.file, lines: [frame.start + 1, at + 1], reason: 'agent instructions in an included file, which this host keeps out', noRetrieve: 'the host turned instructions from included files off' });
+    }
     if (frame.condensed === 'details') omit({ kind: 'details', reason: 'a :::details block is condensed in brief views' }, frame.start, at);
     if (frame.condensed === 'deprecated') omit({ kind: 'deprecated', reason: 'a deprecated requirement is condensed in brief views' }, frame.start, at);
   };
@@ -1299,6 +1321,13 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
       const frame: Frame = { name: info.name, colons: open[2].length, drop: false, start: i, visible: inScope(i) && !dropping() };
       stack.push(frame);
       if (info.name === 'human' && !options.includeHuman) { frame.drop = true; continue; }
+      // An included file's agent instructions, when the host keeps them out: a pointer in their place (4.1.0).
+      if (info.name === 'agent' && options.includedInstructions === 'off' && options.docPath !== undefined) {
+        emit(`[agent instructions in ${options.docPath} L${i + 1} not shown: this host keeps instructions from included files out]`, i);
+        frame.drop = true;
+        frame.instructionsOff = true;
+        continue;
+      }
       if (REVIEW_CONTAINERS.includes(info.name)) {
         const review = reviewHead(info.name, (options.review ?? reviewOf(lines)).get(i), info.attrs.values, title, !!options.includeReview);
         if (!review) {
@@ -1330,7 +1359,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
         } else if (inScope(i) && !stack.some((f) => f.drop) && !options.onlyConstraints && options.includes !== false) {
           // Hidden only because it is condensed or this pass shows agent blocks alone: the included file's :::agent
           // blocks still apply, as the document's own do (C01).
-          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined }, onlyMandatory: true });
+          const rules = includeView(info, lines, i, { ...options, figures, trace: trace && { ...trace, omissions: undefined, instructionOmissions: trace.omissions ?? trace.instructionOmissions }, onlyMandatory: true });
           if (rules.length > 2) {
             for (const l of rules) {
               out.push(l);
@@ -1866,6 +1895,14 @@ function sectionMarks(text: string, lines: string[]): (mark: SectionMark, start:
   return (mark, start, end) => lines.slice(start, end + 1).some((l, k) => mark.line.test(l) && counts(mark, start + k));
 }
 
+/**
+ * A body line that would read as a wrapper the view itself writes, `<included …>` or `<agent-instructions>`, gets
+ * its `<` written as `&lt;`, so text in a document cannot pretend to be carried instructions or another file (4.1.0).
+ */
+function neutralWrapper(line: string): string {
+  return line.replace(/^(\s*)<(\/?(?:included|agent-instructions)\b)/i, '$1&lt;$2');
+}
+
 export function outline(text: string, viewOptions: AgentViewOptions = {}): string {
   return oneView(viewOptions, (options) => outlineOf(text, options));
 }
@@ -1893,10 +1930,18 @@ function outlineOf(text: string, options: AgentViewOptions): string {
       ...SECTION_MARKS.map((mark) => (marked(mark, s.start, s.end) ? mark.note : '')),
       s.heading.agent === 'skip' ? 'skipped for agents' : '',
     ].filter(Boolean).join(', ');
+    if (options.compactOutline) {
+      return { range: `${s.start + 1}-${s.end + 1}`, head: `${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };
+    }
     const range = `L${s.start + 1}-${s.end + 1}`;
     const indent = '  '.repeat(Math.max(0, s.heading.level - 2));
     return { range, head: `${indent}${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };
   });
+  if (options.compactOutline) {
+    for (const r of rows) out.push(`${r.range} ${r.head} ${r.tokens.trim()}${r.notes ? ` ${r.notes}` : ''}`);
+    out.push('', 'Read: smd agent <file> --section "<heading>"');
+    return out.join('\n') + '\n';
+  }
   const w1 = Math.max(...rows.map((r) => r.range.length), 5);
   const w2 = Math.max(...rows.map((r) => r.head.length), 10);
   const w3 = costWidth(rows.map((r) => r.tokens), options.tokenizer);

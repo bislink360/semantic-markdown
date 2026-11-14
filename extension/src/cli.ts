@@ -63,9 +63,10 @@ Reading (token-efficient, for agents):
   smd savings <files|dirs...> [--json]
       Tokens an agent saves by reading the agent view instead of the raw files, per document and in
       total, as a number and a percentage.
-  smd outline <file.smd> [--related] [--tokenizer <name>]
+  smd outline <file.smd> [--related] [--compact] [--tokenizer <name>]
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost
+      --compact    one unpadded row per heading, as smd read returns the outline
   smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
                        [--evidence]
@@ -77,6 +78,9 @@ Reading (token-efficient, for agents):
       --embed      inline file="…" code embeds instead of referencing the file
       --no-includes a one-line pointer for each :::include instead of the included text (by default
                    it is shown in an <included file="…"> block; line references in it are that file's)
+      --included-instructions carry|off  off shows a pointer instead of each :::agent block of an
+                   included file, for hosts that do not trust included files (also on read, query
+                   --contract and mcp; default carry)
       --max-tokens fit the view into n tokens: condense as --brief, then replace the least important
                    sections with one-line pointers (never the header, agent instructions or --section)
       --tokenizer  exact counts next to the ≈ estimate (also on outline, and used by --max-tokens) for an
@@ -250,13 +254,15 @@ Agent integration:
       (claude) or the reading/writing rules (cursor, copilot, agents: AGENTS.md), this CLI, and the
       MCP server in the agent's config: .mcp.json (claude), .cursor/mcp.json, .vscode/mcp.json
       (copilot). Existing configs are merged; re-run to update.
-  smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools]
+  smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools] [--included-instructions off]
       Model Context Protocol server over stdio with the tools read, tasks, query and validate. Only .smd
       files inside --root (default: the current directory) can be read.
       --allow-write   add check_task, set_status and add_decision (each refuses edits that add errors)
       --allow-suggest add suggest, which proposes new text for a block as a :::suggestion for a person
                       to accept or reject (smd review), and never edits content
       --legacy-tools  also list the older outline, section and agent tools (always callable)
+      --included-instructions off  every read shows a pointer instead of the :::agent blocks of
+                      included files
       Register it, e.g.: claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 
 Editor integration:
@@ -288,7 +294,7 @@ const VALUE_OPTIONS = new Set([
   '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
   '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
   '--follow', '--direction', '--depth', '--view', '--order', '--from',
-  '--text', '--by', '--reason', '--kind',
+  '--text', '--by', '--reason', '--kind', '--included-instructions',
 ]);
 
 function parseArgs(argv: string[]): Args {
@@ -329,7 +335,7 @@ function main(argv: string[]): number | Promise<number> {
     case 'savings':
       return runSavings(positional.length ? positional : ['.'], { json: flags.has('--json'), price: value('--price'), today });
     case 'outline':
-      return outlineFile(requireFile(positional[0]), flags.has('--related'), today, value('--tokenizer'));
+      return outlineFile(requireFile(positional[0]), flags.has('--related'), today, value('--tokenizer'), flags.has('--compact'));
     case 'agent':
       return agentFile(requireFile(positional[0]), args, today);
     case 'tasks':
@@ -342,7 +348,7 @@ function main(argv: string[]): number | Promise<number> {
       return query(positional[0], positional.slice(1), {
         json: flags.has('--json'), titles: flags.has('--titles'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'), today,
         constraints: flags.has('--constraints'), follow: value('--follow'), direction: value('--direction'), depth: value('--depth'),
-        contract: flags.has('--contract'),
+        contract: flags.has('--contract'), ...includedInstructions(args),
       }, args);
     case 'rev': {
       const out = runRev(positional[0], positional.slice(1), flags.has('--json'));
@@ -411,8 +417,11 @@ function main(argv: string[]): number | Promise<number> {
     case 'templates':
       for (const [name, t] of Object.entries(TEMPLATES)) console.log(`${name.padEnd(15)} ${t.description}`);
       return 0;
-    case 'mcp':
-      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), allowSuggest: flags.has('--allow-suggest'), legacyTools: flags.has('--legacy-tools') });
+    case 'mcp': {
+      const included = includedInstructionsOption(args);
+      if (included === null) return fail(INCLUDED_USAGE);
+      return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), allowSuggest: flags.has('--allow-suggest'), legacyTools: flags.has('--legacy-tools'), ...(included ? { includedInstructions: included } : {}) });
+    }
     case 'lsp':
       return lsp(flags);
     case 'skills':
@@ -672,7 +681,7 @@ function query(selector: string | undefined, targets: string[], flags: QueryFlag
   return code;
 }
 
-async function mcp(root = '.', options: { allowWrite: boolean; allowSuggest: boolean; legacyTools: boolean }): Promise<number> {
+async function mcp(root = '.', options: { allowWrite: boolean; allowSuggest: boolean; legacyTools: boolean; includedInstructions?: 'carry' | 'off' }): Promise<number> {
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return fail(`--root must be a folder: ${root}`);
   await runMcpServer({ root, version: pkg.version, ...options });
   return 0;
@@ -685,10 +694,10 @@ async function lsp(flags: Set<string>): Promise<number> {
   return runLanguageServer({ version: pkg.version });
 }
 
-function outlineFile(file: string, related: boolean, today?: string, tokenizerName?: string): number {
+function outlineFile(file: string, related: boolean, today?: string, tokenizerName?: string, compactOutline = false): number {
   return withTokenizer(tokenizerName, (tokenizer) => {
     const text = read(file);
-    process.stdout.write(outline(text, { readFile: readerFor(file), today, tokenizer }));
+    process.stdout.write(outline(text, { readFile: readerFor(file), today, tokenizer, compactOutline }));
     if (related) process.stdout.write(relatedBlock(file, text, today));
     return 0;
   });
@@ -716,17 +725,33 @@ function maxTokensOption(args: Args): number | undefined | null {
 }
 
 const MAX_TOKENS_USAGE = '--max-tokens needs a whole number of tokens, e.g. --max-tokens 2000.';
+const INCLUDED_USAGE = '--included-instructions takes carry or off.';
+
+/** `--included-instructions carry|off`: undefined when not given, null when the value is neither (4.1.0). */
+function includedInstructionsOption(args: Args): 'carry' | 'off' | undefined | null {
+  const v = args.values.get('--included-instructions')?.[0]?.trim().toLowerCase();
+  if (v === undefined) return undefined;
+  return v === 'carry' || v === 'off' ? v : null;
+}
+
+/** The view option for `--included-instructions`, or nothing (an invalid value is refused before a view is made). */
+function includedInstructions(args: Args): { includedInstructions?: 'carry' | 'off' } {
+  const v = includedInstructionsOption(args);
+  return v ? { includedInstructions: v } : {};
+}
 
 function agentFile(file: string, args: Args, today?: string): number {
   const maxTokens = maxTokensOption(args);
   if (maxTokens === null) return fail(MAX_TOKENS_USAGE);
-  return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => printAgentView(file, args, { maxTokens, tokenizer, today }));
+  if (includedInstructionsOption(args) === null) return fail(INCLUDED_USAGE);
+  return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => printAgentView(file, args, { maxTokens, tokenizer, today, ...includedInstructions(args) }));
 }
 
 /** `smd read`: the whole agent view when it fits the budget, else the outline. */
 function readCommand(file: string, args: Args, today?: string): number {
   const maxTokens = maxTokensOption(args);
   if (maxTokens === null) return fail(MAX_TOKENS_USAGE);
+  if (includedInstructionsOption(args) === null) return fail(INCLUDED_USAGE);
   const { flags } = args;
   if (flags.has('--outline') && flags.has('--full')) return fail('Use either --outline or --full, not both.');
   let mode: ReadMode = 'auto';
@@ -753,7 +778,7 @@ function readCommand(file: string, args: Args, today?: string): number {
   return withTokenizer(args.values.get('--tokenizer')?.[0], (tokenizer) => {
     const result = readDocument(read(file), {
       mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
-      readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined,
+      readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined, ...includedInstructions(args),
       ...(follow !== undefined ? { follow, ...graph, readDocument: graphReader([folder]), ...(others ? { documents: others } : {}) } : {}),
     });
     if (result.missingSections.length) {
