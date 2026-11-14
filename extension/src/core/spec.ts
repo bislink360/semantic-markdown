@@ -114,7 +114,7 @@ export const CONTAINERS: Readonly<Record<string, ContainerSpec>> = {
   decision: {
     description: 'Decision record (ADR-style): what was decided, by whom, when. Title = the decision.',
     title: true,
-    attrs: ['title', 'status', 'date', 'owner', 'supersedes', 'depends-on'],
+    attrs: ['title', 'status', 'date', 'owner', 'supersedes', 'depends-on', 'applies-to'],
     values: { status: DECISION_STATUS },
   },
   risk: {
@@ -331,7 +331,7 @@ export const V1_DIRECTIVES: readonly string[] = ['badge', 'kbd', 'progress', 'me
  */
 export const ID_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
   verifies: ['acceptance'],
-  'applies-to': ['constraint'],
+  'applies-to': ['constraint', 'decision'],
   'depends-on': ['requirement', 'constraint', 'decision', 'risk', 'assumption'],
   supports: ['evidence'],
   contradicts: ['evidence'],

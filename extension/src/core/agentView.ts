@@ -238,8 +238,8 @@ function decisionHead({ title, values, id, tags }: HeadSource): ContainerHead {
   const by = id ? tags?.context.supersededBy.get(id) : undefined;
   const shown = by ? { ...values, 'superseded-by': by.join(',') } : values;
   // Its id only with a link, so decisions without one read as before.
-  const linked = id && (by || shown.supersedes || shown['depends-on']) ? id : undefined;
-  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
+  const linked = id && (by || shown.supersedes || shown['depends-on'] || shown['applies-to']) ? id : undefined;
+  return { line: `<decision${tagAttrs(linked, shown, ['status', 'date', 'owner', 'applies-to', 'supersedes', 'superseded-by', 'depends-on'])}>${titleAfter(title)}`, close: '</decision>' };
 }
 
 function apiHead({ title, values: v }: HeadSource): ContainerHead {
@@ -454,7 +454,9 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
   for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
   const text = markHiddenTargets(parts.filter(Boolean).join('\n'), plan.hiddenTargets);
-  return text ? `Constraints that apply here:\n${text}\n\n` : '';
+  // Accepted decisions with applies-to are carried with the constraints (4.1.0); the head names them when there are any.
+  const head = plan.context.decisions?.length ? 'Constraints and decisions that apply here:' : 'Constraints that apply here:';
+  return text ? `${head}\n${text}\n\n` : '';
 }
 
 /**
@@ -463,7 +465,7 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
  */
 function markHiddenTargets(text: string, hidden: ReadonlySet<string>): string {
   if (!hidden.size) return text;
-  return text.replace(/^(<constraint\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
+  return text.replace(/^(<(?:constraint|decision)\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
     const names = idList(targets).filter((t) => hidden.has(t));
     return names.length ? `${start} hidden-target="${names.join(',')}"` : open;
   });
@@ -510,7 +512,7 @@ function constraintsOutside(scope: ViewScope, options: TransformOptions): { text
   const sectionAt = (line: number) => scope.sections.filter((s) => line >= s.start && line <= s.end).at(-1)?.heading.text ?? null;
   // A constraint that applies is shown in full above; one that applies nowhere in the view is a pointer (constraints/2).
   const applying = scope.mandatory?.applyingLines;
-  const pointers = found.filter((p) => p.type !== 'constraint' || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
+  const pointers = found.filter((p) => (p.type !== 'constraint' && p.type !== 'decision') || !applying?.has(p.line)).map((p) => ({ ...p, section: sectionAt(p.line) }));
   const view: ConstraintView = {
     policy: scope.mandatory?.hasConstraints ? 'constraints/2' : 'constraints/1',
     complete: !pointers.some((p) => p.type === 'include'),
