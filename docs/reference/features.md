@@ -1107,6 +1107,7 @@ An `:::agent` block inside a section marked `{agent=skip}` is omitted with the s
 | Task toggling | Click a checkbox in the preview to update the source |
 | Theme | Follows VS Code light/dark/high contrast. Override with `smd.preview.theme` or front matter `theme:`. |
 | Security | A strict Content Security Policy: scripts in documents never run |
+| Links | `http`, `https` and `mailto` links open in your browser or mail app. A relative or `file:` link opens in an editor when the file, with symbolic links resolved, is inside a workspace folder (or beside a document that is in none). Any other link, such as `command:` or `vscode:`, is not opened, and a message shows it. The Block Editor follows the same rules |
 
 **`.md` files in VS Code's built-in preview.** A `.md` file that opts in with an `smd` front matter key (`smd: 1` or `smd: 2`) renders its `.smd` syntax in VS Code's own Markdown preview too (`Ctrl+Shift+V` on a `.md` file): containers, inline directives, attribute lists, `==marks==`, Mermaid diagrams (drawn in the preview's theme), and code titles, line highlights and `file="…"` embeds. Plain Markdown looks as before, and code blocks without `.smd` attributes keep VS Code's highlighting. Compared with the `.smd` preview:
 
@@ -1496,7 +1497,9 @@ With none of them, `smd export --to pdf` exits with code 2 and suggests the brow
 
 **In the editors:** **Semantic Markdown: Export to PDF** in VS Code (settings `smd.export.browserPath`, `smd.export.pdfFormat`, `smd.export.pdfLandscape`) and **Export Semantic Markdown to PDF** in the JetBrains plugin (**Settings → Languages & Frameworks → Semantic Markdown → Export to PDF**) find a browser the same way.
 
-It waits until the page has finished rendering: the runtime sets `data-smd-ready` on `<html>` once Mermaid diagrams are drawn and fonts are loaded (after 60 s it prints anyway, with a warning). So **diagrams are in the PDF as vector SVG**, and math as KaTeX text. Mermaid and the KaTeX stylesheet still load from the CDN, so diagrams need a network connection. The page is printed from a temporary file beside the document (removed afterwards), so relative image paths resolve. PDFs always use the light theme.
+It waits until the page has finished rendering: the runtime sets `data-smd-ready` on `<html>` once Mermaid diagrams are drawn and fonts are loaded (after 60 s it prints anyway, with a warning). So **diagrams are in the PDF as vector SVG**, and math as KaTeX text. Mermaid and the KaTeX stylesheet still load from the CDN, so diagrams need a network connection. The page is printed from a temporary file beside the document, so relative image paths resolve. Each export creates its own file, with a random name, and removes only that file afterwards, so two exports at once, or a file already there, never clash. PDFs always use the light theme.
+
+**Scripts in the document don't run while it prints.** The printed page has a content security policy that lets only its own runtime and the diagram library run. The document's scripts, event attributes such as `onerror` and `javascript:` links do nothing. Its `iframe` (including `srcdoc`), `object`, `embed`, `meta` and `base` elements are renamed so they do nothing either, since a policy can't stop a `meta` refresh. Styles, images, fonts, ordinary raw HTML, diagrams and math print as before. Export to HTML and `smd build` don't have this policy yet.
 
 ### Word (.docx): `smd export --to docx`
 
