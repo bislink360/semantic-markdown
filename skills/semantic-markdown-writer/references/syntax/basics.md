@@ -53,7 +53,7 @@ content (any Markdown, including other blocks)
 ## Summary {.lead}
 ```
 
-`agent=skip` omits the section, up to the next heading of the same or higher level, from agent views. It's the only allowed `agent` value. Keep `:::agent` blocks out of such sections: they would be omitted too (`container/agent-in-skip` warns).
+`agent=skip` omits the section, up to the next heading of the same or higher level, from agent views. It's the only allowed `agent` value. Keep `:::agent` blocks out of such sections: they would be omitted too (`container/agent-in-skip` warns). The same goes for rules: a constraint, danger, requirement or accepted decision there, or in a `:::human` block, gets `audience/rule-in-skip`, and prose like "must not" or "never" there gets an `audience/normative-in-skip` hint.
 
 ## Audience blocks: agent, human
 
