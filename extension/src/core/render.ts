@@ -2,7 +2,8 @@ import MarkdownIt from 'markdown-it';
 import './review';
 import type { Token } from 'markdown-it';
 import hljs from 'highlight.js/lib/common';
-import { blockActiveContent, printPolicy } from './activeContent';
+import { blockActiveContent, contentPolicyMeta, withPageNonce } from './activeContent';
+import { cdnNeeds, katexStylesheetTag, mermaidScriptTag } from './cdnAssets';
 import { escapeHtml, resolveColor } from './attrs';
 import { type FrontMatter, parseFrontMatter, unreadFrontMatter } from './frontmatter';
 import { documentLanguage, EN, isEnglish, isEnglishMessages, messagesFor, runtimeLabels, type Messages } from './i18n';
@@ -248,19 +249,26 @@ function renderToc(headings: Heading[], m: Messages): string {
 export function renderStandaloneHtml(
   text: string, css: string, runtimeJs: string, options: RenderOptions & PagePolicy = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto',
 ): string {
-  const { nonce, ...renderOptions } = options;
+  const { nonce, contentPolicy = true, ...renderOptions } = options;
   const result = renderSmd(text, renderOptions);
   const title = typeof result.frontMatter.title === 'string' ? result.frontMatter.title : result.headings[0]?.text ?? 'Document';
   const named = String(result.frontMatter.theme).toLowerCase();
   const theme = ['light', 'dark'].includes(named) ? named : fallbackTheme;
-  return pageHtml({ title, theme, body: result.html, css, runtimeJs, cdn: true, lang: result.lang, nonce });
+  return pageHtml({ title, theme, body: result.html, css, runtimeJs, cdn: true, lang: result.lang, nonce, contentPolicy });
 }
 
 /** How a standalone page treats the document's active content. */
 export interface PagePolicy {
   /**
-   * Print under the content policy (activeContent.ts): the page's own scripts carry this nonce, the document's
-   * scripts and event attributes don't run, and its frames, plug-ins, `meta` and `base` elements are inert.
+   * Load the page under the content policy (activeContent.ts): the page's own scripts carry a nonce, the
+   * document's scripts and event attributes don't run, and its frames, plug-ins, `meta` and `base` elements are
+   * inert. On by default for standalone pages; `false` leaves the document's raw HTML active, as before 4.2.
+   */
+  contentPolicy?: boolean;
+  /**
+   * The nonce the page's own scripts carry, which also turns the policy on. Without one, the page derives its
+   * nonce from its own text (`withPageNonce`), so the same document gives the same page. PDF export passes a fresh
+   * random nonce for each print.
    */
   nonce?: string;
 }
@@ -273,19 +281,33 @@ export interface PageParts extends PagePolicy {
   body: string;
   css: string;
   runtimeJs: string;
-  /** Load the KaTeX stylesheet and Mermaid from a CDN (for documents with math or diagrams). */
+  /**
+   * Load the KaTeX stylesheet and Mermaid from a CDN, pinned with integrity hashes (cdnAssets.ts), each only when
+   * the body has math or diagrams.
+   */
   cdn: boolean;
   /** The page's language tag (default `en`). */
   lang?: string;
 }
 
-/** The standalone page around rendered HTML: stylesheet, theme preference and runtime inlined. */
+/**
+ * The standalone page around rendered HTML: stylesheet, theme preference and runtime inlined. It loads under the
+ * content policy when `nonce` is given or `contentPolicy` is on (off unless asked for here; renderStandaloneHtml
+ * turns it on).
+ */
 export function pageHtml(page: PageParts): string {
-  const nonce = page.nonce === undefined ? '' : ` nonce="${page.nonce}"`;
-  const policy = page.nonce === undefined ? '' : `<meta http-equiv="Content-Security-Policy" content="${printPolicy(page.nonce)}">\n`;
-  const body = page.nonce === undefined ? page.body : blockActiveContent(page.body);
-  const katex = page.cdn ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">\n' : '';
-  const mermaid = page.cdn ? `<script${nonce} src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>\n` : '';
+  if (page.nonce !== undefined) return pageText(page, page.nonce);
+  return page.contentPolicy ? withPageNonce((nonce) => pageText(page, nonce)) : pageText(page, undefined);
+}
+
+/** The page, under the policy with this nonce, or without a policy when there is none. */
+function pageText(page: PageParts, policyNonce: string | undefined): string {
+  const nonce = policyNonce === undefined ? '' : ` nonce="${policyNonce}"`;
+  const policy = policyNonce === undefined ? '' : contentPolicyMeta(policyNonce);
+  const body = policyNonce === undefined ? page.body : blockActiveContent(page.body);
+  const needs = cdnNeeds(page.body);
+  const katex = page.cdn && needs.math ? katexStylesheetTag() : '';
+  const mermaid = page.cdn && needs.diagrams ? mermaidScriptTag(policyNonce) : '';
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(page.lang ?? 'en')}" data-smd-theme-pref="${page.theme}">
 <head>

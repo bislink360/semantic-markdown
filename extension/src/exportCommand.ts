@@ -31,13 +31,18 @@ interface ExportFormat {
 const option = (args: ExportArgs, name: string) => args.values.get(name)?.[0];
 /** `--comments`: keep review comments and suggestions, which every format leaves out by default. */
 const comments = (args: ExportArgs) => args.flags.has('--comments');
+/**
+ * `--no-content-policy`: leave the document's raw HTML active in the page Export to HTML writes. PDF ignores it and
+ * always prints under the policy.
+ */
+const contentPolicy = (args: ExportArgs) => !args.flags.has('--no-content-policy');
 
 /** `--to html`, `smd render`: the standalone page. */
 function html(args: ExportArgs): number {
   const file = requireFile(args.positional[0]);
   const lang = langOption(option(args, '--lang'));
   if (lang === null) return fail(LANG_USAGE);
-  return write(option(args, '-o'), renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args) }));
+  return write(option(args, '-o'), renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args), contentPolicy: contentPolicy(args) }));
 }
 
 /** `--to md`, `smd to-md`: plain GitHub-flavored Markdown. */
@@ -138,7 +143,12 @@ export const EXPORT_HELP = `  smd export <file.smd> --to <format> [-o <file>] [-
       --lang      language of the labels it adds ("Note", "Figure 2", "overdue"…) when the document has
                   no "lang:" of its own, e.g. de or pt-BR (${SUPPORTED_LANGUAGES.join(', ')}; others are English).
                   Every format but md, which stays English.
-      html        Standalone HTML page (prints well: it has a print stylesheet)
+      html        [--no-content-policy]
+                  Standalone HTML page (prints well: it has a print stylesheet). It loads under a content
+                  security policy: the document's scripts, event attributes, frames and plug-ins do nothing,
+                  and math and diagrams load from a CDN at pinned versions with integrity hashes.
+                  --no-content-policy  leave the document's raw HTML active, for a page whose embeds or
+                                       scripts you trust (pdf always prints under the policy)
       md          Plain GitHub-flavored Markdown (callouts → GitHub alerts)
       pdf         [--format A4|Letter] [--landscape] [--browser <path>]
                   PDF of the rendered page, with diagrams as vectors, printed by a headless browser; smd

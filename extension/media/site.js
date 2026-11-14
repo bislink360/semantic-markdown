@@ -4,6 +4,10 @@
 
   // Pure helpers (unit-tested in Node via module.exports)
 
+  // The page's nonce, read while this script runs: a page under the content policy runs only scripts that carry
+  // it, so the search index script this file adds later carries it too.
+  const NONCE = typeof document !== 'undefined' && document.currentScript ? document.currentScript.nonce || '' : '';
+
   const MAX_RESULTS = 20;
   const SNIPPET = 160;
 
@@ -145,6 +149,7 @@
     if (!loading) {
       loading = new Promise((resolve) => {
         const script = document.createElement('script');
+        if (NONCE) script.nonce = NONCE;
         script.src = root + '_smd/search-index.js';
         script.onload = () => resolve(window.SMD_SEARCH_INDEX || null);
         script.onerror = () => resolve(null);

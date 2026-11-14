@@ -4,10 +4,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { BLOCKED_ELEMENTS, blockActiveContent, printPolicy } from '../src/core/activeContent';
+import { BLOCKED_ELEMENTS, blockActiveContent, contentPolicy } from '../src/core/activeContent';
 import { renderStandaloneHtml } from '../src/core/render';
 import { createPrintPage, exportPdf, lightTheme, PDF_BEFORE_PRINT, PDF_READY_CHECK, type PdfBrowser, type PdfEngine, type PdfPage } from '../src/pdf';
 import { browserEngine, findInstalledBrowsers } from '../src/pdfBrowser';
+import { HOSTILE } from './activeContentFixture';
 
 /**
  * Active document content is blocked in PDF export (improvement roadmap t-12, CL-04), and each export gets a print
@@ -16,37 +17,18 @@ import { browserEngine, findInstalledBrowsers } from '../src/pdfBrowser';
 
 const media = (file: string) => fs.readFileSync(join(__dirname, '..', 'media', file), 'utf8');
 const NONCE = 'dGVzdC1ub25jZS0xMjM0NTY3';
-const page = (text: string, nonce?: string) => renderStandaloneHtml(text, media('smd.css'), media('runtime.js'), nonce ? { nonce } : {});
-
-/** Raw HTML that would run, embed or navigate if the page let it. Each part only sets a marker, so it is inert. */
-const HOSTILE = [
-  '---', 'smd: 2', 'title: Print policy', '---', '',
-  '# Print policy', '',
-  '<script>window.__smdDocScript = 1</script>', '',
-  '<p>Image <img id="bad-img" src="data:," onerror="window.__smdOnError = 1"> and <a id="js-link" href="javascript:window.__smdJsUrl = 1">link</a></p>', '',
-  '<iframe id="frame" srcdoc="<script>parent.__smdSrcdoc = 1</script><p>inside</p>"></iframe>', '',
-  '<object id="obj" data="data:text/html,<p>object</p>">object fallback</object>', '',
-  '<embed id="emb" src="data:text/html,<p>embed</p>">', '',
-  '<IFRAME\nsrc="data:text/html,x"></IFRAME>', '',
-  '<meta http-equiv="refresh" content="1;url=data:text/html,moved">', '',
-  '<base href="https://example.invalid/">', '',
-  '<svg width="10" height="10"><script>window.__smdSvgScript = 1</script></svg>', '',
-  '<form id="form" action="https://example.invalid/submit"><button>Send</button></form>', '',
-  '<div id="raw" style="color: rgb(200, 0, 0)">Raw <b>bold</b> HTML</div>', '',
-  '```mermaid', 'graph TD; A-->B', '```', '',
-  'Math $x^2$ inline.', '',
-].join('\n');
+const page = (text: string, nonce?: string) => renderStandaloneHtml(text, media('smd.css'), media('runtime.js'), nonce ? { nonce } : { contentPolicy: false });
 
 test('t-12: the print policy lets only nonce scripts run and refuses frames, plug-ins, workers, forms and base', () => {
-  const policy = printPolicy(NONCE);
+  const policy = contentPolicy(NONCE);
   assert.match(policy, /^default-src 'none'; /);
   assert.ok(policy.includes(`script-src 'nonce-${NONCE}'`));
   assert.doesNotMatch(policy, /script-src[^;]*'unsafe-inline'/, 'event attributes and javascript: URLs stay blocked');
   for (const directive of ["object-src 'none'", "frame-src 'none'", "child-src 'none'", "worker-src 'none'", "base-uri 'none'", "form-action 'none'", "connect-src 'none'"]) {
     assert.ok(policy.includes(directive), directive);
   }
-  assert.throws(() => printPolicy('short'), /16 base64/);
-  assert.throws(() => printPolicy(`${NONCE}'; script-src *`), /16 base64/);
+  assert.throws(() => contentPolicy('short'), /16 base64/);
+  assert.throws(() => contentPolicy(`${NONCE}'; script-src *`), /16 base64/);
 });
 
 test('t-12: blockActiveContent renames every blocked start and end tag, in any case and spacing, and nothing else', () => {
@@ -72,7 +54,7 @@ test('t-12: a page with a nonce carries the policy first in <head>, nonces only 
   assert.doesNotMatch(body, /<(iframe|object|embed|meta|base)[\s/>]/i);
   assert.match(body, /<smd-blocked-iframe id="frame"/);
   assert.match(body, /<div id="raw" style="color: rgb\(200, 0, 0\)">Raw <b>bold<\/b> HTML<\/div>/, 'ordinary raw HTML is unchanged');
-  assert.equal(page(HOSTILE), page(HOSTILE, undefined), 'without a nonce the page is as before');
+  assert.equal(page(HOSTILE), page(HOSTILE, undefined), 'with the policy off the page is as before');
   assert.doesNotMatch(page(HOSTILE), /Content-Security-Policy|smd-blocked-/);
 });
 

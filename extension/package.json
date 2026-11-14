@@ -621,6 +621,11 @@
           "type": "boolean",
           "default": false,
           "description": "Print Export to PDF in landscape orientation."
+        },
+        "smd.export.contentPolicy": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Write Export to HTML pages under a content security policy, so the document's scripts, event attributes, frames and plug-ins do nothing. Turn it off only for documents whose embeds or scripts you trust. Export to PDF always prints under the policy."
         }
       }
     }

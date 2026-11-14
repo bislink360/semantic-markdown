@@ -246,8 +246,8 @@ test('buildSite renders every document into the site layout with shared assets',
   const setup = fileOf(site, 'guide/setup.html');
   assert.match(setup, /<title>Setup · Team &lt;Docs&gt;<\/title>/);
   assert.match(setup, /<link rel="stylesheet" href="\.\.\/_smd\/site\.css">/);
-  assert.match(setup, /<script src="\.\.\/_smd\/runtime\.js"><\/script>/);
-  assert.match(setup, /mermaid\.min\.js/);
+  assert.match(setup, /<script nonce="[0-9a-f]{32}" src="\.\.\/_smd\/runtime\.js"><\/script>/);
+  assert.match(setup, /mermaid@\d+\.\d+\.\d+\/dist\/mermaid\.min\.js" integrity="sha384-[^"]+" crossorigin="anonymous"/, 'the pinned library');
   assert.match(setup, /href="\.\.\/index\.html">home<\/a>/);
   assert.match(setup, /class="smd-site-crumbs"/);
   assert.match(setup, /<aside class="smd-site-backlinks"[^>]*><h2>Linked from<\/h2><ul><li><a href="\.\.\/index\.html">Team &lt;Docs&gt;<\/a>/);

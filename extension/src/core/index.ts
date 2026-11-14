@@ -80,6 +80,7 @@ export type { MermaidParse, MermaidBlock } from './mermaid';
 export { formatSmd } from './format';
 export { dueState } from './render';
 export { SMD_CSS, SMD_RUNTIME_JS, SMD_SITE_CSS, SMD_SITE_JS, renderPage, renderRiskPage } from './assets';
+export { CDN_ASSETS, type CdnAsset } from './cdnAssets';
 export { buildSite } from './site';
 export type { SiteAssets, SiteBuild, SiteFile, SiteOptions, SiteSource } from './site';
 export type { SitePage } from './siteNav';

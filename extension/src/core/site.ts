@@ -1,5 +1,7 @@
 import { SMD_CSS, SMD_RUNTIME_JS, SMD_SITE_CSS, SMD_SITE_JS } from './assets';
+import { blockActiveContent, contentPolicyMeta, withPageNonce } from './activeContent';
 import { escapeHtml } from './attrs';
+import { cdnNeeds, katexStylesheetTag, mermaidScriptTag } from './cdnAssets';
 import { parseFrontMatter } from './frontmatter';
 import { documentLanguage, isEnglishMessages, label, messagesFor, siteScriptLabels, term, type Messages } from './i18n';
 import { renderSmd, type Heading } from './render';
@@ -48,6 +50,12 @@ export interface SiteOptions {
   image?: string;
   /** Keep `:::comment` and `:::suggestion` blocks on the pages, which a site leaves out by default. */
   comments?: boolean;
+  /**
+   * Load every page under the content policy (activeContent.ts), so the documents' scripts, event attributes,
+   * frames and plug-ins do nothing and only the site's own scripts and the pinned diagram library run. Default
+   * on; `false` leaves the documents' raw HTML active, as before 4.2.
+   */
+  contentPolicy?: boolean;
 }
 
 /** A file of the site: `path` relative to the site folder. */
@@ -92,6 +100,8 @@ interface Site {
   /** The public address (ends in `/`) and the social image, when known. */
   url?: string;
   image?: string;
+  /** Pages load under the content policy. */
+  contentPolicy: boolean;
 }
 
 /** Build the site: every document rendered, linked and wrapped in the site's navigation. */
@@ -116,7 +126,7 @@ export function buildSite(sources: SiteSource[], options: SiteOptions = {}): Sit
   const url = siteUrl(options.url, options.base);
   const site: Site = {
     title, home, dashboard, tree, order: navOrder(tree, home), linker, assets: { ...defaultAssets(), ...options.assets }, lang, m,
-    url, image: imageUrl(options.image, url),
+    url, image: imageUrl(options.image, url), contentPolicy: options.contentPolicy !== false,
   };
   const backlinks = siteBacklinks(chosen);
   const bySource = new Map(pages.map((p) => [p.source, p]));
@@ -264,9 +274,22 @@ function siteLabels(m: Messages): string {
   return isEnglishMessages(m) ? '' : ` data-smd-labels="${escapeHtml(JSON.stringify(siteScriptLabels(m)))}"`;
 }
 
-/** A page of the site: header with search, sidebar, breadcrumbs, the content, backlinks and previous/next. */
+/**
+ * A page of the site: header with search, sidebar, breadcrumbs, the content, backlinks and previous/next. Under the
+ * content policy its nonce comes from the page itself, so a build is reproducible.
+ */
 function pageShell(site: Site, page: SitePage, body: string, backlinks: string, shell: ShellOptions = {}): string {
+  return site.contentPolicy
+    ? withPageNonce((nonce) => shellText(site, page, body, backlinks, shell, nonce))
+    : shellText(site, page, body, backlinks, shell, undefined);
+}
+
+/** The page, under the policy with this nonce, or without a policy when there is none. */
+function shellText(site: Site, page: SitePage, content: string, backlinks: string, shell: ShellOptions, policyNonce: string | undefined): string {
   const { m } = site;
+  const nonce = policyNonce === undefined ? '' : ` nonce="${policyNonce}"`;
+  const policy = policyNonce === undefined ? '' : contentPolicyMeta(policyNonce);
+  const body = policyNonce === undefined ? content : blockActiveContent(content);
   const theme = shell.theme ?? 'auto';
   const href = (to: string) => escapeHtml(site.linker.href(page.output, to));
   const root = escapeHtml(site.linker.href(page.output, 'index.html').replace(/index\.html$/, ''));
@@ -278,13 +301,14 @@ function pageShell(site: Site, page: SitePage, body: string, backlinks: string, 
     url: site.url ? pageUrl(site.url, page.output) : undefined,
     image: site.image,
   });
-  const katex = body.includes('class="katex') ? '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">\n' : '';
-  const mermaid = body.includes('class="smd-mermaid"') ? '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>\n' : '';
+  const needs = cdnNeeds(content);
+  const katex = needs.math ? katexStylesheetTag() : '';
+  const mermaid = needs.diagrams ? mermaidScriptTag(policyNonce) : '';
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(shell.lang ?? site.lang)}" data-smd-theme-pref="${theme}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+${policy}<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="Semantic Markdown">
 <title>${escapeHtml(title)}</title>
 ${meta}${katex}<link rel="stylesheet" href="${href(`${ASSET_DIR}/smd.css`)}">
@@ -306,8 +330,8 @@ ${breadcrumbsHtml(site.tree, page, site.home, site.linker, m)}
 ${backlinks}${pagerHtml(site.order, page, site.linker, m)}
 </div>
 </div>
-${mermaid}<script src="${href(`${ASSET_DIR}/runtime.js`)}"></script>
-<script src="${href(`${ASSET_DIR}/site.js`)}"></script>
+${mermaid}<script${nonce} src="${href(`${ASSET_DIR}/runtime.js`)}"></script>
+<script${nonce} src="${href(`${ASSET_DIR}/site.js`)}"></script>
 </body>
 </html>
 `;
