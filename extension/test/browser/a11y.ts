@@ -138,9 +138,13 @@ export function blockEditorPage(file: string, urls: PageUrls, nonce?: string): s
   });
 }
 
-/** Exported HTML loads KaTeX's stylesheet and Mermaid from a CDN; here they come from the extension's own copies. */
+/**
+ * Exported HTML loads KaTeX's stylesheet and Mermaid from a CDN; here they come from the extension's own copies,
+ * which are not cross-origin, so the integrity and cross-origin attributes go too.
+ */
 export function localizeCdn(html: string, urls: Pick<PageUrls, 'media'>): string {
   return html
+    .replace(/ integrity="sha384-[^"]+" crossorigin="anonymous"/g, '')
     .replace(/https:\/\/cdn\.jsdelivr\.net\/npm\/katex@[^/"]+\/dist\/katex\.min\.css/g, urls.media('vendor', 'katex', 'katex.min.css'))
     .replace(/https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@[^/"]+\/dist\/mermaid\.min\.js/g, urls.media('vendor', 'mermaid.min.js'));
 }

@@ -71,7 +71,7 @@ test('page lists mirror shell() in src/preview.ts and src/blockEditor.ts', () =>
 test('exported pages: KaTeX and Mermaid from the extension, not the CDN; the site\'s own files filled in', () => {
   const page = standalonePage(showcase, join(samples, 'showcase.smd'), urls);
   assert.doesNotMatch(page, /cdn\.jsdelivr\.net/);
-  assert.match(page, /<script src="file:\/\/\/ext\/media\/vendor\/mermaid\.min\.js"><\/script>/);
+  assert.match(page, /<script nonce="[0-9a-f]{32}" src="file:\/\/\/ext\/media\/vendor\/mermaid\.min\.js"><\/script>/);
   assert.match(page, /<title>[^<]+<\/title>/);
   assert.deepEqual(remoteUrls(page), []);
   const files = siteFiles([{ path: 'showcase.smd', text: showcase }, { path: 'checkout-redesign.smd', text: checkout }], urls);

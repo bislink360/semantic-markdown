@@ -1342,7 +1342,7 @@ Every export of a document is one command, **`smd export <file> --to <format> [-
 
 | Command | Result |
 |---|---|
-| **Export to HTML** / `smd export --to html` | A standalone page (Mermaid and KaTeX from a CDN) you can share with anyone. It has a print stylesheet |
+| **Export to HTML** / `smd export --to html` | A standalone page you can share with anyone, under a content policy (below). Math and diagrams load KaTeX and Mermaid from a CDN at pinned versions. It has a print stylesheet |
 | `smd export --to pdf` | A PDF of that page, printed by a headless browser you install (below) |
 | **Export to Word (.docx)** / `smd export --to docx` | A Word document for Word, LibreOffice or Google Docs: headings, lists, tables, footnotes and links become Word's own. Written by smd itself, or converted by Pandoc when you have it, which adds Word equations (below) |
 | **Export to Plain Markdown** / `smd export --to md` | GitHub-compatible Markdown: callouts → GitHub alerts, badges → code spans, status → 🟢/🔴, embeds inlined |
@@ -1351,6 +1351,10 @@ Every export of a document is one command, **`smd export <file> --to <format> [-
 | **Convert Markdown File to .smd** / `smd from-md` | Adds front matter (`smd: 2` since 2.0) and turns GitHub alerts into callouts |
 | `smd from-md --from madr` · `--from spec-kit` | The same, for a file another tool wrote: a MADR decision record or a Spec Kit `tasks.md` (below) |
 | `smd build <dir> --out site` | A static docs site: every document as a page, with navigation, search, backlinks and a dashboard |
+
+**Raw HTML in exported pages and sites.** Since 4.2, the page Export to HTML writes and every page of an `smd build` site load under a content security policy, as the page printed to PDF does. Only the page's own scripts run: the runtime, the site's script and its search index, and the diagram library. The document's scripts, event attributes such as `onerror` and `javascript:` links do nothing, and its `iframe` (including `srcdoc`), `object`, `embed`, `meta` and `base` elements are renamed so they do nothing either. Styles, images, fonts, ordinary raw HTML, diagrams and math look as before, from disk (`file://`) and from a web server. The page's nonce comes from the page itself, so the same document gives the same file and a site build stays reproducible. For a document whose embeds or scripts you trust, such as a video `iframe`, turn the policy off with `--no-content-policy` on `smd export --to html` and `smd build`, or the `smd.export.contentPolicy` setting for Export to HTML. PDF export always prints under the policy.
+
+**Pinned CDN assets.** A page with math loads KaTeX's stylesheet, and a page with diagrams loads Mermaid, from jsDelivr at the exact versions the extension bundles (KaTeX 0.16.47 and Mermaid 11.17.2 in this release), each with an `integrity` hash of its bytes and `crossorigin="anonymous"`. A browser refuses a file whose bytes differ, and a new Mermaid release never changes a page you already exported. A page with neither loads nothing from the CDN. The build computes the hashes from the bundled files, and the npm package exports them as `CDN_ASSETS`.
 
 **Older names.** The commands before 2.0 still work, with the same options, output and exit codes: `smd render` is `smd export --to html`, `smd to-md` is `--to md`, `smd pdf` is `--to pdf` and `smd docx` is `--to docx`. They are deprecated and may be removed in a later major release ([spec §11](spec.md#11-deprecated)). `smd build` stays its own command: it writes a folder from many documents, not one file.
 
@@ -1393,7 +1397,8 @@ smd build docs --out site --url https://example.com/handbook/ --image card.png  
 - **Backlinks:** each page lists the pages that link to it (links and front matter `related:`).
 - **Dashboard:** `dashboard.html` collects open tasks (overdue first, then by priority and due date), decisions (newest first) and open risks (with the impact × likelihood matrix) from every document, each linked to its section. `--today YYYY-MM-DD` sets the date for overdue tasks.
 - **Search engines, link previews and AI tools:** each page has a meta description from its front matter `summary:` and Open Graph and Twitter card tags, so a shared link shows its title and summary. The site gets an `llms.txt` ([llmstxt.org](https://llmstxt.org)) listing every document with its summary. With `--url https://example.com/docs/` (the address the site is served from; an absolute `--base` counts too) pages also get a canonical link and `og:url`, and the site a `sitemap.xml` to submit to Google Search Console or Bing Webmaster Tools. A site served from the root of its host also gets a `robots.txt` naming the sitemap (crawlers ignore one in a subfolder, such as a GitHub project page). `--image` sets the preview image (`og:image`): a URL, or a path under `--url`, ideally 1200×630. Links between pages stay relative with `--url`. A home document whose title differs from `--title` is named in the home page's `<title>` (`Handbook · Getting started`).
-- **Offline:** the stylesheet and scripts are written once to `_smd/`. Only pages with Mermaid diagrams or math load Mermaid and the KaTeX stylesheet from a CDN, as `smd export --to html` does.
+- **Offline:** the stylesheet and scripts are written once to `_smd/`. Only pages with Mermaid diagrams or math load Mermaid and the KaTeX stylesheet from a CDN, at pinned versions with integrity hashes, as `smd export --to html` does.
+- **Content policy:** every page loads under the content policy of `smd export --to html` (section 16), so a document's scripts, event attributes, frames and plug-ins do nothing, and only the site's own scripts and the diagram library run. `--no-content-policy` builds the pages without it, for documents whose embeds or scripts you trust.
 - **Safe output:** `--out` (default `site`) must be outside the source folder and must not contain it. An existing folder is only written to when it is empty or a previous build, which `smd build` recognizes by the `.smd-site.json` it writes (the list of files it created). `--clean` first deletes exactly those files, never anything else; without it, files of documents you removed stay until the next `--clean`.
 
 ### Confluence and Notion: `smd export`
@@ -1501,7 +1506,7 @@ With none of them, `smd export --to pdf` exits with code 2 and suggests the brow
 
 It waits until the page has finished rendering: the runtime sets `data-smd-ready` on `<html>` once Mermaid diagrams are drawn and fonts are loaded (after 60 s it prints anyway, with a warning). So **diagrams are in the PDF as vector SVG**, and math as KaTeX text. Mermaid and the KaTeX stylesheet still load from the CDN, so diagrams need a network connection. The page is printed from a temporary file beside the document, so relative image paths resolve. Each export creates its own file, with a random name, and removes only that file afterwards, so two exports at once, or a file already there, never clash. PDFs always use the light theme.
 
-**Scripts in the document don't run while it prints.** The printed page has a content security policy that lets only its own runtime and the diagram library run. The document's scripts, event attributes such as `onerror` and `javascript:` links do nothing. Its `iframe` (including `srcdoc`), `object`, `embed`, `meta` and `base` elements are renamed so they do nothing either, since a policy can't stop a `meta` refresh. Styles, images, fonts, ordinary raw HTML, diagrams and math print as before. Export to HTML and `smd build` don't have this policy yet.
+**Scripts in the document don't run while it prints.** The printed page has a content security policy that lets only its own runtime and the diagram library run. The document's scripts, event attributes such as `onerror` and `javascript:` links do nothing. Its `iframe` (including `srcdoc`), `object`, `embed`, `meta` and `base` elements are renamed so they do nothing either, since a policy can't stop a `meta` refresh. Styles, images, fonts, ordinary raw HTML, diagrams and math print as before. Since 4.2 Export to HTML and `smd build` pages use the same policy, and there `--no-content-policy` turns it off. PDF export has no such option.
 
 ### Word (.docx): `smd export --to docx`
 
@@ -1603,13 +1608,13 @@ smd migrate <files|dirs> --to 2 [--dry-run | --check] [--json] [--no-verify] [--
                  migrate to spec v2 (below); --dry-run reports the plan, --check exits 1 when something needs it
 smd export <file> --to <format> [-o <file>] [--lang <tag>] [--comments]   one export command (section 16); -o's extension
                  (.html, .md, .pdf, .docx) picks the format when --to is missing
-smd export <file> --to html [-o out.html]           standalone page, with a print stylesheet
+smd export <file> --to html [-o out.html] [--no-content-policy]   standalone page, with a print stylesheet, under a content policy
 smd export <file> --to md [-o out.md]               plain GitHub-flavored Markdown
 smd export <file> --to pdf [-o out.pdf] [--format A4|Letter] [--landscape] [--browser <path>]   PDF; an installed Chrome, Edge, Chromium or Brave, or Playwright/Puppeteer
 smd export <file> --to docx [-o out.docx] [--engine builtin|pandoc] [--pandoc <path>] [--reference-doc <file.docx>] [--html-only]   Word; Pandoc if installed, else built in
 smd export <file> --to confluence|notion [-o <file>]   Confluence storage format or Notion API blocks
                  older names, still working: smd render (--to html), smd to-md, smd pdf, smd docx
-smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--today YYYY-MM-DD]
+smd build <dir> [--out site] [--title "…"] [--base /docs/] [--url https://…/] [--image <url|path>] [--md] [--clean] [--comments] [--no-content-policy] [--today YYYY-MM-DD]
                  static docs site: pages, sidebar, search, backlinks, dashboard (section 16)
 smd from-md <file.md> [-o out.smd]
 smd from-md <file.md> --from madr|spec-kit [-o out.smd] [--today YYYY-MM-DD]   import a MADR decision record or a Spec Kit tasks.md

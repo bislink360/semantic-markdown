@@ -501,7 +501,7 @@ export class SmdLanguageServer {
     if (text === undefined) throw new LspError(LSP_ERRORS.invalidParams, `smd/renderHtml: ${uri} is not open and no text was sent`);
     const file = filePath(uri);
     const theme = params.theme === 'light' || params.theme === 'dark' ? params.theme : 'auto';
-    return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, ...(file ? { file } : {}), today: this.options.today, reviewBlocks: 'shown' }, theme) };
+    return { html: renderPage(text, { readFile: file ? this.reader(file) : undefined, ...(file ? { file } : {}), today: this.options.today, reviewBlocks: 'shown', contentPolicy: false }, theme) };
   }
 
   private assistEnv(document: TextDocument): AssistEnv {

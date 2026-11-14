@@ -4,6 +4,7 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isStudyBuild, STUDY_PAGE_SCRIPT, studyDefine } from './study-build.mjs';
+import { writeCdnPins } from './cdn-pins.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const watch = process.argv.includes('--watch');
@@ -17,6 +18,9 @@ mkdirSync(join(vendor, 'katex'), { recursive: true });
 cpSync(join(root, 'node_modules', 'mermaid', 'dist', 'mermaid.min.js'), join(vendor, 'mermaid.min.js'));
 cpSync(join(root, 'node_modules', 'katex', 'dist', 'katex.min.css'), join(vendor, 'katex', 'katex.min.css'));
 cpSync(join(root, 'node_modules', 'katex', 'dist', 'fonts'), join(vendor, 'katex', 'fonts'), { recursive: true });
+
+// Exported pages and sites load the same versions from a CDN, pinned with integrity hashes of these bytes (t-14).
+if (writeCdnPins(root)) console.log('[build] src/core/cdnPins.ts updated to the bundled KaTeX and Mermaid versions; commit it.');
 
 // Stylesheet for VS Code's built-in Markdown preview (.md files): smd.css with its code colors limited
 // to .smd code frames, so plain code blocks keep the preview's own highlighting.

@@ -31,6 +31,8 @@ export interface BuildOptions {
   clean: boolean;
   /** Keep review comments and suggestions on the pages. */
   comments?: boolean;
+  /** Load the pages under the content policy (default on); `smd build --no-content-policy` turns it off. */
+  contentPolicy?: boolean;
   generator: string;
 }
 
@@ -49,7 +51,7 @@ export function runBuild(options: BuildOptions, io: BuildIo): number {
   if (options.clean && previous) removeFiles(out, previous);
   const site = buildSite(sources, {
     title: options.title, base: options.base, url: options.url, image: options.image, today: options.today, lang: options.lang, readFile: (source) => readerFor(path.join(dir, source)),
-    comments: options.comments,
+    comments: options.comments, contentPolicy: options.contentPolicy,
   });
   const written = writeSite(out, site);
   const copied = copyAssets(dir, out, site.assets);

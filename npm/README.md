@@ -69,7 +69,7 @@ import {
   smdToMarkdown, smdToConfluence, smdToNotion, notionRequests, smdToPandocHtml, markdownToSmd, madrToSmd, specKitTasksToSmd, getDocumentInfo, extractTasks,
   querySmd, indexEntry, smdIndex, diffSmd, formatSmd,
   decisionLog, decisionLogMarkdown, statusChanges, statusReportMarkdown, statusReport,
-  riskRegister, riskRegisterText, renderRiskPage, buildSite,
+  riskRegister, riskRegisterText, renderRiskPage, buildSite, CDN_ASSETS,
 } from 'semantic-markdown';
 ```
 
@@ -88,8 +88,11 @@ specVersion(source);                         // 1 or 2: which rules read the doc
 specVersion(frontMatter);                    // the same from front matter you already parsed
 LATEST_SPEC;                                 // 2: the newest spec version this release reads; type SpecVersion = 1 | 2
 
-// Complete standalone page (styles + runtime for tabs, Mermaid, theme switching)
+// Complete standalone page (styles + runtime for tabs, Mermaid, theme switching), under a content security
+// policy: the document's scripts, event attributes, frames and plug-ins do nothing
 const page = renderPage(source);
+const trusted = renderPage(source, { contentPolicy: false }); // leave the document's raw HTML active
+CDN_ASSETS.mermaidJs;                        // { package, version, file, url, integrity }: the pinned CDN files pages load
 ```
 
 The front matter JSON Schema is at `semantic-markdown/frontmatter.schema.json`, and `FRONTMATTER_SCHEMA` exports the same object. Style fragments with the bundled stylesheet: `import 'semantic-markdown/smd.css'`. Diagrams render client-side with [Mermaid](https://mermaid.js.org), and math server-side with KaTeX (include KaTeX's CSS).
