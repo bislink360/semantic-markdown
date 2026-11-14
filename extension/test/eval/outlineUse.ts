@@ -75,16 +75,18 @@ export interface OutlineUseSummary {
 export interface OutlineUseReport { episodes: OutlineUseEpisode[]; summary: OutlineUseSummary[]; problems: string[] }
 
 const ROW = /^L(\d+)-(\d+)\s+(#{1,6}) (.+?)\s{2,}≈?([\d,]+)(?:\s{2,}\S.*)?$/;
+/** A row of the compact outline (4.1.0): `21-26 ## Heading ≈203 notes`. */
+const COMPACT_ROW = /^(\d+)-(\d+) (#{1,6}) (.+?) ≈([\d,]+)(?: .*)?$/;
 
 /**
  * The section rows of an outline, or null when the text is not an outline. An outline ends its rows with the line
  * `Read a section: smd agent <file> --section …`, which no section read or whole view prints.
  */
 export function parseOutline(text: string): OutlineEntry[] | null {
-  if (!/(^|\n)Read a section: smd agent /.test(text)) return null;
+  if (!/(^|\n)Read( a section)?: smd agent /.test(text)) return null;
   const rows: OutlineEntry[] = [];
   for (const line of text.split(/\r?\n/)) {
-    const m = ROW.exec(line.trimEnd());
+    const m = ROW.exec(line.trimEnd()) ?? COMPACT_ROW.exec(line.trimEnd());
     if (m) rows.push({ lines: [Number(m[1]), Number(m[2])], level: m[3].length, heading: m[4].trim(), cost: Number(m[5].replace(/,/g, '')) });
   }
   return rows.length ? rows : null;

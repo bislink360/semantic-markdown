@@ -145,7 +145,8 @@ export function readSmd(text: string, options: ReadOptions = {}): ReadResult {
   const what = followed ? 'The agent view and what its followed edges add' : 'The agent view';
   const why = mode === 'auto' ? `${what} (${approx}${size} ${unit}) ${followed ? 'are' : 'is'} over the ${maxTokens}-token budget, so this is the outline. ` : '';
   const next = `${why}Read only the sections you need next.\n`;
-  const outlineText = `${outline(text, { ...view, provenance: false }).trimEnd()}\n\n${next}`;
+  // The compact outline (4.1.0): the same rows and notes, without column padding.
+  const outlineText = `${outline(text, { ...view, provenance: false, compactOutline: true }).trimEnd()}\n\n${next}`;
   const provenance = full.provenance && outlineProvenance(full.provenance, outlineText, view.tokenizer?.count(outlineText) ?? estimateTokens(outlineText));
   return { shown: 'outline', text: outlineText, ...sizes, ...(provenance ? { provenance } : {}) };
 }

@@ -57,6 +57,12 @@ export interface AgentViewOptions {
   /** Only include these sections (heading text or id, case-insensitive; subsections included). */
   sections?: string[];
   /**
+   * The outline in its compact form (4.1.0): one row per heading as `21-26 ## Why laws ≈203 notes`, with no column
+   * padding, no indent and a one-line footer. `smd read` and the MCP `read` tool use it; `smd outline` prints the
+   * aligned table unless `--compact` is given. Only the outline reads it.
+   */
+  compactOutline?: boolean;
+  /**
    * Match `sections` exactly: a heading's id, or its whole text in any case (as spec v2's `:::include{section}`). By
    * default a part of the text is enough, so "API" also selects "API details".
    */
@@ -1895,10 +1901,18 @@ function outlineOf(text: string, options: AgentViewOptions): string {
       ...SECTION_MARKS.map((mark) => (marked(mark, s.start, s.end) ? mark.note : '')),
       s.heading.agent === 'skip' ? 'skipped for agents' : '',
     ].filter(Boolean).join(', ');
+    if (options.compactOutline) {
+      return { range: `${s.start + 1}-${s.end + 1}`, head: `${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };
+    }
     const range = `L${s.start + 1}-${s.end + 1}`;
     const indent = '  '.repeat(Math.max(0, s.heading.level - 2));
     return { range, head: `${indent}${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };
   });
+  if (options.compactOutline) {
+    for (const r of rows) out.push(`${r.range} ${r.head} ${r.tokens.trim()}${r.notes ? ` ${r.notes}` : ''}`);
+    out.push('', 'Read: smd agent <file> --section "<heading>"');
+    return out.join('\n') + '\n';
+  }
   const w1 = Math.max(...rows.map((r) => r.range.length), 5);
   const w2 = Math.max(...rows.map((r) => r.head.length), 10);
   const w3 = costWidth(rows.map((r) => r.tokens), options.tokenizer);
