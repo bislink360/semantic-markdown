@@ -743,6 +743,8 @@ Every diagnostic has a stable `code`, a severity and, when safe, a machine-appli
 | `container/title-conflict` | error | A container has both `title=` and title text after its attributes; the attribute wins and the text is not shown. A hint in 1.10, an error in every document since 2.0 (fix: remove the text) |
 | `container/parent` | warning | `tab` outside `tabs`, `column` outside `columns` |
 | `container/agent-in-skip` | warning | An `agent` block inside a section whose heading has `{agent=skip}`: the agent view leaves the section out, so agents never read the instructions |
+| `audience/rule-in-skip` | warning | Since 4.1.0: a `constraint`, `danger`, `requirement` or accepted `decision` inside a section whose heading has `{agent=skip}` or inside a `:::human` block, so agents never see the rule |
+| `audience/normative-in-skip` | info | Since 4.1.0: prose that reads like a rule ("must not", "never", "do not", "should not be used", "at most N") in such a part, once per section or block. Lines of an `agent` block there are left to `container/agent-in-skip` |
 | `attrs/syntax` | error | Malformed `{…}` |
 | `attrs/unknown` | warning | Attribute not accepted in this position (fix when one accepted name is close and not already set). `priority` on an `agent` block, removed in 2.0, is reported on the attribute, with a fix that removes it |
 | `attrs/value` | error | Invalid color, size, width, progress value, enumerated container value such as a `figure`'s `kind`… (fix when one allowed value is close, or a year-first date needs `-` separators). An invalid `kind` was the warning `figure/kind` before 2.0 |
