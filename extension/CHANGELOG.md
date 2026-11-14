@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Each command knows its options.** An option the command doesn't read now prints a warning on stderr, with a suggestion when one is close (`[smd] warning: Unknown option --strcit for smd validate (did you mean --strict?); it is ignored.`). The exit code and the output are unchanged, so JSON stays parseable. A later minor release will turn the warning into an error. `--name=value` now works for every option that takes a value, a value option followed by another option no longer swallows it, and `smd lsp` still accepts whatever options an editor passes.
+
+### Changed
+- ⚠️ **Links clicked in the preview and the Block Editor follow one rule.** `http`, `https` and `mailto` links open outside VS Code, as before. A relative or `file:` link opens in an editor only when the file, with symbolic links resolved, is inside a workspace folder, or beside a document that is in none. Every other link, such as `command:`, `vscode:`, `javascript:` or a custom scheme, is not opened, and an information message shows it. Before, the preview passed any link with a scheme to VS Code to open, and opened relative files anywhere on disk.
+
+### Fixed
+- **Scripts in a document no longer run while it prints to PDF.** `smd export --to pdf` and **Export to PDF** print the page under a content security policy that lets only the page's own runtime and the diagram library run, so the document's scripts, event attributes and `javascript:` links do nothing. Its `iframe` (including `srcdoc`), `object`, `embed`, `meta` and `base` elements are renamed to inert elements, since a policy can't stop a `meta` refresh. Styles, images, ordinary raw HTML, diagrams and math print as before. Export to HTML and `smd build` follow in a later release.
+- **Each PDF export prints from a page of its own.** The temporary page beside the document has a random name and is created only if no file has that name, so two exports of one document at once, or a file already there, no longer clash, and cleanup removes only that page, also when the browser fails.
+- **A closed document no longer gets its problems back.** An edit just before closing a `.smd` file left a check waiting that put its problems back in the Problems panel after the file closed. Closing a file now cancels it.
+- **A link to a fragment with a broken escape, such as `#%E0%A4%A`, no longer stops the preview's click handling.** The page and the extension decode such links without throwing.
+- **`smd validate` fails when a path you name is missing.** It still checks every file it can read, lists each missing path on stderr, and exits 2 whatever it found. `--format json` and `--json` list them in a new `inputErrors` array instead (`path` and `message`), which appears only when a path is missing. A folder with no `.smd` files is not a missing path. ⚠️ A CI step that named a file that no longer exists passed before and now fails.
+- **Errors in any command are one line.** A file command given a folder or a missing file says so in one line and exits 2, and an unexpected error prints `smd: <message>` and exits 1, instead of a stack trace. `SMD_DEBUG=1` prints the stack too.
+- **`--stale-after` is checked only by `smd validate` and `smd meta`**, the commands that use it. Before, `smd tasks --stale-after soon` failed although tasks never reads it.
+- **`smd read --evidence` shows the evidence.** The option was documented with `smd agent --evidence` but `smd read` ignored it.
+- **Ids in a `:::changelog` or `:::risk-matrix` title are link targets.** The preview rendered them, but validation reported `link/missing-anchor` for a link to one. Which containers show their title now comes from one table.
+- **`:depends[…]` inside code is ignored everywhere, and nowhere else.** Task lists, the document graph, section views and id checks each hid code spans their own way, so a `:depends` after a backslash-escaped backtick, or inside a span of two backticks, carried its target into one view and not another. They now read code spans as CommonMark does: a span closes on a run of the same number of backticks, and a backslash-escaped backtick opens none.
+
 ## 4.1.0 — 2026-11-14
 
 ### Added

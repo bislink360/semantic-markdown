@@ -207,7 +207,9 @@ class Preview {
     if (this.lastStatus) this.lastStatus = { ...this.lastStatus, top: position.anchor?.line ?? 0 };
   }
 
-  private async onMessage(msg: { type: string; line?: number; href?: string } & Partial<RenderStatus>): Promise<void> {
+  private async onMessage(msg: { type: string; line?: number; href?: unknown } & Partial<RenderStatus>): Promise<void> {
+    // The page shows document content, so its messages are checked before anything acts on them.
+    if (typeof msg !== 'object' || msg === null || typeof msg.type !== 'string') return;
     switch (msg.type) {
       case 'ready':
         // The webview reloaded (e.g. moved to another group) from a page older than the document.
@@ -238,7 +240,7 @@ class Preview {
         }
         break;
       case 'openLink':
-        if (msg.href) await openLink(this.document, msg.href);
+        if (typeof msg.href === 'string') await openLink(this.document, msg.href);
         break;
       default:
         // The study page script's cue events (a study build only).

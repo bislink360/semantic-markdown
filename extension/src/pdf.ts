@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -181,21 +182,57 @@ async function launch(engine: PdfEngine): Promise<PdfBrowser> {
   }
 }
 
+export interface ExportPdfIo {
+  engine: PdfEngine;
+  warn: (message: string) => void;
+  /** The random part of the print page's name (default: 16 hex digits), replaceable in tests. */
+  random?: () => string;
+}
+
 /**
- * Write the rendered page beside the document (so relative images and links resolve, and #anchor links stay
- * within the page), print it, write the PDF to `out` and remove the page again.
+ * Render the page under the print content policy with a fresh nonce (activeContent.ts), write it beside the
+ * document (so relative images and links resolve, and #anchor links stay within the page) under a name of its
+ * own, print it, write the PDF to `out` and remove the page again. `render` gets the nonce the page's own scripts
+ * carry: pass it to `renderPage` or `renderStandaloneHtml` as `nonce`.
  */
 export async function exportPdf(
-  source: string, html: string, out: string, options: PdfOptions, io: { engine: PdfEngine; warn: (message: string) => void },
+  source: string, render: (nonce: string) => string, out: string, options: PdfOptions, io: ExportPdfIo,
 ): Promise<void> {
-  const page = path.join(path.dirname(path.resolve(source)), `.${path.basename(source)}.${process.pid}.print.html`);
-  fs.writeFileSync(page, lightTheme(html));
+  const html = lightTheme(render(crypto.randomBytes(18).toString('base64')));
+  const page = createPrintPage(source, io.random);
   try {
-    const pdf = await printPdf(io.engine, pathToFileURL(page).href, options, io.warn);
+    try {
+      fs.writeFileSync(page.fd, html);
+    } finally {
+      fs.closeSync(page.fd);
+    }
+    const pdf = await printPdf(io.engine, pathToFileURL(page.file).href, options, io.warn);
     fs.writeFileSync(out, pdf);
   } finally {
-    fs.rmSync(page, { force: true });
+    // Only the page this export created: a file that was there before, or another export's page, is never touched.
+    fs.rmSync(page.file, { force: true });
   }
+}
+
+/** How many names to try before giving up; a clash of 64 random bits is already all but impossible. */
+const PAGE_ATTEMPTS = 8;
+
+/**
+ * Create the print page beside the document, exclusively, under a sibling name of its own
+ * (`.plan.smd.<random>.print.html`), so two exports of one document, or a file already there, never collide
+ * (improvement roadmap t-13, EV-03). Returns the path and the open file descriptor.
+ */
+export function createPrintPage(source: string, random: () => string = () => crypto.randomBytes(8).toString('hex')): { file: string; fd: number } {
+  const dir = path.dirname(path.resolve(source));
+  for (let attempt = 0; attempt < PAGE_ATTEMPTS; attempt++) {
+    const file = path.join(dir, `.${path.basename(source)}.${random()}.print.html`);
+    try {
+      return { file, fd: fs.openSync(file, 'wx') };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+  }
+  throw new PdfError(`Could not create a print page beside ${source}: every name tried was taken.`);
 }
 
 /** PDFs use the light theme, so diagrams (themed when they render) match the print stylesheet's palette. */

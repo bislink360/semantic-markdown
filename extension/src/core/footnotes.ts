@@ -1,6 +1,7 @@
 import { displayMathOpener } from './containers';
 import { parseFrontMatter } from './frontmatter';
 import { specVersion, type SpecVersion } from './specVersion';
+import { maskCodeSpans } from './codeSpans';
 
 /**
  * Footnotes as written in the source (GFM): `[^label]` references and `[^label]: text` definitions,
@@ -116,37 +117,6 @@ function definitionEnd(lines: string[], start: number, spec: SpecVersion): numbe
     last = i;
   }
   return last;
-}
-
-/** The line with inline code spans blanked out (same length), so their contents are never read as syntax. */
-export function maskCodeSpans(line: string): string {
-  let out = '';
-  let i = 0;
-  while (i < line.length) {
-    if (line[i] !== '`') { out += line[i++]; continue; }
-    const run = runEnd(line, i);
-    const close = closingRun(line, run, run - i);
-    if (close < 0) { out += line.slice(i, run); i = run; continue; }
-    out += ' '.repeat(close - i);
-    i = close;
-  }
-  return out;
-}
-
-const runEnd = (line: string, i: number): number => {
-  let j = i;
-  while (line[j] === '`') j++;
-  return j;
-};
-
-/** The end of the next run of exactly `length` backticks from `from`, or -1. */
-function closingRun(line: string, from: number, length: number): number {
-  for (let i = line.indexOf('`', from); i >= 0; i = line.indexOf('`', i)) {
-    const end = runEnd(line, i);
-    if (end - i === length) return end;
-    i = end;
-  }
-  return -1;
 }
 
 /** The definition a `[^label]` under the cursor refers to, for hover and go to definition. */

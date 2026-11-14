@@ -216,9 +216,18 @@
     return select;
   }
 
+  /** The id a #fragment names, percent-decoded; a malformed escape is read as written instead of throwing. */
+  function fragmentId(fragment) {
+    try {
+      return decodeURIComponent(fragment);
+    } catch {
+      return fragment;
+    }
+  }
+
   if (typeof document === 'undefined') {
     if (typeof module === 'object' && module.exports) {
-      module.exports = { mapLine, mapAnchor, newerPlace, pickAnchor, findLine, stableKeys, carryState, lruCache, diagramKey, diagramTitle, diagramName, tabKeyTarget, buildTabs, uiLabel };
+      module.exports = { fragmentId, mapLine, mapAnchor, newerPlace, pickAnchor, findLine, stableKeys, carryState, lruCache, diagramKey, diagramTitle, diagramName, tabKeyTarget, buildTabs, uiLabel };
     }
     return;
   }
@@ -741,7 +750,7 @@
     const href = a.getAttribute('href');
     if (href.startsWith('#')) {
       e.preventDefault();
-      const el = document.getElementById(decodeURIComponent(href.slice(1)));
+      const el = document.getElementById(fragmentId(href.slice(1)));
       if (!el) return;
       el.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
       // Move focus too, as following the link would, so Tab continues from the target.

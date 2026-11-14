@@ -54,7 +54,8 @@ async function pdf(args: ExportArgs): Promise<number> {
     const out = option(args, '-o') ?? pdfPath(file);
     const lang = langOption(option(args, '--lang'));
     if (lang === null) return fail(LANG_USAGE);
-    const page = renderPage(read(file), { readFile: readerFor(file), file, lang, comments: comments(args) });
+    const text = read(file);
+    const page = (nonce: string) => renderPage(text, { readFile: readerFor(file), file, lang, comments: comments(args), nonce });
     await exportPdf(file, page, out, options, { engine, warn: (message) => console.error(message) });
     console.error(`Wrote ${out} (printed with ${engine.name})`);
     return 0;

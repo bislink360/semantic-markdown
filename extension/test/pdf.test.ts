@@ -134,9 +134,9 @@ test('exportPdf prints the page from beside the document and removes it afterwar
       };
       return p;
     };
-    await exportPdf(source, '<html lang="en" data-smd-theme-pref="dark"><p>Plan</p>', join(dir, 'out.pdf'), OPTIONS, { engine, warn: assert.fail });
+    await exportPdf(source, () => '<html lang="en" data-smd-theme-pref="dark"><p>Plan</p>', join(dir, 'out.pdf'), OPTIONS, { engine, warn: assert.fail });
     assert.equal(printed, '<html lang="en" data-smd-theme-pref="light"><p>Plan</p>');
-    assert.match(String((fake.calls.find((c) => c[0] === 'goto') ?? [])[1]), /^file:\/\/\/.*\/\.plan\.smd\.\d+\.print\.html$/);
+    assert.match(String((fake.calls.find((c) => c[0] === 'goto') ?? [])[1]), /^file:\/\/\/.*\/\.plan\.smd\.[0-9a-f]{16}\.print\.html$/);
     assert.equal(readFileSync(join(dir, 'out.pdf'), 'utf8'), '%PDF-1.7 fake');
     assert.deepEqual(readdirSync(dir).sort((a, b) => a.localeCompare(b)), ['out.pdf', 'plan.smd']);
   } finally {

@@ -12,6 +12,7 @@ import { ID_ATTRIBUTES } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { scanTasks } from './taskLines';
 import { escapeRegExp } from './util';
+import { dependsLists } from './codeSpans';
 
 /**
  * Where a document names block ids, for go to definition, find references, hover and rename (semantic tags R18): the
@@ -162,17 +163,12 @@ function refs(lines: string[], bodyStart: number, spec: SpecVersion): IdUse[] {
   });
 }
 
-const DEPENDS = /(^|[\s([{>*_~"'-]):depends\[([^\]\n]*)\]/gi;
-
 /** A task's `:depends[id, …]` (spec v2). */
 function depends(text: string, lines: string[], spec: SpecVersion): IdUse[] {
   const uses: IdUse[] = [];
   for (const task of scanTasks(text, undefined, spec)) {
     if (task.kind !== 'task') continue;
-    const raw = (lines[task.line] ?? '').replace(/(`+)([\s\S]*?)\1/g, (m) => ' '.repeat(m.length));
-    for (const m of raw.matchAll(DEPENDS)) {
-      uses.push(...listUses(m[2], m.index + m[1].length + ':depends['.length, task.line, 'depends'));
-    }
+    for (const { list, column } of dependsLists(lines[task.line] ?? '')) uses.push(...listUses(list, column, task.line, 'depends'));
   }
   return uses;
 }
