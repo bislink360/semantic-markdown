@@ -40,6 +40,16 @@
           ],
           "description": "Every container/… rule. Exact codes win."
         },
+        "audience/*": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Every audience/… rule. Exact codes win."
+        },
         "attrs/*": {
           "enum": [
             "off",
@@ -539,6 +549,26 @@
             "hint"
           ],
           "description": ":::agent block inside a section marked {agent=skip}, which agent views leave out"
+        },
+        "audience/rule-in-skip": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "A constraint, danger, requirement or accepted decision inside a section marked {agent=skip} or a :::human block, so agents never see the rule"
+        },
+        "audience/normative-in-skip": {
+          "enum": [
+            "off",
+            "error",
+            "warning",
+            "info",
+            "hint"
+          ],
+          "description": "Prose that reads like a rule (\"must not\", \"never\", \"do not\") in a section marked {agent=skip} or a :::human block, which agent views leave out"
         },
         "attrs/syntax": {
           "enum": [

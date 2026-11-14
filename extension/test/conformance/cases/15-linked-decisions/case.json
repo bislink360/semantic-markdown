@@ -1,0 +1,43 @@
+{
+  "description": "Linked decisions (L2, 4.1.0). An accepted decision with applies-to binds what it names as a constraint does, and only by applies-to: a section or query read of R1 carries D2, while a proposed decision that names R1 (D3), an accepted decision with no applies-to (D4) and a superseded one (D1) stay out. A read that does not show R1 does not carry D2. A linked decision whose target names no block is unplaced: shown in every read, and the read is incomplete in its resolution part.",
+  "requests": [
+    {
+      "name": "section Cutover carries the accepted decision that names R1",
+      "route": { "sections": ["Cutover"] },
+      "laws": ["L2"],
+      "mustAppear": ["R1", "D2"],
+      "mustNotAppear": ["D1", "D3", "D4"],
+      "unsatisfied": [],
+      "complete": true,
+      "completeness": { "coverage": true, "resolution": true, "budget": true }
+    },
+    {
+      "name": "section Other does not carry D2, because it does not show R1",
+      "route": { "sections": ["Other"] },
+      "laws": ["L2"],
+      "mustAppear": [],
+      "mustNotAppear": ["D2", "D3", "D4", "R1"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "query R1 with the contract carries D2 as the section read does",
+      "route": { "query": "requirement[id=R1]" },
+      "laws": ["L2"],
+      "mustAppear": ["R1", "D2"],
+      "mustNotAppear": ["D1", "D3", "D4"],
+      "unsatisfied": [],
+      "complete": true
+    },
+    {
+      "name": "a linked decision with a mistyped target is shown in every read and makes it incomplete",
+      "doc": "typo.smd",
+      "route": { "sections": ["Cutover"] },
+      "laws": ["L2", "L3"],
+      "mustAppear": ["R1", "D5"],
+      "unsatisfied": [{ "kind": "unresolved-target", "target": "R9" }],
+      "complete": false,
+      "completeness": { "coverage": true, "resolution": false, "budget": true }
+    }
+  ]
+}

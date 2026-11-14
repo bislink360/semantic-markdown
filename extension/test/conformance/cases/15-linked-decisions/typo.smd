@@ -1,0 +1,16 @@
+---
+smd: 2
+title: Linked decision with a mistyped target
+---
+
+## Rules
+
+:::decision{#D5 status=accepted applies-to=R9} Keep the audit log
+DECISION-D5 Keep the audit log for every switch.
+:::
+
+## Cutover
+
+:::requirement{#R1 status=accepted} Switch writes
+REQ-R1 Point the writer at the new ledger.
+:::

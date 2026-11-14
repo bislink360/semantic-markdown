@@ -37,6 +37,7 @@ No reader follows a path outside the allowed roots.
 | constraint | `scope` | section · document |
 | constraint | `applies-to` | ids of the blocks or headings it binds |
 | constraint | `level` | must · should |
+| decision | `applies-to` | ids of the blocks or headings an accepted decision governs; section reads of them carry it |
 
 - The title is the requirement in one sentence. Write the acceptance body as Given, When and Then lines.
 - Only people set `status`. Acceptance criteria say how to check a requirement, they are not proof that it passed, so never mark a requirement `verified` because it has them.
@@ -82,6 +83,7 @@ Both decisions are accepted and disagree.
 
 - A question is `open`, `answered`, `incorporated` or `withdrawn`. It is answered only when a `:::comment{kind=answer for=Q1}` exists in the document or inside the question. Without one, a written `answered` still reads as open and warns `question/unanswered`. A withdrawn question needs `reason` (`question/reason`), and an open question past `due` is `question/overdue`.
 - `between=` names the two blocks that disagree. Both stay shown and nothing picks a winner.
+- `applies-to=` on an accepted decision names what it governs, as on a constraint. A section read of R1 then carries `:::decision{#D2 status=accepted applies-to=R1}`. A decision without it is never carried, whatever its section.
 - `supersedes=` on a decision names the one it replaces. Set the old one to `status=superseded` (`decision/supersedes` has a fix). `smd decisions` then shows "(superseded by D7)" next to the old one.
 - `depends-on=` works on requirements, constraints, decisions, risks and assumptions. On a task, write `:depends[R1]` (spec v2 only). `smd tasks` shows a task as blocked while a task it depends on is open, a requirement isn't implemented or verified, or a question is open. `smd query "task[depends=R1]"` finds them. `smd tasks --order deps` lists each task after the tasks it depends on, and `--gantt` starts a dated task after the dated tasks it depends on.
 

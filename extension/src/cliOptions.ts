@@ -20,18 +20,18 @@ export interface CommandOptions {
 }
 
 const VIEW_FLAGS = ['--exact', '--brief', '--include-human', '--embed', '--no-includes', '--no-lines', '--constraints', '--views', '--inspect'];
-const VIEW_VALUES = ['--max-tokens', '--tokenizer', '--section', '--provenance', '--view', '--today'];
+const VIEW_VALUES = ['--max-tokens', '--tokenizer', '--section', '--provenance', '--view', '--today', '--included-instructions'];
 
 /** Every command and the options it reads. Aliases (render, to-md, pdf, docx) have their own entries. */
 export const COMMAND_OPTIONS: Readonly<Record<string, CommandOptions>> = {
   read: { flags: [...VIEW_FLAGS, '--outline', '--full', '--evidence'], values: [...VIEW_VALUES, '--follow', '--direction', '--depth'] },
   agent: { flags: [...VIEW_FLAGS, '--evidence'], values: VIEW_VALUES },
   savings: { flags: ['--json'], values: ['--price', '--today'] },
-  outline: { flags: ['--related'], values: ['--tokenizer', '--today'] },
+  outline: { flags: ['--related', '--compact'], values: ['--tokenizer', '--today'] },
   tasks: { flags: ['--json', '--csv', '--gantt', '--smd', '--all'], values: ['--order', '--mine', '-o', '--title', '--today'] },
   risks: { flags: ['--all', '--html', '--json'], values: ['--status', '--owner', '-o'] },
   trace: { flags: ['--uncovered', '--json'], values: ['--today'] },
-  query: { flags: ['--json', '--titles', '--brief', '--no-lines', '--constraints', '--contract'], values: ['--follow', '--direction', '--depth', '--provenance', '--today'] },
+  query: { flags: ['--json', '--titles', '--brief', '--no-lines', '--constraints', '--contract'], values: ['--follow', '--direction', '--depth', '--provenance', '--today', '--included-instructions'] },
   rev: { flags: ['--json'] },
   updates: { flags: ['--json'], values: ['--since', '--today'] },
   diff: { flags: ['--json', '--brief', '--no-lines', '--exit-code'], values: ['--since', '--today'] },
@@ -57,7 +57,7 @@ export const COMMAND_OPTIONS: Readonly<Record<string, CommandOptions>> = {
   'from-md': { values: ['--from', '-o', '--today'] },
   init: { flags: ['--no-mcp'], values: ['--template', '--title', '--today', '--agent', '--dir'] },
   templates: {},
-  mcp: { flags: ['--allow-write', '--allow-suggest', '--legacy-tools'], values: ['--root'] },
+  mcp: { flags: ['--allow-write', '--allow-suggest', '--legacy-tools'], values: ['--root', '--included-instructions'] },
   lsp: { flags: ['--stdio'], open: true },
   skills: { flags: ['--global'], values: ['--target', '--only', '--dir'] },
 };

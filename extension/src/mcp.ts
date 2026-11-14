@@ -18,6 +18,8 @@ import { collect, diagnose, isInside, queryRows, querySummary, queryText, read, 
 export interface McpServerSettings {
   /** Folder that paths are resolved against; nothing outside it is read. */
   root: string;
+  /** `off`: every read shows a pointer instead of the :::agent blocks of included files (4.1.0, a host setting). */
+  includedInstructions?: 'carry' | 'off';
   version: string;
   /** List the 1.x reading tools (outline, section, agent) too. */
   legacyTools?: boolean;
@@ -31,10 +33,13 @@ export interface McpServerSettings {
 export class Sandbox {
   readonly root: string;
   private readonly realRoot: string;
+  /** View options the host fixed when it started the server, applied to every read. */
+  readonly view: { includedInstructions?: 'carry' | 'off' };
 
-  constructor(root: string) {
+  constructor(root: string, view: { includedInstructions?: 'carry' | 'off' } = {}) {
     this.root = path.resolve(root);
     this.realRoot = fs.realpathSync(this.root);
+    this.view = view;
   }
 
   /** An existing file or folder inside the root. Throws a ToolError otherwise. */
@@ -190,7 +195,7 @@ function readTool(box: Sandbox, args: Args, allowWrite = false): string {
   const maxTokens = args.maxTokens as number | undefined;
   const source = read(file);
   const result = readDocument(source, {
-    mode, sections, exactSections: flag(args, 'exact'), maxTokens, brief: flag(args, 'brief'), readFile: box.reader(file),
+    mode, sections, exactSections: flag(args, 'exact'), maxTokens, brief: flag(args, 'brief'), readFile: box.reader(file), ...box.view,
   });
   const view = withMissing(result.text, result.missingSections, sections?.length ?? 0);
   // With the write tools on: the revision they take, so a write is refused if the file changed since this read.
@@ -213,13 +218,13 @@ function outlineTool(box: Sandbox, args: Args): string {
 function sectionTool(box: Sandbox, args: Args): string {
   const file = box.document(text(args, 'file')!);
   const sections = list(args, 'sections')!;
-  const result = agentView(read(file), { sections, brief: flag(args, 'brief'), readFile: box.reader(file) });
+  const result = agentView(read(file), { sections, brief: flag(args, 'brief'), readFile: box.reader(file), ...box.view });
   return withMissing(result.text, result.missingSections, sections.length);
 }
 
 function agentTool(box: Sandbox, args: Args): string {
   const file = box.document(text(args, 'file')!);
-  return agentView(read(file), { brief: flag(args, 'brief'), includeHuman: flag(args, 'includeHuman'), readFile: box.reader(file) }).text;
+  return agentView(read(file), { brief: flag(args, 'brief'), includeHuman: flag(args, 'includeHuman'), readFile: box.reader(file), ...box.view }).text;
 }
 
 function tasksTool(box: Sandbox, args: Args): string {
@@ -243,7 +248,7 @@ function queryTool(box: Sandbox, args: Args): string {
 function contractQueryTool(box: Sandbox, selector: string, files: string[], args: Args): string {
   if (flag(args, 'titles')) throw new ToolError('"contract" shows each match with what it needs, so it does not go with "titles".');
   const views = files.flatMap((f) => {
-    const result = queryView(read(f), selector, { brief: flag(args, 'brief'), readFile: box.reader(f), file: box.name(f) });
+    const result = queryView(read(f), selector, { brief: flag(args, 'brief'), readFile: box.reader(f), file: box.name(f), ...box.view });
     return result ? [{ file: box.name(f), result }] : [];
   });
   const summary = contractSummary(views, files.length).replace(/^\[smd\] /gm, '');
@@ -291,7 +296,7 @@ export function serverInstructions(options: SmdToolOptions = {}): string {
 export async function runMcpServer(settings: McpServerSettings): Promise<void> {
   // Anything else that logs (e.g. Mermaid) must not corrupt the protocol stream.
   console.log = console.info = console.debug = console.warn = console.error;
-  const box = new Sandbox(settings.root);
+  const box = new Sandbox(settings.root, settings.includedInstructions ? { includedInstructions: settings.includedInstructions } : {});
   const tools = smdTools(box, settings);
   const server = new McpServer({ name: 'semantic-markdown', version: settings.version, tools, instructions: serverInstructions(settings) });
   const write = (settings.allowWrite ? ', write tools on' : '') + (settings.allowSuggest ? ', suggest on' : '');

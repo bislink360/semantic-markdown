@@ -29,7 +29,7 @@ How to interpret what you read:
 - `<danger>` is a hard constraint and `<warning>` an important caveat. `<question>` is unresolved: don't assume an answer; use the fallback in the agent instructions, or ask.
 - `<decision status="accepted">` is binding. `proposed` isn't decided yet; `rejected`/`superseded` means don't do it. `superseded-by="D3"` names the decision to follow instead.
 - `<requirement id="R1" status="accepted">` is a required behavior. `proposed` (shown when nothing is written) isn't settled yet. Only people set `implemented` or `verified`.
-- `<constraint level="must">` binds your work the way agent instructions do, within the user's task, and `level="should"` is strong advice. `scope="document"` means the whole document, and `applies-to` names what it binds.
+- `<constraint level="must">` binds your work the way agent instructions do, within the user's task, and `level="should"` is strong advice. `scope="document"` means the whole document, and `applies-to` names what it binds. An accepted `<decision applies-to="R1">` under "Constraints and decisions that apply here" binds R1 the same way.
 - `<acceptance verifies="R1">` says how to check R1. It is not proof that R1 passed, and neither is a checked task.
 - `<assumption status="unvalidated">` is a premise nobody has checked. Don't treat it as fact.
 - `<non-goals>` lists what the work leaves out on purpose. Don't build it. Section views show it under "Document-wide agent instructions".

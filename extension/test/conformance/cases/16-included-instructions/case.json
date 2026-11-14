@@ -1,0 +1,28 @@
+{
+  "description": "Included instructions (L1 and L6, 4.1.0). By default an included file's :::agent block is carried into a section read of another section, as the document's own is. A host that sets included instructions off keeps that block out of every view: a pointer stands in its place, the block's text does not appear, and the manifest records an included-instructions omission in the included file. The document's own agent block is carried either way.",
+  "requests": [
+    {
+      "name": "section Work carries the document's and the included file's agent blocks by default",
+      "route": { "sections": ["Work"] },
+      "laws": ["L1"],
+      "mustAppear": ["R1", "~OWN-AGENT", "shared.smd~INCLUDED-AGENT"],
+      "complete": true
+    },
+    {
+      "name": "section Work with included instructions off keeps the included block out and records it",
+      "route": { "sections": ["Work"], "includedInstructions": "off" },
+      "laws": ["L1", "L6"],
+      "mustAppear": ["R1", "~OWN-AGENT"],
+      "mustNotAppear": ["shared.smd~INCLUDED-AGENT"],
+      "omissions": [{ "kind": "included-instructions", "file": "shared.smd", "lines": [5, 7] }]
+    },
+    {
+      "name": "the full view with included instructions off keeps it out too",
+      "route": { "includedInstructions": "off" },
+      "laws": ["L1", "L6"],
+      "mustAppear": ["R1", "~OWN-AGENT", "shared.smd~SHARED-TEXT"],
+      "mustNotAppear": ["shared.smd~INCLUDED-AGENT"],
+      "omissions": [{ "kind": "included-instructions", "file": "shared.smd", "lines": [5, 7] }]
+    }
+  ]
+}

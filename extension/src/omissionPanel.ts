@@ -22,12 +22,14 @@ const LABELS: Record<OmissionKind, string> = {
   outline: 'Outline instead of text',
   deprecated: 'Deprecated requirement condensed',
   dependency: 'Mandatory dependency not satisfied',
+  'included-instructions': 'Included agent instructions kept out',
 };
 
 const ICONS: Record<OmissionKind, string> = {
   'skipped-section': 'eye-closed', 'not-selected': 'filter', budget: 'dashboard', human: 'person', details: 'fold',
   diagram: 'type-hierarchy', code: 'code', 'completed-tasks': 'tasklist', comment: 'comment', include: 'file-symlink-file',
   embed: 'file-code', outline: 'list-tree', deprecated: 'circle-slash', dependency: 'warning',
+  'included-instructions': 'shield',
 };
 
 export interface OmissionItem {

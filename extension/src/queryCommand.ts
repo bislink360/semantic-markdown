@@ -18,6 +18,8 @@ export interface QueryFlags extends FollowFlags {
   contract?: boolean;
   /** With `contract`: also return each view's provenance manifest. */
   provenance?: boolean;
+  /** With `contract`: what the views do with the agent blocks of included files (4.1.0). */
+  includedInstructions?: 'carry' | 'off';
 }
 
 export interface QueryOutput {
@@ -113,6 +115,7 @@ function contractQuery(selector: string, files: string[], flags: QueryFlags): Qu
   for (const file of files) {
     const result = queryView(read(file), selector, {
       brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today, readFile: readerFor(file), file, provenance: !!flags.provenance,
+      ...(flags.includedInstructions ? { includedInstructions: flags.includedInstructions } : {}),
     });
     if (result) views.push({ file, result });
   }
@@ -144,10 +147,11 @@ export function contractSummary(views: ReadonlyArray<ContractView>, fileCount: n
   const matches = views.reduce((n, v) => n + v.result.matches.length, 0);
   const constraints = views.reduce((n, v) => n + (v.result.mandatory?.constraints.length ?? 0), 0);
   const dependencies = views.reduce((n, v) => n + (v.result.mandatory?.dependencies.length ?? 0), 0);
+  const decisions = views.reduce((n, v) => n + (v.result.mandatory?.decisions?.length ?? 0), 0);
   const tokens = views.reduce((n, v) => n + v.result.tokens, 0);
   const incomplete = views.filter((v) => v.result.mandatory?.unsatisfied.length);
   const lines = [
-    `[smd] ${matches} match(es) in ${views.length} of ${fileCount} file(s). With the read contract: ${constraints} constraint(s) and `
+    `[smd] ${matches} match(es) in ${views.length} of ${fileCount} file(s). With the read contract: ${constraints} constraint(s)${decisions ? `, ${decisions} decision(s)` : ''} and `
     + `${dependencies} dependenc${dependencies === 1 ? 'y' : 'ies'} carried, ≈${tokens} tokens shown${incomplete.length ? '' : ', complete'}.`,
   ];
   for (const v of incomplete) {
