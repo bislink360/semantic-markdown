@@ -1185,6 +1185,8 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | `:::api{method=POST}` | `attrs/required` | — |
 | unclosed `:::` | `container/unclosed` | adds the closing `:::` at the end |
 | `:::agent` under a `## … {agent=skip}` heading | `container/agent-in-skip` | — (move the block out, or drop `agent=skip`) |
+| A constraint, danger, requirement or accepted decision under `{agent=skip}` or in `:::human` | `audience/rule-in-skip` | — (move it out, or drop the mark) |
+| "Must not", "never" or "do not" in prose under `{agent=skip}` or in `:::human` (info) | `audience/normative-in-skip` | — (move the rule out, or write it as a `:::constraint`) |
 | unclosed ```` ``` ```` | `fence/unclosed` | adds the closing fence at the end |
 | ```` ```mermaid flowchat ```` | `mermaid/type` | → `flowchart` |
 | `A->>B hi` in a sequence diagram | `mermaid/syntax` (an error since 2.0) | — (reported on the line, with what was expected) |
