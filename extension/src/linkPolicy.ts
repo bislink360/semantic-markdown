@@ -53,7 +53,7 @@ export function decideLink(href: unknown, context: LinkContext): LinkDecision {
   if (/^[\\/]{2}/.test(href)) return { kind: 'refused', reason: 'links to another machine are not opened' };
   if (href.startsWith('#')) return { kind: 'refused', reason: 'the link points inside the page' };
   if (context.documentDir === undefined) return { kind: 'refused', reason: 'relative links need a saved document' };
-  const file = decodePath(href.replace(/[?#].*$/s, ''));
+  const file = decodePath(withoutQuery(href));
   if (file === undefined) return { kind: 'refused', reason: 'the link has a malformed escape' };
   if (file === '') return { kind: 'refused', reason: 'the link names no file' };
   return contained(path.resolve(context.documentDir, file), context);
@@ -70,13 +70,19 @@ function decideScheme(href: string, scheme: string, context: LinkContext): LinkD
   if (scheme === 'file:') {
     let file: string;
     try {
-      file = fileURLToPath(new URL(href.replace(/[?#].*$/s, '')));
+      file = fileURLToPath(new URL(withoutQuery(href)));
     } catch {
       return { kind: 'refused', reason: 'the file link is not valid here' };
     }
     return contained(file, context);
   }
   return { kind: 'refused', reason: `${scheme} links are not opened from a document` };
+}
+
+/** The href up to its first `?` or `#`. */
+function withoutQuery(href: string): string {
+  const end = href.search(/[?#]/);
+  return end < 0 ? href : href.slice(0, end);
 }
 
 /** Percent-decoding that returns undefined instead of throwing on a malformed escape. */
