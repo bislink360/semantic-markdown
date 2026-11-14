@@ -26,7 +26,7 @@ export const PROVENANCE_SCHEMA = 'smd-projection/1';
 
 export type OmissionKind =
   | 'skipped-section' | 'not-selected' | 'budget' | 'human' | 'details' | 'diagram' | 'code' | 'completed-tasks'
-  | 'comment' | 'include' | 'embed' | 'outline' | 'deprecated' | 'dependency';
+  | 'comment' | 'include' | 'embed' | 'outline' | 'deprecated' | 'dependency' | 'included-instructions';
 
 export interface Omission {
   kind: OmissionKind;
@@ -84,6 +84,8 @@ export interface Trace {
   root?: number;
   entries: TraceEntry[];
   omissions?: Omission[];
+  /** Where an included file's kept-out agent instructions are recorded when other omissions are not (the head pass). */
+  instructionOmissions?: Omission[];
 }
 
 export interface SourceSpan {
@@ -125,6 +127,8 @@ export interface ProvenanceSettings {
   tokenizer: string;
   maxTokens: number | null;
   constraints: boolean;
+  /** `off` when the host keeps the :::agent blocks of included files out (4.1.0); absent when they are carried. */
+  includedInstructions?: 'off';
 }
 
 export interface Provenance {

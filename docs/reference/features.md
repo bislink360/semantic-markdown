@@ -89,7 +89,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd from-md` · `meta` | Upgrade Markdown to `.smd`; a document's full JSON summary |
 | `smd from-md <file> --from madr\|spec-kit` | Import a MADR decision record as a `:::decision`, or a GitHub Spec Kit `tasks.md` with task ids and `:depends`, keeping every line of text ([details](#import-from-madr-and-spec-kit-smd-from-md---from)) |
 | `smd build <dir> --out site` | Static docs site: a page per doc, sidebar, breadcrumbs, search, backlinks and a task/decision/risk dashboard |
-| `smd mcp [--root <dir>] [--allow-write] [--allow-suggest]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision`, `--allow-suggest` adds `suggest` ([setup](agents.md#mcp-server)) |
+| `smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--included-instructions off]` | MCP server for agents: `read`, `tasks`, `query` and `validate` as tools (the older `outline`, `section` and `agent` still answer; `--legacy-tools` lists them); `--allow-write` adds `check_task`, `set_status` and `add_decision`, `--allow-suggest` adds `suggest` ([setup](agents.md#mcp-server)) |
 | `smd lsp --stdio` | Language server for Neovim, Helix, Zed and other LSP editors: diagnostics, quick fixes, outline, hover, completion, go to definition, formatting (also `smd-language-server`; [setup](../guides/editors.md)) |
 | `smd init --agent claude|cursor|copilot|agents` | Set up an agent in a project in one command: skills or rules, the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet |
 | `smd skills install [--global] [--target …]` | Install the agent skills, or rules for Cursor, Copilot and `AGENTS.md` |
@@ -943,7 +943,7 @@ See [Pricing](shared/terms.smd#pricing) in the shared terms.
 - **Same rendering.** Included text is parsed like the rest of the document: every block and nested includes work, and links, images and code embeds in it still point where they did from their own folder. A subtle rule in the margin shows its extent on hover.
 - **Ids stay stable.** The document's own heading ids never change; included headings are numbered where they would clash (`#pricing-1`), and the document may link to them.
 - **Safe.** Files are read with the same sandbox as code embeds (the workspace, the document's folder, its Git repository; the MCP server's root). Cycles (`a → b → a`) stop with a note, includes nest at most 8 deep, and a document includes at most 200 times and 2,000,000 characters.
-- **Everywhere it reads.** The preview (it refreshes when the included file is saved), `smd export` (`html`, `pdf`, `docx`, `confluence` and `notion`), `smd build` and the markdown-it, remark and rehype plugins (given a `readFile`) include. The agent view shows the text in `<included file="shared/terms.smd" section="Pricing">…</included>` (`smd agent --no-includes` shows a one-line pointer instead). Sections the included file marks `{agent=skip}` stay out, and its `:::agent` blocks apply to the whole document: a section view of another section lists them under "Document-wide agent instructions", and `smd export --to md` inlines it, since GitHub can't include. `smd outline`, `query`, `tasks`, `decisions`, `risks`, `index` and `diff` work per file.
+- **Everywhere it reads.** The preview (it refreshes when the included file is saved), `smd export` (`html`, `pdf`, `docx`, `confluence` and `notion`), `smd build` and the markdown-it, remark and rehype plugins (given a `readFile`) include. The agent view shows the text in `<included file="shared/terms.smd" section="Pricing">…</included>` (`smd agent --no-includes` shows a one-line pointer instead). Sections the included file marks `{agent=skip}` stay out, and its `:::agent` blocks apply to the whole document: a section view of another section lists them under "Document-wide agent instructions", and `smd export --to md` inlines it, since GitHub can't include. A host that does not trust included files can turn their instructions off with `--included-instructions off` on `smd agent`, `smd read`, `smd query --contract` and `smd mcp` (since 4.1.0): each such `:::agent` block becomes one line, `[agent instructions in shared.smd L4 not shown: …]`, and the manifest lists it as an `included-instructions` omission. Body text that starts like a wrapper the view writes, `<included …>` or `<agent-instructions>`, is shown with `&lt;`, so it cannot pass for carried instructions. `smd outline`, `query`, `tasks`, `decisions`, `risks`, `index` and `diff` work per file.
 - **Editor help.** Completion of paths in `file="…"`, go to definition on the path, hover preview of the included document, the `transclude` snippet, and warnings for a missing file or section, a file outside the workspace, cycles and limits (`include/*`).
 
 ## 8. Layout: tabs, columns, cards, boxes, steps
@@ -1564,6 +1564,7 @@ smd outline <file> [--related] [--tokenizer <name>]  sections, line ranges, toke
 smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
                  [--max-tokens <n>] [--tokenizer <name>]   fit the view into n tokens; exact counts
                  --no-includes: a pointer per :::include instead of the included text
+                 --included-instructions off: a pointer per :::agent block of an included file
                  --evidence: the evidence of each requirement shown, in full
 smd agent <file> --view <name> [--inspect] · --views   an author's task view, or the list of them
 smd tasks <files|dirs> [--all] [--mine @name] [--order priority|deps] [--json]
@@ -1613,7 +1614,7 @@ smd templates
 smd savings <files|dirs> [--json]   tokens saved, as a number and a percentage, per full read of every
                  document: raw file vs agent view vs --brief
 smd skills install [--dir <path>] [--global] [--only reader|writer]
-smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools]   MCP server over stdio (tools below)
+smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools] [--included-instructions off]   MCP server over stdio (tools below)
 smd lsp [--stdio]                                    language server over stdio for other editors (below); also smd-language-server
 smd skills install --target cursor,copilot,agents [--dir <project>]   rules for other agents + .smd/smd.cjs
 smd --version
