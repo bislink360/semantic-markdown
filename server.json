@@ -9,13 +9,13 @@
     "source": "github",
     "subfolder": "npm"
   },
-  "version": "4.0.1",
+  "version": "4.1.0",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "semantic-markdown",
-      "version": "4.0.1",
+      "version": "4.1.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
