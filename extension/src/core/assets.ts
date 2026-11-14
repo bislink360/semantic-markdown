@@ -1,4 +1,4 @@
-import { pageHtml, renderStandaloneHtml, type RenderOptions } from './render';
+import { pageHtml, renderStandaloneHtml, type PagePolicy, type RenderOptions } from './render';
 import { riskRegisterHtml } from './riskHtml';
 import type { RiskRegister } from './risks';
 
@@ -26,7 +26,7 @@ export const SMD_SITE_JS: string = typeof __SMD_SITE_JS__ === 'string' ? __SMD_S
  * stylesheet and runtime. Mermaid and KaTeX styles load from a CDN. The page's theme is the front
  * matter's `theme`, else `fallbackTheme` (`auto`: the reader's system).
  */
-export function renderPage(text: string, options: RenderOptions & { comments?: boolean } = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto'): string {
+export function renderPage(text: string, options: RenderOptions & PagePolicy & { comments?: boolean } = {}, fallbackTheme: 'auto' | 'light' | 'dark' = 'auto'): string {
   const reviewBlocks = options.reviewBlocks ?? (options.comments ? 'shown' : 'hidden');
   return renderStandaloneHtml(text, SMD_CSS, SMD_RUNTIME_JS, { ...options, reviewBlocks }, fallbackTheme);
 }

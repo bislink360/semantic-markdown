@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { CONFIG_FILES, loadRuleConfig, type LoadedConfig } from './config';
 import { readerFor } from './files';
+import { DiagnosticSchedule } from './diagnosticSchedule';
 import { loadMermaidParser } from './mermaidLoader';
 import {
   CALLOUT_TYPES, CONTAINERS, FRONTMATTER_KEYS, INLINE_DIRECTIVES, NAMED_COLORS, SIZE_VALUES, STATUS_VALUES, AUDIENCE_VALUES,
@@ -52,7 +53,8 @@ export class SmdDiagnostics implements vscode.Disposable {
   readonly collection = vscode.languages.createDiagnosticCollection('smd');
   /** Problems in smd.config.json / .smdrc files, shown on those files. */
   private readonly configProblems = vscode.languages.createDiagnosticCollection('smd-config');
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Re-validation after edits; closing a document cancels it (diagnosticSchedule.ts). */
+  private readonly pending = new DiagnosticSchedule<vscode.TextDocument>((d) => void this.update(d));
   private readonly disposables: vscode.Disposable[] = [];
   private configs = new Map<string, LoadedConfig>();
 
@@ -67,7 +69,10 @@ export class SmdDiagnostics implements vscode.Disposable {
       watcher, watcher.onDidCreate(reload), watcher.onDidChange(reload), watcher.onDidDelete(reload),
       vscode.workspace.onDidOpenTextDocument((d) => void this.update(d)),
       vscode.workspace.onDidChangeTextDocument((e) => this.schedule(e.document)),
-      vscode.workspace.onDidCloseTextDocument((d) => this.collection.delete(d.uri)),
+      vscode.workspace.onDidCloseTextDocument((d) => {
+        this.pending.close(d);
+        this.collection.delete(d.uri);
+      }),
       vscode.workspace.onDidChangeConfiguration((e) => {
         if (e.affectsConfiguration('smd.validation')) vscode.workspace.textDocuments.forEach((d) => void this.update(d));
       }),
@@ -76,9 +81,7 @@ export class SmdDiagnostics implements vscode.Disposable {
   }
 
   schedule(document: vscode.TextDocument): void {
-    const key = document.uri.toString();
-    clearTimeout(this.timers.get(key));
-    this.timers.set(key, setTimeout(() => void this.update(document), 300));
+    this.pending.schedule(document);
   }
 
   /**
@@ -86,7 +89,8 @@ export class SmdDiagnostics implements vscode.Disposable {
    * finishes, unless the document changed in the meantime. Resolves to the number of errors.
    */
   async update(document: vscode.TextDocument): Promise<number> {
-    if (document.languageId !== 'smd') return 0;
+    // A closed document keeps no diagnostics, even when a run was already on its way.
+    if (document.languageId !== 'smd' || document.isClosed) return 0;
     const config = vscode.workspace.getConfiguration('smd.validation', document.uri);
     if (!config.get<boolean>('enabled', true)) {
       this.collection.delete(document.uri);
@@ -128,7 +132,7 @@ export class SmdDiagnostics implements vscode.Disposable {
   }
 
   dispose(): void {
-    this.timers.forEach((t) => clearTimeout(t));
+    this.pending.dispose();
     this.collection.dispose();
     this.configProblems.dispose();
     this.disposables.forEach((d) => d.dispose());

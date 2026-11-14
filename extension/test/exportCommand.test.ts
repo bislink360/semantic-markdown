@@ -152,6 +152,9 @@ exports.chromium = {
 };
 `;
 
+/** The fake browser prints the page itself; each export carries a fresh script nonce (t-12), so compare without it. */
+const withoutNonce = (pdf: Buffer) => pdf.toString('utf8').replace(/nonce(-|=")[A-Za-z0-9+/=]+/g, 'nonce$1N');
+
 test('CLI: smd export --to pdf prints the same page with the same options as smd pdf', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'smd-export-pdf-'));
   try {
@@ -172,19 +175,19 @@ test('CLI: smd export --to pdf prints the same page with the same options as smd
       assert.equal(old.status, 0, old.stderr);
       assert.equal(now.status, 0, now.stderr);
       assert.match(now.stderr, /Wrote .*\.pdf \(printed with playwright\)/);
-      const output = (argv: string[]) => readFileSync(join(dir, argv[argv.indexOf('-o') + 1]));
+      const output = (argv: string[]) => withoutNonce(readFileSync(join(dir, argv[argv.indexOf('-o') + 1])));
       const a = output(before);
-      assert.ok(a.equals(output(after)), before.join(' '));
-      assert.match(a.toString('utf8'), /data-smd-theme-pref="light"/);
+      assert.equal(a, output(after), before.join(' '));
+      assert.match(a, /data-smd-theme-pref="light"/);
     }
     assert.match(readFileSync(join(dir, 'c.pdf'), 'utf8'), /^\{"format":"Letter","landscape":true,/);
 
     // Without -o, next to the document, as smd pdf.
     assert.equal(inDir(['pdf', doc]).status, 0);
-    const first = readFileSync(join(dir, 'plan.pdf'));
+    const first = withoutNonce(readFileSync(join(dir, 'plan.pdf')));
     rmSync(join(dir, 'plan.pdf'));
     assert.equal(inDir(['export', doc, '--to', 'pdf']).status, 0);
-    assert.ok(first.equals(readFileSync(join(dir, 'plan.pdf'))));
+    assert.equal(first, withoutNonce(readFileSync(join(dir, 'plan.pdf'))));
 
     // Errors exit as smd pdf does.
     for (const [before, after] of [[['pdf', doc, '--format', 'A3'], ['export', doc, '--to', 'pdf', '--format', 'A3']], [['pdf', doc, '--lang', '!!'], ['export', doc, '-o', 'e.pdf', '--lang', '!!']]]) {
