@@ -35,6 +35,10 @@ import { listed, tagBlocks, type TagBlock } from './semanticTags';
  * constraint of this document that names it (`applies-to=other.smd#R2`) applies as well. A constraint is never a
  * reason for itself, and a dependency hidden from agents brings nothing.
  *
+ * An accepted decision with `applies-to` is a rule too (4.1.0): it applies by what its `applies-to` names, as a
+ * constraint does, and never by scope, so a decision without `applies-to` is never carried. The view lists the
+ * decisions it carries apart from the constraints (`decisions` in the mandatory context).
+ *
  * A constraint whose `applies-to` names no block the reader can find (a typo, a deleted id, a file that cannot be
  * read) is `unplaced`. It applies to every view, a budget never omits it, and every view lists the unknown target
  * under "Not satisfied" and is incomplete until an author fixes it (research contract, 2026-11-10).
@@ -98,6 +102,8 @@ export interface UnsatisfiedDependency {
  */
 export interface MandatoryContext {
   constraints: AppliedConstraint[];
+  /** Accepted decisions with `applies-to` that the view carries, by the same rule (4.1.0). Absent when there are none. */
+  decisions?: AppliedConstraint[];
   dependencies: IncludedDependency[];
   unsatisfied: UnsatisfiedDependency[];
   complete: boolean;
@@ -223,7 +229,16 @@ interface FoundInclude {
 
 interface ScannedDoc { path: string; text: string; hidden: Array<[number, number]> }
 
-const MAY_HOLD = /:{3,}\s*constraint(?![\w-])|depends-on|:depends\[/i;
+const MAY_HOLD = /:{3,}\s*constraint(?![\w-])|depends-on|:depends\[|applies-to/i;
+
+/**
+ * A block that binds what it names or where it sits: every `:::constraint`, and an accepted `:::decision` with
+ * `applies-to` (4.1.0). A decision applies only by its `applies-to`, never by scope.
+ */
+export function isRuleBlock(b: TagBlock): boolean {
+  if (b.name === 'constraint') return true;
+  return b.name === 'decision' && listed(b, 'applies-to').length > 0 && (b.values.status ?? '').trim().toLowerCase() === 'accepted';
+}
 const HIDING = new Set(['agent', 'danger']);
 
 const within = (line: number, ranges: ReadonlyArray<readonly [number, number]>) => ranges.some(([a, b]) => line >= a && line <= b);
@@ -280,7 +295,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       if (b.line < range[0] || b.line > range[1] || within(b.line, hidden) || parentHides(b, input.includeHuman)) continue;
       const pos = at?.pos ?? b.line;
       const shown = at ? at.shown : inScope(b.line);
-      if (b.name === 'constraint') constraints.push({ doc, block: b, pos, inPlace: shown });
+      if (isRuleBlock(b)) constraints.push({ doc, block: b, pos, inPlace: shown });
       if (b.name !== 'include') continue;
       const request = includeRequest({ ...b.values });
       if (!request) continue;
@@ -308,10 +323,10 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   };
   scan(ROOT_DOC, rootBlocks, [input.bodyStart, input.lines.length - 1], rootHidden, rootScope(text));
 
-  const hasConstraints = constraints.length > 0;
+  const hasConstraints = constraints.some((c) => c.block.name === 'constraint');
   // An include the reader tried and failed to read leaves the view incomplete, rules or not (decided 2026-11-12).
   const failedRead = includes.some(readFailed);
-  if (!hasConstraints && !failedRead && !docs.some((d) => /depends-on|:depends\[/i.test(d.text))) return undefined;
+  if (!constraints.length && !failedRead && !docs.some((d) => /depends-on|:depends\[/i.test(d.text))) return undefined;
   // An id names a block of the document or of what its includes show, as rendering has it (t-59): one index for the
   // document and every file it includes, so a rule on an included block resolves, and fallback text never does.
   const ids = documentIdIndex(text, input.includes ? input.readFile : undefined);
@@ -329,10 +344,10 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const graph = new DocumentGraph(docs.map((d) => ({ path: d.path, text: d.text })), { readDocument: input.readDocument, ids: sharedId });
   // A word in prose or code is not a dependency: only an edge is.
   const hasEdges = docs.some((d) => graph.edgesOf(d.path).some((e) => e.type === 'depends-on'));
-  if (!hasConstraints && !failedRead && !hasEdges) return undefined;
+  if (!constraints.length && !failedRead && !hasEdges) return undefined;
   // Without a rule or a dependency only a failed read matters: includes turned off, or a host with no file reader,
   // leave such a view as it was.
-  const quietIncludes = !hasConstraints && !hasEdges;
+  const quietIncludes = !constraints.length && !hasEdges;
 
   const fileName = (doc: string) => (doc === ROOT_DOC || doc === GRAPH_ROOT ? input.file : doc);
   const docOf = (path: string) => (path === GRAPH_ROOT ? ROOT_DOC : path);
@@ -401,7 +416,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
       const hidden = hiddenIn(path);
       farDocs.set(path, 'text' in read
         ? {
-          rules: tagBlocks(read.text).filter((b) => b.name === 'constraint' && !within(b.line, hidden) && !parentHides(b, input.includeHuman)),
+          rules: tagBlocks(read.text).filter((b) => isRuleBlock(b) && !within(b.line, hidden) && !parentHides(b, input.includeHuman)),
           sections: sectionsOf(parseSmd(read.text).headings, read.lines.length),
         }
         : { rules: [], sections: [] });
@@ -434,6 +449,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
         let why: FarRule['why'] | undefined;
         if (own.some((e) => namesFar(e, far))) why = 'applies-to';
         else if (!others.length) why = undefined;
+        else if (block.name === 'decision') why = own.some((e) => e.to!.file === file && holds(farSections.find((s) => s.start === e.to!.line))) ? 'applies-to' : undefined;
         else if ((block.values.scope ?? 'section').trim().toLowerCase() === 'document' || !section) why = 'document';
         else if (holds(section)) why = 'section';
         else if (own.some((e) => e.to!.file === file && holds(farSections.find((s) => s.start === e.to!.line)))) why = 'applies-to';
@@ -460,14 +476,17 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const whyBound = (c: FoundConstraint, pulled: readonly ClosureBlock[]): AppliedConstraint['applies'] | undefined => {
     const scope = (c.block.values.scope ?? 'section').trim().toLowerCase();
     const section = sectionAt(c.pos);
-    if (scope === 'document' || !section) return 'document';
-    if (!selected || selected.some((s) => s.start >= section.start && s.end <= section.end)) return 'section';
+    // A decision binds only what its applies-to names (4.1.0).
+    const decision = c.block.name === 'decision';
+    if (!decision && (scope === 'document' || !section)) return 'document';
+    if (!decision && (!selected || selected.some((s) => s.start >= section!.start && s.end <= section!.end))) return 'section';
     if (listed(c.block, 'applies-to').some((id) => targetShown(id, pulled) !== undefined)) return 'applies-to';
     if (!pulled.length) return undefined;
     // Its applies-to names a dependency read from another document (`other.smd#R2`).
     const far = farOf(pulled);
     const path = c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc;
     if (far.length && graph.edgesOf(path).some((e) => e.from.line === c.block.line && namesFar(e, far))) return 'applies-to';
+    if (decision || !section) return undefined;
     // A dependency the view adds sits in its section. The constraint itself, added as a dependency, is not a reason.
     const self = (p: ClosureBlock) => docOf(p.node.file) === c.doc && p.node.line! >= c.block.line && p.node.line! <= c.block.endLine;
     return pulled.some((p) => !self(p) && spotsOf(p).some((at) => at >= section.start && at <= section.end)) ? 'section' : undefined;
@@ -529,6 +548,8 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const hiddenTargetsOf = (file: string, line: number): string[] => [...new Set(graph.edgesOf(file)
     .filter((e) => e.type === 'applies-to' && e.from.line === line && e.status === 'resolved' && e.to?.line !== undefined && within(e.to.line, hiddenIn(e.to.file)))
     .map((e) => e.target))];
+  /** Where a carried rule is listed: a decision under `decisions`, a constraint under `constraints`. */
+  const ruleList = (b: TagBlock): AppliedConstraint[] => (b.name === 'decision' ? (plan.context.decisions ??= []) : plan.context.constraints);
   const hiddenMark = (targets: string[]) => {
     for (const t of targets) plan.hiddenTargets.add(t);
     return targets.length ? { hiddenTargets: targets } : {};
@@ -536,13 +557,13 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   for (const { c, why } of round.head) {
     addPick(plan.applying, c.doc, c.block.line, c.block.endLine);
     const hidden = hiddenTargetsOf(c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc, c.block.line);
-    plan.context.constraints.push({ ...(c.block.id ? { id: c.block.id } : {}), title: c.block.title, file: fileName(c.doc), line: c.block.line + 1, applies: why!, ...hiddenMark(hidden) });
+    ruleList(c.block).push({ ...(c.block.id ? { id: c.block.id } : {}), title: c.block.title, file: fileName(c.doc), line: c.block.line + 1, applies: why!, ...hiddenMark(hidden) });
     if (c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   }
   for (const c of constraints) if (c.inPlace && c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   for (const rule of round.far) {
     plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node), line: rule.block.line, end: rule.block.endLine });
-    plan.context.constraints.push({
+    ruleList(rule.block).push({
       ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why,
       ...hiddenMark(hiddenTargetsOf(rule.file, rule.block.line)),
     });
@@ -607,8 +628,8 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     for (const e of unresolvedOf(c)) {
       const status = e.status as Exclude<typeof e.status, 'resolved'>;
       unsatisfied({
-        kind: 'unresolved-target', target: e.target, file: fileName(c.doc), line: e.line + 1, via: c.block.id ?? `constraint "${c.block.title}"`,
-        reason: `${reasons[status]({ lines: e.lines })}, so the constraint is shown in every read`,
+        kind: 'unresolved-target', target: e.target, file: fileName(c.doc), line: e.line + 1, via: c.block.id ?? `${c.block.name} "${c.block.title}"`,
+        reason: `${reasons[status]({ lines: e.lines })}, so the ${c.block.name} is shown in every read`,
       });
     }
   }
@@ -619,7 +640,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   for (const c of constraints) {
     if (!c.inPlace) continue;
     const scope = (c.block.values.scope ?? 'section').trim().toLowerCase();
-    if (scope === 'document' || !sectionAt(c.pos) || unresolvedOf(c).length) { plan.ties.push({ holder: c.pos, needs: [], always: true }); continue; }
+    if ((c.block.name !== 'decision' && (scope === 'document' || !sectionAt(c.pos))) || unresolvedOf(c).length) { plan.ties.push({ holder: c.pos, needs: [], always: true }); continue; }
     const needs = c.doc === ROOT_DOC ? listed(c.block, 'applies-to').map((id) => targetShown(id)).filter((l): l is number => l !== undefined) : [];
     if (needs.length) plan.ties.push({ holder: c.pos, needs });
   }

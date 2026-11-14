@@ -15,7 +15,7 @@ import { aliasedHeading } from './headingAliases';
 import { parseFenceInfo, sliceLines } from './fence';
 import { figureTargets, findRefs, type Figure, type FigureRef } from './figures';
 import { splitIdRef, type IdTarget } from './idTarget';
-import { tagBlocks } from './semanticTags';
+import { tagBlocks, type TagBlock } from './semanticTags';
 import { compareVersions, findChangelogs, isIsoDate, parseVersion, versionKey, versionLabel, type ChangelogEntry, type Version } from './changelog';
 import { findQuotes, quoteCite, type QuoteBlock } from './quote';
 import { findGlossary, findTermUses, type GlossaryEntry, type GlossaryProblem } from './glossary';
@@ -249,6 +249,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   for (const quote of findQuotes(lines, fm.bodyStartLine, spec)) checkQuote(quote, lines[quote.line], push);
   checkVariables(lines, fm.bodyStartLine, fm.data, pushText, inCode);
   checkAgentInSkipped(text, lines, fm.bodyStartLine, push);
+  checkRulesForPeople(text, lines, fm.bodyStartLine, push);
 
   let result = applySuppressions(text, diagnostics);
   if (options.rules) result = applyRuleSettings(result, options.rules);
@@ -1381,6 +1382,51 @@ function agentInSkipped(raw: string, line: number, section: Section, push: Push)
   const column = raw.indexOf('agent');
   push(line, column, column + 'agent'.length, 'warning', 'container/agent-in-skip',
     `This :::agent block is in the section "${section.heading.text}" (line ${section.start + 1}), whose heading has {agent=skip}, so agent views leave it out and agents never read these instructions. Move the block out of that section, or remove agent=skip from the heading.`);
+}
+
+/** A part of the document that agent views leave out: a section marked {agent=skip} or a :::human block (zero-based). */
+interface PeopleOnly { start: number; end: number; what: string }
+
+const RULE_BLOCKS = new Set(['constraint', 'danger', 'requirement']);
+/** Prose that reads like a rule. Kept narrow on purpose: an info, not a judgement of every sentence. */
+const NORMATIVE = /\b(must not|never|do not|should not be used|at most \d+)\b/i;
+
+/**
+ * Rules that agents never see because they sit where agent views leave text out (4.1.0): a constraint, danger,
+ * requirement or accepted decision there is a warning (`audience/rule-in-skip`), and prose that reads like a rule is an
+ * info, once per section or block (`audience/normative-in-skip`). An :::agent block there has its own warning
+ * (container/agent-in-skip), so its lines are not looked at again. Rendering is not affected.
+ */
+function checkRulesForPeople(text: string, lines: string[], bodyStart: number, push: Push): void {
+  const blocks = tagBlocks(text);
+  const regions: PeopleOnly[] = [
+    ...sectionsOf(parseSmd(text).headings, lines.length).filter((s) => s.heading.agent === 'skip')
+      .map((s) => ({ start: s.start, end: s.end, what: `the section "${s.heading.text}" (line ${s.start + 1}), whose heading has {agent=skip}` })),
+    ...blocks.filter((b) => b.name === 'human').map((b) => ({ start: b.line, end: b.endLine, what: `the :::human block at line ${b.line + 1}` })),
+  ];
+  if (!regions.length) return;
+  const regionOf = (line: number) => regions.find((r) => line > r.start && line <= r.end);
+  const isRule = (b: TagBlock) => RULE_BLOCKS.has(b.name) || (b.name === 'decision' && (b.values.status ?? '').trim().toLowerCase() === 'accepted');
+  const flagged = new Set<PeopleOnly>();
+  for (const b of blocks.filter(isRule)) {
+    const region = regionOf(b.line);
+    if (!region) continue;
+    flagged.add(region);
+    const column = Math.max(0, lines[b.line].indexOf(b.name));
+    push(b.line, column, column + b.name.length, 'warning', 'audience/rule-in-skip',
+      `This :::${b.name}${b.id ? ` (${b.id})` : ''} is in ${region.what}, so agent views leave it out and agents never see the rule. Move it out, or remove the mark if agents should read this part.`);
+  }
+  const inAgent = (line: number) => blocks.some((b) => b.name === 'agent' && line >= b.line && line <= b.endLine);
+  for (const [i, fence] of outsideCode(lines, bodyStart, lines.length - 1)) {
+    if (fence) continue;
+    const region = regionOf(i);
+    if (!region || flagged.has(region) || inAgent(i) || /^\s*(:{3,}|#{1,6}\s)/.test(lines[i])) continue;
+    const m = NORMATIVE.exec(lines[i]);
+    if (!m) continue;
+    flagged.add(region);
+    push(i, m.index, m.index + m[0].length, 'info', 'audience/normative-in-skip',
+      `"${m[0]}" reads like a rule, but it is in ${region.what}, which agent views leave out. If agents must follow it, move it out or write it as a :::constraint outside that part.`);
+  }
 }
 
 function glossaryProblem(problem: GlossaryProblem, push: Push): void {
