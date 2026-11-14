@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, test } from 'node:test';
-import { cliBuilt, loadCases, runRequest, type Driver, type LoadedCase, type RequestResult } from './conformance/oracle';
+import { cliBuilt, evaluate, loadCases, observe, runRequest, type Driver, type LoadedCase, type RequestResult } from './conformance/oracle';
 
 /**
  * The read-contract conformance suite (improvement roadmap t-64): every request of every case under
@@ -50,4 +50,15 @@ test('conformance: every case has requests and the suite covers the views the la
   assert.ok(routes.some((r) => r.query !== undefined), 'a contract-aware query');
   const kinds = new Set(cases.flatMap((c) => c.spec.requests.flatMap((r) => (r.unsatisfied ?? []).flatMap((u) => (Array.isArray(u.kind) ? u.kind : [u.kind])))));
   for (const kind of ['missing', 'ambiguous', 'hidden', 'denied', 'cycle', 'depth', 'limit', 'include', 'unresolved-target']) assert.ok(kinds.has(kind), `an unsatisfied ${kind}`);
+});
+
+test('conformance: a block counts as shown only when the lines its span maps to show its text (4.1.0)', () => {
+  const c = (cases as LoadedCase[]).find((x) => x.name === '01-rules-outside-section')!;
+  const request = c.spec.requests.find((r) => (r.mustAppear ?? []).length > 0)!;
+  const obs = observe('library', c.dir, request.doc ?? 'doc.smd', request.route);
+  assert.ok(evaluate(c.name, c.dir, request, obs).checks.filter((k) => k.name.startsWith('appears')).every((k) => k.ok));
+  // The same manifest over a text whose mapped lines say something else: the map alone no longer passes.
+  const blanked = { ...obs, text: obs.text.split('\n').map((l) => (l.trim() ? 'unrelated text' : l)).join('\n') };
+  const appears = evaluate(c.name, c.dir, request, blanked).checks.filter((k) => k.name.startsWith('appears'));
+  assert.ok(appears.length > 0 && appears.every((k) => !k.ok), JSON.stringify(appears.map((k) => [k.name, k.ok])));
 });
