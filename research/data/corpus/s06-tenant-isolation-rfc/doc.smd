@@ -698,11 +698,11 @@ When you review or write a change that touches tenant data:
 - Do not paste response data or tenant identifiers from logs or fixtures into review comments.
 :::
 
-## Appendix A: review meeting notes {agent=skip}
+## Appendix A: review meeting notes
 
 These are the notes from the review meetings, kept for people who want to know how the design got here. They are not part of the specification. Where they disagree with the sections above, the sections above are right.
 
-### Architecture review, 2026-06-02 (revision 1)
+### Architecture review, 2026-06-02 (revision 1) {agent=skip}
 
 Present: Dana Whitfield, Kofi Mensah, Rafael Ortiz (reports), Mei Lin Zhou (collect), Tobias Brandt (infrastructure), Ayesha Karim (data), and four others from the architecture group.
 
@@ -710,7 +710,7 @@ Dana presented schema per tenant. Tobias asked how long a migration would take a
 
 Actions: Tobias to time a migration on 200 test schemas. Dana to write up row-level security as an alternative for the next review. Ayesha to describe what the warehouse copy would need for each option.
 
-### Architecture review, 2026-06-30 (revision 2)
+### Architecture review, 2026-06-30 (revision 2) {agent=skip}
 
 Present: the same group, plus Grace Obi from sales engineering.
 
@@ -726,7 +726,7 @@ Revision 3 was reviewed. Options A, C and E were rejected in the meeting, as rec
 
 There was a long discussion about whether to encrypt all tenant data with per-tenant keys. Ayesha pointed out it would make the warehouse useless for product metrics, and Mei Lin estimated that encrypting survey definitions as well would add 2 to 3 milliseconds to every builder read. The group settled on response data only.
 
-### Security review, 2026-08-19
+### Security review, 2026-08-19 {agent=skip}
 
 Present: Kofi Mensah, Dana Whitfield, two engineers from the security team, and the data protection officer.
 
@@ -734,7 +734,7 @@ The security team went through revision 3 line by line. They asked for three cha
 
 There was a question about whether the warehouse should be in scope. The group agreed to leave it as an open question rather than delay the RFC.
 
-### Architecture review, 2026-09-22 (revision 4)
+### Architecture review, 2026-09-22 (revision 4) {agent=skip}
 
 Present: Dana Whitfield, Kofi Mensah, Rafael Ortiz, Mei Lin Zhou, Tobias Brandt, Ayesha Karim, and the head of engineering.
 

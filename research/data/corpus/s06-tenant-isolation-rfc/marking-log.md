@@ -24,3 +24,6 @@ L688: :::agent — "This section is written for automated code review tools and 
 L701: {agent=skip} — "## Appendix A: review meeting notes" … "kept for people who want to know how the design got here. They are not part of the specification."
 L743: {agent=skip} — "## Appendix B: revision history"
 L751: {agent=skip} — "## Appendix C: INC-311 in brief" … "a short account of the incident for readers who were not here at the time"
+
+Revision of 2026-11-14 (people-only sections that held rules):
+L701: {agent=skip} moved from "## Appendix A: review meeting notes" to four of its subsections (L705 revision 1, L713 revision 2, L729 security review, L737 revision 4). The review of 2026-07-14 (L721) records the settled decision on per-tenant keys ("settled on response data only"), which agents need, so it is no longer people-only. Item response-data-only-keys was hidden from agent views before. The validator's audience checks of 4.1.0 did not flag it.
