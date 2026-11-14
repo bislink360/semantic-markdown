@@ -229,7 +229,7 @@ interface FoundInclude {
 
 interface ScannedDoc { path: string; text: string; hidden: Array<[number, number]> }
 
-const MAY_HOLD = /:{3,}\s*constraint(?![\w-])|depends-on|:depends\[|applies-to/i;
+const MAY_HOLD = /:::\s*constraint(?![\w-])|depends-on|:depends\[|applies-to/i;
 
 /**
  * A block that binds what it names or where it sits: every `:::constraint`, and an accepted `:::decision` with
