@@ -12,7 +12,7 @@ import type { AnnotationItem, Task } from './types';
  * the model chooses needs a model run and is recorded from its transcript.
  */
 
-export const DOC_CONDITIONS = ['M1', 'M2-outline', 'S1', 'S2', 'S4-brief', 'S4-budget'] as const;
+export const DOC_CONDITIONS = ['M1', 'M2-outline', 'S1', 'S1+includes', 'S2', 'S4-brief', 'S4-budget'] as const;
 export const TASK_CONDITIONS = ['M2-oracle', 'S3-oracle', 'O'] as const;
 export const ABLATIONS = ['all-audiences', 'plain-blocks', 'no-agent-block', 'no-doc-context'] as const;
 export type Ablation = (typeof ABLATIONS)[number];
@@ -22,6 +22,7 @@ export const CONDITION_NOTES: Record<string, string> = {
   'M2-outline': 'M2 first call only: the heading list. M2 itself needs a model run.',
   'M2-oracle': 'M2 with the oracle choice: heading list, then the sections holding the task items. The agent-chosen M2 needs a model run.',
   S1: '.smd raw file.',
+  'S1+includes': '.smd raw file with the raw text of each file it includes after the include line, as the agent view resolves them.',
   S2: 'Whole agent view.',
   'S3-oracle': 'MCP read outline, then the sections holding the task items. The agent-chosen S3 needs a model run.',
   'S4-brief': 'Brief agent view.',
@@ -77,6 +78,18 @@ function rendered(base: Omit<Rendered, 'tokensEstimate' | 'shown' | 'text' | 'no
 
 const viewOptions = (ctx: RenderContext): AgentViewOptions => ({ readFile: ctx.readFile, today: ctx.today, file: 'doc.smd' });
 
+/**
+ * The raw source with the raw text of each file it includes after the include's opening line (the whole file, front
+ * matter dropped, one level deep). S1 shows the file alone, so text kept in shared files never counts for it.
+ */
+export function withIncludedText(smd: string, readFile: (rel: string) => string | undefined): string {
+  return smd.split(/\r?\n/).flatMap((line) => {
+    const file = /^\s*:{3,}\s*include\{[^}]*\bfile="?([^"}\s]+)"?/.exec(line)?.[1];
+    const text = file === undefined ? undefined : readFile(file);
+    return text === undefined ? [line] : [line, text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').trimEnd()];
+  }).join('\n');
+}
+
 /** What the agent view result says besides its text. */
 function viewMeta(r: AgentViewResult): Record<string, unknown> {
   const meta: Record<string, unknown> = { viewTokens: r.tokens, fileTokens: r.originalTokens, skippedSections: r.skippedSections, missingSections: r.missingSections };
@@ -109,6 +122,7 @@ export function docConditions(doc: CorpusDoc, ctx: RenderContext): Rendered[] {
     rendered({ ...base, condition: 'M1', format: 'md', text: doc.md }, ctx),
     rendered({ ...base, condition: 'M2-outline', format: 'md', text: transcriptText({ calls: [outlineCall] }), shown: outlineCall.result, transcript: { calls: [outlineCall] }, notes: [CONDITION_NOTES['M2-outline']] }, ctx),
     rendered({ ...base, condition: 'S1', format: 'smd', text: doc.smd }, ctx),
+    rendered({ ...base, condition: 'S1+includes', format: 'smd', text: withIncludedText(doc.smd, ctx.readFile), notes: [CONDITION_NOTES['S1+includes']] }, ctx),
     rendered({ ...base, condition: 'S2', format: 'smd', text: s2.text, meta: viewMeta(s2) }, ctx),
     rendered({ ...base, condition: 'S4-brief', format: 'smd', text: brief.text, meta: viewMeta(brief) }, ctx),
     rendered({ ...base, condition: 'S4-budget', format: 'smd', text: budget.text, meta: { ...viewMeta(budget), maxTokens: half } }, ctx),
