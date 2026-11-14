@@ -138,10 +138,12 @@ test('the M2 tool lists headings, reads sections, searches and reads ranges', ()
 
 test('document conditions show the file, the agent views and the S2 ablations', () => {
   const views = new Map(docConditions(webhooks, ctx).map((r) => [r.condition, r]));
-  assert.deepEqual([...views.keys()], ['M1', 'M2-outline', 'S1', 'S2', 'S4-brief', 'S4-budget', 'S2.all-audiences', 'S2.plain-blocks', 'S2.no-agent-block']);
+  assert.deepEqual([...views.keys()], ['M1', 'M2-outline', 'S1', 'S1+includes', 'S2', 'S4-brief', 'S4-budget', 'S2.all-audiences', 'S2.plain-blocks', 'S2.no-agent-block']);
   const full = agentView(webhooks.smd, { readFile: ctx.readFile, today: ctx.today, file: 'doc.smd' });
   assert.equal(views.get('M1')!.text, webhooks.md);
   assert.equal(views.get('S1')!.text, webhooks.smd);
+  // S1+includes is S1 when the document includes nothing.
+  assert.equal(views.get('S1+includes')!.text, webhooks.smd.split(/\r?\n/).join('\n'));
   assert.equal(views.get('S2')!.text, full.text);
   assert.equal(views.get('M1')!.format, 'md');
   assert.equal(views.get('S2')!.format, 'smd');
@@ -571,4 +573,14 @@ test('compare-marks places both markings on doc.md lines and reports exact match
   } finally {
     done();
   }
+});
+
+test('4.1.0: S1+includes adds the raw text of an included file after its include line, and table cells match across padding', async () => {
+  const { withIncludedText } = await import('./eval/conditions');
+  const { normalise, hasEvidence } = await import('./eval/corpus');
+  const smd = ['# Doc', ':::include{file=../_shared/rules.smd}', ':::', 'After.'].join('\n');
+  const read = (rel: string) => (rel === '../_shared/rules.smd' ? '---\nsmd: 2\n---\nNever lower a SEV1.\n' : undefined);
+  assert.equal(withIncludedText(smd, read), ['# Doc', ':::include{file=../_shared/rules.smd}', 'Never lower a SEV1.', ':::', 'After.'].join('\n'));
+  assert.ok(hasEvidence(normalise('|One thread|6%|5%|'), 'One thread | 6% | 5%'));
+  assert.ok(hasEvidence(normalise('| One thread | 6% | 5% |'), 'One thread | 6% | 5%'));
 });

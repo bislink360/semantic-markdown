@@ -86,11 +86,15 @@ export function spanText(text: string, [start, end]: Span): string {
   return linesOf(text).slice(start - 1, end).join('\n');
 }
 
-/** Lower case, emphasis and code marks removed, quotes and dashes unified, whitespace collapsed. */
+/**
+ * Lower case, emphasis and code marks removed, quotes and dashes unified, the spaces around a table cell's `|` dropped
+ * (the agent view writes table rows without cell padding; 4.1.0), whitespace collapsed.
+ */
 export function normalise(s: string): string {
   return s.normalize('NFKC').toLowerCase()
     .replace(/[‘’]/g, '\'').replace(/[“”]/g, '"').replace(/[‐-―−]/g, '-')
     .replace(/[*_`~]+/g, '')
+    .replace(/[ \t]*\|[ \t]*/g, '|')
     .replace(/\s+/g, ' ')
     .trim();
 }
