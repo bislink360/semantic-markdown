@@ -48,7 +48,8 @@ test('t-67: a section read shows its own blocks, carries the rules and agent blo
   assert.deepEqual([at(blocks, 6).kind, at(blocks, 6).outcome, at(blocks, 6).placement], ['agent', 'carried', 'head']);
   assert.deepEqual([at(blocks, 24).kind, at(blocks, 24).outcome, at(blocks, 24).placement], ['constraint', 'carried', 'head']);
   assert.deepEqual([at(blocks, 28).outcome, at(blocks, 28).omission?.kind], ['omitted', 'not-selected']);
-  assert.deepEqual([at(blocks, 30).outcome, at(blocks, 30).omission?.kind], ['omitted', 'not-selected']);
+  // A section for people outside the selection is recorded as skipped, not as merely unselected (4.1.0).
+  assert.deepEqual([at(blocks, 30).outcome, at(blocks, 30).omission?.kind], ['omitted', 'skipped-section']);
   // The include sits in a section for people: omitted with it, and unavailable once that section is named and read.
   assert.deepEqual([at(view({}).blocks, 34).outcome, at(view({}).blocks, 34).omission?.kind], ['omitted', 'skipped-section']);
   assert.equal(at(view({ sections: ['Notes'] }).blocks, 34).outcome, 'unavailable');
@@ -82,4 +83,13 @@ test('t-67: the view reads fences and comments as rendering does, so no selected
   for (const text of ['```>`\n## Section\n', '</div>\n```ts\n\n## Section\n', '$$\n````\n$$\n# Title\n']) {
     assert.ok(read(text, ['Section', 'Title']).provenance!.blocks.every((b) => b.outcome !== 'unaccounted'), text);
   }
+});
+
+test('4.1.0: a section read records a section for people outside its selection as skipped, with that reason', () => {
+  const text = ['---', 'smd: 2', '---', '', '## Work', '', 'Work text.', '', '## Notes {agent=skip}', '', 'For people.', '', '## Other', '', 'Other text.', ''].join('\n');
+  const omissions = agentView(text, { sections: ['Work'], provenance: true }).provenance!.omissions;
+  const notes = omissions.find((o) => o.heading === 'Notes');
+  assert.deepEqual([notes?.kind, notes?.reason], ['skipped-section', 'marked {agent=skip}: meant for people']);
+  assert.equal(omissions.find((o) => o.heading === 'Other')?.kind, 'not-selected');
+  assert.equal(omissions.filter((o) => o.heading === 'Notes').length, 1);
 });

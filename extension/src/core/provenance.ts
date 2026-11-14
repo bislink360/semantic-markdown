@@ -287,7 +287,9 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
   const within = (inner: Section, outer: Section) => inner.start >= outer.start && inner.end <= outer.end;
   const read = (heading: string) => `smd agent ${file} --section "${heading.replace(/"/g, '')}"`;
   const out: Omission[] = [];
-  const skipped = input.skipped.filter((s) => !selected?.some((sel) => sel.heading === s.heading) && (!selected || selected.some((sel) => within(s, sel))));
+  // A section marked {agent=skip} is recorded as skipped whether or not a selection names other sections, unless it is
+  // selected itself or holds a selected section (4.1.0: before, one outside the selection was only "not selected").
+  const skipped = input.skipped.filter((s) => !selected?.some((sel) => sel.heading === s.heading || (overlaps(s, sel) && !within(s, sel))));
   for (const s of skipped) {
     if (skipped.some((o) => o !== s && within(s, o))) continue;
     out.push({
@@ -298,7 +300,7 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
   if (selected) {
     const listed: Section[] = [];
     for (const s of sections) {
-      if (selected.some((sel) => overlaps(s, sel)) || listed.some((l) => within(s, l))) continue;
+      if (selected.some((sel) => overlaps(s, sel)) || listed.some((l) => within(s, l)) || skipped.some((k) => within(s, k))) continue;
       listed.push(s);
       out.push({ kind: 'not-selected', file, lines: [s.start + 1, s.end + 1], heading: s.heading.text, retrieve: read(s.heading.text), reason: 'outside the requested sections' });
     }
