@@ -20,7 +20,8 @@ import { runRev } from './revCommand';
 import { loadMermaidParser } from './mermaidLoader';
 import { loadTokenizer, TokenizerError, TOKENIZERS } from './tokenizer';
 import { EXPORT_HELP, runExport } from './exportCommand';
-import { fail, langOption, LANG_USAGE, requireFile, write } from './cliIo';
+import { type Args, parseArgs, reads } from './cliOptions';
+import { fail, langOption, LANG_USAGE, reportCrash, requireFile, write } from './cliIo';
 import { loadRuleConfig, readConfigFile, type LoadedConfig } from './config';
 import { runMcpServer } from './mcp';
 import { readDocument, READ_BUDGET, type ReadMode, type ReadResult } from './readView';
@@ -281,45 +282,13 @@ Agent skills:
 
 const SKILLS_USAGE = 'Usage: smd skills install [--dir <dir>] [--global] [--only reader|writer] [--target claude|cursor|copilot|agents]';
 
-interface Args { command?: string; positional: string[]; flags: Set<string>; values: Map<string, string[]> }
-
-const VALUE_OPTIONS = new Set([
-  '--config', '--stale-after', '-o', '--title', '--section', '--dir', '--mine', '--today', '--template', '--only', '--root', '--target', '--since',
-  '--max-tokens', '--tokenizer', '--status', '--owner', '--repo', '--label', '--format', '--summary', '--out', '--base', '--url', '--image',
-  '--lang', '--to', '--pandoc', '--reference-doc', '--browser', '--engine', '--price', '--agent', '--command', '--provenance',
-  '--follow', '--direction', '--depth', '--view', '--order', '--from',
-  '--text', '--by', '--reason', '--kind',
-]);
-
-function parseArgs(argv: string[]): Args {
-  const [command, ...rest] = argv;
-  const args: Args = { command, positional: [], flags: new Set(), values: new Map() };
-  for (let i = 0; i < rest.length; i++) {
-    const a = rest[i];
-    if (a === '--') {
-      // End of options: the rest are files, even ones that start with "-" (as Git hooks may pass them).
-      args.positional.push(...rest.slice(i + 1));
-      break;
-    }
-    if (VALUE_OPTIONS.has(a)) {
-      const list = args.values.get(a) ?? [];
-      list.push(rest[++i] ?? '');
-      args.values.set(a, list);
-    } else if (a.startsWith('-')) {
-      args.flags.add(a);
-    } else {
-      args.positional.push(a);
-    }
-  }
-  return args;
-}
-
 function main(argv: string[]): number | Promise<number> {
-  const args = parseArgs(argv);
+  const args = parseArgs(argv, (message) => console.error(`[smd] warning: ${message}`));
   const { command, positional, flags } = args;
   const value = (name: string) => args.values.get(name)?.[0];
   const today = value('--today');
-  const staleAfter = value('--stale-after');
+  // Only the commands that read --stale-after check it (t-07).
+  const staleAfter = reads(command, '--stale-after') ? value('--stale-after') : undefined;
   const staleAfterDays = staleAfter === undefined ? undefined : Number(staleAfter);
   if (staleAfterDays !== undefined && !(staleAfterDays >= 0)) return fail('--stale-after needs a number of days (0 turns the check off).');
 
@@ -449,21 +418,30 @@ function fromMd(file: string, from: string | undefined, out: string | undefined,
 /** `smd validate` output formats: `--json` is short for `--format json`. */
 const VALIDATE_FORMATS = ['text', 'json', 'github'];
 
-interface Validation { files: number; report: FileReport[]; configProblems: ConfigProblem[]; errors: number; warnings: number }
+/** A path given to `smd validate` that could not be checked (t-08): listed in `inputErrors`, and the exit code is 2. */
+interface InputError { path: string; message: string }
+
+interface Validation {
+  files: number; report: FileReport[]; configProblems: ConfigProblem[]; errors: number; warnings: number; inputErrors: InputError[];
+}
 
 async function validate(targets: string[], args: Args, today?: string, staleAfterDays?: number): Promise<number> {
   const format = validateFormat(args);
   if (!format) return fail(`--format needs one of: ${VALIDATE_FORMATS.join(', ')} (--json is --format json).`);
-  const files = targets.flatMap((t) => collect(t));
-  if (!files.length) return fail('No .smd files found.');
-  const { report, configProblems } = await checkFiles(files, args, { today, staleAfterDays });
+  // A missing path never hides behind the files that were found: the rest are still checked, and the run exits 2.
+  const inputErrors: InputError[] = targets.filter((t) => !fs.existsSync(t)).map((t) => ({ path: t, message: `Not found: ${t}` }));
+  const files = targets.filter((t) => fs.existsSync(t)).flatMap((t) => collect(t));
+  if (!files.length && !inputErrors.length) return fail('No .smd files found.');
+  if (format !== 'json') for (const e of inputErrors) console.error(e.message);
+  const { report, configProblems } = files.length ? await checkFiles(files, args, { today, staleAfterDays }) : { report: [], configProblems: [] };
   const all = report.flatMap((r) => r.diagnostics);
   const errors = all.filter((d) => d.severity === 'error').length;
   const warnings = all.filter((d) => d.severity === 'warning').length + configProblems.length;
-  const result: Validation = { files: files.length, report, configProblems, errors, warnings };
-  VALIDATE_PRINTERS[format](result);
+  const result: Validation = { files: files.length, report, configProblems, errors, warnings, inputErrors };
+  if (files.length || format === 'json') VALIDATE_PRINTERS[format](result);
   const summary = args.values.get('--summary')?.[0];
-  if (summary) fs.appendFileSync(summary, validationSummary(ciResult(result), { linkBase: blobBase(process.env) }) + '\n');
+  if (summary && files.length) fs.appendFileSync(summary, validationSummary(ciResult(result), { linkBase: blobBase(process.env) }) + '\n');
+  if (inputErrors.length) return 2;
   return errors > 0 || (args.flags.has('--strict') && warnings > 0) ? 1 : 0;
 }
 
@@ -505,7 +483,9 @@ function reportConfigProblems(config: LoadedConfig, seen: ConfigProblem[]): void
 
 const VALIDATE_PRINTERS: Record<string, (result: Validation) => void> = {
   text: printValidationText,
-  json: ({ report, errors, warnings }) => process.stdout.write(JSON.stringify({ files: report, errors, warnings }, null, 2) + '\n'),
+  // `inputErrors` appears only when a given path was missing, so other reports stay byte for byte as before.
+  json: ({ report, errors, warnings, inputErrors }) =>
+    process.stdout.write(JSON.stringify({ files: report, errors, warnings, ...(inputErrors.length ? { inputErrors } : {}) }, null, 2) + '\n'),
   github: (result) => {
     for (const line of githubAnnotations(ciResult(result))) console.log(line);
   },
@@ -754,6 +734,7 @@ function readCommand(file: string, args: Args, today?: string): number {
     const result = readDocument(read(file), {
       mode, maxTokens, sections, exactSections: flags.has('--exact'), brief: flags.has('--brief'), lineRefs: !flags.has('--no-lines'),
       readFile: readerFor(file), today, file, tokenizer, constraints: flags.has('--constraints'), provenance: manifest !== undefined,
+      ...(flags.has('--evidence') ? { evidence: 'full' as const } : {}),
       ...(follow !== undefined ? { follow, ...graph, readDocument: graphReader([folder]), ...(others ? { documents: others } : {}) } : {}),
     });
     if (result.missingSections.length) {
@@ -1270,4 +1251,7 @@ function removeLegacySkill(folder: string): void {
   console.log(`Removed ${folder}  (the same skill under its pre-3.0 name)`);
 }
 
-void Promise.resolve(main(process.argv.slice(2))).then((code) => { process.exitCode = code; });
+// The error boundary: a throw or a rejected promise from any command becomes one line on stderr and an exit code.
+void Promise.resolve()
+  .then(() => main(process.argv.slice(2)))
+  .then((code) => { process.exitCode = code; }, (error: unknown) => { process.exitCode = reportCrash(error); });

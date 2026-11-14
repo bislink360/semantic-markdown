@@ -12,6 +12,7 @@ import { findSection, sectionsOf } from './sections';
 import { EDGE_KINDS, ID_ATTRIBUTES, idList } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { suggest } from './util';
+import { dependsLists } from './codeSpans';
 
 /**
  * The reference graph of .smd documents (filtering G1 to G5, research contract "Edge semantics"). Edges are derived
@@ -143,8 +144,6 @@ interface Loaded {
   view?: (start: number, end: number) => string;
   edges?: GraphEdge[];
 }
-
-const DEPENDS = /(^|[\s([{>*_~"'-]):depends\[([^\]\n]*)\]/gi;
 
 export class DocumentGraph {
   private readonly given: string[];
@@ -326,8 +325,7 @@ export class DocumentGraph {
       }
       if (block.type === 'task') {
         if (doc.spec < 2) continue;
-        const raw = (doc.lines[block.line] ?? '').replace(/(`+)([\s\S]*?)\1/g, (m) => ' '.repeat(m.length));
-        for (const m of raw.matchAll(DEPENDS)) for (const id of idList(m[2])) idEdge('depends-on', from, block.line, id);
+        for (const { list } of dependsLists(doc.lines[block.line] ?? '')) for (const id of idList(list)) idEdge('depends-on', from, block.line, id);
         continue;
       }
       for (const [key, names] of Object.entries(ID_ATTRIBUTES)) {

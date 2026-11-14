@@ -7,7 +7,7 @@ import { normalizeFootnoteLabel } from './footnotes';
 import { parseFrontMatter } from './frontmatter';
 import { acceptAnyFootnote, mathInline, type ContainerMeta, type TaskBoxMeta } from './markdownItRules';
 import { createMarkdownIt, type Env, type Heading, type ResolvedOptions } from './render';
-import { CALLOUT_TYPES } from './spec';
+import { CONTAINERS } from './spec';
 import { specVersion, type SpecVersion } from './specVersion';
 import { shownValues, type Variables } from './variables';
 
@@ -166,8 +166,8 @@ const parser = () => (md ??= recordingInlineItems(recordingInlineMath(recordingD
 /** Container titles render as inline Markdown with raw HTML off (see renderContainer). */
 let titleMd: MarkdownIt | undefined;
 const titleParser = () => (titleMd ??= createMarkdownIt({ allowHtml: false }));
-const TITLED = new Set<string>([...CALLOUT_TYPES, 'details', 'card', 'tab', 'agent', 'human', 'decision', 'risk', 'api', 'figure', 'glossary',
-  'requirement', 'constraint', 'acceptance', 'assumption', 'evidence', 'non-goals', 'example', 'limitation', 'deprecated', 'comment', 'suggestion']);
+/** The containers whose title renders, taken from the vocabulary so the two cannot drift (spec §3). */
+const TITLED = new Set<string>(Object.entries(CONTAINERS).filter(([, def]) => def.title).map(([name]) => name));
 /** Whether a container renders its title: the ones above, and unknown containers (spec §3). */
 const rendersTitle = (name: string): boolean => TITLED.has(name) || !isKnownContainer(name);
 
