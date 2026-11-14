@@ -50,13 +50,25 @@ export function runEnv(base = process.env) {
   return env;
 }
 
+/**
+ * Run git with these arguments; its result as spawnSync gives it. The one place this script starts git.
+ * @param {string[]} args
+ * @param {{ cwd?: string, maxBuffer?: number }} [options]
+ */
+function runGit(args, options = {}) {
+  return spawnSync('git', args, { cwd: ROOT, encoding: 'utf8', ...options }); // NOSONAR(javascript:S4036): the maintainer's or CI runner's own git, found on PATH like the release scripts
+}
+
+/** Byte-order comparison, so the order doesn't depend on the locale. */
+const byCode = (a, b) => (a < b ? -1 : Number(a > b));
+
 /** The tracked corpus files, sorted, as /-separated paths from the repository root. */
 export function corpusFiles(root = ROOT) {
   const files = [];
   for (const corpus of CORPORA) {
-    const listed = spawnSync('git', ['ls-files', '-z', '--', corpus.dir], { cwd: root, encoding: 'utf8' });
+    const listed = runGit(['ls-files', '-z', '--', corpus.dir], { cwd: root });
     if (listed.status !== 0) throw new Error(`git ls-files failed: ${listed.stderr}`);
-    files.push(...listed.stdout.split('\0').filter((f) => corpus.extensions.some((e) => f.endsWith(e))).sort());
+    files.push(...listed.stdout.split('\0').filter((f) => corpus.extensions.some((e) => f.endsWith(e))).sort(byCode));
   }
   return files;
 }
@@ -174,7 +186,7 @@ export function staleCli(extension = EXTENSION) {
   return undefined;
 }
 
-const git = (args, cwd = ROOT) => spawnSync('git', args, { cwd, encoding: 'utf8' }).stdout.trim();
+const git = (args, cwd = ROOT) => runGit(args, { cwd }).stdout.trim();
 
 function cliVersion(cli) {
   const run = spawnSync(process.execPath, [cli, '--version'], { encoding: 'utf8', env: runEnv() });
@@ -184,7 +196,7 @@ function cliVersion(cli) {
 /** The snapshot file's content for these runs. */
 export function snapshotDocument(runs, { files, cli, root = ROOT }) {
   const caseRecords = {};
-  for (const key of [...runs.keys()].sort()) caseRecords[key] = recorded(runs.get(key));
+  for (const key of [...runs.keys()].sort(byCode)) caseRecords[key] = recorded(runs.get(key));
   return {
     format: FORMAT,
     generator: 'extension/scripts/snapshots.mjs',
@@ -200,14 +212,14 @@ export function snapshotDocument(runs, { files, cli, root = ROOT }) {
 function buildBase(ref) {
   const dir = fs.mkdtempSync(join(os.tmpdir(), 'smd-snapshot-base-'));
   const tree = join(dir, 'tree');
-  const add = spawnSync('git', ['worktree', 'add', '--detach', tree, ref], { cwd: ROOT, encoding: 'utf8' });
+  const add = runGit(['worktree', 'add', '--detach', tree, ref]);
   if (add.status !== 0) throw new Error(`git worktree add ${ref} failed: ${add.stderr}`);
   const modules = join(tree, 'extension', 'node_modules');
   fs.symlinkSync(join(EXTENSION, 'node_modules'), modules, 'junction');
   const cleanup = () => {
     // Remove the link itself, never what it points at.
     try { if (process.platform === 'win32') fs.rmdirSync(modules); else fs.unlinkSync(modules); } catch { /* already gone */ }
-    spawnSync('git', ['worktree', 'remove', '--force', tree], { cwd: ROOT });
+    runGit(['worktree', 'remove', '--force', tree]);
     fs.rmSync(dir, { recursive: true, force: true });
   };
   const build = spawnSync(process.execPath, ['scripts/build.mjs'], { cwd: join(tree, 'extension'), encoding: 'utf8' });
@@ -224,7 +236,7 @@ function unifiedDiff(before, after, label) {
   try {
     fs.writeFileSync(join(dir, 'before'), before);
     fs.writeFileSync(join(dir, 'after'), after);
-    const diff = spawnSync('git', ['diff', '--no-index', '--no-color', '--text', '-U2', 'before', 'after'], { cwd: dir, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+    const diff = runGit(['diff', '--no-index', '--no-color', '--text', '-U2', 'before', 'after'], { cwd: dir, maxBuffer: 256 * 1024 * 1024 });
     return diff.stdout.replace(/^diff --git .*\n(index .*\n)?--- a\/before\n\+\+\+ b\/after\n/, `--- ${label} (base)\n+++ ${label} (this build)\n`);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
