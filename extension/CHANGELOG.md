@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.1.0 — 2026-11-14
+
+### ⚠️ Breaking changes
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Fixed
+
 ## Unreleased
 
 ### Added
