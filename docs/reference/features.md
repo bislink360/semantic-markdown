@@ -1608,7 +1608,7 @@ smd migrate <files|dirs> --to 2 [--dry-run | --check] [--json] [--no-verify] [--
                  migrate to spec v2 (below); --dry-run reports the plan, --check exits 1 when something needs it
 smd export <file> --to <format> [-o <file>] [--lang <tag>] [--comments]   one export command (section 16); -o's extension
                  (.html, .md, .pdf, .docx) picks the format when --to is missing
-smd export <file> --to html [-o out.html] [--no-content-policy]   standalone page, with a print stylesheet, under a content policy
+smd export <file> --to html [-o out.html] [--no-content-policy] [--today YYYY-MM-DD]   standalone page, with a print stylesheet, under a content policy
 smd export <file> --to md [-o out.md]               plain GitHub-flavored Markdown
 smd export <file> --to pdf [-o out.pdf] [--format A4|Letter] [--landscape] [--browser <path>]   PDF; an installed Chrome, Edge, Chromium or Brave, or Playwright/Puppeteer
 smd export <file> --to docx [-o out.docx] [--engine builtin|pandoc] [--pandoc <path>] [--reference-doc <file.docx>] [--html-only]   Word; Pandoc if installed, else built in
