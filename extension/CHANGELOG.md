@@ -2,18 +2,6 @@
 
 ## 4.1.0 — 2026-11-14
 
-### ⚠️ Breaking changes
-
-### Added
-
-### Changed
-
-### Deprecated
-
-### Fixed
-
-## Unreleased
-
 ### Added
 - **Section views keep the constraints that apply and the blocks they depend on.** `smd agent --section`, `smd read --section` and the MCP `read` tool with sections show the `:::constraint` blocks that apply from other sections and included files under "Constraints that apply here", and what the selected content `depends-on` under "Dependencies of the selected content". A cycle or a missing, hidden or unread dependency is listed under `Not satisfied:` and the view ends with `[incomplete: …]`, also in `--provenance` (`mandatory`, and omissions of kind `dependency`). Documents without constraints or dependencies read as before.
 - **`smd rev <file> <id>…`** prints a block's current revision, `R1@3f2a9c1b0d4e`, to record in `rev=` on a comment, a suggestion or an evidence record.
