@@ -2,6 +2,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { taskCheckbox } from './editing';
+import { followLink, type LinkContext } from './linkPolicy';
 
 /** Tick or untick the task checkbox on `line` of the document; nothing when that line has none. */
 export async function toggleTask(document: vscode.TextDocument, line: number): Promise<void> {
@@ -23,18 +24,23 @@ export async function revealLine(document: vscode.TextDocument, line: number): P
   editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenterIfOutsideViewport);
 }
 
-/** Follow a link clicked in the page: URLs outside VS Code, files relative to the document in an editor. */
-export async function openLink(document: vscode.TextDocument, href: string): Promise<void> {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
-    await vscode.env.openExternal(vscode.Uri.parse(href));
-    return;
-  }
-  const [file] = href.split('#');
-  const target = vscode.Uri.file(path.resolve(path.dirname(document.uri.fsPath), decodeURIComponent(file)));
-  try {
-    await vscode.workspace.fs.stat(target);
-    await vscode.commands.executeCommand('vscode.open', target, vscode.ViewColumn.One);
-  } catch {
-    vscode.window.showWarningMessage(`Semantic Markdown: "${file}" does not exist.`);
-  }
+/**
+ * Follow a link clicked in the page under the one link policy (linkPolicy.ts): web and mail links outside VS Code,
+ * files inside the workspace in an editor, anything else refused with a message that shows the link.
+ */
+export async function openLink(document: vscode.TextDocument, href: unknown): Promise<void> {
+  await followLink(href, linkContext(document), {
+    openExternal: (url) => vscode.env.openExternal(vscode.Uri.parse(url, true)),
+    openFile: (file) => vscode.commands.executeCommand('vscode.open', vscode.Uri.file(file), vscode.ViewColumn.One),
+    refuse: (message) => vscode.window.showInformationMessage(message),
+    missing: (message) => vscode.window.showWarningMessage(message),
+  });
+}
+
+/** Relative links resolve against the document; files may be in a workspace folder, or beside a document in none. */
+export function linkContext(document: vscode.TextDocument): LinkContext {
+  const folders = (vscode.workspace.workspaceFolders ?? []).filter((f) => f.uri.scheme === 'file').map((f) => f.uri.fsPath);
+  if (document.uri.scheme !== 'file') return { roots: folders };
+  const documentDir = path.dirname(document.uri.fsPath);
+  return { documentDir, roots: vscode.workspace.getWorkspaceFolder(document.uri) ? folders : [documentDir] };
 }
