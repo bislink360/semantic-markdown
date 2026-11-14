@@ -55,7 +55,7 @@ The short version of this guide; each item is described in full in the sections 
 |---|---|
 | `smd read <file> [--max-tokens N]` | One call for agents: the whole agent view when it fits the budget (default 2,000 tokens), else the outline and how to read single sections |
 | `smd index <dir> [-o catalog.json]` | JSON catalog of every doc (title, summary, status, owners, tags, sections, token costs, open tasks, risks…) so agents pick which docs to read |
-| `smd outline <file> [--related]` | Sections with line ranges and token costs; `--related` adds each `related:` doc's title, status, summary and cost |
+| `smd outline <file> [--related] [--compact]` | Sections with line ranges and token costs; `--related` adds each `related:` doc's title, status, summary and cost; `--compact` prints one unpadded row per heading (`21-26 ## Why laws ≈203`), the form `smd read` returns |
 | `smd agent <file> [--section …] [--brief] [--max-tokens N]` | Compact agent view; `--max-tokens` condenses it and leaves out the least important sections (with pointers) to fit |
 | `smd agent <file> --provenance view.json` | Also writes a JSON manifest of the view: source hashes, settings, selected sections, a source map and every omission with its reason (also on `smd read`) |
 | `smd agent <file> --section … --constraints` | Experimental: also lists the constraints outside those sections (danger blocks in full, warnings, accepted decisions and open questions as pointers). Without it, a section view still shows the danger blocks of other sections |
@@ -1560,7 +1560,7 @@ Rendered pages (the preview, `smd export --to html`, `smd build` sites and `smd 
 ```text
 smd read <file> [--max-tokens <n>]                   one call for agents: the whole agent view if it fits n tokens
                  (default 2000), else the outline and how to read sections with smd agent --section
-smd outline <file> [--related] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs
+smd outline <file> [--related] [--compact] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs; --compact as smd read returns it
 smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
                  [--max-tokens <n>] [--tokenizer <name>]   fit the view into n tokens; exact counts
                  --no-includes: a pointer per :::include instead of the included text
