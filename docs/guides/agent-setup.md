@@ -8,6 +8,7 @@ Agents read `.smd` documents through the CLI or the MCP server instead of readin
 - [One command for a project: `smd init --agent`](#one-command-for-a-project-smd-init---agent)
 - [MCP server](#mcp-server)
 - [The agent skills](#the-agent-skills)
+- [Skills in Codex](#skills-in-codex)
 - [Skills in Claude Code](#skills-in-claude-code)
 - [Claude.ai and the Claude desktop app](#claudeai-and-the-claude-desktop-app)
 - [Claude API and Claude Agent SDK](#claude-api-and-claude-agent-sdk)
@@ -98,6 +99,18 @@ Semantic Markdown ships two **agent skills**: folders of instructions, reference
 
 The skills load in stages to keep their own cost low. Only the two descriptions (≈260 tokens together) are in context every session. The reader's `SKILL.md` (≈480 tokens) loads when a task needs a `.smd` file, and `references/reading.md` only when the agent needs more than the basics. The writer reads its syntax index and then only the topic file for the construct it is writing. How the skills, the agent view and author markup cut tokens, what they cost and the break-even document size: [the token report](../reports/tokens.md).
 
+## Skills in Codex
+
+Codex discovers project skills in `.agents/skills/`. This repository already includes `semantic-markdown-reader` and `semantic-markdown-writer` there. Open a new Codex session in the project and type `$` to select a skill, or ask Codex to read or write a `.smd` document.
+
+For another repository, run the following from its root using the [standalone CLI](install.md#install-the-smd-cli) with Node.js 22 or later. Commit the resulting `.agents/skills/` files to share the skills with your team.
+
+```bash
+node /path/to/smd.cjs skills install --dir .agents/skills
+```
+
+You can also copy `skills/semantic-markdown-reader/` and `skills/semantic-markdown-writer/` from this repository into the target project's `.agents/skills/` folder. Each includes its own CLI and references.
+
 ## Skills in Claude Code
 
 Claude Code discovers skills in two places:
@@ -161,7 +174,7 @@ The skills need a sandbox with Node.js 22+ for `scripts/smd.cjs`.
 
 ## GitHub Copilot, Cursor, Codex, Windsurf and other agents
 
-Agents without skill support follow the same workflow through their instruction files.
+Use instruction files to share the same workflow with agents that read project rules.
 
 ### Option 1 — install with the CLI (recommended)
 

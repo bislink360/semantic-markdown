@@ -40,6 +40,8 @@
 /plugin install semantic-markdown@semantic-markdown
 ```
 
+**Codex** discovers this repository's project skills for reading and writing `.smd`. For setup in another repository, see [Skills in Codex](docs/guides/agent-setup.md#skills-in-codex).
+
 **Any agent, one project:** run this in your repository and commit the result. It installs the skills (Claude Code) or a rules file (Cursor, Copilot, `AGENTS.md`), the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet.
 
 ```bash
