@@ -1,0 +1,50 @@
+---
+smd: 2
+title: Token budgets
+summary: Sections of different sizes, a rule that must be carried and open tasks, read with budgets set exactly at the size of a view and one token under it, so what a budget keeps and omits stays as it is when budget counting is refactored.
+status: draft
+---
+
+## Goal
+
+Ship the refund service before the end of the quarter, with the rules below carried into every read.
+
+:::constraint{#TB-C1 applies-to=TB-R1} Every refund is logged with the order number
+:::
+
+## Requirements
+
+:::requirement{#TB-R1} A refund needs the order number
+The order number is checked against the order service before any money moves.
+:::
+
+:::requirement{#TB-R2} Refunds over 500 need a second approval
+:::
+
+## Plan
+
+- [ ] Build the refund endpoint {#TB-T1}
+- [ ] Add the approval step :depends[TB-T1] {#TB-T2}
+- [x] Agree the limits with finance {#TB-T3}
+
+## Background
+
+The old refund process ran on a spreadsheet. Each request was copied by hand into the payment tool, checked by a
+second person and then paid. Requests often waited a week, and the order number was sometimes typed wrong, so the
+wrong customer was refunded twice last year. The new service reads the order directly, so nobody types it.
+
+The finance team asked for an audit trail, a second approval above a limit and a daily report. The audit trail is the
+log the constraint asks for. The report is out of scope for the first release and comes later.
+
+## History
+
+- 2026-09-01. The spreadsheet process was reviewed.
+- 2026-09-15. Finance agreed the 500 limit.
+- 2026-10-01. Work on the service started.
+- 2026-10-20. The first endpoint was demonstrated.
+
+## Notes for people
+
+:::human
+Ask Maya before changing the approval limit. She owns the agreement with finance.
+:::

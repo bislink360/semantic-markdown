@@ -1,6 +1,8 @@
-// Output snapshots of the built CLI over both corpora (improvement roadmap t-01). Each corpus file goes through
-// `smd agent`, `smd validate --format json`, `smd export --to md` and `smd export --to html`, and each run's exit
-// status, stdout and stderr are recorded separately, as digests, in test/snapshots/corpus.json.
+// Output snapshots of the built CLI over both corpora and the focused fixtures (improvement roadmap t-01 and t-02).
+// Each corpus file goes through `smd agent`, `smd validate --format json`, `smd export --to md` and
+// `smd export --to html`. The requests add reads with budgets and sections: those test/snapshots/fixtures/requests.json
+// lists, and every request of the read-contract cases in test/conformance/cases. Each run's exit status, stdout and
+// stderr are recorded separately, as digests, in test/snapshots/corpus.json.
 //
 //   node scripts/snapshots.mjs                 check the built CLI against the snapshots (exit 1 on a difference)
 //   node scripts/snapshots.mjs --diff [--base origin/main]
@@ -27,11 +29,21 @@ export const FORMAT = 1;
 /** The fixed date every dated view is rendered for. */
 export const TODAY = '2026-01-15';
 
-/** The corpora: tracked files under each folder, by extension. */
+/**
+ * The corpora: tracked files under each folder, by extension. A folder named `parts` holds files the corpus files
+ * include, which are read through them and are not corpus files themselves.
+ */
 export const CORPORA = [
   { name: 'compat', dir: 'extension/test/compat/corpus', extensions: ['.smd'] },
   { name: 'research', dir: 'research/data/corpus', extensions: ['.md', '.smd'] },
+  { name: 'focused', dir: 'extension/test/snapshots/fixtures', extensions: ['.smd'] },
 ];
+
+/** The focused fixtures' own requests: `{ requests: [{ file, name, argv }] }`, with `{file}` and `{today}` in argv. */
+export const FOCUSED_REQUESTS = 'extension/test/snapshots/fixtures/requests.json';
+
+/** The read-contract cases (t-64): each folder's case.json lists requests over its fixture files. */
+export const CONFORMANCE = 'extension/test/conformance/cases';
 
 /** The commands each file goes through, with `{file}` for its path. */
 export const COMMANDS = {
@@ -62,28 +74,46 @@ function runGit(args, options = {}) {
 /** Byte-order comparison, so the order doesn't depend on the locale. */
 const byCode = (a, b) => (a < b ? -1 : Number(a > b));
 
+/** The tracked files under `dir`, sorted, as /-separated paths from the repository root. */
+function tracked(dir, root = ROOT) {
+  const listed = runGit(['ls-files', '-z', '--', dir], { cwd: root });
+  if (listed.status !== 0) throw new Error(`git ls-files failed: ${listed.stderr}`);
+  return listed.stdout.split('\0').filter(Boolean).sort(byCode);
+}
+
 /** The tracked corpus files, sorted, as /-separated paths from the repository root. */
 export function corpusFiles(root = ROOT) {
-  const files = [];
-  for (const corpus of CORPORA) {
-    const listed = runGit(['ls-files', '-z', '--', corpus.dir], { cwd: root });
-    if (listed.status !== 0) throw new Error(`git ls-files failed: ${listed.stderr}`);
-    files.push(...listed.stdout.split('\0').filter((f) => corpus.extensions.some((e) => f.endsWith(e))).sort(byCode));
-  }
-  return files;
+  return CORPORA.flatMap((corpus) => tracked(corpus.dir, root)
+    .filter((f) => corpus.extensions.some((e) => f.endsWith(e)) && !f.slice(corpus.dir.length).includes('/parts/')));
+}
+
+const focusedDir = () => CORPORA.find((c) => c.name === 'focused').dir;
+
+/**
+ * Every file the runs read: the corpus files, the files they include, the focused requests and the conformance
+ * cases. The digest covers them all.
+ */
+export function inputFiles(root = ROOT) {
+  const files = new Set(corpusFiles(root));
+  for (const file of [...tracked(focusedDir(), root), ...tracked(CONFORMANCE, root)]) files.add(file);
+  return [...files].sort(byCode);
 }
 
 /**
- * How many files each corpus has, and a digest of their paths and bytes.
- * @returns {{ compat: number, research: number, digest: string }}
+ * How many files each corpus has, how many requests each source adds, and a digest of the paths and bytes of every
+ * file the runs read.
+ * @returns {{ compat: number, research: number, focused: number, requests: { focused: number, conformance: number }, digest: string }}
  */
 export function corpusSummary(files, root = ROOT) {
   const hash = createHash('sha256');
   /** @type {Record<string, number>} */
   const counts = {};
   for (const corpus of CORPORA) counts[corpus.name] = files.filter((f) => f.startsWith(`${corpus.dir}/`)).length;
-  for (const file of files) hash.update(file).update('\0').update(fs.readFileSync(join(root, file))).update('\0');
-  return /** @type {{ compat: number, research: number, digest: string }} */ ({ ...counts, digest: hash.digest('hex').slice(0, 24) });
+  const requests = { focused: 0, conformance: 0 };
+  for (const c of requestCases(root)) requests[c.source]++;
+  for (const file of inputFiles(root)) hash.update(file).update('\0').update(fs.readFileSync(join(root, file))).update('\0');
+  return /** @type {{ compat: number, research: number, focused: number, requests: { focused: number, conformance: number }, digest: string }} */ (
+    { ...counts, requests, digest: hash.digest('hex').slice(0, 24) });
 }
 
 /**
@@ -96,6 +126,59 @@ export function cases(files) {
     key: `${file} · ${command}`, file, command, argv: argv.map((a) => (a === '{file}' ? file : a)),
   })));
 }
+
+/** `{file}` and `{today}` in a request's argv. */
+function fill(argv, file) {
+  return argv.map((a) => {
+    if (a === '{file}') return file;
+    return a === '{today}' ? TODAY : a;
+  });
+}
+
+/**
+ * The argv of a read-contract request, as the oracle's CLI driver builds it (test/conformance/oracle.ts runCli),
+ * without the manifest: the snapshot records the view the agent reads.
+ */
+export function conformanceArgv(file, route) {
+  const argv = route.query === undefined
+    ? ['agent', file, ...(route.sections ?? []).flatMap((s) => ['--section', s])]
+    : ['query', route.query, file, '--contract'];
+  if (route.brief) argv.push('--brief');
+  if (route.maxTokens !== undefined) argv.push('--max-tokens', String(route.maxTokens));
+  if (route.includedInstructions) argv.push('--included-instructions', route.includedInstructions);
+  argv.push('--today', TODAY);
+  return argv;
+}
+
+/**
+ * Every request case: the focused fixtures' requests, then each request of each read-contract case, in folder order.
+ * @returns {Array<{ key: string, file: string, command: string, argv: string[], source: 'focused' | 'conformance' }>}
+ */
+export function requestCases(root = ROOT) {
+  /** @type {Array<{ key: string, file: string, command: string, argv: string[], source: 'focused' | 'conformance' }>} */
+  const list = [];
+  const listed = JSON.parse(fs.readFileSync(join(root, FOCUSED_REQUESTS), 'utf8'));
+  for (const r of listed.requests) {
+    const file = `${focusedDir()}/${r.file}`;
+    list.push({ key: `${file} · request: ${r.name}`, file, command: 'request', argv: fill(r.argv, file), source: 'focused' });
+  }
+  for (const caseFile of tracked(CONFORMANCE, root).filter((f) => f.endsWith('/case.json'))) {
+    const dir = caseFile.slice(0, -'/case.json'.length);
+    for (const r of JSON.parse(fs.readFileSync(join(root, caseFile), 'utf8')).requests) {
+      const file = `${dir}/${r.doc ?? 'doc.smd'}`;
+      list.push({ key: `${file} · conformance: ${r.name}`, file, command: 'conformance', argv: conformanceArgv(file, r.route ?? {}), source: 'conformance' });
+    }
+  }
+  const seen = new Set();
+  for (const c of list) {
+    if (seen.has(c.key)) throw new Error(`two requests have the key "${c.key}": give them different names`);
+    seen.add(c.key);
+  }
+  return list;
+}
+
+/** Every case: each corpus file through each command, then the requests. */
+export const allCases = (files, root = ROOT) => [...cases(files), ...requestCases(root)];
 
 /**
  * The output as the snapshot sees it: the repository root (as a path, with either separator, or a file: URL) is
@@ -204,6 +287,7 @@ export function snapshotDocument(runs, { files, cli, root = ROOT }) {
     options: { today: TODAY, locale: 'C.UTF-8', timeZone: 'UTC', cwd: '<root>', paths: 'relative to the repository root, /-separated', env: 'no SMD_* variables' },
     corpus: corpusSummary(files, root),
     commands: COMMANDS,
+    requests: { focused: FOCUSED_REQUESTS, conformance: `${CONFORMANCE}/*/case.json` },
     cases: caseRecords,
   };
 }
@@ -259,7 +343,7 @@ async function main(args) {
   }
   const cli = join(EXTENSION, 'dist', 'cli.js');
   const files = corpusFiles();
-  const all = cases(files);
+  const all = allCases(files);
   const selected = only && !update ? all.filter((c) => c.key.includes(only)) : all;
   const started = Date.now();
   const runs = await runCases(cli, selected);
@@ -268,7 +352,7 @@ async function main(args) {
   if (update) {
     fs.mkdirSync(dirname(SNAPSHOTS), { recursive: true });
     fs.writeFileSync(SNAPSHOTS, JSON.stringify(snapshotDocument(runs, { files, cli }), null, 1) + '\n');
-    console.log(`[snapshots] wrote ${runs.size} cases over ${files.length} files to ${relative(process.cwd(), SNAPSHOTS)} (${seconds} s).`);
+    console.log(`[snapshots] wrote ${runs.size} cases over ${files.length} files and their requests to ${relative(process.cwd(), SNAPSHOTS)} (${seconds} s).`);
     return 0;
   }
 
@@ -287,7 +371,7 @@ async function main(args) {
   const corpus = corpusSummary(files);
   if (corpus.digest !== snapshot.corpus.digest) console.error(`[snapshots] the corpus changed since the snapshots were written (${snapshot.corpus.digest} → ${corpus.digest}).`);
   if (!changed.length && !added.length && !removed.length) {
-    console.log(`[snapshots] ${runs.size} cases over ${files.length} files match (${seconds} s; written from ${snapshot.source.commit.slice(0, 12)}${snapshot.source.dirty ? ' with uncommitted changes' : ''}).`);
+    console.log(`[snapshots] ${runs.size} cases over ${files.length} files and their requests match (${seconds} s; written from ${snapshot.source.commit.slice(0, 12)}${snapshot.source.dirty ? ' with uncommitted changes' : ''}).`);
     return 0;
   }
   for (const key of changed) console.error(`changed  ${key}  (${differingParts(expected[key], actual[key]).join(', ')})`);

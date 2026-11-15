@@ -1,0 +1,19 @@
+---
+smd: 2
+title: Level two
+---
+
+## Rate limits
+
+| Plan | Requests per minute |
+| ---- | ------------------: |
+| Free |                  60 |
+| Team |                 600 |
+
+See the [level one contract](nested-a.smd#contract) and :ref[NA1].
+
+## Fallback {#fallback}
+
+:::include{file="deep/nested-c.smd" section="#retention"}
+Retention is not written yet.
+:::

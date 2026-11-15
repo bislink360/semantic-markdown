@@ -1,0 +1,26 @@
+---
+smd: 2
+title: Nested includes
+summary: Three levels of :::include, each moving headings down and each from a different folder, so links, images, ids and tasks in included text keep working when the include code is refactored.
+status: draft
+---
+
+## Outline
+
+The service has [a contract](#contract), [limits](#limits) and [a fallback](#fallback), with :ref[NA1] the main
+requirement. The deepest level is [Retention](#retention), with task :ref[NC-T1].
+
+## Service
+
+The whole of the first level, two headings down. It includes the second level, which includes the third:
+
+:::include{file="parts/nested-a.smd" level=3}
+The service terms are not written yet.
+:::
+
+## A missing level
+
+<!-- smd-disable-next-line include/missing-file -->
+:::include{file="parts/deep/not-here.smd"}
+This fallback shows because the file does not exist.
+:::

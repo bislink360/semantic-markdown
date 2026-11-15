@@ -1,0 +1,18 @@
+---
+smd: 2
+title: Level one
+---
+
+## Contract
+
+:::requirement{#NA1} The service answers within 200 ms
+It applies to every endpoint in [Limits](#limits).
+:::
+
+## Limits {#limits}
+
+The second level, one heading further down:
+
+:::include{file="nested-b.smd" level=4}
+The limits are not written yet.
+:::

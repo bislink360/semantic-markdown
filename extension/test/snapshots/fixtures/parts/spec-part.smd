@@ -1,0 +1,31 @@
+---
+smd: 1
+title: Text spec v1 and v2 read differently
+---
+
+## Rules that differ {#rules}
+
+"Quotes" -- dashes... (c) and example.com stay as written in spec v2.
+
+$$ x^2 $$ is display math on one line.
+
+$$a + b
+= c$$
+
+### Heading with braces {}
+
+### Heading with a word {draft}
+
+:::note{title="Say \"hi\" to C:\temp"}
+::::details{summary=Outer}
+:::tip
+Inside.
+::::
+The note goes on in spec v2.
+:::
+
+An unknown :thing[inline directive]{x=1} and :badge[Known].
+
+## Refund policy
+
+Refunds take 14 days.

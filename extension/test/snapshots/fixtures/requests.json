@@ -1,0 +1,31 @@
+{
+  "description": "Requests over the focused fixtures (improvement roadmap t-02), besides the four commands every corpus file goes through. {file} is the fixture's path from the repository root and {today} the snapshots' fixed date. The token-budget requests sit exactly at the size of each view the budget can choose and one token under it, as the estimate counts today; README.md says how to move them when a change moves a boundary.",
+  "requests": [
+    { "file": "token-budget.smd", "name": "budget 442 fits the full view exactly", "argv": ["agent", "{file}", "--max-tokens", "442", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 441 condenses as brief", "argv": ["agent", "{file}", "--max-tokens", "441", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 438 fits the brief view exactly", "argv": ["agent", "{file}", "--max-tokens", "438", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 437 omits Background", "argv": ["agent", "{file}", "--max-tokens", "437", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 330 fits one omission exactly", "argv": ["agent", "{file}", "--max-tokens", "330", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 329 omits Requirements too", "argv": ["agent", "{file}", "--max-tokens", "329", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 294 fits two omissions exactly", "argv": ["agent", "{file}", "--max-tokens", "294", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 293 omits History too", "argv": ["agent", "{file}", "--max-tokens", "293", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 275 fits three omissions exactly", "argv": ["agent", "{file}", "--max-tokens", "275", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 274 omits Goal too", "argv": ["agent", "{file}", "--max-tokens", "274", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 253 fits four omissions exactly", "argv": ["agent", "{file}", "--max-tokens", "253", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 252 omits Plan too", "argv": ["agent", "{file}", "--max-tokens", "252", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 250 fits the smallest view exactly", "argv": ["agent", "{file}", "--max-tokens", "250", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "budget 249 does not fit and says so", "argv": ["agent", "{file}", "--max-tokens", "249", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "a requested section is kept under a small budget", "argv": ["agent", "{file}", "--section", "Background", "--max-tokens", "60", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "read with a budget", "argv": ["read", "{file}", "--max-tokens", "300", "--today", "{today}"] },
+    { "file": "token-budget.smd", "name": "brief", "argv": ["agent", "{file}", "--brief", "--today", "{today}"] },
+    { "file": "nested-includes.smd", "name": "the section that holds three levels of includes", "argv": ["agent", "{file}", "--section", "Service", "--today", "{today}"] },
+    { "file": "nested-includes.smd", "name": "outline", "argv": ["outline", "{file}", "--today", "{today}"] },
+    { "file": "include-ids.smd", "name": "own rules, with a rule given in the included file", "argv": ["agent", "{file}", "--section", "Own rules", "--today", "{today}"] },
+    { "file": "include-ids.smd", "name": "read the included section", "argv": ["read", "{file}", "--section", "Pricing", "--today", "{today}"] },
+    { "file": "duplicate-slugs.smd", "name": "a section name four headings share", "argv": ["agent", "{file}", "--section", "Notes", "--today", "{today}"] },
+    { "file": "duplicate-slugs.smd", "name": "outline", "argv": ["outline", "{file}", "--today", "{today}"] },
+    { "file": "included-figures.smd", "name": "outline", "argv": ["outline", "{file}", "--today", "{today}"] },
+    { "file": "review-includes.smd", "name": "review, all items", "argv": ["review", "{file}", "--all", "--json", "--today", "{today}"] },
+    { "file": "review-includes.smd", "name": "the section with included rules", "argv": ["agent", "{file}", "--section", "Included rules", "--today", "{today}"] }
+  ]
+}

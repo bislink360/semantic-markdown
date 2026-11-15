@@ -1,0 +1,29 @@
+---
+smd: 2
+title: Included plans
+---
+
+## Plans
+
+The plans are in :ref[tbl-plans]. The flow of the including document is :ref[fig-flow].
+
+:::figure{#tbl-plans kind=table} Plans and prices
+
+| Plan | Price |
+| ---- | ----: |
+| Free |     0 |
+| Team |    20 |
+
+:::
+
+:::figure{#fig-states} Order states
+```mermaid
+stateDiagram-v2
+  [*] --> Pending
+  Pending --> Paid
+```
+:::
+
+:::figure{#fig-shared} The included file's shared figure
+![Shared here](shared-here.svg)
+:::

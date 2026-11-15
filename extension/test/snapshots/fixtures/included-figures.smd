@@ -1,0 +1,43 @@
+---
+smd: 2
+title: Included figures
+summary: Figures in included text are numbered with the document's own, can be referenced from both sides, and lose to a figure of the document that gives the same id, so figure numbering and references stay as they are when they are refactored.
+status: draft
+---
+
+## Overview
+
+The flow is :ref[fig-flow], the included table is :ref[tbl-plans], the included diagram is :ref[fig-states] and the
+listing after the include is :ref[lst-call]. :ref[fig-shared] is given on both sides.
+
+:::figure{#fig-flow} Checkout flow
+![Checkout flow](flow.svg)
+:::
+
+:::figure{#fig-shared} The document's own shared figure
+![Shared](shared.svg)
+:::
+
+## Included
+
+:::include{file="parts/figures-part.smd" level=3}
+The plans are not written yet.
+:::
+
+## After the include
+
+:::figure{#lst-call kind=listing} Creating an order
+```ts
+await client.orders.create({ sku: 'A-1' });
+```
+:::
+
+A figure without an id after the include is still numbered:
+
+:::figure
+![Architecture](architecture.svg)
+:::
+
+## A table that is not a figure {#tbl-plans-note}
+
+The heading id above is close to a figure id but is not one.

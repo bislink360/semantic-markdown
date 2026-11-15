@@ -1,0 +1,40 @@
+---
+smd: 2
+title: Review blocks with includes
+summary: Comments and suggestions on the document's blocks and on included blocks, open, resolved and rejected, and a review block in the included file itself, so review views, agent views and exports keep treating them as they do when they are refactored.
+status: review
+---
+
+## Cache {#cache}
+
+:::requirement{#RV1 status=accepted} The cache keeps results for 10 minutes
+:::
+
+:::comment{for=RV1 author=@maya date=2026-11-06} Too long?
+Pricing changes hourly.
+:::
+
+:::suggestion{for=RV1 author=@agent date=2026-11-06} Shorter cache
+The cache keeps results for 5 minutes.
+:::
+
+## Included rules
+
+:::include{file="parts/review-part.smd" level=3}
+:::
+
+:::comment{for=RV2 author=@sam date=2026-11-07} Which currency?
+The included rule does not say.
+:::
+
+:::suggestion{for=RV2 author=@agent date=2026-11-05 status=rejected by=@sam on=2026-11-06 reason="Out of scope"} Any currency
+Refunds over 500 in any currency need a second approval.
+:::
+
+:::comment{for=missing-id author=@sam date=2026-11-07} On a block that does not exist
+:::
+
+## Closed
+
+:::comment{for=cache author=@sam date=2026-11-04 status=resolved by=@sam on=2026-11-05} Heading typo
+:::

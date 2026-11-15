@@ -2,8 +2,8 @@
  "format": 1,
  "generator": "extension/scripts/snapshots.mjs",
  "source": {
-  "commit": "4114cba39a6b6cbe2b45e3d4e7171f62dc3ede6a",
-  "dirty": true,
+  "commit": "0ee0c8c3c766ca5c18c58178185aa5c872e61243",
+  "dirty": false,
   "cli": "smd 4.1.0 (Semantic Markdown spec v2)"
  },
  "options": {
@@ -17,7 +17,12 @@
  "corpus": {
   "compat": 41,
   "research": 125,
-  "digest": "875852fc45d49541c3fad23a"
+  "focused": 8,
+  "requests": {
+   "focused": 26,
+   "conformance": 70
+  },
+  "digest": "d76da41e769f9ce1434003cd"
  },
  "commands": {
   "agent": [
@@ -48,6 +53,10 @@
    "--today",
    "2026-01-15"
   ]
+ },
+ "requests": {
+  "focused": "extension/test/snapshots/fixtures/requests.json",
+  "conformance": "extension/test/conformance/cases/*/case.json"
  },
  "cases": {
   "extension/test/compat/corpus/attribute-escapes.smd · agent": {
@@ -868,6 +877,646 @@
   "extension/test/compat/corpus/vocabulary-case.smd · validate": {
    "status": 0,
    "stdout": "035d298205660a961696ab7b:155",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/conformance/cases/01-rules-outside-section/doc.smd · conformance: brief section Storage carries the same rules": {
+   "status": 0,
+   "stdout": "f11a9e7175251f0daf4a8be2:525",
+   "stderr": "69fbffb0046fc10f52cadfae:47"
+  },
+  "extension/test/conformance/cases/01-rules-outside-section/doc.smd · conformance: full view shows every rule": {
+   "status": 0,
+   "stdout": "813e432ac35ed74871886df7:805",
+   "stderr": "2aec36347572b15ad56f57e9:48"
+  },
+  "extension/test/conformance/cases/01-rules-outside-section/doc.smd · conformance: section Billing carries its own rules, the rule on its target and the global ones": {
+   "status": 0,
+   "stdout": "34916fc9391cfcd645f669e3:612",
+   "stderr": "c32f083fa641c5c77b4327b8:47"
+  },
+  "extension/test/conformance/cases/01-rules-outside-section/doc.smd · conformance: section Platform carries its own rule and the global ones": {
+   "status": 0,
+   "stdout": "9c9c2a6975abff511d2cd5b2:541",
+   "stderr": "83f54a91cb3b17187e7c3f8f:47"
+  },
+  "extension/test/conformance/cases/01-rules-outside-section/doc.smd · conformance: section Storage carries the rules that apply from outside it": {
+   "status": 0,
+   "stdout": "f11a9e7175251f0daf4a8be2:525",
+   "stderr": "69fbffb0046fc10f52cadfae:47"
+  },
+  "extension/test/conformance/cases/02-preamble-text/doc-quiet.smd · conformance: section Alpha of a quiet preamble carries the agent block and records nothing for the preamble": {
+   "status": 0,
+   "stdout": "45051e1a155df25fd5d8ee72:211",
+   "stderr": "34b55dc51bc2a2f4617ccb12:46"
+  },
+  "extension/test/conformance/cases/02-preamble-text/doc.smd · conformance: brief view shows the preamble": {
+   "status": 0,
+   "stdout": "2fca7729bb194bd4350c347b:170",
+   "stderr": "3597dbd79d3d1025c9d34aa9:44"
+  },
+  "extension/test/conformance/cases/02-preamble-text/doc.smd · conformance: full view shows the preamble and records no omission for it": {
+   "status": 0,
+   "stdout": "2fca7729bb194bd4350c347b:170",
+   "stderr": "3597dbd79d3d1025c9d34aa9:44"
+  },
+  "extension/test/conformance/cases/02-preamble-text/doc.smd · conformance: section Alpha records the preamble paragraph it leaves out": {
+   "status": 0,
+   "stdout": "c68317051d96569228117e53:86",
+   "stderr": "b880c5c17a74b3293fb4cc0f:45"
+  },
+  "extension/test/conformance/cases/03-nested-protected-blocks/doc.smd · conformance: a tiny budget still carries every protected block": {
+   "status": 0,
+   "stdout": "91034d9c4059655e1aa8d916:659",
+   "stderr": "0cf404c7141411f797ea7525:316"
+  },
+  "extension/test/conformance/cases/03-nested-protected-blocks/doc.smd · conformance: brief full view keeps blocks nested in the details it condenses": {
+   "status": 0,
+   "stdout": "a3208c2ce14c0e9e004f4310:597",
+   "stderr": "38747a2d361a293d2b924a49:46"
+  },
+  "extension/test/conformance/cases/03-nested-protected-blocks/doc.smd · conformance: brief section Work carries them too": {
+   "status": 0,
+   "stdout": "54ea1c6d2633b16f9d93d8f4:594",
+   "stderr": "93607047939e2cf96484d4c7:46"
+  },
+  "extension/test/conformance/cases/03-nested-protected-blocks/doc.smd · conformance: full view shows everything eligible and records the hidden parts": {
+   "status": 0,
+   "stdout": "d5763ace1d9cd64dfd0f90a9:626",
+   "stderr": "e053fd3b6224fe5b1b8e1b4b:47"
+  },
+  "extension/test/conformance/cases/03-nested-protected-blocks/doc.smd · conformance: section History leaves the agent block inside :::human out": {
+   "status": 0,
+   "stdout": "586e1a41caded97fe4387c8c:579",
+   "stderr": "a04dace8ac97e53c4046f6fc:46"
+  },
+  "extension/test/conformance/cases/03-nested-protected-blocks/doc.smd · conformance: section Work carries the protected blocks of other sections": {
+   "status": 0,
+   "stdout": "54ea1c6d2633b16f9d93d8f4:594",
+   "stderr": "93607047939e2cf96484d4c7:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: brief section Later keeps them hidden": {
+   "status": 0,
+   "stdout": "3cf1f93ce02f8df997650887:102",
+   "stderr": "811630c14452ec0ee05e0419:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: full view keeps them hidden and records the skipped section": {
+   "status": 0,
+   "stdout": "ce2a6c8a8810bf70551c1417:109",
+   "stderr": "999b3e5e8bac6bffa4c83f71:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: section Main keeps the skipped section and its protected blocks hidden": {
+   "status": 0,
+   "stdout": "727e0cea35efbdb8b6c58fc8:108",
+   "stderr": "db66fff6b7f93db3a5c5a1be:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: section Notes named explicitly is shown with its agent block and danger": {
+   "status": 0,
+   "stdout": "cdf74c4585b5a4470dc25076:445",
+   "stderr": "b35a27f08ab8e0b1c845220a:48"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: sections Main and Notes together show both": {
+   "status": 0,
+   "stdout": "028cf0d1c22a2530318d14e9:488",
+   "stderr": "ce537090352355834cd41fbd:48"
+  },
+  "extension/test/conformance/cases/05-failed-include/doc-rule.smd · conformance: with a rule: full view lists the unread include and is incomplete": {
+   "status": 0,
+   "stdout": "5445f93b533b809a80e34840:410",
+   "stderr": "2e68055802b098492294b9f6:142"
+  },
+  "extension/test/conformance/cases/05-failed-include/doc-rule.smd · conformance: with a rule: section Other is incomplete too": {
+   "status": 0,
+   "stdout": "0083bab642385cce74030fdc:354",
+   "stderr": "4b375273df1ce21bf817de50:141"
+  },
+  "extension/test/conformance/cases/05-failed-include/doc-rule.smd · conformance: with a rule: section Work lists the unread include and is incomplete": {
+   "status": 0,
+   "stdout": "e7bb3b41c74af0f1d2d7badb:325",
+   "stderr": "6da3e9517eb09e5bfa253f0f:141"
+  },
+  "extension/test/conformance/cases/05-failed-include/doc.smd · conformance: full view lists the unread include and is incomplete": {
+   "status": 0,
+   "stdout": "d94fe1fa28fbbf92ae70d1b1:311",
+   "stderr": "6c7e8fcecd2af0c551540be5:142"
+  },
+  "extension/test/conformance/cases/05-failed-include/doc.smd · conformance: section Work lists the unread include and is incomplete": {
+   "status": 0,
+   "stdout": "773b0272f91406bcb2be51b6:299",
+   "stderr": "ec1bd0fcfe59500dd05ba8f6:142"
+  },
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: full view lists both hidden targets": {
+   "status": 0,
+   "stdout": "89065ad815c950dbc6ba24ba:642",
+   "stderr": "849f91edf07c5504b8d280fe:146"
+  },
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Mail withholds a target inside :::human": {
+   "status": 0,
+   "stdout": "a2de147836b24d442bfb87ce:334",
+   "stderr": "0079f62d565874e548e31bc3:142"
+  },
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Work withholds R2, lists it as hidden and carries C2": {
+   "status": 0,
+   "stdout": "2b16629ebe9257db83fb5faa:501",
+   "stderr": "d9336dcb02c3ea982e438dc3:144"
+  },
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: sections Work and Notes named together resolve R2 and are complete": {
+   "status": 0,
+   "stdout": "14b433012e69a45b1c2ddedc:418",
+   "stderr": "cddb3367a921cc43f0ad5b0e:46"
+  },
+  "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: full view adds R7 and lists both unreadable files": {
+   "status": 0,
+   "stdout": "6633bc363a216045b464e69a:1257",
+   "stderr": "6be51af3cf3fba07a921b59e:148"
+  },
+  "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: section Broken lists the dependency in a file that does not exist": {
+   "status": 0,
+   "stdout": "422d70b752c9f8ff9eddef11:339",
+   "stderr": "9e517b8c7287808b0b91788a:142"
+  },
+  "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: section Outside lists the dependency outside what the host allows": {
+   "status": 0,
+   "stdout": "40d617d827f9346fb0648618:433",
+   "stderr": "503f9f8a54686c2338c1c81f:145"
+  },
+  "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: section Work adds R7 from other.smd with the constraints that come with it": {
+   "status": 0,
+   "stdout": "2b47cef61a3c823e8f3e9d70:759",
+   "stderr": "2f41c3248fa87cf0b941dedf:48"
+  },
+  "extension/test/conformance/cases/08-rule-chains/doc-depth.smd · conformance: a chain past 5 hops is cut with depth": {
+   "status": 0,
+   "stdout": "4d4cd44756f40eb06e95e940:769",
+   "stderr": "031646732a7cc11442a502ef:144"
+  },
+  "extension/test/conformance/cases/08-rule-chains/doc-limit.smd · conformance: a rule chain past 50 blocks is cut with limit": {
+   "status": 0,
+   "stdout": "672574478a3ffe6a3faf102f:4773",
+   "stderr": "73f034517f8bfa1d8889c4a4:148"
+  },
+  "extension/test/conformance/cases/08-rule-chains/doc.smd · conformance: a budget smaller than the chain still carries all of it": {
+   "status": 0,
+   "stdout": "e531f5ebac89954c594c5d91:1150",
+   "stderr": "28ec14e521287b314bbf1ac9:289"
+  },
+  "extension/test/conformance/cases/08-rule-chains/doc.smd · conformance: brief section Work carries the whole rule chain": {
+   "status": 0,
+   "stdout": "576cc9383d360c73509e5af4:1088",
+   "stderr": "e83aabb8133fc6592e8f11c2:48"
+  },
+  "extension/test/conformance/cases/08-rule-chains/doc.smd · conformance: section Work carries the whole rule chain": {
+   "status": 0,
+   "stdout": "576cc9383d360c73509e5af4:1088",
+   "stderr": "e83aabb8133fc6592e8f11c2:48"
+  },
+  "extension/test/conformance/cases/09-overflow/doc.smd · conformance: a brief view over budget keeps the required content": {
+   "status": 0,
+   "stdout": "9fe8ebb61d125d158c5c291d:2083",
+   "stderr": "c66e59fbd24f79167516463d:355"
+  },
+  "extension/test/conformance/cases/09-overflow/doc.smd · conformance: a budget that fits omits nothing and is complete": {
+   "status": 0,
+   "stdout": "82193bf012298da62efb114f:3296",
+   "stderr": "f12a3ecaf4e15441f2431ac0:104"
+  },
+  "extension/test/conformance/cases/09-overflow/doc.smd · conformance: a full view over budget keeps the required content and omits the filler": {
+   "status": 0,
+   "stdout": "9fe8ebb61d125d158c5c291d:2083",
+   "stderr": "4d2186c3bfecd5f734b5079b:377"
+  },
+  "extension/test/conformance/cases/09-overflow/doc.smd · conformance: a section read over budget keeps the section and the rules": {
+   "status": 0,
+   "stdout": "9f1d46500f7e942b44b63420:743",
+   "stderr": "085f0e0c77ca1b4e9f90fbec:288"
+  },
+  "extension/test/conformance/cases/10-missing-ambiguous-cyclic/doc.smd · conformance: a tiny budget never omits the unplaced constraint": {
+   "status": 0,
+   "stdout": "b60bc0b286d9376671ea865c:662",
+   "stderr": "96bac921098465ee821c75a4:405"
+  },
+  "extension/test/conformance/cases/10-missing-ambiguous-cyclic/doc.smd · conformance: full view lists every kind": {
+   "status": 0,
+   "stdout": "678da85c594b84d46c73a416:1178",
+   "stderr": "0ee600c76f2aa944cf9da9b4:167"
+  },
+  "extension/test/conformance/cases/10-missing-ambiguous-cyclic/doc.smd · conformance: section Ambiguous resolves the duplicate id to nothing": {
+   "status": 0,
+   "stdout": "6bd37d0595a79726b35f5c5a:626",
+   "stderr": "f94876186560d8c85a434165:164"
+  },
+  "extension/test/conformance/cases/10-missing-ambiguous-cyclic/doc.smd · conformance: section Cycle adds R4 and lists the cycle": {
+   "status": 0,
+   "stdout": "82f10c9b4960f274d1cdb6b8:697",
+   "stderr": "ee710db933d593a987b2496e:164"
+  },
+  "extension/test/conformance/cases/10-missing-ambiguous-cyclic/doc.smd · conformance: section Missing lists the missing target and the unresolved one": {
+   "status": 0,
+   "stdout": "8fbf5d179d817dd2d4cd9695:600",
+   "stderr": "1bd2c7b6d7e3acbbbeaf4ce8:164"
+  },
+  "extension/test/conformance/cases/10-missing-ambiguous-cyclic/doc.smd · conformance: section Store reaches the cycle from the other side and still lists the unresolved target": {
+   "status": 0,
+   "stdout": "0a48a801ad382011a0d4e00b:852",
+   "stderr": "7f801c0447249b542328134f:164"
+  },
+  "extension/test/conformance/cases/11-included-target/doc.smd · conformance: full view carries RI and C3 and is complete": {
+   "status": 0,
+   "stdout": "4d6e41c2626f04ab70b021d7:354",
+   "stderr": "8c9e8d374263f9985acd8d76:46"
+  },
+  "extension/test/conformance/cases/11-included-target/doc.smd · conformance: section Other does not show RI and lists nothing": {
+   "status": 0,
+   "stdout": "b91def08055212058007e9a9:113",
+   "stderr": "6df9705ed787d4bf89fa5b7c:45"
+  },
+  "extension/test/conformance/cases/11-included-target/doc.smd · conformance: section Work carries C3 for the included RI and is complete": {
+   "status": 0,
+   "stdout": "42d34b12af507ad8ca9c70a7:360",
+   "stderr": "91c2ee20c9e53d428278a44a:46"
+  },
+  "extension/test/conformance/cases/12-partial-coverage/doc.smd · conformance: a brief view records the danger it carries out of the condensed details": {
+   "status": 0,
+   "stdout": "d5608a5f0b47689b4cdc8371:504",
+   "stderr": "fecf6cc8a79df35ef2cb67ca:46"
+  },
+  "extension/test/conformance/cases/12-partial-coverage/doc.smd · conformance: section Work records which lines of the sections it leaves out it carried": {
+   "status": 0,
+   "stdout": "6d7a6546ba2e5be5bd062198:291",
+   "stderr": "9b0203f9ff96f5c2699fe8df:46"
+  },
+  "extension/test/conformance/cases/13-status-and-determinism/doc.smd · conformance: a budgeted read keeps the labels of the required content, and is deterministic": {
+   "status": 0,
+   "stdout": "5b878acbb24942d96dd66111:776",
+   "stderr": "04f8ae59e90352e677b9353e:396"
+  },
+  "extension/test/conformance/cases/13-status-and-determinism/doc.smd · conformance: brief view keeps the labels and is deterministic": {
+   "status": 0,
+   "stdout": "5768036fcac9723184e7ecdb:1045",
+   "stderr": "d3d9df500293a938be27ab9a:48"
+  },
+  "extension/test/conformance/cases/13-status-and-determinism/doc.smd · conformance: full view writes every status and default, and is deterministic": {
+   "status": 0,
+   "stdout": "5768036fcac9723184e7ecdb:1045",
+   "stderr": "d3d9df500293a938be27ab9a:48"
+  },
+  "extension/test/conformance/cases/13-status-and-determinism/doc.smd · conformance: section Work keeps the labels of what it shows and carries, and is deterministic": {
+   "status": 0,
+   "stdout": "aa4b93362f434ee62a1e68c4:786",
+   "stderr": "6bc689737e4dac1610442bbb:47"
+  },
+  "extension/test/conformance/cases/14-contract-query/doc-frontier.smd · conformance: a query whose match has a missing prerequisite lists it, and the rule with a lost target applies unplaced": {
+   "status": 0,
+   "stdout": "67991294267ae132f3d6434c:612",
+   "stderr": "20fa4e7e56d6e5c8ac2bf6ac:313"
+  },
+  "extension/test/conformance/cases/14-contract-query/doc-frontier.smd · conformance: a query whose match needs a block hidden from agents withholds it and lists it as hidden": {
+   "status": 0,
+   "stdout": "9fdfb8e206abed15359150c8:669",
+   "stderr": "3430ca87fa37d7d5d748d6cc:330"
+  },
+  "extension/test/conformance/cases/14-contract-query/doc.smd · conformance: a query matching blocks in two sections carries the rules of both": {
+   "status": 0,
+   "stdout": "70f6cbfcc7fe9140dff759b2:1369",
+   "stderr": "27e50be12ad894bb9936e669:134"
+  },
+  "extension/test/conformance/cases/14-contract-query/doc.smd · conformance: a query of a prerequisite carries the rules of its own section and the global ones": {
+   "status": 0,
+   "stdout": "9c05137764e2e58882841269:812",
+   "stderr": "ebca0cbae293ec91f863466b:136"
+  },
+  "extension/test/conformance/cases/14-contract-query/doc.smd · conformance: brief query RCUT carries the same blocks": {
+   "status": 0,
+   "stdout": "a0bbe7ec3224097f1d1ba643:1249",
+   "stderr": "c447064aa9e1e72996046c55:134"
+  },
+  "extension/test/conformance/cases/14-contract-query/doc.smd · conformance: query RCUT carries the rules, the prerequisite and the protected blocks of the document": {
+   "status": 0,
+   "stdout": "a0bbe7ec3224097f1d1ba643:1249",
+   "stderr": "c447064aa9e1e72996046c55:134"
+  },
+  "extension/test/conformance/cases/15-linked-decisions/doc.smd · conformance: query R1 with the contract carries D2 as the section read does": {
+   "status": 0,
+   "stdout": "2cc6b86e96a1d2bfdcf75d9a:385",
+   "stderr": "65919caf2e16e7bccc0f76c2:150"
+  },
+  "extension/test/conformance/cases/15-linked-decisions/doc.smd · conformance: section Cutover carries the accepted decision that names R1": {
+   "status": 0,
+   "stdout": "7924add6e74bd834363225ce:368",
+   "stderr": "276917a0a1859b2b042f915b:46"
+  },
+  "extension/test/conformance/cases/15-linked-decisions/doc.smd · conformance: section Other does not carry D2, because it does not show R1": {
+   "status": 0,
+   "stdout": "64b60cc266d121befcab3307:90",
+   "stderr": "911f659d0db923d749d8befa:46"
+  },
+  "extension/test/conformance/cases/15-linked-decisions/typo.smd · conformance: a linked decision with a mistyped target is shown in every read and makes it incomplete": {
+   "status": 0,
+   "stdout": "f07bc09aaca180c8230456bb:577",
+   "stderr": "a4c934c3bcd53832583b7a28:146"
+  },
+  "extension/test/conformance/cases/16-included-instructions/doc.smd · conformance: section Work carries the document's and the included file's agent blocks by default": {
+   "status": 0,
+   "stdout": "7162003264c53b2b6ad66d6e:406",
+   "stderr": "ec6ab1c2135cb5f623b11945:47"
+  },
+  "extension/test/conformance/cases/16-included-instructions/doc.smd · conformance: section Work with included instructions off keeps the included block out and records it": {
+   "status": 0,
+   "stdout": "2f868b9bdc7729e56de1cd7e:417",
+   "stderr": "c61f40cf0658b415144401f0:48"
+  },
+  "extension/test/conformance/cases/16-included-instructions/doc.smd · conformance: the full view with included instructions off keeps it out too": {
+   "status": 0,
+   "stdout": "b21f2694828949177458f2db:394",
+   "stderr": "6bfb184dc9a6aa43ce6552f2:46"
+  },
+  "extension/test/snapshots/fixtures/duplicate-slugs.smd · agent": {
+   "status": 0,
+   "stdout": "c256285f13b583fa26592cea:1143",
+   "stderr": "c260fbe36d81944889986d5b:48"
+  },
+  "extension/test/snapshots/fixtures/duplicate-slugs.smd · html": {
+   "status": 0,
+   "stdout": "21bf50981cf7ebe93e5c867c:77432",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/duplicate-slugs.smd · md": {
+   "status": 0,
+   "stdout": "8d1aa121fa473705c46c084a:1166",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/duplicate-slugs.smd · request: a section name four headings share": {
+   "status": 0,
+   "stdout": "e854b932c3d3a829f23b2cc5:558",
+   "stderr": "b5790a91cb6c4106b3fa6642:47"
+  },
+  "extension/test/snapshots/fixtures/duplicate-slugs.smd · request: outline": {
+   "status": 0,
+   "stdout": "49b04e908b97ac3d8dd738d1:688",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/duplicate-slugs.smd · validate": {
+   "status": 0,
+   "stdout": "072be93db04d07d30a66586c:2736",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/include-ids.smd · agent": {
+   "status": 0,
+   "stdout": "d7015e977b0c5561d54cae62:1741",
+   "stderr": "c0c3eb7117656c8dfd11b806:48"
+  },
+  "extension/test/snapshots/fixtures/include-ids.smd · html": {
+   "status": 0,
+   "stdout": "a495419124b47c7f667b32c2:79954",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/include-ids.smd · md": {
+   "status": 0,
+   "stdout": "54fc90fd7a7bb3c0d80ea39a:1724",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/include-ids.smd · request: own rules, with a rule given in the included file": {
+   "status": 0,
+   "stdout": "8e3d022e5bee5947e198a68d:500",
+   "stderr": "aece27f76d940542d78531d8:47"
+  },
+  "extension/test/snapshots/fixtures/include-ids.smd · request: read the included section": {
+   "status": 0,
+   "stdout": "eaadccdaa10656b44d54b95d:838",
+   "stderr": "3be618a6b07dbdd553a8ce51:65"
+  },
+  "extension/test/snapshots/fixtures/include-ids.smd · validate": {
+   "status": 0,
+   "stdout": "b1f71e1c3d6f363dbd62212b:846",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/included-figures.smd · agent": {
+   "status": 0,
+   "stdout": "b66f7d093f94ad3c09c19bd8:1579",
+   "stderr": "e618aa2c06b7e3e22096ba88:48"
+  },
+  "extension/test/snapshots/fixtures/included-figures.smd · html": {
+   "status": 0,
+   "stdout": "bd1b98788033244473d83a9e:79767",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/included-figures.smd · md": {
+   "status": 0,
+   "stdout": "deaa44fe31b50ce7d10cce90:1625",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/included-figures.smd · request: outline": {
+   "status": 0,
+   "stdout": "b9b39fd3870c076999d5f890:630",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/included-figures.smd · validate": {
+   "status": 0,
+   "stdout": "51b129261d7dffa28a9445a9:831",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/nested-includes.smd · agent": {
+   "status": 0,
+   "stdout": "3252f43fca15bee28a450cd9:1646",
+   "stderr": "d3c2c3d53d670b863fdab9c2:143"
+  },
+  "extension/test/snapshots/fixtures/nested-includes.smd · html": {
+   "status": 0,
+   "stdout": "be41e00316cf7cac0c7dfec9:79132",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/nested-includes.smd · md": {
+   "status": 0,
+   "stdout": "8cd1eb873f19ccef096625bc:1555",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/nested-includes.smd · request: outline": {
+   "status": 0,
+   "stdout": "c8099de6cbdd85118e552509:490",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/nested-includes.smd · request: the section that holds three levels of includes": {
+   "status": 0,
+   "stdout": "e3fd63f9b0d859516f778450:1377",
+   "stderr": "0c72b1787c9f4b18c8a85823:143"
+  },
+  "extension/test/snapshots/fixtures/nested-includes.smd · validate": {
+   "status": 0,
+   "stdout": "01880bc65c56ad8e0350ff72:160",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/review-includes.smd · agent": {
+   "status": 0,
+   "stdout": "f1eea1f3c0e67d6bcb8181f6:1363",
+   "stderr": "13c31604e85781a6e11b8915:48"
+  },
+  "extension/test/snapshots/fixtures/review-includes.smd · html": {
+   "status": 0,
+   "stdout": "bf1c4b3f9c271e4d9b6f9d30:76992",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/review-includes.smd · md": {
+   "status": 0,
+   "stdout": "97ecf4947a9e379d0c262c35:613",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/review-includes.smd · request: review, all items": {
+   "status": 0,
+   "stdout": "66dd31c5cd32a6c10d22c517:3366",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/review-includes.smd · request: the section with included rules": {
+   "status": 0,
+   "stdout": "4e244ed89b9c6db82bec9c4c:1069",
+   "stderr": "f77ac2cf5d3b40218fb58c07:47"
+  },
+  "extension/test/snapshots/fixtures/review-includes.smd · validate": {
+   "status": 0,
+   "stdout": "c0a4f2509a88c322cf6dbbb6:3643",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/spec-v1-includes.smd · agent": {
+   "status": 0,
+   "stdout": "921128932cfa75ee26ef0990:925",
+   "stderr": "1cf28695619ab6bda5a0830d:48"
+  },
+  "extension/test/snapshots/fixtures/spec-v1-includes.smd · html": {
+   "status": 0,
+   "stdout": "88d17d490cb66216b40d3c52:78072",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/spec-v1-includes.smd · md": {
+   "status": 0,
+   "stdout": "58f7a57591c45f65f2c54b7a:989",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/spec-v1-includes.smd · validate": {
+   "status": 0,
+   "stdout": "8849923927c2dcca79fa931c:829",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/spec-v2-includes.smd · agent": {
+   "status": 0,
+   "stdout": "d5fa06b3f1e663b760ac7ad7:1092",
+   "stderr": "248e1808288503a7ba1e5059:143"
+  },
+  "extension/test/snapshots/fixtures/spec-v2-includes.smd · html": {
+   "status": 0,
+   "stdout": "fa6c96bb3247d8b7c99c2cdd:78947",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/spec-v2-includes.smd · md": {
+   "status": 0,
+   "stdout": "9ce9e1a3fb5a6c70c5b1e7fc:946",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/spec-v2-includes.smd · validate": {
+   "status": 0,
+   "stdout": "afe6d6f52d917d38d64dcbe6:161",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · agent": {
+   "status": 0,
+   "stdout": "b465e36a63e4ea8cb07f5238:1765",
+   "stderr": "e0b735e770792a4a5e0e7965:47"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · html": {
+   "status": 0,
+   "stdout": "c2491ec42c8bde548b2a1db6:79683",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · md": {
+   "status": 0,
+   "stdout": "5f84dda8134c230d78e21421:1889",
+   "stderr": "e3b0c44298fc1c149afbf4c8:0"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: a requested section is kept under a small budget": {
+   "status": 0,
+   "stdout": "b138fd6a3f495346e85c49c4:940",
+   "stderr": "176950223297db1298de151c:288"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: brief": {
+   "status": 0,
+   "stdout": "a11461208e2fa50364eb0807:1749",
+   "stderr": "0a9e6f293d3d8c57a3bbf2f2:46"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 249 does not fit and says so": {
+   "status": 0,
+   "stdout": "d101f6723e3ca730bc603695:1080",
+   "stderr": "39ba35d65a5e6e3ea29af692:443"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 250 fits the smallest view exactly": {
+   "status": 0,
+   "stdout": "fed23fcd34eecdbf1c5796fd:1017",
+   "stderr": "478b96f8a6fbb287f2769a32:238"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 252 omits Plan too": {
+   "status": 0,
+   "stdout": "fed23fcd34eecdbf1c5796fd:1017",
+   "stderr": "3a40fe0880151f7423d8a3ba:238"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 253 fits four omissions exactly": {
+   "status": 0,
+   "stdout": "6195cba6815634ebcf4feac9:1027",
+   "stderr": "16fc76912bf36697a77a9d5a:221"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 274 omits Goal too": {
+   "status": 0,
+   "stdout": "6195cba6815634ebcf4feac9:1027",
+   "stderr": "8904474ec040a4e1e98f7066:221"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 275 fits three omissions exactly": {
+   "status": 0,
+   "stdout": "06d46eb42f4471abfe48e2f5:1110",
+   "stderr": "15f64d6e682a890417dda4a3:204"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 293 omits History too": {
+   "status": 0,
+   "stdout": "06d46eb42f4471abfe48e2f5:1110",
+   "stderr": "7ab4ecd8d36bb6a6f027fdb4:204"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 294 fits two omissions exactly": {
+   "status": 0,
+   "stdout": "dd665ce4a5b3be9fecc8f4f4:1181",
+   "stderr": "91b94286512218966f65e427:184"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 329 omits Requirements too": {
+   "status": 0,
+   "stdout": "dd665ce4a5b3be9fecc8f4f4:1181",
+   "stderr": "7f045f484627ffbe7057a588:184"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 330 fits one omission exactly": {
+   "status": 0,
+   "stdout": "249ee90aa7eb74593e0f7d55:1324",
+   "stderr": "fc426b7fa0c1e7a860ea0734:159"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 437 omits Background": {
+   "status": 0,
+   "stdout": "249ee90aa7eb74593e0f7d55:1324",
+   "stderr": "801197049c29762152092530:159"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 438 fits the brief view exactly": {
+   "status": 0,
+   "stdout": "a11461208e2fa50364eb0807:1749",
+   "stderr": "88977f1d86bbcf34fb83cc33:112"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 441 condenses as brief": {
+   "status": 0,
+   "stdout": "a11461208e2fa50364eb0807:1749",
+   "stderr": "5ada01ec2c68951595ba4259:112"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: budget 442 fits the full view exactly": {
+   "status": 0,
+   "stdout": "b465e36a63e4ea8cb07f5238:1765",
+   "stderr": "146393d8674c4f2a5c46aeb3:103"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · request: read with a budget": {
+   "status": 0,
+   "stdout": "fc97819b3ee161fdcd6e3181:675",
+   "stderr": "53ffca5856e5334156a73dc7:64"
+  },
+  "extension/test/snapshots/fixtures/token-budget.smd · validate": {
+   "status": 0,
+   "stdout": "dfe26711c83009bdf96f9469:157",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/README.md · agent": {
