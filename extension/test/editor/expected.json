@@ -33,27 +33,19 @@
     "hover: plain text": {
       "both": null
     },
-    "completion: a front matter key": {
+    "completion: a front matter key on an empty line": {
       "vscode": [
+        "(contributed snippets)",
         "accent",
         "audience",
         "created",
         "lang",
         "owners",
         "related",
-        "smd",
-        "snippet: assumption",
-        "snippet: constraint",
-        "snippet: milestones",
-        "snippet: risk-matrix",
-        "snippet: riskmatrix",
-        "snippet: status",
-        "snippet: steps",
         "status",
         "summary",
         "tags",
         "theme",
-        "title",
         "toc",
         "typography",
         "updated",
@@ -67,19 +59,17 @@
         "lang",
         "owners",
         "related",
-        "smd",
         "status",
         "summary",
         "tags",
         "theme",
-        "title",
         "toc",
         "typography",
         "updated",
         "version",
         "views"
       ],
-      "difference": "VS Code adds the extension's contributed snippets (snippets/smd.json) whose prefix matches the word at the cursor, marked \"snippet:\". The language server has no snippets. The keys from the providers are the same."
+      "difference": "VS Code adds the extension's contributed snippets (snippets/smd.json), shown as the one entry \"(contributed snippets)\". With no word at the cursor it offers all of them. The language server has no snippets. The keys from the providers are the same."
     },
     "completion: an anchor in another document": {
       "both": [
@@ -135,6 +125,7 @@
     },
     "completion: an inline directive": {
       "vscode": [
+        "(contributed snippets)",
         "badge",
         "depends",
         "due",
@@ -145,7 +136,6 @@
         "progress",
         "ref",
         "since",
-        "snippet: :::",
         "status"
       ],
       "lsp": [
@@ -161,10 +151,11 @@
         "since",
         "status"
       ],
-      "difference": "VS Code adds the contributed \"Callout\" snippet, whose prefix is \":::\". The language server has no snippets. The directives from the providers are the same."
+      "difference": "VS Code adds the contributed \"Callout\" snippet, whose prefix is \":::\", shown as \"(contributed snippets)\". The language server has no snippets. The directives from the providers are the same."
     },
     "completion: a container name": {
       "vscode": [
+        "(contributed snippets)",
         "acceptance",
         "agent",
         "api",
@@ -195,7 +186,6 @@
         "requirement",
         "risk",
         "risk-matrix",
-        "snippet: :::",
         "steps",
         "success",
         "suggestion",
@@ -245,7 +235,7 @@
         "tip",
         "warning"
       ],
-      "difference": "VS Code adds the contributed \"Callout\" snippet, whose prefix is \":::\". The language server has no snippets. The container names from the providers are the same."
+      "difference": "VS Code adds the contributed \"Callout\" snippet, whose prefix is \":::\", shown as \"(contributed snippets)\". The language server has no snippets. The container names from the providers are the same."
     },
     "completion: a footnote label": {
       "both": [

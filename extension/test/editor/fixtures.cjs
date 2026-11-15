@@ -43,13 +43,17 @@ function outline(symbols, kindName, depth = 0) {
   return symbols.flatMap((s) => [`${'  '.repeat(depth)}${s.name} [${kindName(s.kind)}] ${s.range.start.line + 1}`, ...outline(s.children ?? [], kindName, depth + 1)]);
 }
 
+/** The completion entry that stands for VS Code's contributed snippets. */
+const SNIPPETS = '(contributed snippets)';
+
 /** VS Code's answers, from the vscode.execute… commands, in the normal form. */
 const fromVscode = {
   hover: (hovers) => hover((hovers ?? []).flatMap((h) => h.contents.map((c) => (typeof c === 'string' ? c : c.value)))),
-  // Items of the snippet kind are the extension's contributed snippets (snippets/smd.json): neither provider makes them.
+  // Items of the snippet kind are the extension's contributed snippets (snippets/smd.json), which neither provider makes.
+  // They stand as one entry, SNIPPETS, so editing the snippets doesn't change the expected results.
   completion: (list, _root, snippetKind) => completion((list?.items ?? []).map((i) => {
-    const label = typeof i.label === 'string' ? i.label : i.label.label;
-    return i.kind === snippetKind ? `snippet: ${label}` : label;
+    if (i.kind === snippetKind) return SNIPPETS;
+    return typeof i.label === 'string' ? i.label : i.label.label;
   })),
   outline: (symbols) => outline(symbols ?? [], (k) => SYMBOL_KINDS[k]),
   references: (locations, root) => sortUnique((locations ?? []).map((l) => `${relativeTo(root, l.uri.fsPath)}:${span(l.range)}`)),

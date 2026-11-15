@@ -1,7 +1,7 @@
 ---
 smd: 2
 title: Editor fixture typing
-st
+
 ---
 
 Half-typed lines for completion. Each case puts the cursor at the end of one line.

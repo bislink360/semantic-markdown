@@ -16,7 +16,7 @@ Two tests ask the questions.
 - `test/editorFixtures.test.ts` runs the language server in-process on a copy of `workspace/`, in `npm test`.
 - `test/integration/suite.js` ("the shared editor fixtures…") runs the VS Code providers in a real VS Code, on a copy of `workspace/` placed briefly in the open folder, in the CI job "VS Code integration tests". Locally, run `node test/integration/run.mjs` after `npm run build`. It uses an installed VS Code when it finds one.
 
-Completion items of VS Code's snippet kind are the extension's contributed snippets (`snippets/smd.json`), labelled `snippet:`. Neither provider makes them.
+Completion items of VS Code's snippet kind are the extension's contributed snippets (`snippets/smd.json`), which neither provider makes. They stand as one entry, `(contributed snippets)`, so editing the snippets doesn't change the expected results.
 
 ## Differences recorded today
 
@@ -26,7 +26,7 @@ Completion items of VS Code's snippet kind are the extension's contributed snipp
 | References and rename | VS Code also searches `.md` and `.markdown` files, so it finds and rewrites the link in `notes.md` |
 | References from a link | Asked on a link to a heading, VS Code lists the heading as the declaration, and the language server does not |
 | Hover on a code embed | Same text, different spacing. VS Code always uses a three-backtick fence, while the language server lengthens it past any backticks in the code |
-| Completion | VS Code adds the contributed snippets that match the word at the cursor |
+| Completion | VS Code adds the contributed snippets that match the word at the cursor, all of them on an empty line |
 | Trigger characters | VS Code also triggers completion on a space |
 
 Hover on variables, links, footnotes, glossary terms, `:ref`, `:depends` and container names, every other completion, and references from a heading agree.

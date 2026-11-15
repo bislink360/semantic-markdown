@@ -12,7 +12,7 @@
     { "name": "hover: a :depends on a task", "feature": "hover", "file": "plan.smd", "at": { "find": ":depends[EF-T1]", "offset": 10 } },
     { "name": "hover: plain text", "feature": "hover", "file": "plan.smd", "at": { "find": "A callout the hover explains.", "offset": 3 } },
 
-    { "name": "completion: a front matter key", "feature": "completion", "file": "typing.smd", "at": { "line": 3, "character": "end" } },
+    { "name": "completion: a front matter key on an empty line", "feature": "completion", "file": "typing.smd", "at": { "line": 3, "character": 0 } },
     { "name": "completion: an anchor in another document", "feature": "completion", "file": "typing.smd", "at": { "find": "[the plan](plan.smd#", "offset": 20 } },
     { "name": "completion: an anchor in the same document", "feature": "completion", "file": "typing.smd", "at": { "find": "[a section](#", "offset": 13 } },
     { "name": "completion: a path in a link", "feature": "completion", "file": "typing.smd", "at": { "find": "[a file](src/", "offset": 13 } },
