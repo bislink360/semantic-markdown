@@ -204,3 +204,22 @@ What they show.
 - **Includes are read again within one call.** Validation reads the 3 included files 21 times, and the agent view misses the parse cache for included text even when the document is unchanged (CL-14, t-19 and t-21).
 - **The rule chain stays small.** At 49 rounds, the longest chain the 50-block limit lets through, a section read takes 27 ms. From 10 to 49 rounds the time grows about as fast as the chain does at these sizes, so the quadratic cost of the rounds does not show yet (t-58).
 - **CLI startup is mostly loading.** `smd --version` takes about 57 ms more than Node alone, and `activate()` itself under 1 ms after a 52 ms load. The bundle load is where t-23 and t-43 can gain.
+
+## Heading lookups from the cached parse (t-16)
+
+The editors' heading lookups rendered the whole document to HTML to read its headings (CL-09). That covers the outline (`documentSymbols`), the heading under the cursor (`headingAt`), the section and document previews hovers show (`sectionExcerpt`, `documentPreview`) and heading rename (`renameHeading`, which rendered the document twice). They now read `parseSmd(text).headings`, which is cached and updated in small pieces after an edit. The lookups that resolve includes keep rendering (`includeCheck.ts`, `toMarkdown.ts` with a reader).
+
+`test/headingParity.test.ts` checks that the parse gives the same headings as a render without a reader. That covers all 218 documents of both corpora, the focused fixtures, the samples and the docs, and none differ.
+
+The `heading-lookups` scenario measures each lookup on a composite of about 20k tokens (80 KB), and a heading rename through the language server on the shared 40-document workspace. The machine was busy, so the old and new code ran alternately from two worktrees, twice. These are the medians of the second round, in ms.
+
+| Lookup | Cold, before → after | Cached, before → after | After an edit, before → after |
+|---|---|---|---|
+| Outline symbols | 40.7 → 28.1 | 32.7 → 1.4 | 34.2 → 11.4 |
+| Heading under the cursor | 73.6 → 29.6 | 60.2 → 0.1 | 55.0 → 10.1 |
+| Section preview | 76.2 → 47.0 | 44.4 → 0.2 | 50.2 → 16.4 |
+| Document preview | 42.5 → 52.4 | 43.0 → 0.6 | 46.5 → 21.0 |
+| Rename a heading | 198.6 → 93.8 | 137.2 → 41.9 | 190.9 → 70.9 |
+| Language server heading rename, 40 documents | 13.8 → 9.6 | 14.0 → 8.1 | 16.0 → 10.9 |
+
+The gain is in repeated and edited lookups, which is what an editor does on every hover and keystroke. A cached lookup now takes well under 2 ms, about 2% of a render or less. After an edit it costs 17–50% of a render. Cold lookups mostly got faster too, but a cold parse can cost as much as a render, the runs were noisy, and the document preview was slower cold in one round, so no cold-path gain is claimed. The language server's workspace symbols, cached by modification time, were the same within noise.
