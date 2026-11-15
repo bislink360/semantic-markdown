@@ -1,0 +1,13 @@
+---
+smd: 2
+title: Included rules
+---
+
+## Refunds
+
+:::requirement{#RV2} Refunds over 500 need a second approval
+:::
+
+:::comment{for=RV2 author=@lee date=2026-11-03} Written in the included file
+Does this cover partial refunds?
+:::

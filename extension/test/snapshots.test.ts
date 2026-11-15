@@ -4,30 +4,38 @@ import * as fs from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  cases, compare, COMMANDS, corpusFiles, corpusSummary, differingParts, normalize, recorded, ROOT, runCases, runEnv, SNAPSHOTS,
-  staleCli, streamDigest,
+  allCases, compare, COMMANDS, CONFORMANCE, conformanceArgv, corpusFiles, corpusSummary, differingParts, inputFiles, normalize,
+  recorded, requestCases, ROOT, runCases, runEnv, SNAPSHOTS, staleCli, streamDigest,
 } from '../scripts/snapshots.mjs';
+import { cliArgs, type Route } from './conformance/oracle';
 
-/** The output snapshot harness over both corpora (improvement roadmap t-01). */
+/** The output snapshot harness over both corpora (improvement roadmap t-01) and the focused fixtures (t-02). */
 
 const snapshot = JSON.parse(fs.readFileSync(SNAPSHOTS, 'utf8')) as {
-  corpus: { compat: number; research: number; digest: string };
+  corpus: { compat: number; research: number; focused: number; requests: { focused: number; conformance: number }; digest: string };
   cases: Record<string, { status: number; stdout: string; stderr: string }>;
   options: { today: string };
 };
 
-test('t-01: the corpus is the 41 compatibility and 125 research files, and the snapshots were written from it', () => {
+test('t-01: the corpus is the 41 compatibility and 125 research files and the 8 focused fixtures, and the snapshots were written from it', () => {
   const files = corpusFiles();
   const summary = corpusSummary(files);
   assert.equal(summary.compat, 41);
   assert.equal(summary.research, 125);
+  assert.equal(summary.focused, 8);
+  assert.deepEqual(summary.requests, { focused: 26, conformance: 70 });
+  assert.ok(!files.some((f) => f.includes('/parts/')), 'included parts are read through the fixtures, not as corpus files');
+  const inputs = inputFiles();
+  for (const f of ['extension/test/snapshots/fixtures/parts/deep/nested-c.smd', 'extension/test/snapshots/fixtures/requests.json', `${CONFORMANCE}/08-rule-chains/case.json`]) {
+    assert.ok(inputs.includes(f), `the digest covers ${f}`);
+  }
   assert.deepEqual(summary, snapshot.corpus, 'a corpus file changed: run node scripts/snapshots.mjs --update and review the diff');
   assert.ok(files.every((f) => !f.includes('\\') && !f.startsWith('/')), 'relative, /-separated paths');
   assert.deepEqual(corpusFiles(), files, 'the same list every time');
 });
 
-test('t-01: every file has a case for agent, validate --format json, export --to md and export --to html, and nothing else', () => {
-  const keys = cases(corpusFiles()).map((c) => c.key).sort();
+test('t-01: every file has a case for agent, validate --format json, export --to md and export --to html, and the requests add the rest', () => {
+  const keys = allCases(corpusFiles()).map((c) => c.key).sort();
   assert.deepEqual(keys, Object.keys(snapshot.cases).sort());
   assert.deepEqual(Object.keys(COMMANDS), ['agent', 'validate', 'md', 'html']);
   for (const argv of Object.values(COMMANDS)) {
@@ -37,6 +45,28 @@ test('t-01: every file has a case for agent, validate --format json, export --to
   assert.match(record.stdout, /^[0-9a-f]{24}:\d+$/);
   assert.match(record.stderr, /^[0-9a-f]{24}:\d+$/);
   assert.equal(typeof record.status, 'number', 'exit status, stdout and stderr are recorded separately');
+});
+
+test('t-02: every read-contract request is snapshotted with the arguments the oracle gives the CLI, at the fixed date', () => {
+  const requests = requestCases();
+  const conformance = requests.filter((c) => c.source === 'conformance');
+  let total = 0;
+  for (const dir of fs.readdirSync(join(ROOT, CONFORMANCE))) {
+    const listed = JSON.parse(fs.readFileSync(join(ROOT, CONFORMANCE, dir, 'case.json'), 'utf8')) as { requests: Array<{ name: string; doc?: string; route: Route }> };
+    for (const r of listed.requests) {
+      total++;
+      const file = `${CONFORMANCE}/${dir}/${r.doc ?? 'doc.smd'}`;
+      const c = conformance.find((x) => x.key === `${file} · conformance: ${r.name}`);
+      assert.ok(c, `${dir}: ${r.name} has a case`);
+      assert.deepEqual(c.argv, [...cliArgs(file, r.route), '--today', snapshot.options.today]);
+      assert.deepEqual(conformanceArgv(file, r.route), c.argv);
+    }
+  }
+  assert.equal(conformance.length, total);
+  for (const c of requests.filter((x) => x.source === 'focused')) {
+    assert.ok(c.argv.includes(c.file) && !c.argv.some((a) => /^\{.*\}$/.test(a)), `${c.key}: the file and the date are filled in`);
+    assert.deepEqual(c.argv.slice(-2), ['--today', snapshot.options.today], `${c.key} has the fixed date`);
+  }
 });
 
 test('t-01: runs get a fixed locale and time zone and none of smd\'s own variables', () => {
@@ -74,8 +104,8 @@ test('t-01: the built CLI reproduces the snapshots, run after run', {
   skip: (staleCli() !== undefined) && 'run npm run build first',
   timeout: 120_000,
 }, async () => {
-  const sample = cases(corpusFiles()).filter((c) => /(include|review-blocks)\.smd|p08[^/]*\/doc\.smd/.test(c.file));
-  assert.ok(sample.length >= 12, 'includes, review blocks and an included shared file');
+  const sample = allCases(corpusFiles()).filter((c) => /(include|review-blocks|nested-includes)\.smd|p08[^/]*\/doc\.smd|token-budget\.smd · request: budget 2|08-rule-chains/.test(c.key));
+  assert.ok(sample.length >= 25, 'includes, review blocks, an included shared file, nested includes, budgets and rule chains');
   const first = await runCases(cli, sample);
   const second = await runCases(cli, sample);
   for (const c of sample) {

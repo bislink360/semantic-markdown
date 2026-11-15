@@ -232,17 +232,25 @@ export function cliBuilt(): boolean {
   return existsSync(CLI);
 }
 
+/**
+ * The CLI arguments of a request, without the manifest. The output snapshots (scripts/snapshots.mjs
+ * conformanceArgv) run the same arguments, and test/snapshots.test.ts checks the two agree.
+ */
+export function cliArgs(doc: string, route: Route): string[] {
+  const args = route.query !== undefined
+    ? ['query', route.query, doc, '--contract']
+    : ['agent', doc, ...(route.sections ?? []).flatMap((s) => ['--section', s])];
+  if (route.brief) args.push('--brief');
+  if (route.maxTokens !== undefined) args.push('--max-tokens', String(route.maxTokens));
+  if (route.includedInstructions) args.push('--included-instructions', route.includedInstructions);
+  return args;
+}
+
 export function runCli(dir: string, doc: string, route: Route): Observation {
   const tmp = mkdtempSync(join(tmpdir(), 'smd-conformance-'));
   const out = join(tmp, 'view.json');
   try {
-    const args = route.query !== undefined
-      ? [CLI, 'query', route.query, doc, '--contract']
-      : [CLI, 'agent', doc, ...(route.sections ?? []).flatMap((s) => ['--section', s])];
-    if (route.brief) args.push('--brief');
-    if (route.maxTokens !== undefined) args.push('--max-tokens', String(route.maxTokens));
-    if (route.includedInstructions) args.push('--included-instructions', route.includedInstructions);
-    args.push('--provenance', out);
+    const args = [CLI, ...cliArgs(doc, route), '--provenance', out];
     const run = spawnSync(process.execPath, args, { cwd: dir, encoding: 'utf8' });
     if (run.status !== 0) throw new Error(`smd ${args[1]} exited with ${run.status}: ${run.stderr}`);
     const written = JSON.parse(readFileSync(out, 'utf8')) as Manifest | Manifest[];

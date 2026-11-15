@@ -1,0 +1,18 @@
+---
+smd: 2
+title: Included text read with spec v2
+summary: "The twin of spec-v1-includes.smd, with smd: 2. The included file says smd: 1, but the including document's version decides how its lines are read, so the two twins differ only where spec v2 reads text differently."
+status: draft
+---
+
+## Everything
+
+:::include{file="parts/spec-part.smd" level=3}
+:::
+
+## A part of a heading's text
+
+<!-- smd-disable-next-line include/missing-section -->
+:::include{file="parts/spec-part.smd" section="refund" level=3}
+The refund policy is in the included file.
+:::

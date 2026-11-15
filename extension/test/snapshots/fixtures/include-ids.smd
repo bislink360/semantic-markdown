@@ -1,0 +1,32 @@
+---
+smd: 2
+title: Ids in included text
+summary: Explicit ids, heading slugs and links in included text, an included id that collides with one of the document's own, and the same file included twice, so the id index, link checks and rendered anchors stay as they are when they are refactored.
+status: draft
+---
+
+## Overview
+
+The document's own overview. The included file has an overview of its own, so its heading slug collides.
+
+Links into the included text: [the limits](#limits), [the refund rule](#IR1), :ref[IR1], :ref[IR2] and
+[the included overview](#overview-1).
+
+## Pricing
+
+:::include{file="parts/ids-part.smd" level=3}
+The shared pricing is not written yet.
+:::
+
+## Own rules
+
+:::requirement{#IR2} Refunds are paid within 14 days
+This id is also given in the included file, so it is given twice.
+:::
+
+## The same file again
+
+Including the file a second time gives every one of its ids again:
+
+:::include{file="parts/ids-part.smd" section="#limits" level=3}
+:::

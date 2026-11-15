@@ -1,0 +1,19 @@
+---
+smd: 2
+title: Shared pricing
+---
+
+## Overview
+
+Prices are in euros. The [limits](#limits) apply to every plan, and :ref[IR1] to every refund.
+
+## Limits {#limits}
+
+:::requirement{#IR1} A refund needs the order number
+See [the overview](#overview) and the [nested contract](nested-a.smd#contract).
+:::
+
+:::requirement{#IR2 applies-to=IR1} Refunds over 500 euros need a second approval
+:::
+
+- [ ] Publish the limits {#IP-T1}

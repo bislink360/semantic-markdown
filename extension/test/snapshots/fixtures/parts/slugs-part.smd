@@ -1,0 +1,12 @@
+---
+smd: 2
+title: Included slugs
+---
+
+## Notes
+
+The included file's own "Notes", which is `notes` in this file.
+
+## Summary
+
+A "Summary" heading, whose slug the including document gave as an explicit id to something else.

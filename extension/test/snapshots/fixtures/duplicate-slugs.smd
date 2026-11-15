@@ -1,0 +1,42 @@
+---
+smd: 2
+title: Duplicate slugs
+summary: Headings whose ids meet, from repeats, from an explicit id equal to a slug, from text that slugs to a numbered slug and from an included file, so the numbering of repeated slugs stays as it is when heading ids are refactored.
+status: draft
+---
+
+## Notes
+
+The first "Notes" heading is `notes`.
+
+## Notes
+
+The second is `notes-1`.
+
+## Notes 1
+
+Its own text slugs to `notes-1` too, which the second "Notes" already has.
+
+## Summary {#notes-2}
+
+An explicit id equal to the slug the next "Notes" would get.
+
+## Notes
+
+The third "Notes" heading.
+
+## Changes {#changes}
+
+## Changes
+
+A slug equal to an explicit id given before it.
+
+## Included
+
+:::include{file="parts/slugs-part.smd" level=3}
+:::
+
+## Links
+
+[First](#notes), [second](#notes-1), [summary](#notes-2), [explicit changes](#changes), [repeated changes](#changes-1),
+[included notes](#notes-3) and [included summary](#summary).

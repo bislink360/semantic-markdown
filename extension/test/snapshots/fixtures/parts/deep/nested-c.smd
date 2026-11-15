@@ -1,0 +1,14 @@
+---
+smd: 2
+title: Level three
+---
+
+## Retention {#retention}
+
+Logs are kept for 30 days. The diagram is next to this file:
+
+![Retention timeline](retention.svg)
+
+The rate limits are in [level two](../nested-b.smd#rate-limits).
+
+- [ ] Agree the retention period with legal {#NC-T1}
