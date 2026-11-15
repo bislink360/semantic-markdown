@@ -166,3 +166,41 @@ The review sets the conditions. A cache of parsed documents or views would need 
 - The view options (`brief`, `sections`, `exactSections`, `includes`, `embed`, `includeHuman`, `lineRefs`, `maxTokens`, tokenizer, file).
 
 A cross-request cache also needs bounded memory and invalidation. Accept it only when the output is identical and this profiler shows lower latency.
+
+## Shared scenarios (improvement roadmap t-03)
+
+The scenario runner (`npm run bench:scenarios`, described in [extension/test/bench/README.md](../../extension/test/bench/README.md)) is where the M2 performance tasks record their baselines. These are the first results of its shared scenarios. They are a starting point to compare against on this machine, not limits.
+
+The machine is the one above, with Node v24.13.0 and `--expose-gc`, on commit `18a44c8` plus the runner itself. Each mode had 15 timed runs after 3 warm-up runs, and the heap was collected before each run. Times are medians in ms. "Misses" are parse cache misses. "Reads" are file reads, with distinct files in brackets.
+
+| Scenario and case | Cold | Cached | After an edit | Misses (cold, cached) | Reads | cv |
+|---|---:|---:|---:|---|---|---:|
+| References, 40 documents | 16.4 | 15.8 | 15.4 | 38, 40 | 39 (39) | 4% |
+| Rename, 40 documents | 16.1 | 16.4 | 15.7 | 38, 40 | 39 (39) | 4% |
+| References, 200 documents | 67.2 | 61.7 | 63.3 | 198, 200 | 199 (199) | 3–14% |
+| Workspace symbols, 40 documents | 27.1 | 1.6 | 3.0 | none | 40 (40), then 0 | 4–10% |
+| Workspace symbols, 200 documents | 139 | 5.7 | 7.6 | none | 200 (200), then 0 | 10–16% |
+| Validate with includes | 35.4 | 26.3 | 31.6 | 3, 0 | 21 (3) | 6–17% |
+| Render with includes | 15.7 | 15.9 | 15.6 | no `parseSmd` calls | 8 (3) | 2–8% |
+| Agent view with includes | 17.1 | 16.9 | 17.2 | 7, 7 | 2 (2) | 3–4% |
+| Rule chain, 10 / 25 / 49 rounds | 4.5 / 11.3 / 26.7 | 3.5 / 8.8 / 22.5 | | 1, 0 | none | 4–10% |
+| Rule chain, 60 rules past the limit | 33.3 | 29.8 | | 1, 0 | none | 4–6% |
+| Budget at 20% of the view, 200 sections | 39.1 | 24.1 | | 1, 0 | none | 8–9% |
+
+Process cases are a new Node process each run.
+
+| Case | Median ms | Peak memory MB |
+|---|---:|---:|
+| Node alone (`node -e 0`) | 80 | 61 |
+| `smd --version` | 137 | 76 |
+| `smd validate` on a small document | 255 | 105 |
+| `smd agent` on a small document | 161 | 80 |
+| Extension activation (load 52 ms, `activate()` 0.8 ms) | 138 | 75 |
+
+What they show.
+
+- **References and rename re-parse the workspace on every request.** A repeated request on the same server misses the parse cache for every document. It costs as much as the first, and the cost grows with the workspace. This is the work t-20 targets.
+- **Workspace symbols cache well.** After the first index, a repeat reads no file, and a changed file costs one read.
+- **Includes are read again within one call.** Validation reads the 3 included files 21 times, and the agent view misses the parse cache for included text even when the document is unchanged (CL-14, t-19 and t-21).
+- **The rule chain stays small.** At 49 rounds, the longest chain the 50-block limit lets through, a section read takes 27 ms. From 10 to 49 rounds the time grows about as fast as the chain does at these sizes, so the quadratic cost of the rounds does not show yet (t-58).
+- **CLI startup is mostly loading.** `smd --version` takes about 57 ms more than Node alone, and `activate()` itself under 1 ms after a 52 ms load. The bundle load is where t-23 and t-43 can gain.
