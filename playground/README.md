@@ -21,7 +21,7 @@ This writes `extension/dist/playground/`. Open `index.html` from there directly 
 | `vendor/mermaid-source.js` | Mermaid (3.5 MB), loaded only when a document has a diagram |
 | `vendor/*.LICENSE` | Licenses of the bundled KaTeX and Mermaid |
 
-Hosting it (for example on GitHub Pages) is a separate maintainer decision and is not set up in this repository. Each GitHub Release attaches the built folder as `semantic-markdown-playground.zip`.
+It is hosted at [bislink360.github.io/semantic-markdown/playground/](https://bislink360.github.io/semantic-markdown/playground/). The Pages workflow (`.github/workflows/pages.yml`) rebuilds it from `main` on every push, next to the homepage and the user guide. Each GitHub Release also attaches the built folder as `semantic-markdown-playground.zip`.
 
 ## Sharing by link
 
