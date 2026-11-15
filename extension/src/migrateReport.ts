@@ -12,6 +12,7 @@ const TITLES: Record<MigrationKind, string> = {
   'attr-escapes': 'Backslashes in attribute values',
   'unknown-directive': 'Unknown inline directives',
   'include-section': 'Include sections',
+  'include-text': 'Included text',
   'value-case': 'Enumerated values',
   typography: 'Typography',
   'fuzzy-link': 'Bare domain links',

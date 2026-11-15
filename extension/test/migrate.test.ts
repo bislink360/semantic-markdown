@@ -376,7 +376,9 @@ test('migrate: corpus/migrate.smd has a case for every step', () => {
     'closer:15', 'closer:19', 'duplicate-attrs:26', 'title-text:31', 'agent-priority:38', 'math-delimiters:44', 'heading-braces:47', 'attr-escapes:78', 'unknown-directive:51', 'unknown-directive:79',
     'include-section:60', 'value-case:5', 'value-case:66', 'value-case:70', 'typography:74 note', 'fuzzy-link:74 note', 'variable-spelling:6 note', 'version:2',
   ]);
-  assert.deepEqual(new Set(p.steps.map((s) => s.kind)), new Set(KIND_ORDER), 'every kind of step');
+  // Every kind but the note on included text that spec v2 reads differently: the corpus includes text that reads the
+  // same in both versions. snapshots/fixtures/spec-v1-includes.smd has that case (the repository test below).
+  assert.deepEqual(new Set(p.steps.map((s) => s.kind)), new Set(KIND_ORDER.filter((k) => k !== 'include-text')), 'every kind of step');
   // Only the steps that keep the v2 meaning change the v1 rendering, and of these only the backslash step shows: v1 reads
   // the `\\\\` it writes as two backslashes (the title's inline Markdown shows one of each pair), v2 as one.
   const unc = String.raw`<span class="smd-sr-only">Note: </span>\server\share`;
@@ -434,12 +436,16 @@ test('migrate: every .smd file in the repository gets a plan that settles and ke
     // Spec v2 shows it as v1 shows the original once --keep-typography and --link-domains keep its typography and links
     // (task boxes' source lines move with the added front matter line).
     const kept = plan(text, { readFile: reader, keepTypography: true, linkDomains: true });
-    // Proposal 10 (values shown as written) is not this comparison's. snapshots/fixtures/spec-v1-includes.smd includes
-    // a v1 file that spec v2 reads differently, and the including document's version decides how included lines are
-    // read: migrated alone, its included text changes. The plan does not look at included files' text yet (found by
-    // t-02), so the snapshots pin that file as it is and this comparison leaves it out.
-    const includesV2Sensitive = path.basename(file) === 'spec-v1-includes.smd';
-    if (p.from < 2 && !includesV2Sensitive && !kept.steps.some((s) => (s.keeps === 'v2' && s.kind !== 'typography' && !s.note) || s.kind === 'variable-spelling')) {
+    // Proposal 10 (values shown as written) is not this comparison's. The including document's version decides how
+    // included lines are read, so an include whose text spec v2 reads differently is a note naming the included file,
+    // which this comparison leaves out: snapshots/fixtures/spec-v1-includes.smd includes such a v1 file once whole
+    // (line 10) and once by a section that reads the same.
+    const included = kept.steps.filter((s) => s.kind === 'include-text');
+    if (path.basename(file) === 'spec-v1-includes.smd') {
+      assert.deepEqual(included.map((s) => `${s.line + 1}${s.note ? ' note' : ''}`), ['10 note'], file);
+      assert.match(included[0].reason, /^The text included from "parts\/spec-part\.smd" renders differently with spec v2[^]*Migrate "parts\/spec-part\.smd" too/);
+    }
+    if (p.from < 2 && !included.length && !kept.steps.some((s) => (s.keeps === 'v2' && s.kind !== 'typography' && !s.note) || s.kind === 'variable-spelling')) {
       assert.equal(shownV2(kept.result, reader), shownV2(text, reader), `${file} under spec v2`);
       comparedV2++;
     }

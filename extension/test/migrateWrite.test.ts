@@ -33,19 +33,48 @@ test('checkMigration: a migrated document renders under spec v2 as the original 
   const original = doc('::::note\nx\n:::\n\nSee :abbr[HTML] and $$ x\ny $$');
   const plan = migrationPlan(original);
   const check = checkMigration(original, plan.result, plan);
-  assert.deepEqual(check, { left: [], rendering: 'same', explainedBy: [] });
+  assert.deepEqual(check, { left: [], rendering: 'same', explainedBy: [], includes: [] });
 });
 
 test('checkMigration: a difference the notes or v2-meaning steps explain, and one nothing explains', () => {
   const quoted = doc('"Quoted" -- text.');
   const plan = migrationPlan(quoted);
-  assert.deepEqual(checkMigration(quoted, plan.result, plan), { left: [], rendering: 'explained', explainedBy: ['typography'] }, 'typography left off: a note');
+  assert.deepEqual(checkMigration(quoted, plan.result, plan), { left: [], rendering: 'explained', explainedBy: ['typography'], includes: [] }, 'typography left off: a note');
   const cased = doc(':::decision{status=Accepted} D\nx\n:::', 'smd: 1\nstatus: Draft');
   const casePlan = migrationPlan(cased);
   assert.equal(checkMigration(cased, casePlan.result, casePlan).rendering, 'same', 'values in the vocabulary\'s case render the same here');
-  // A plan that explains nothing, and a written text that renders differently (an include read with the v2 rules).
+  // A plan that explains nothing, and a written text that renders differently.
   const fake: MigrationPlan = { from: 1, steps: [], result: doc('"Quoted"', 'smd: 2') };
-  assert.deepEqual(checkMigration(doc('"Quoted"'), fake.result, fake), { left: [], rendering: 'differs', explainedBy: [] });
+  assert.deepEqual(checkMigration(doc('"Quoted"'), fake.result, fake), { left: [], rendering: 'differs', explainedBy: [], includes: [] });
+});
+
+test('checkMigration: included text that spec v2 reads differently is named, and explained only by the plan\'s note', () => {
+  // The including document's version decides how included text is read: once it says smd: 2, the included
+  // `:abbr[…]` is a directive and the heading's `{}` is heading text. The plain file reads the same in both versions.
+  const files: Record<string, string> = { 'part.smd': '---\nsmd: 1\n---\n\nSee :abbr[HTML].\n\n## Part {}\n', 'plain.smd': 'Plain text.\n' };
+  const readFile = (rel: string) => files[rel];
+  const original = doc(':::include{file="part.smd"}\n:::\n\n:::include{file="plain.smd"}\n:::');
+  const plan = migrationPlan(original, { readFile });
+  assert.deepEqual(plan.steps.filter((s) => s.note).map((s) => `${s.kind}:${s.line}`), ['include-text:4']);
+  assert.match(plan.steps[0].reason, /^The text included from "part\.smd" renders differently with spec v2[^]*Migrate "part\.smd" too/);
+  assert.deepEqual(checkMigration(original, plan.result, plan, { readFile }), { left: [], rendering: 'explained', explainedBy: ['include-text'], includes: ['part.smd'] });
+  const unexplained: MigrationPlan = { ...plan, steps: plan.steps.filter((s) => !s.note) };
+  assert.equal(checkMigration(original, plan.result, unexplained, { readFile }).rendering, 'differs', 'a changed include that no note names');
+  // Migrated too, the included file reads the same in both versions: nothing is left to note.
+  files['part.smd'] = migrationPlan(files['part.smd']).result;
+  const both = migrationPlan(original, { readFile });
+  assert.deepEqual(both.steps.filter((s) => s.note), []);
+  assert.deepEqual(checkMigration(original, both.result, both, { readFile }).includes, []);
+  // Without a reader, includes are left alone.
+  assert.deepEqual(migrationPlan(original).steps.filter((s) => s.kind === 'include-text'), []);
+});
+
+test('checkMigration: an included file that already says smd: 2 is read with the rules it is written for', () => {
+  const readFile = (rel: string) => (rel === 'part.smd' ? '---\nsmd: 2\n---\n\nSee :abbr[HTML].\n' : undefined);
+  const original = doc(':::include{file="part.smd"}\n:::');
+  const notes = migrationPlan(original, { readFile }).steps.filter((s) => s.note);
+  assert.deepEqual(notes.map((s) => s.kind), ['include-text']);
+  assert.match(notes[0].reason, /That file says smd: 2, and is read with the v1 rules here today/);
 });
 
 test('checkMigration: changes left in the written document are reported', () => {
@@ -241,18 +270,20 @@ test('CLI: a file that cannot be written is reported, left as it was, and the ex
   }
 });
 
-test('CLI: the check after writing warns when spec v2 renders a file differently and no step says why', { skip: noCli }, () => {
+test('CLI: included text that spec v2 reads differently is a note naming the file, and the check says so', { skip: noCli }, () => {
   const dir = tempDir();
   try {
     // Included text is read with the including document's version: once it says smd: 2, the included quotes stay
-    // straight, and the plan of the including document can't see them.
+    // straight. The plan compares what the include shows in both versions.
     fs.writeFileSync(path.join(dir, 'main.smd'), doc(':::include{file="part.smd"}\n[Part](part.smd)\n:::'));
     fs.writeFileSync(path.join(dir, 'part.smd'), 'A "quoted" part.\n');
     const r = run(dir, 'main.smd', '--to', '2');
-    assert.equal(r.status, 0, 'a warning, not a failure');
-    assert.match(r.stdout, /main\.smd: migrated to spec v2 \(1 change\)/);
-    assert.match(r.stderr, /main\.smd: warning: spec v2 renders the migrated file differently from how v1 rendered it, and no step says why/);
-    assert.match(r.stdout, /Verified, with 1 warning: see them above\./);
+    assert.equal(r.status, 0);
+    assert.equal(r.stderr, '', 'the note says why it renders differently: no warning');
+    assert.match(r.stdout, /main\.smd: migrated to spec v2 \(1 change, 1 note\)/);
+    assert.match(r.stdout, /line 5, note: Included text: The text included from "part\.smd" renders differently with spec v2[^\n]*Migrate "part\.smd" too/);
+    assert.match(r.stdout, /Verified: nothing is left to migrate, and spec v2 renders the text of each file as v1 rendered it\. The text included from part\.smd renders differently: see the notes, and migrate it too\./);
+    assert.doesNotMatch(r.stdout, /renders each file as v1 rendered it/);
     fs.writeFileSync(path.join(dir, 'main.smd'), doc(':::include{file="part.smd"}\n[Part](part.smd)\n:::'));
     const quiet = run(dir, 'main.smd', '--to', '2', '--no-verify');
     assert.equal(quiet.status, 0);
