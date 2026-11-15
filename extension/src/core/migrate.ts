@@ -6,8 +6,9 @@ import { AGENT_HEADER_HIDDEN } from './agentView';
 import { parseFrontMatter, sourceSpelledData, type FrontMatter } from './frontmatter';
 import { FRONTMATTER_SCHEMA } from './frontmatterSchema';
 import { EN } from './i18n';
+import { containerEnd, findIncludes, includeRequest } from './include';
 import { codeLines, inlineMathLines, literalLines, mathOnLine, type InlineMathLines } from './parse';
-import { createMarkdownIt, HEADING_ATTRS, type Env } from './render';
+import { createMarkdownIt, HEADING_ATTRS, renderParsed, type Env } from './render';
 import { CONTAINERS, INLINE_DIRECTIVES, isKnownDirective } from './spec';
 import { readSpec, specVersion } from './specVersion';
 import { gfmLinkify } from './typography';
@@ -28,7 +29,7 @@ import { findVariables, lookupVariable, variableText } from './variables';
 /** What a step rewrites, in the order the steps run. */
 export type MigrationKind =
   | 'closer' | 'duplicate-attrs' | 'title-text' | 'agent-priority' | 'math-delimiters' | 'heading-braces' | 'attr-escapes' | 'unknown-directive'
-  | 'include-section' | 'value-case' | 'typography' | 'fuzzy-link' | 'variable-spelling' | 'version';
+  | 'include-section' | 'include-text' | 'value-case' | 'typography' | 'fuzzy-link' | 'variable-spelling' | 'version';
 
 export interface MigrationStep {
   kind: MigrationKind;
@@ -57,7 +58,10 @@ export interface MigrationOptions {
   linkDomains?: boolean;
   /** Quote front matter values that are shown differently from how they are written (`version: 2.10`, proposal 10). */
   quoteVariables?: boolean;
-  /** Read a file relative to the document, for `:::include section=` (proposal 9). Without it, includes are left alone. */
+  /**
+   * Read a file relative to the document, for `:::include section=` (proposal 9) and to compare the text an include
+   * brings in under both versions. Without it, includes are left alone.
+   */
   readFile?: (relativePath: string) => string | undefined;
   /** Plan even a document that already says `smd: 2` (tests, and to check that a migrated document needs nothing more). */
   force?: boolean;
@@ -108,6 +112,10 @@ const KINDS: Record<MigrationKind, { proposal: string; keeps: 'v1' | 'v2'; reaso
     proposal: '9', keeps: 'v1',
     reason: 'Spec v2 matches section= only to a heading\'s id or its whole text (proposal 9). It is rewritten to the id of the heading it includes today.',
   },
+  'include-text': {
+    proposal: 'versioning', keeps: 'v1',
+    reason: 'An included file is read with the version of the document that includes it (§3.4), so once this document says smd: 2 the text it includes is read with the v2 rules.',
+  },
   'value-case': {
     proposal: '11', keeps: 'v2',
     reason: 'Enumerated values match in any case (proposal 11). They are written in the vocabulary\'s case, as spec v2 documents write them.',
@@ -137,6 +145,7 @@ const ATTR_ESCAPES: MigrationKind = 'attr-escapes';
 const FUZZY_LINK: MigrationKind = 'fuzzy-link';
 const VARIABLE_SPELLING: MigrationKind = 'variable-spelling';
 const VERSION: MigrationKind = 'version';
+const INCLUDE_TEXT: MigrationKind = 'include-text';
 
 /** The RFC proposal, which meaning a kind of step keeps, and why it is needed. */
 export function migrationKind(kind: MigrationKind): { proposal: string; keeps: 'v1' | 'v2'; reason: string } {
@@ -201,6 +210,8 @@ function planSteps(text: string, options: MigrationOptions, escapes: boolean): M
   // nothing closes does in both versions), so the fences after it that v1 reads as math are fences: their colon counts
   // are written as v2 pairs them, which changes nothing that v2 shows.
   if (from < TARGET && specVersion(textOf(w)) === TARGET) fixStep(w, 'container/colons', 'closer');
+  // Last, as it compares what each include shows in the original with what it shows in the migrated text.
+  if (from < TARGET && options.readFile) includeTextStep(w, text, options.readFile);
   // In the order the steps run, and by line within each (math is split bottom-up).
   w.steps.sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.line - b.line);
   return { from, steps: w.steps, result: textOf(w) };
@@ -930,4 +941,76 @@ function yamlTrim(s: string): string {
   while (start < end && isYamlSpace(s[start])) start++;
   while (end > start && isYamlSpace(s[end - 1])) end--;
   return s.slice(start, end);
+}
+
+// Included text (§3.4): read with the including document's version
+
+/** A fixed date, so that "overdue" and "stale" read the same in both renders whatever the day. */
+export const COMPARE_TODAY = '2000-01-01';
+
+/**
+ * Rendered HTML without what moves with the source lines (`data-line`, `data-task-line`: the `smd: 2` line may be
+ * added) or names an include's query (`data-include`: the section may be rewritten to the heading's id), and with each
+ * class once: v1 writes a repeated class twice, which collapsing duplicate attributes leaves out.
+ */
+export function comparableHtml(html: string): string {
+  return html
+    .replaceAll(/ data-(?:task-)?line="\d+"/g, '')
+    .replaceAll(/ data-include="[^"]*"/g, '')
+    .replaceAll(/ class="([^"]*)"/g, (_, names: string) => ` class="${[...new Set(names.split(' '))].join(' ')}"`);
+}
+
+/** An include of a document: its zero-based opening line, its `file=` as written, and what it shows. */
+interface IncludeView { line: number; file: string; html: string }
+
+/**
+ * What each `:::include` of `text` shows, read with the document's own version: each is rendered alone, under the
+ * document's front matter (which variables and typography follow) and without its fallback body or the page header,
+ * so that only the included text is compared. Includes in another include's fallback body are left out.
+ */
+function includeViews(text: string, readFile: (relativePath: string) => string | undefined): IncludeView[] {
+  const lines = splitLines(text);
+  const fm = parseFrontMatter(text);
+  const spec = specVersion(text);
+  const head = lines.slice(0, fm.bodyStartLine);
+  const views: IncludeView[] = [];
+  let inside = -1;
+  for (const block of findIncludes(lines, fm.bodyStartLine, lines.length - 1, spec)) {
+    if (block.line <= inside) continue;
+    inside = containerEnd(lines, block.line, spec, fm.bodyStartLine);
+    const file = includeRequest(block.info.attrs.values)?.file;
+    const open = CONTAINER_OPEN.exec(lines[block.line]);
+    if (!file || !open) continue;
+    const host = [...head, '', lines[block.line].trim(), open[2], ''].join('\n');
+    const html = renderParsed(host, parseFrontMatter(host), { readFile, today: COMPARE_TODAY }, false).html;
+    views.push({ line: block.line, file, html: comparableHtml(html) });
+  }
+  return views;
+}
+
+/**
+ * The includes of `written` (a migrated document that says `smd: 2`) whose included text spec v2 shows differently
+ * from how v1 showed it in `original`, the document before it: their zero-based lines in `written` and their `file=`.
+ * The migration adds and removes no include, so the includes of the two are paired in order.
+ */
+export function changedIncludes(
+  original: string, written: string, readFile: ((relativePath: string) => string | undefined) | undefined,
+): Array<{ line: number; file: string }> {
+  if (!readFile || !/include/i.test(original) || specVersion(original) >= TARGET || specVersion(written) < TARGET) return [];
+  const before = includeViews(original, readFile);
+  return includeViews(written, readFile)
+    .filter((view, i) => before[i] !== undefined && before[i].html !== view.html)
+    .map(({ line, file }) => ({ line, file }));
+}
+
+/** A note on each include whose text renders differently once the document says smd: 2, naming the included file. */
+function includeTextStep(w: Work, original: string, readFile: (relativePath: string) => string | undefined): void {
+  for (const { line, file } of changedIncludes(original, textOf(w), readFile)) {
+    const included = readFile(file);
+    const own = included === undefined ? 1 : declaredVersion(parseFrontMatter(included));
+    const reason = own >= TARGET
+      ? `The text included from "${file}" renders differently with spec v2. That file says smd: ${own}, and is read with the v1 rules here today; with smd: 2 it is read with the v2 rules it is written for. Check that it shows what you want: its typography follows this document's front matter, where "typography: true" keeps curly quotes and dashes in it.`
+      : `The text included from "${file}" renders differently with spec v2, which reads it with this document's rules (a "$$" line, closing fences, braces after headings, typography, bare domains or unknown directives in it). Migrate "${file}" too (smd migrate --to 2) so that it reads the same in both versions. Its typography follows this document's front matter, where "typography: true" keeps curly quotes and dashes in it.`;
+    note(w, line, INCLUDE_TEXT, reason);
+  }
 }

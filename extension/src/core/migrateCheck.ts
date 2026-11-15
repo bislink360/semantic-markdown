@@ -1,5 +1,7 @@
-import { migrationPlan, type MigrationKind, type MigrationOptions, type MigrationPlan, type MigrationStep } from './migrate';
+import { changedIncludes, comparableHtml, COMPARE_TODAY, migrationPlan, type MigrationKind, type MigrationOptions, type MigrationPlan, type MigrationStep } from './migrate';
 import { renderSmd } from './render';
+
+export { comparableHtml } from './migrate';
 
 /**
  * The check `smd migrate --to 2` runs on each file it writes (its `--verify`, on by default): the written document
@@ -20,25 +22,16 @@ export interface MigrationCheck {
   rendering: 'same' | 'explained' | 'differs';
   /** For `explained`: the kinds of the notes and v2-meaning steps, in the order the steps run. */
   explainedBy: MigrationKind[];
-}
-
-/** A fixed date, so that "overdue" and "stale" read the same in both renders whatever the day. */
-const TODAY = '2000-01-01';
-
-/**
- * Rendered HTML without what moves with the source lines (`data-line`, `data-task-line`: the `smd: 2` line may be
- * added) or names an include's query (`data-include`: the section may be rewritten to the heading's id), and with each
- * class once: v1 writes a repeated class twice, which collapsing duplicate attributes leaves out.
- */
-export function comparableHtml(html: string): string {
-  return html
-    .replaceAll(/ data-(?:task-)?line="\d+"/g, '')
-    .replaceAll(/ data-include="[^"]*"/g, '')
-    .replaceAll(/ class="([^"]*)"/g, (_, names: string) => ` class="${[...new Set(names.split(' '))].join(' ')}"`);
+  /**
+   * The included files (their `file=` as written, once each) whose text spec v2 shows differently in the written
+   * document from how v1 showed it in the original: the including document's version decides how included text is
+   * read (§3.4). The plan's `include-text` notes name them; without such a note the rendering `differs`.
+   */
+  includes: string[];
 }
 
 /** Each document rendered with the rules its own `smd` value selects: the original's v1, the written one's v2. */
-const rendered = (text: string, options: MigrationOptions) => comparableHtml(renderSmd(text, { readFile: options.readFile, today: TODAY }).html);
+const rendered = (text: string, options: MigrationOptions) => comparableHtml(renderSmd(text, { readFile: options.readFile, today: COMPARE_TODAY }).html);
 
 /**
  * Check a written migration: `original` is the document before it, `written` the document as read back, and `plan`
@@ -46,7 +39,9 @@ const rendered = (text: string, options: MigrationOptions) => comparableHtml(ren
  */
 export function checkMigration(original: string, written: string, plan: MigrationPlan, options: MigrationOptions = {}): MigrationCheck {
   const left = migrationPlan(written, { ...options, force: true }).steps.filter((s) => !s.note);
-  if (rendered(written, options) === rendered(original, options)) return { left, rendering: 'same', explainedBy: [] };
+  const includes = [...new Set(changedIncludes(original, written, options.readFile).map((i) => i.file))];
+  if (rendered(written, options) === rendered(original, options)) return { left, rendering: 'same', explainedBy: [], includes };
+  const unnamed = includes.length > 0 && !plan.steps.some((s) => s.kind === 'include-text' && s.note);
   const explainedBy = [...new Set(plan.steps.filter((s) => s.note || s.keeps === 'v2').map((s) => s.kind))];
-  return { left, rendering: explainedBy.length ? 'explained' : 'differs', explainedBy };
+  return { left, rendering: explainedBy.length && !unnamed ? 'explained' : 'differs', explainedBy, includes };
 }

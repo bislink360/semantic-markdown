@@ -33,7 +33,8 @@ export const MIGRATE_HELP = `  smd migrate <files|dirs...> --to 2 ${OPTIONS}
       says smd: 2 has nothing to migrate.
       Then reads each file back and checks that nothing is left to migrate and that spec v2 renders it as
       v1 rendered the original, apart from what the notes and v2-meaning steps say; a difference is a
-      warning (--no-verify skips the check).
+      warning (--no-verify skips the check). Text an include brings in is read with the including
+      document's version: a note names each included file that renders differently, to migrate too.
       Exit code 0 when done or nothing needs migrating, 1 when a file could not be written (or a link
       leads outside the paths given), 2 on a usage error.
       --dry-run          report the plan and write nothing: per file, each step with its lines and a
@@ -147,13 +148,17 @@ function realPath(file: string): string | undefined {
   }
 }
 
-interface WriteTotals { checked: number; written: number; changes: number; notes: number; failed: number; warned: number; explained: string[] }
+interface WriteTotals {
+  checked: number; written: number; changes: number; notes: number; failed: number; warned: number; explained: string[];
+  /** Included files (paths from the working folder) whose text spec v2 reads differently: the notes name them. */
+  included: string[];
+}
 
 function writeMigrations(targets: string[], files: string[], options: MigrationOptions, verify: boolean): number {
   const other = files.find((f) => path.extname(f).toLowerCase() !== '.smd');
   if (other) return fail(`Not migrated: ${other} is not a .smd file. smd migrate writes only .smd files (--dry-run reports on any file).`);
   const roots = realRoots(targets);
-  const totals: WriteTotals = { checked: 0, written: 0, changes: 0, notes: 0, failed: 0, warned: 0, explained: [] };
+  const totals: WriteTotals = { checked: 0, written: 0, changes: 0, notes: 0, failed: 0, warned: 0, explained: [], included: [] };
   const seen = new Set<string>();
   for (const file of files) {
     const real = realPath(file);
@@ -219,7 +224,10 @@ function verifyFile(file: string, real: string, original: string, plan: Migratio
     console.error(`${file}: warning: spec v2 renders the migrated file differently from how v1 rendered it, and no step says why. Compare the two (smd export --to html) before you commit it.`);
     totals.warned++;
   }
-  if (result.rendering === 'explained') totals.explained.push(...result.explainedBy.filter((k) => !totals.explained.includes(k)));
+  if (result.rendering === 'explained') totals.explained.push(...result.explainedBy.filter((k) => k !== 'include-text' && !totals.explained.includes(k)));
+  for (const included of result.includes.map((f) => path.join(path.dirname(file), f))) {
+    if (!totals.included.includes(included)) totals.included.push(included);
+  }
 }
 
 function writeSummary(t: WriteTotals, verify: boolean): string {
@@ -234,5 +242,9 @@ function writeSummary(t: WriteTotals, verify: boolean): string {
 function verifiedLine(t: WriteTotals): string {
   if (t.warned) return `Verified, with ${plural(t.warned, 'warning')}: see them above.`;
   const apart = t.explained.length ? `, apart from what the notes and v2-meaning steps say (${t.explained.join(', ')})` : '';
-  return `Verified: nothing is left to migrate, and spec v2 renders each file as v1 rendered it${apart}.`;
+  if (!t.included.length) return `Verified: nothing is left to migrate, and spec v2 renders each file as v1 rendered it${apart}.`;
+  // An included file is read with the version of the document that includes it: its text is not the file's own.
+  const files = t.included.join(', ');
+  return `Verified: nothing is left to migrate, and spec v2 renders the text of each file as v1 rendered it${apart}. `
+    + `The text included from ${files} renders differently: see the notes, and migrate ${t.included.length === 1 ? 'it' : 'them'} too.`;
 }
