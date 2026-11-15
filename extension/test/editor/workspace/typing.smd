@@ -1,0 +1,21 @@
+---
+smd: 2
+title: Editor fixture typing
+
+---
+
+Half-typed lines for completion. Each case puts the cursor at the end of one line.
+
+## Typing
+
+:::requirement{#TY-R1} A requirement the id completion offers
+:::
+
+[the plan](plan.smd#
+[a section](#
+[a file](src/
+A word with a color {color=
+:::acceptance{verifies=
+A directive :
+Footnote [^
+:::

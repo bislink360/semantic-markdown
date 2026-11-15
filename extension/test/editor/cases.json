@@ -1,0 +1,36 @@
+{
+  "description": "Shared editor behavior fixtures (improvement roadmap t-04). Each case asks one editor question about a file of workspace/, and both adapters answer it: the VS Code providers (src/language.ts, in test/integration/suite.js) and the language server (src/lsp.ts, in test/editorFixtures.test.ts). `at` places the cursor: on the first line holding `find`, `offset` characters into it, or at `line` (0-based) and `character`, where \"end\" is the end of the line. expected.json holds the answers, normalized by fixtures.cjs.",
+  "cases": [
+    { "name": "hover: a front matter variable", "feature": "hover", "file": "plan.smd", "at": { "find": "{{version}}", "offset": 3 } },
+    { "name": "hover: a link to a block in another document", "feature": "hover", "file": "plan.smd", "at": { "find": "[the other document]", "offset": 3 } },
+    { "name": "hover: a link to a heading in the same document", "feature": "hover", "file": "plan.smd", "at": { "find": "[the overview](#overview).", "offset": 3 } },
+    { "name": "hover: a footnote reference", "feature": "hover", "file": "plan.smd", "at": { "find": "[^retries].", "offset": 3 } },
+    { "name": "hover: a glossary term", "feature": "hover", "file": "plan.smd", "at": { "find": "API call", "offset": 1 } },
+    { "name": "hover: a :ref to a block", "feature": "hover", "file": "plan.smd", "at": { "find": ":ref[EF-R1]", "offset": 6 } },
+    { "name": "hover: a container name", "feature": "hover", "file": "plan.smd", "at": { "find": ":::note", "offset": 4 } },
+    { "name": "hover: a code embed path", "feature": "hover", "file": "plan.smd", "at": { "find": "file=\"src/pricing.ts\"", "offset": 8 } },
+    { "name": "hover: a :depends on a task", "feature": "hover", "file": "plan.smd", "at": { "find": ":depends[EF-T1]", "offset": 10 } },
+    { "name": "hover: plain text", "feature": "hover", "file": "plan.smd", "at": { "find": "A callout the hover explains.", "offset": 3 } },
+
+    { "name": "completion: a front matter key on an empty line", "feature": "completion", "file": "typing.smd", "at": { "line": 3, "character": 0 } },
+    { "name": "completion: an anchor in another document", "feature": "completion", "file": "typing.smd", "at": { "find": "[the plan](plan.smd#", "offset": 20 } },
+    { "name": "completion: an anchor in the same document", "feature": "completion", "file": "typing.smd", "at": { "find": "[a section](#", "offset": 13 } },
+    { "name": "completion: a path in a link", "feature": "completion", "file": "typing.smd", "at": { "find": "[a file](src/", "offset": 13 } },
+    { "name": "completion: a color value", "feature": "completion", "file": "typing.smd", "at": { "find": "{color=", "offset": 7 } },
+    { "name": "completion: an id attribute offers the document's ids", "feature": "completion", "file": "typing.smd", "at": { "find": ":::acceptance{verifies=", "offset": 23 } },
+    { "name": "completion: an inline directive", "feature": "completion", "file": "typing.smd", "at": { "find": "A directive :", "offset": 13 } },
+    { "name": "completion: a container name", "feature": "completion", "file": "typing.smd", "at": { "find": ":::", "offset": 3, "last": true } },
+    { "name": "completion: a footnote label", "feature": "completion", "file": "plan.smd", "at": { "find": "five[^retries]", "offset": 6 } },
+
+    { "name": "outline: the plan", "feature": "outline", "file": "plan.smd" },
+    { "name": "outline: the store", "feature": "outline", "file": "other.smd" },
+
+    { "name": "references: a block id where it is given", "feature": "references", "file": "plan.smd", "at": { "find": "#EF-R1 status", "offset": 2 } },
+    { "name": "references: a heading", "feature": "references", "file": "plan.smd", "at": { "find": "## Requirements", "offset": 4 } },
+    { "name": "references: a link to a heading", "feature": "references", "file": "plan.smd", "at": { "find": "[the overview](#overview).", "offset": 18 } },
+    { "name": "references: a :ref to a block in another document", "feature": "references", "file": "other.smd", "at": { "find": ":ref[plan.smd#EF-R1]", "offset": 16 } },
+
+    { "name": "rename: a block id", "feature": "rename", "file": "plan.smd", "at": { "find": "#EF-R1 status", "offset": 2 }, "newName": "EF-R9" },
+    { "name": "rename: a heading", "feature": "rename", "file": "plan.smd", "at": { "find": "## Overview", "offset": 4 }, "newName": "Summary" }
+  ]
+}

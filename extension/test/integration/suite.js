@@ -652,6 +652,42 @@ const checks = {
     assert.equal(fs.readFileSync(file, 'utf8'), text);
     await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
   },
+  async 'the shared editor fixtures get the answers expected of VS Code (t-04)'() {
+    // The same cases test/editorFixtures.test.ts asks the language server, against test/editor/expected.json.
+    // Workspace-wide search only covers the open folder (test/samples/), so the fixture workspace lives there briefly.
+    const fixtures = require('../editor/fixtures.cjs');
+    const dir = fixtures.copyWorkspace(vscode.workspace.workspaceFolders[0].uri.fsPath);
+    const exec = (command, ...args) => vscode.commands.executeCommand(command, ...args);
+    try {
+      const answers = {};
+      for (const c of fixtures.CASES) {
+        const doc = await vscode.workspace.openTextDocument(path.join(dir, c.file));
+        const at = c.at && fixtures.cursor(doc.getText(), c.at);
+        const position = at && new vscode.Position(at.line, at.character);
+        try {
+          const result = {
+            hover: () => exec('vscode.executeHoverProvider', doc.uri, position),
+            completion: () => exec('vscode.executeCompletionItemProvider', doc.uri, position),
+            outline: () => exec('vscode.executeDocumentSymbolProvider', doc.uri),
+            references: () => exec('vscode.executeReferenceProvider', doc.uri, position),
+            rename: () => exec('vscode.executeDocumentRenameProvider', doc.uri, position, c.newName),
+          }[c.feature];
+          answers[c.name] = fixtures.fromVscode[c.feature](await result(), dir, vscode.CompletionItemKind.Snippet);
+        } catch (e) {
+          answers[c.name] = { error: e && e.message ? e.message : String(e) };
+        }
+      }
+      if (process.env.SMD_EDITOR_FIXTURES_OUT) {
+        fs.writeFileSync(process.env.SMD_EDITOR_FIXTURES_OUT, JSON.stringify(answers, null, 2) + '\n');
+        return;
+      }
+      const wrong = fixtures.CASES.filter((c) => JSON.stringify(answers[c.name]) !== JSON.stringify(fixtures.expectedFor(c.name, 'vscode')));
+      assert.deepEqual(wrong.map((c) => `${c.name}: ${JSON.stringify(answers[c.name])}`), [], 'cases whose answer differs from expected.json');
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  },
 };
 
 async function run() {
