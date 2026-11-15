@@ -1,0 +1,44 @@
+/*
+ * The Compare tab's "Plain CommonMark" renderer: a neutral look with no colours of its own, close to what a basic
+ * Markdown preview shows. Quotes are grey bars, so a `> [!TIP]` that the renderer doesn't know reads as a quote.
+ * The playground build inlines this file into the preview frame (scripts/build-playground.mjs).
+ */
+:root .plain-body {
+  --plain-fg: #24292f;
+  --plain-muted: #59636e;
+  --plain-bg: #ffffff;
+  --plain-code-bg: #f0f0f0;
+  --plain-border: #d0d7de;
+  --plain-link: #0b57d0;
+}
+
+:root[data-smd-theme="dark"] .plain-body {
+  --plain-fg: #d4d4d4;
+  --plain-muted: #9da5b4;
+  --plain-bg: #1e1e1e;
+  --plain-code-bg: #2d2d2d;
+  --plain-border: #474747;
+  --plain-link: #6eb4ff;
+}
+
+#smd-root .plain-body {
+  box-sizing: border-box;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 32px 96px;
+  color: var(--plain-fg);
+  background: var(--plain-bg);
+  font: 15px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-wrap: break-word;
+}
+
+.plain-body a { color: var(--plain-link); }
+.plain-body h1, .plain-body h2 { border-bottom: 1px solid var(--plain-border); padding-bottom: .3em; }
+.plain-body blockquote { margin: 0 0 1em; padding: 0 1em; color: var(--plain-muted); border-left: 4px solid var(--plain-border); }
+.plain-body code { font: .9em ui-monospace, Consolas, monospace; background: var(--plain-code-bg); padding: .1em .3em; border-radius: 3px; }
+.plain-body pre { background: var(--plain-code-bg); padding: 12px; overflow: auto; border-radius: 3px; }
+.plain-body pre code { background: none; padding: 0; }
+.plain-body table { border-collapse: collapse; }
+.plain-body th, .plain-body td { border: 1px solid var(--plain-border); padding: 4px 10px; }
+.plain-body hr { border: 0; border-top: 1px solid var(--plain-border); }
+.plain-body img { max-width: 100%; }

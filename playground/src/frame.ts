@@ -22,8 +22,10 @@ export const PREVIEW_SANDBOX = 'allow-scripts allow-popups allow-popups-to-escap
 export interface FrameAssets {
   /** smd.css and KaTeX's stylesheet with its fonts inlined. */
   css: string;
-  /** github-markdown-css, light and dark scoped to the frame's theme, for the Compare tab's Markdown side. */
+  /** github-markdown-css, light and dark scoped to the frame's theme, for the Compare tab's GitHub renderer. */
   githubCss: string;
+  /** playground/plain-markdown.css, for the Compare tab's plain CommonMark renderer. */
+  plainCss: string;
   /** The page runtime (media/runtime.js). */
   runtime: string;
   /** The link handler (previewLinks.ts, bundled). */
@@ -45,6 +47,13 @@ export function previewTheme(setting: ThemeSetting, preview: Pick<PreviewPane, '
 export function resolvedTheme(pref: ThemeSetting, systemDark: boolean): 'light' | 'dark' {
   if (pref !== 'auto') return pref;
   return systemDark ? 'dark' : 'light';
+}
+
+/** The Compare tab's Markdown stylesheet for a pane, after smd.css; none for the Semantic Markdown preview. */
+function markdownCss(preview: Pick<PreviewPane, 'style'>, assets: FrameAssets): string {
+  if (preview.style === 'github') return `\n${assets.githubCss}`;
+  if (preview.style === 'plain') return `\n${assets.plainCss}`;
+  return '';
 }
 
 function escapeAttr(value: string): string {
@@ -71,8 +80,7 @@ export function previewDocument(preview: PreviewPane, theme: ThemeSetting, asset
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-${assets.css}${preview.style === 'github' ? `
-${assets.githubCss}` : ''}
+${assets.css}${markdownCss(preview, assets)}
 </style>
 </head>
 <body class="smd-body">
@@ -92,16 +100,17 @@ export interface FrameState {
   lang: string;
   /** Mermaid is inlined. */
   mermaid: boolean;
-  /** github-markdown-css is inlined. */
-  github?: boolean;
+  /** The Compare tab's Markdown stylesheet that is inlined, if any (PreviewPane.style). */
+  style?: PreviewPane['style'];
 }
 
 /**
  * True when the frame must be rebuilt rather than updated in place: there is none yet, the document's language
- * changed (it is on `<html lang>`), the stylesheet changed (smd.css or github-markdown-css), or the document has diagrams and Mermaid is available but not in the frame.
+ * changed (it is on `<html lang>`), the stylesheet changed (smd.css, github-markdown-css or the plain one), or the
+ * document has diagrams and Mermaid is available but not in the frame.
  * Mermaid stays once inlined.
  */
 export function needsRebuild(built: FrameState | undefined, preview: PreviewPane, mermaidAvailable: boolean): boolean {
   if (!built) return true;
-  return built.lang !== preview.lang || Boolean(built.github) !== (preview.style === 'github') || (preview.mermaid && mermaidAvailable && !built.mermaid);
+  return built.lang !== preview.lang || built.style !== preview.style || (preview.mermaid && mermaidAvailable && !built.mermaid);
 }

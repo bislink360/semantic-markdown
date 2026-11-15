@@ -94,8 +94,10 @@ export async function playgroundAssets() {
   const github = githubCssScoped();
   assertInlinable('the preview stylesheet', css, '</style');
   assertInlinable('github-markdown-css', github, '</style');
+  const plainCss = readFileSync(join(playground, 'plain-markdown.css'), 'utf8');
+  assertInlinable('plain-markdown.css', plainCss, '</style');
   const hashes = [runtime, links, mermaidJs].map(scriptHash);
-  return { frame: { css, githubCss: github, runtime, links }, mermaid: mermaidJs, hashes, csp: appCsp(hashes) };
+  return { frame: { css, githubCss: github, plainCss, runtime, links }, mermaid: mermaidJs, hashes, csp: appCsp(hashes) };
 }
 
 /**

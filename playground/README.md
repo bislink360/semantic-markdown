@@ -1,6 +1,6 @@
 # Semantic Markdown playground
 
-A static web page for trying `.smd` without installing anything: edit on the left; the **Preview**, **Compare with .md** (the preview beside the Markdown export, or beside the unconverted text, both drawn as GitHub draws a `.md` file), **Agent view** (with its token estimate), **Diagnostics** and **Markdown** export update on the right as you type. **Copy link** puts the whole document in the link, so a document can be shared without a server.
+A static web page for trying `.smd` without installing anything: edit on the left; the **Preview**, **Compare with .md** (the preview beside the Markdown export or the unconverted text, drawn as GitHub draws a `.md` file or as a plain CommonMark renderer does), **Agent view** (with its token estimate), **Diagnostics** and **Markdown** export update on the right as you type. **Copy link** puts the whole document in the link, so a document can be shared without a server.
 
 It runs the same engine as the extension and the CLI (`extension/src/core`), entirely in the browser. Nothing is uploaded and there is no backend.
 
@@ -61,11 +61,12 @@ Tests: `extension/test/playground.test.ts` (sandbox flags, CSP, hashes matching 
 | Path | Role |
 |---|---|
 | `index.html`, `app.css` | The page |
-| `starter.smd` | The example document shown on first visit |
+| `starter.smd` | The example document shown on first visit and by **Example**: a made-up product roadmap with a timeline, a Gantt chart, a plan, decisions, a question and risks |
 | `src/main.ts` | DOM wiring only: editor, tabs, buttons |
 | `src/previewFrame.ts` | Drives one sandboxed preview frame: builds it, hands it its port, sends updates (one per frame) |
 | `src/panes.ts` | `renderPanes(text)`: preview HTML, both Compare sides, agent view, diagnostics, Markdown |
-| `extension/src/core/githubMarkdown.ts` | The Compare tab's Markdown renderer, built from open-source pieces only: markdown-it, markdown-it-github-alerts, @vscode/markdown-it-katex and Mermaid fences; the frame adds github-markdown-css |
+| `extension/src/core/compareMarkdown.ts` | The Compare tab's two Markdown renderers, built from open-source pieces only. GitHub: markdown-it, markdown-it-github-alerts, @vscode/markdown-it-katex and Mermaid fences, styled with github-markdown-css. Plain CommonMark: markdown-it's default rules only |
+| `plain-markdown.css` | The plain CommonMark renderer's neutral stylesheet, inlined into the frame by the build |
 | `src/codec.ts` | Share-by-URL encoding |
 | `src/frame.ts`, `src/csp.mjs` | The sandboxed preview frame and the CSP |
 | `src/previewLinks.ts` | Link handling inside the frame |

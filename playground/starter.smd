@@ -1,67 +1,121 @@
 ---
 smd: 2
-title: Welcome to the Semantic Markdown playground
-summary: Edit on the left. The **Preview**, **Compare with .md**, **Agent view**, **Diagnostics** and **Markdown** tabs update as you type.
-status: draft
-owners: ["@you"]
-tags: [playground, example]
+title: Trailhead 2.0 roadmap
+summary: A sample roadmap for a made-up trip planner, with a timeline, plan, decisions and risks. Edit it and watch every tab on the right update.
+status: review
+owners: ["@maya", "@li"]
+tags: [roadmap, example]
+product: Trailhead
+version: "2.0"
 ---
 
-## Try it
-
-:::tip Share what you write
-**Copy link** puts this whole document in the link, after the `#`. That part of a link is never sent to a server.
+:::tip This is a sample
+Everything here is made up, so change anything. **Diagnostics** catches mistakes, **Compare with .md** shows what survives in plain Markdown, and **Copy link** puts the whole document in the link, after the `#`.
 :::
 
-Style text with [named colors]{color=blue}, ==highlights== and badges: :badge[Shipped]{color=green} :badge[Beta]{color=amber} · press :kbd[Ctrl+Enter] · progress :progress{value=60 basis=estimate}
+## Goals
 
-- [x] Open the playground
-- [ ] Break something and check **Diagnostics** :priority[P1] @you
-- [ ] Copy a link and open it in a private window
+{{product}} {{version}} turns a solo trip planner into a shared one. Friends plan the same trip, offline if they must, and book it without leaving the app.
 
-## Diagrams and math
+:metric[42k]{label="Weekly planners" delta="+18%" trend=up} :metric[3.1%]{label="Booking conversion" delta="-0.4 pt" trend=down}
+
+## Timeline
+
+:::timeline
+- [x] **2026-09-15** — Discovery: interviews with 24 group planners
+- [x] **2026-11-01** — Offline sync beta with 500 testers
+- [ ] **2027-02-01** — Group trips in public beta
+- [ ] **2027-04-15** — In-app payments in the US
+- [ ] **2027-06-01** — {{product}} {{version}} general availability
+:::
 
 ```mermaid
-flowchart LR
-    accTitle: Write, check, share
-    A[Write .smd] --> B{Valid?}
-    B -- no --> A
-    B -- yes --> C[Share]
+gantt
+    accTitle: Trailhead 2.0 phases from September 2026 to June 2027
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    tickInterval 1month
+    section Foundations
+    Offline sync       :done, 2026-09-15, 2026-11-01
+    section Group trips
+    Shared itineraries :active, 2026-11-01, 2027-02-01
+    section Payments
+    Checkout           :2026-12-15, 2027-04-15
+    section Launch
+    GA hardening       :2027-04-15, 2027-06-01
 ```
 
-The area under $x^2$ from 0 to 1:
+## Plan
 
-$$
-\int_0^1 x^2\,dx = \frac{1}{3}
-$$
+### Now: shared itineraries
 
-## Layout
+:progress{basis=tasks}
 
-::::tabs
-:::tab npm
-```bash
-npm install -g semantic-markdown
-```
+- [x] Ship offline sync to beta testers @li
+- [x] Choose how offline edits merge @maya
+- [ ] Invite friends to a trip by link :priority[P0] @sam :due[2027-01-15]
+- [ ] Comment on itinerary items :priority[P1] @sam :due[2027-01-29]
+
+### Next: in-app payments
+
+- [ ] Sign the payment provider :priority[P0] @maya :due[2027-01-08]
+- [ ] Split a booking between travelers :priority[P1] @ana :due[2027-03-15]
+- [ ] Pass the PCI review :priority[P0] @ops :due[2027-04-01]
+
+### Later
+
+- [ ] Trip budgets :priority[P2]
+- [ ] Tablet layout for Android :priority[P3] @li
+
+## Decisions
+
+:::decision{#D1 status=accepted date=2026-10-02 owner=@maya} Merge offline edits with CRDTs, not last-write-wins
+Two people editing the same day offline must both keep their changes. Last-write-wins lost an edit in 1 of 9 test sessions.
 :::
-:::tab VS Code
-```bash
-code --install-extension bislink360.semantic-markdown
-```
-:::
-::::
 
-```ts title="greet.ts"
-export function greet(name: string): string {
-  return `Hello, ${name}!`;
-}
-```
-
-:::decision{status=accepted date=2026-10-01 owner=@you} Keep shared documents in the link
-Nothing to host, and nothing stored on a server.
+:::decision{#D2 status=proposed owner=@maya} One payment provider for the US and the EU
+It keeps the PCI scope small. The provider must support SEPA transfers.
 :::
+
+:::question Launch payments in the EU at GA, or after?
+@maya decides with legal by 2027-01-15. Until then, plan for the US only.
+:::
+
+## Risks
+
+:::risk{impact=high likelihood=medium owner=@ops status=open} The PCI review takes longer than eight weeks
+Start in January with the provider's pre-certified checkout, and keep a hosted checkout page as the fallback.
+:::
+
+:::risk{impact=critical likelihood=low owner=@maya status=open} The provider drops SEPA support
+D2 would fail in the EU. Keep a second provider's quote current until GA.
+:::
+
+:::risk{impact=medium likelihood=high owner=@li status=mitigated} Merged edits confuse people
+An activity feed now shows who changed what, and testers stopped reporting lost plans.
+:::
+
+:::risk-matrix Roadmap risks
+:::
+
+## Release history
+
+:::changelog
+## 1.9.0 — 2026-11-01
+
+- Offline sync beta
+
+## 1.8.0 — 2026-09-15
+
+- Saved places and map pins
+:::
+
+## Background {agent=skip}
+
+Planners told us the same story in most interviews: one person plans, then pastes the trip into a group chat that nobody can edit. {{version}} is about the other people on the trip.
 
 ## For agents
 
 :::agent Notes for AI agents
-The **Agent view** tab shows what an agent reads: this block is kept, styling is dropped, and headings get line references.
+Dates in this roadmap are targets, not commitments. Treat D2 as undecided, and don't plan EU payments until the question above is answered.
 :::

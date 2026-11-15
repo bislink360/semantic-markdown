@@ -1,12 +1,18 @@
 /**
- * Markdown drawn the way GitHub draws a `.md` file, for the playground's Compare tab. Every piece is an independent
- * open-source renderer, none of Semantic Markdown's own: markdown-it (CommonMark, tables, strikethrough, autolinks),
+ * Markdown as other renderers draw a `.md` file, for the playground's Compare tab. Every piece is an independent
+ * open-source renderer, none of Semantic Markdown's own, so the comparison is fair. Two renderers:
+ *
+ * - renderGithubMarkdown draws it as GitHub does: markdown-it (CommonMark, tables, strikethrough, autolinks),
  * markdown-it-github-alerts (`> [!NOTE]`), @vscode/markdown-it-katex (`$…$` and `$$…$$` math, as in VS Code's
  * Markdown preview), and Mermaid for ```mermaid fences, drawn in the preview frame. Task lists and front matter are
  * written as GitHub writes them, and the frame styles the result with github-markdown-css.
+ * - renderCommonMark draws it as a plain renderer does, the baseline every Markdown tool supports: markdown-it's
+ *   default rules (CommonMark, tables, strikethrough, autolinks) and nothing more. Alerts stay quotes with their
+ *   `[!TIP]` line, math stays text, diagrams stay code and task items keep their brackets. Front matter is hidden,
+ *   as most renderers hide it, and the frame styles the result plainly (playground/plain-markdown.css).
  *
- * The Compare tab draws two things with it: the `.smd` text as if the file were renamed to `.md`, and what
- * `smd export --to md` writes. Neither depends on how Semantic Markdown renders, so the comparison is fair.
+ * The Compare tab draws two documents with either: the `.smd` text as if the file were renamed to `.md`, and what
+ * `smd export --to md` writes.
  */
 import MarkdownIt, { type StateCore, type Token } from 'markdown-it';
 import githubAlerts from 'markdown-it-github-alerts';
@@ -88,4 +94,13 @@ export function renderGithubMarkdown(text: string): string {
     head = fm.error ? md.render(`\`\`\`yaml\n${text.split(/\r?\n/).slice(1, fm.bodyStartLine - 1).join('\n')}\n\`\`\`\n`) : frontMatterTable(fm.data);
   }
   return `<article class="markdown-body">\n${head}${md.render(body)}</article>`;
+}
+
+const plain = new MarkdownIt('default', { html: true, linkify: true });
+
+/** Markdown as a plain renderer draws a `.md` file: the body only, in a `.plain-body` article. */
+export function renderCommonMark(text: string): string {
+  const fm = parseFrontMatter(text);
+  const body = fm.present && fm.bodyStartLine > 0 ? fm.body : text;
+  return `<article class="plain-body">\n${plain.render(body)}</article>`;
 }

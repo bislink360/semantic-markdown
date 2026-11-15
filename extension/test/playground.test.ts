@@ -13,14 +13,22 @@ import { CSP_PLACEHOLDER, appCsp } from '../../playground/src/csp.mjs';
 import {
   PREVIEW_SANDBOX, needsRebuild, previewDocument, previewTheme, updateMessage, type FrameAssets,
 } from '../../playground/src/frame';
-import { diagnosticsSummary, renderPanes } from '../../playground/src/panes';
+import { compareNote, diagnosticsSummary, renderPanes } from '../../playground/src/panes';
 import { isParentOrigin, isPortHandshake, linkAction } from '../../playground/src/previewLinks';
-import { compareMode, readStored, themeSetting, writeStored, type KeyValueStore } from '../../playground/src/storage';
+import { compareMode, markdownRenderer, readStored, themeSetting, writeStored, type KeyValueStore } from '../../playground/src/storage';
 import { appBundleOptions, indexHtml, playgroundAssets, scriptHash } from '../scripts/build-playground.mjs';
 
 const PLAYGROUND = join(__dirname, '..', '..', 'playground');
 const STARTER = readFileSync(join(PLAYGROUND, 'starter.smd'), 'utf8');
 const TODAY = '2026-10-10';
+/** Every construct the Compare tests look for, independent of the example document. */
+const FEATURES = [
+  '---', 'smd: 2', 'title: Features', '---', '',
+  ':::tip Share what you write', 'Body.', ':::', '',
+  ':badge[Shipped]{color=green} :kbd[Ctrl] and $x^2$', '',
+  '- [x] Open the playground', '',
+  '```mermaid', 'flowchart LR', 'A-->B', '```', '',
+].join('\n');
 
 test('the URL codec round-trips documents, including Unicode, line endings and empty text', async () => {
   const samples = [
@@ -99,9 +107,22 @@ test('renderPanes returns the preview, agent view, diagnostics and Markdown of a
   assert.match(panes.agent.text, /Notes for AI agents/);
   assert.ok(panes.agent.tokens > 0 && panes.agent.originalTokens >= panes.agent.tokens);
   assert.deepEqual(panes.diagnostics, [], 'the starter document is clean');
-  assert.match(panes.markdown, /^## Try it$/m);
+  assert.match(panes.markdown, /^## Timeline$/m);
   assert.match(panes.markdown, /^> \[!TIP\]$/m);
   assert.doesNotMatch(panes.markdown, /^:::/m);
+});
+
+test('the starter is a sample roadmap: a timeline, a plan, decisions, a question and risks', () => {
+  const panes = renderPanes(STARTER, { today: TODAY });
+  for (const block of ['smd-timeline', 'smd-decision', 'smd-risk', 'smd-risk-matrix', 'smd-changelog', 'smd-metric', 'smd-progress']) {
+    assert.match(panes.preview.html, new RegExp(block), block);
+  }
+  assert.match(panes.agent.text, /<decision status="proposed" owner="@maya"> One payment provider/);
+  assert.match(panes.agent.text, /<question title="Launch payments in the EU at GA, or after\?">/);
+  assert.doesNotMatch(panes.agent.text, /group chat that nobody can edit/, 'the Background section is for people');
+  assert.match(panes.markdown, /^gantt$/m, 'the timeline diagram survives the export');
+  assert.match(panes.markdown, /^> \[!CAUTION\]$/m, 'risks become alerts');
+  assert.match(panes.markdown, /Trailhead 2\.0 general availability/, 'variables are filled in');
 });
 
 test('diagnostics are sorted and summarized', () => {
@@ -124,22 +145,22 @@ test('the playground reads no files: includes and code embeds show their fallbac
 });
 
 test('Compare: the unconverted side is the .smd text as GitHub draws a .md file', () => {
-  const panes = renderPanes(STARTER, { today: TODAY });
-  const plain = panes.plain.html;
+  const panes = renderPanes(FEATURES, { today: TODAY });
+  const plain = panes.compare.github.plain.html;
   assert.match(plain, /^<article class="markdown-body">/);
-  assert.equal(panes.plain.style, 'github');
-  assert.match(plain, /<h2>Try it<\/h2>/);
-  assert.match(plain, /:::tip Share what you write/, 'blocks stay as text');
+  assert.equal(panes.compare.github.plain.style, 'github');
+  assert.match(plain, /<p>:::tip Share what you write/, 'blocks stay as text');
   assert.match(plain, /:badge\[Shipped\]\{color=green\}/, 'roles and attributes stay as text');
   assert.doesNotMatch(plain, /smd-callout|smd-badge|smd-decision|smd-doc/, 'nothing of the .smd renderer');
   assert.match(plain, /<div class="smd-diagram"><pre class="smd-mermaid">flowchart LR/, 'GitHub draws Mermaid fences');
-  assert.equal(panes.plain.mermaid, true);
+  assert.match(renderPanes(STARTER).compare.github.plain.html, /:::decision\{#D1 status=accepted/, 'the example shows its syntax');
+  assert.equal(panes.compare.github.plain.mermaid, true);
   assert.match(plain, /class="katex/, 'GitHub draws math');
-  assert.equal(panes.plain.lang, panes.preview.lang);
+  assert.equal(panes.compare.github.plain.lang, panes.preview.lang);
 });
 
 test('Compare: front matter is a table of its values, and task list items are GitHub checkboxes', () => {
-  const plain = renderPanes('---\ntitle: <b>Hi</b> & **bye**\ntags: [a, b]\nowner: {name: x}\n---\n\n- [x] done\n- [ ] todo\n- not a task\n\n~~old~~\n').plain.html;
+  const plain = renderPanes('---\ntitle: <b>Hi</b> & **bye**\ntags: [a, b]\nowner: {name: x}\n---\n\n- [x] done\n- [ ] todo\n- not a task\n\n~~old~~\n').compare.github.plain.html;
   assert.match(plain, /<thead><tr><th>title<\/th><th>tags<\/th><th>owner<\/th><\/tr><\/thead>/);
   assert.match(plain, /<td>&lt;b&gt;Hi&lt;\/b&gt; &amp; \*\*bye\*\*<\/td>/, 'values are escaped text, not Markdown or HTML');
   assert.match(plain, /<td><table><tbody><tr><td>a<\/td><td>b<\/td><\/tr><\/tbody><\/table><\/td>/);
@@ -153,22 +174,23 @@ test('Compare: front matter is a table of its values, and task list items are Gi
 });
 
 test('Compare: broken front matter shows as YAML; unclosed front matter is ordinary text', () => {
-  assert.match(renderPanes('---\nkey: [unclosed\n---\n\nBody\n').plain.html, /<code class="language-yaml">key: \[unclosed\n<\/code>[\s\S]*<p>Body<\/p>/);
-  assert.match(renderPanes('---\nkey: value\n\nBody\n').plain.html, /<hr>/);
+  assert.match(renderPanes('---\nkey: [unclosed\n---\n\nBody\n').compare.github.plain.html, /<code class="language-yaml">key: \[unclosed\n<\/code>[\s\S]*<p>Body<\/p>/);
+  assert.match(renderPanes('---\nkey: value\n\nBody\n').compare.github.plain.html, /<hr>/);
 });
 
 test('Compare: the exported side draws the Markdown export with GitHub\'s renderers, not the .smd one', () => {
-  const panes = renderPanes(STARTER, { today: TODAY });
-  const exported = panes.exported.html;
-  assert.equal(panes.exported.style, 'github');
+  const panes = renderPanes(FEATURES, { today: TODAY });
+  const exported = panes.compare.github.exported.html;
+  assert.equal(panes.compare.github.exported.style, 'github');
   assert.match(exported, /^<article class="markdown-body">\n<table><thead><tr><th>smd<\/th><th>title<\/th>/, 'front matter as a table');
+  assert.match(renderPanes(STARTER).compare.github.exported.html, /markdown-alert-caution[\s\S]*The PCI review takes longer/, 'the example\'s risks are GitHub alerts');
   assert.match(exported, /<div class="markdown-alert markdown-alert-tip">/, 'the export\'s > [!TIP] is a GitHub alert');
   assert.match(exported, /<code>Shipped<\/code>/, 'badges are code spans');
   assert.match(exported, /<kbd>Ctrl<\/kbd>/);
   assert.match(exported, /class="katex/, 'math is drawn');
-  assert.equal(panes.exported.mermaid, true, 'Mermaid diagrams are drawn');
+  assert.equal(panes.compare.github.exported.mermaid, true, 'Mermaid diagrams are drawn');
   assert.doesNotMatch(exported, /:::|:badge\[|smd-callout|smd-doc/, 'nothing of the .smd syntax or renderer');
-  assert.equal(panes.exported.lang, panes.preview.lang);
+  assert.equal(panes.compare.github.exported.lang, panes.preview.lang);
 });
 
 test('Compare: the .md mode is stored, and anything unknown means the export', () => {
@@ -182,7 +204,7 @@ test('Compare: the Markdown frame gets GitHub\'s stylesheet, scoped to the theme
   assert.match(frame.githubCss, /:root\[data-smd-theme="dark"\] \.markdown-body \{/);
   assert.doesNotMatch(frame.githubCss, /(^|[^ ])\.markdown-body\b/m, 'every rule is scoped');
   assert.doesNotMatch(frame.githubCss, /url\((?!["']?data:)/, 'nothing to load');
-  const plain = renderPanes('# Hi\n\n<script>parent.document.body.remove()</script>\n').plain;
+  const plain = renderPanes('# Hi\n\n<script>parent.document.body.remove()</script>\n').compare.github.plain;
   const page = previewDocument(plain, 'auto', frame);
   assert.ok(page.includes(frame.githubCss));
   assert.ok(!previewDocument(renderPanes('# Hi').preview, 'auto', frame).includes(frame.githubCss), 'the preview keeps smd.css only');
@@ -191,11 +213,52 @@ test('Compare: the Markdown frame gets GitHub\'s stylesheet, scoped to the theme
   assert.equal(scripts.filter((s) => hashes.includes(scriptHash(s))).length, 2);
 });
 
+test('Compare, plain CommonMark: alerts stay quotes, math stays text, diagrams stay code, front matter is hidden', () => {
+  const panes = renderPanes(FEATURES, { today: TODAY });
+  const exported = panes.compare.plain.exported;
+  assert.equal(exported.style, 'plain');
+  assert.match(exported.html, /^<article class="plain-body">\n<blockquote>/, 'no front matter table');
+  assert.match(exported.html, /<blockquote>\n<p>\[!TIP\]\n<strong>Share what you write<\/strong><\/p>/, 'the alert is an ordinary quote');
+  assert.match(exported.html, /<code class="language-mermaid">flowchart LR/);
+  assert.equal(exported.mermaid, false, 'a plain renderer never draws diagrams');
+  assert.match(exported.html, /and \$x\^2\$/, 'math stays text');
+  assert.doesNotMatch(exported.html, /katex|markdown-alert|task-list-item|smd-/);
+  assert.match(exported.html, /<li>\[x\] Open the playground<\/li>/, 'task items keep their brackets');
+  assert.match(panes.compare.plain.plain.html, /:::tip Share what you write/, 'unconverted text shows its syntax');
+  assert.equal(panes.compare.plain.plain.lang, panes.preview.lang);
+});
+
+test('Compare: the note says what the .md side shows and how it is drawn', () => {
+  assert.match(compareNote('exported', 'github'), /^What smd export --to md writes, drawn as GitHub draws a \.md file/);
+  assert.match(compareNote('plain', 'github'), /^The \.smd text as if the file were renamed to \.md/);
+  assert.match(compareNote('exported', 'plain'), /plain CommonMark renderer[\s\S]*\[!TIP\] line/);
+  assert.match(compareNote('plain', 'plain'), /renamed to \.md[\s\S]*plain CommonMark/);
+});
+
+test('Compare: the renderer is stored, and anything unknown means GitHub', () => {
+  assert.equal(markdownRenderer('plain'), 'plain');
+  for (const value of ['github', undefined, '', 'nope']) assert.equal(markdownRenderer(value), 'github', String(value));
+});
+
+test('Compare: each Markdown frame gets its own stylesheet, and the preview neither', async () => {
+  const { frame } = await assets();
+  const github = previewDocument(renderPanes('# Hi').compare.github.exported, 'auto', frame);
+  const plain = previewDocument(renderPanes('# Hi').compare.plain.exported, 'auto', frame);
+  const preview = previewDocument(renderPanes('# Hi').preview, 'auto', frame);
+  assert.ok(github.includes(frame.githubCss) && !github.includes(frame.plainCss));
+  assert.ok(plain.includes(frame.plainCss) && !plain.includes(frame.githubCss));
+  assert.ok(!preview.includes(frame.githubCss) && !preview.includes(frame.plainCss));
+  assert.match(frame.plainCss, /:root\[data-smd-theme="dark"\] \.plain-body \{/, 'follows the theme');
+  assert.doesNotMatch(frame.plainCss, /url\(/, 'nothing to load');
+  assert.equal(needsRebuild({ lang: 'en', mermaid: false, style: 'github' }, { html: '', lang: 'en', mermaid: false, style: 'plain' }, false), true);
+});
+
 test('an empty document renders every pane', () => {
   const panes = renderPanes('');
   assert.match(panes.preview.html, /smd-doc/);
-  assert.match(panes.plain.html, /markdown-body/);
-  assert.match(panes.exported.html, /markdown-body/);
+  for (const renderer of ['github', 'plain'] as const) {
+    for (const mode of ['exported', 'plain'] as const) assert.match(panes.compare[renderer][mode].html, /markdown-body|plain-body/);
+  }
   assert.equal(panes.preview.mermaid, false);
   assert.equal(typeof panes.agent.text, 'string');
   assert.equal(typeof panes.markdown, 'string');
@@ -290,7 +353,7 @@ test('the frame is rebuilt only for a new language, a new stylesheet or newly av
   assert.equal(needsRebuild({ lang: 'en', mermaid: false }, diagram, true), true);
   assert.equal(needsRebuild({ lang: 'en', mermaid: false }, { ...plain, lang: 'de' }, false), true);
   assert.equal(needsRebuild({ lang: 'en', mermaid: false }, { ...plain, style: 'github' }, false), true, 'a new stylesheet');
-  assert.equal(needsRebuild({ lang: 'en', mermaid: false, github: true }, { ...plain, style: 'github' }, false), false);
+  assert.equal(needsRebuild({ lang: 'en', mermaid: false, style: 'github' }, { ...plain, style: 'github' }, false), false);
   assert.deepEqual(updateMessage(plain, 'light'), { type: 'update', html: '', themePref: 'light' });
 });
 
