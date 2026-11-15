@@ -1,0 +1,402 @@
+{
+  "description": "What each adapter answers for the shared editor fixtures (cases.json), in the normal form of fixtures.cjs. \"both\" is the answer of both adapters. Where they differ today, \"vscode\" and \"lsp\" hold each answer and \"difference\" says why. t-40 removes the differences that are not adapter policy, one feature at a time. README.md says how to update this file.",
+  "cases": {
+    "hover: a front matter variable": {
+      "both": "**{{version}}** — front matter value: `1.4`"
+    },
+    "hover: a link to a block in another document": {
+      "both": ":::requirement{#EF-STORE} Prices are stored in cents\nThe plan's checkout requirement :ref[plan.smd#EF-R1] depends on it, as [its overview](plan.smd#overview) says.\n:::\n\nSee [the plan's requirements](plan.smd#requirements) and [the checkout requirement](plan.smd#EF-R1)."
+    },
+    "hover: a link to a heading in the same document": {
+      "both": "**Overview**\n\n---\n\nVersion {{version}} of the plan. The store is in [the other document](other.smd#EF-STORE), and this part is [the overview](#overview).\nRetries are capped at five[^retries]. Every API call counts against the SLO.\nThe checkout requirement is :ref[EF-R1], and the work after it is :ref[EF-T2].\n\n:::note{title=\"Read first\"}\nA callout the hover explains.\n:::\n\n```ts file=\"src/pricing.ts\" lines=\"1-3\"\n```"
+    },
+    "hover: a footnote reference": {
+      "both": "**[^retries]**\n\nFive covers almost every transient failure."
+    },
+    "hover: a glossary term": {
+      "both": "**API** — Application Programming Interface\n\nGlossary, line 44"
+    },
+    "hover: a :ref to a block": {
+      "both": "**EF-R1** · :::requirement `status=accepted` — Checkout answers within 200 ms\n\nIt applies to every endpoint in [the overview](#overview)."
+    },
+    "hover: a container name": {
+      "both": "**:::note** — Neutral note callout. Optional title after the name.\n\nAttributes: `title`, `collapsible` + style attributes"
+    },
+    "hover: a code embed path": {
+      "vscode": "**src/pricing\\.ts** · lines 1–3\n\n\n```ts\nexport function priceInCents(euros: number): number {\n  return Math.round(euros * 100);\n}\n```\n",
+      "lsp": "**src/pricing\\.ts** · lines 1–3\n\n```ts\nexport function priceInCents(euros: number): number {\n  return Math.round(euros * 100);\n}\n```",
+      "difference": "Same text, different spacing. VS Code builds the hover with MarkdownString.appendCodeblock, which adds a blank line before the code block and a line break after it, and always fences with three backticks. The language server writes the fence itself and makes it longer than any backtick run in the code (lspAssist.ts embedHover)."
+    },
+    "hover: a :depends on a task": {
+      "both": "**EF-T1** · task (open) — Build the checkout"
+    },
+    "hover: plain text": {
+      "both": null
+    },
+    "completion: a front matter key": {
+      "vscode": [
+        "accent",
+        "audience",
+        "created",
+        "lang",
+        "owners",
+        "related",
+        "smd",
+        "snippet: assumption",
+        "snippet: constraint",
+        "snippet: milestones",
+        "snippet: risk-matrix",
+        "snippet: riskmatrix",
+        "snippet: status",
+        "snippet: steps",
+        "status",
+        "summary",
+        "tags",
+        "theme",
+        "title",
+        "toc",
+        "typography",
+        "updated",
+        "version",
+        "views"
+      ],
+      "lsp": [
+        "accent",
+        "audience",
+        "created",
+        "lang",
+        "owners",
+        "related",
+        "smd",
+        "status",
+        "summary",
+        "tags",
+        "theme",
+        "title",
+        "toc",
+        "typography",
+        "updated",
+        "version",
+        "views"
+      ],
+      "difference": "VS Code adds the extension's contributed snippets (snippets/smd.json) whose prefix matches the word at the cursor, marked \"snippet:\". The language server has no snippets. The keys from the providers are the same."
+    },
+    "completion: an anchor in another document": {
+      "both": [
+        "EF-A1",
+        "EF-D1",
+        "EF-K1",
+        "EF-R1",
+        "EF-T1",
+        "EF-T2",
+        "fn-1",
+        "fnref-1",
+        "footnote-label",
+        "overview",
+        "requirements",
+        "term-api",
+        "term-slo",
+        "work"
+      ]
+    },
+    "completion: an anchor in the same document": {
+      "both": [
+        "TY-R1",
+        "typing"
+      ]
+    },
+    "completion: a path in a link": {
+      "both": [
+        "pricing.ts"
+      ]
+    },
+    "completion: a color value": {
+      "both": [
+        "accent",
+        "amber",
+        "blue",
+        "cyan",
+        "gray",
+        "green",
+        "indigo",
+        "muted",
+        "orange",
+        "pink",
+        "purple",
+        "red",
+        "teal",
+        "yellow"
+      ]
+    },
+    "completion: an id attribute offers the document's ids": {
+      "both": [
+        "TY-R1"
+      ]
+    },
+    "completion: an inline directive": {
+      "vscode": [
+        "badge",
+        "depends",
+        "due",
+        "kbd",
+        "mention",
+        "metric",
+        "priority",
+        "progress",
+        "ref",
+        "since",
+        "snippet: :::",
+        "status"
+      ],
+      "lsp": [
+        "badge",
+        "depends",
+        "due",
+        "kbd",
+        "mention",
+        "metric",
+        "priority",
+        "progress",
+        "ref",
+        "since",
+        "status"
+      ],
+      "difference": "VS Code adds the contributed \"Callout\" snippet, whose prefix is \":::\". The language server has no snippets. The directives from the providers are the same."
+    },
+    "completion: a container name": {
+      "vscode": [
+        "acceptance",
+        "agent",
+        "api",
+        "assumption",
+        "box",
+        "card",
+        "changelog",
+        "column",
+        "columns",
+        "comment",
+        "constraint",
+        "danger",
+        "decision",
+        "deprecated",
+        "details",
+        "evidence",
+        "example",
+        "figure",
+        "glossary",
+        "human",
+        "include",
+        "info",
+        "limitation",
+        "non-goals",
+        "note",
+        "question",
+        "quote",
+        "requirement",
+        "risk",
+        "risk-matrix",
+        "snippet: :::",
+        "steps",
+        "success",
+        "suggestion",
+        "tab",
+        "tabs",
+        "timeline",
+        "tip",
+        "warning"
+      ],
+      "lsp": [
+        "acceptance",
+        "agent",
+        "api",
+        "assumption",
+        "box",
+        "card",
+        "changelog",
+        "column",
+        "columns",
+        "comment",
+        "constraint",
+        "danger",
+        "decision",
+        "deprecated",
+        "details",
+        "evidence",
+        "example",
+        "figure",
+        "glossary",
+        "human",
+        "include",
+        "info",
+        "limitation",
+        "non-goals",
+        "note",
+        "question",
+        "quote",
+        "requirement",
+        "risk",
+        "risk-matrix",
+        "steps",
+        "success",
+        "suggestion",
+        "tab",
+        "tabs",
+        "timeline",
+        "tip",
+        "warning"
+      ],
+      "difference": "VS Code adds the contributed \"Callout\" snippet, whose prefix is \":::\". The language server has no snippets. The container names from the providers are the same."
+    },
+    "completion: a footnote label": {
+      "both": [
+        "retries"
+      ]
+    },
+    "outline: the plan": {
+      "vscode": [
+        "Overview [String] 10",
+        "Requirements [String] 23",
+        "Work [String] 38"
+      ],
+      "lsp": [
+        "Overview [String] 10",
+        "Requirements [String] 23",
+        "  EF-R1 — Checkout answers within 200 ms [Interface] 25",
+        "  EF-A1 — A load test passes at 200 ms [Boolean] 29",
+        "  Cache prices for ten minutes [Event] 32",
+        "  The cache may serve stale prices [Constant] 35",
+        "Work [String] 38"
+      ],
+      "difference": "VS Code's outline shows headings only (language.ts SymbolProvider). The language server also lists requirements, acceptance criteria, decisions and risks under their headings (lsp.ts outlineSymbols) (CL-23)."
+    },
+    "outline: the store": {
+      "vscode": [
+        "Store [String] 7"
+      ],
+      "lsp": [
+        "Store [String] 7",
+        "  EF-STORE — Prices are stored in cents [Interface] 9"
+      ],
+      "difference": "VS Code's outline shows headings only (language.ts SymbolProvider). The language server also lists the requirement under its heading (lsp.ts outlineSymbols) (CL-23)."
+    },
+    "references: a block id where it is given": {
+      "vscode": [
+        "notes.md:3:95-100",
+        "other.smd:10:46-51",
+        "other.smd:13:93-98",
+        "plan.smd:14:33-38",
+        "plan.smd:25:16-21",
+        "plan.smd:29:30-35"
+      ],
+      "lsp": [
+        "other.smd:10:46-51",
+        "other.smd:13:93-98",
+        "plan.smd:14:33-38",
+        "plan.smd:25:16-21",
+        "plan.smd:29:30-35"
+      ],
+      "difference": "VS Code searches .smd, .md and .markdown files for references (language.ts workspaceDocuments), the language server .smd files only (workspace.ts collect), so the link in notes.md is found by VS Code alone (CL-23)."
+    },
+    "references: a heading": {
+      "both": [
+        "other.smd:13:39-51",
+        "plan.smd:23:3-15"
+      ]
+    },
+    "references: a link to a heading": {
+      "vscode": [
+        "notes.md:3:61-69",
+        "other.smd:10:95-103",
+        "plan.smd:10:3-11",
+        "plan.smd:12:124-132",
+        "plan.smd:26:48-56"
+      ],
+      "lsp": [
+        "other.smd:10:95-103",
+        "plan.smd:12:124-132",
+        "plan.smd:26:48-56"
+      ],
+      "difference": "Two differences. VS Code searches .smd, .md and .markdown files for references (language.ts workspaceDocuments), the language server .smd files only (workspace.ts collect), so the link in notes.md is found by VS Code alone (CL-23). And asked on a link, VS Code resolves the link to the heading and lists the heading as the declaration (language.ts anchorAt). The language server lists a heading as the declaration only when the cursor is on the heading itself (lsp.ts references), so plan.smd line 10 is missing."
+    },
+    "references: a :ref to a block in another document": {
+      "vscode": [
+        "notes.md:3:95-100",
+        "other.smd:10:46-51",
+        "other.smd:13:93-98",
+        "plan.smd:14:33-38",
+        "plan.smd:25:16-21",
+        "plan.smd:29:30-35"
+      ],
+      "lsp": [
+        "other.smd:10:46-51",
+        "other.smd:13:93-98",
+        "plan.smd:14:33-38",
+        "plan.smd:25:16-21",
+        "plan.smd:29:30-35"
+      ],
+      "difference": "VS Code searches .smd, .md and .markdown files for references (language.ts workspaceDocuments), the language server .smd files only (workspace.ts collect), so the link in notes.md is found by VS Code alone (CL-23)."
+    },
+    "rename: a block id": {
+      "vscode": [
+        "notes.md:3:95-100 → EF-R9",
+        "other.smd:10:46-51 → EF-R9",
+        "other.smd:13:93-98 → EF-R9",
+        "plan.smd:14:33-38 → EF-R9",
+        "plan.smd:25:16-21 → EF-R9",
+        "plan.smd:29:30-35 → EF-R9"
+      ],
+      "lsp": [
+        "other.smd:10:46-51 → EF-R9",
+        "other.smd:13:93-98 → EF-R9",
+        "plan.smd:14:33-38 → EF-R9",
+        "plan.smd:25:16-21 → EF-R9",
+        "plan.smd:29:30-35 → EF-R9"
+      ],
+      "difference": "VS Code searches .smd, .md and .markdown files for references (language.ts workspaceDocuments), the language server .smd files only (workspace.ts collect), so the link in notes.md is found by VS Code alone (CL-23). So VS Code also rewrites the link there."
+    },
+    "rename: a heading": {
+      "vscode": [
+        "notes.md:3:61-69 → summary",
+        "other.smd:10:95-103 → summary",
+        "plan.smd:10:3-11 → Summary",
+        "plan.smd:12:124-132 → summary",
+        "plan.smd:26:48-56 → summary"
+      ],
+      "lsp": [
+        "other.smd:10:95-103 → summary",
+        "plan.smd:10:3-11 → Summary",
+        "plan.smd:12:124-132 → summary",
+        "plan.smd:26:48-56 → summary"
+      ],
+      "difference": "VS Code searches .smd, .md and .markdown files for references (language.ts workspaceDocuments), the language server .smd files only (workspace.ts collect), so the link in notes.md is found by VS Code alone (CL-23). So VS Code also rewrites the link there."
+    }
+  },
+  "policy": {
+    "triggerCharacters": {
+      "vscode": [
+        ":",
+        "{",
+        "=",
+        " ",
+        "`",
+        "(",
+        "/",
+        "#",
+        "\"",
+        "^"
+      ],
+      "lsp": [
+        ":",
+        "{",
+        "=",
+        "`",
+        "(",
+        "/",
+        "#",
+        "\"",
+        "^"
+      ],
+      "difference": "VS Code also triggers completion on a space (language.ts registers CompletionProvider with \" \"), which the language server does not advertise (lsp.ts TRIGGER_CHARACTERS) (CL-23). The footnote provider's \"^\" is registered apart in VS Code."
+    }
+  }
+}

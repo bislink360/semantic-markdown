@@ -1,0 +1,13 @@
+---
+smd: 2
+title: Editor fixture store
+status: draft
+---
+
+## Store {#store-heading}
+
+:::requirement{#EF-STORE} Prices are stored in cents
+The plan's checkout requirement :ref[plan.smd#EF-R1] depends on it, as [its overview](plan.smd#overview) says.
+:::
+
+See [the plan's requirements](plan.smd#requirements) and [the checkout requirement](plan.smd#EF-R1).

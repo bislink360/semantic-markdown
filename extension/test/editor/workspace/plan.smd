@@ -1,0 +1,48 @@
+---
+smd: 2
+title: Editor fixture plan
+summary: The document the shared editor fixtures ask about. Every line is placed so a case can point at it.
+status: draft
+owners: ["@maya"]
+version: "1.4"
+---
+
+## Overview
+
+Version {{version}} of the plan. The store is in [the other document](other.smd#EF-STORE), and this part is [the overview](#overview).
+Retries are capped at five[^retries]. Every API call counts against the SLO.
+The checkout requirement is :ref[EF-R1], and the work after it is :ref[EF-T2].
+
+:::note{title="Read first"}
+A callout the hover explains.
+:::
+
+```ts file="src/pricing.ts" lines="1-3"
+```
+
+## Requirements
+
+:::requirement{#EF-R1 status=accepted} Checkout answers within 200 ms
+It applies to every endpoint in [the overview](#overview).
+:::
+
+:::acceptance{#EF-A1 verifies=EF-R1} A load test passes at 200 ms
+:::
+
+:::decision{#EF-D1 status=accepted} Cache prices for ten minutes
+:::
+
+:::risk{#EF-K1 likelihood=medium impact=high} The cache may serve stale prices
+:::
+
+## Work
+
+- [ ] Build the checkout {#EF-T1}
+- [ ] Load test the checkout :depends[EF-T1] {#EF-T2}
+
+:::glossary Glossary
+- **API**: Application Programming Interface
+- **SLO**: Service level objective
+:::
+
+[^retries]: Five covers almost every transient failure.
