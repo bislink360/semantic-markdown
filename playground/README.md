@@ -1,6 +1,6 @@
 # Semantic Markdown playground
 
-A static web page for trying `.smd` without installing anything: edit on the left; the **Preview**, **Agent view** (with its token estimate), **Diagnostics** and **Markdown** export update on the right as you type. **Copy link** puts the whole document in the link, so a document can be shared without a server.
+A static web page for trying `.smd` without installing anything: edit on the left; the **Preview**, **Compare with .md** (the preview beside the Markdown export, or beside the unconverted text, both drawn as GitHub draws a `.md` file), **Agent view** (with its token estimate), **Diagnostics** and **Markdown** export update on the right as you type. **Copy link** puts the whole document in the link, so a document can be shared without a server.
 
 It runs the same engine as the extension and the CLI (`extension/src/core`), entirely in the browser. Nothing is uploaded and there is no backend.
 
@@ -19,7 +19,7 @@ This writes `extension/dist/playground/`. Open `index.html` from there directly 
 | `index.html`, `app.css` | The page, with its Content Security Policy written in by the build |
 | `app.js` | The editor and the engine, with the preview's stylesheet (KaTeX fonts inlined), page runtime and link handler embedded |
 | `vendor/mermaid-source.js` | Mermaid (3.5 MB), loaded only when a document has a diagram |
-| `vendor/*.LICENSE` | Licenses of the bundled KaTeX and Mermaid |
+| `vendor/*.LICENSE` | Licenses of the bundled KaTeX, Mermaid, github-markdown-css, markdown-it-github-alerts and @vscode/markdown-it-katex |
 
 It is hosted at [bislink360.github.io/semantic-markdown/playground/](https://bislink360.github.io/semantic-markdown/playground/). The Pages workflow (`.github/workflows/pages.yml`) rebuilds it from `main` on every push, next to the homepage and the user guide. Each GitHub Release also attaches the built folder as `semantic-markdown-playground.zip`.
 
@@ -37,10 +37,10 @@ A shared link carries a document written by someone else, and `.smd` allows raw 
 
 **How it is prevented:**
 
-1. **The rendered document lives only in a sandboxed frame.** The preview is an `<iframe srcdoc>` with `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` and without `allow-same-origin`. The frame therefore has an opaque origin: its scripts can't read the parent's DOM, `localStorage` or cookies (the browser throws `SecurityError`), and without `allow-top-navigation`, `allow-forms`, `allow-modals` or `allow-downloads` it can't navigate the page, submit forms, show dialogs or start downloads.
+1. **The rendered document lives only in sandboxed frames.** The preview, and each side of the Compare tab, is an `<iframe srcdoc>` with `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` and without `allow-same-origin`. The frame therefore has an opaque origin: its scripts can't read the parent's DOM, `localStorage` or cookies (the browser throws `SecurityError`), and without `allow-top-navigation`, `allow-forms`, `allow-modals` or `allow-downloads` it can't navigate the page, submit forms, show dialogs or start downloads.
 2. **Only known scripts run, even inside the frame.** `allow-scripts` is there for the page runtime (tabs, copy buttons, Mermaid). A `srcdoc` frame inherits the page's Content Security Policy, whose `script-src` is `'self'` plus the SHA-256 hashes of exactly three inline scripts: the runtime, the link handler and Mermaid. A document's own `<script>`, `on…=` attributes and `javascript:` URLs match none of them and are blocked. There is no `'unsafe-inline'` or `'unsafe-eval'` for scripts.
 3. **No network.** `default-src 'none'`: nothing may connect (`fetch`, WebSocket), images are limited to the app's files and `data:` URLs (so a document can't load a tracking pixel and learn who opened the link), fonts to the app and `data:`, and frames, `<base>` and form targets are blocked.
-4. **The page never turns document text into markup.** The agent view, diagnostics and Markdown export are set with `textContent`; a test checks that `main.ts` uses no HTML sinks (`innerHTML`, `document.write`, `eval` and similar). The page listens to no messages from the frame.
+4. **The page never turns document text into markup.** The agent view, diagnostics and Markdown export are set with `textContent`; a test checks that `main.ts` and `previewFrame.ts` use no HTML sinks (`innerHTML`, `document.write`, `eval` and similar). The page listens to no messages from the frame.
 5. **Links can't take over the preview.** `http`, `https` and `mailto` links open in a new tab (`rel="noopener noreferrer"`); other links (relative files, `javascript:`, `data:`) do nothing. If the frame does navigate away, it is rebuilt on the next edit.
 6. **No file access.** The playground has no file reader, so `:::include` blocks and `file="…"` code embeds show their fallback notes and read nothing.
 7. **Bounded decoding.** A link's document is decompressed to at most 2 MB, so a small crafted link can't expand into gigabytes; damaged or foreign fragments show a message instead of failing.
@@ -63,7 +63,9 @@ Tests: `extension/test/playground.test.ts` (sandbox flags, CSP, hashes matching 
 | `index.html`, `app.css` | The page |
 | `starter.smd` | The example document shown on first visit |
 | `src/main.ts` | DOM wiring only: editor, tabs, buttons |
-| `src/panes.ts` | `renderPanes(text)`: preview HTML, agent view, diagnostics, Markdown |
+| `src/previewFrame.ts` | Drives one sandboxed preview frame: builds it, hands it its port, sends updates (one per frame) |
+| `src/panes.ts` | `renderPanes(text)`: preview HTML, both Compare sides, agent view, diagnostics, Markdown |
+| `extension/src/core/githubMarkdown.ts` | The Compare tab's Markdown renderer, built from open-source pieces only: markdown-it, markdown-it-github-alerts, @vscode/markdown-it-katex and Mermaid fences; the frame adds github-markdown-css |
 | `src/codec.ts` | Share-by-URL encoding |
 | `src/frame.ts`, `src/csp.mjs` | The sandboxed preview frame and the CSP |
 | `src/previewLinks.ts` | Link handling inside the frame |

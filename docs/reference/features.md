@@ -2052,11 +2052,12 @@ Optional context (pointers, not read):
 
 ## 19. Web playground
 
-A static page that runs the engine in the browser: edit `.smd` on the left, and see four views on the right, updated as you type.
+A static page that runs the engine in the browser: edit `.smd` on the left, and see five views on the right, updated as you type.
 
 | Tab | What it shows |
 |---|---|
 | **Preview** | The rendered document with `smd.css` and the page runtime: tabs, copy buttons, KaTeX math and Mermaid diagrams (Mermaid loads the first time a document has a diagram) |
+| **Compare with .md** | The preview side by side with the same document as Markdown. **Exported** (the default) shows what `smd export --to md` writes. **Unconverted text** shows the `.smd` text as if the file were renamed to `.md`, so blocks, roles and attributes appear as raw text. Both are drawn as GitHub draws a `.md` file, by open-source renderers rather than Semantic Markdown's: markdown-it, GitHub alerts, KaTeX, Mermaid and github-markdown-css. The view gets more of the window while it is open |
 | **Agent view** | What `smd agent` gives an AI agent, with its token estimate next to the source's |
 | **Diagnostics** | `smd validate`'s problems; clicking one selects its range in the editor |
 | **Markdown** | The plain Markdown export (`smd export --to md`), with a copy button |

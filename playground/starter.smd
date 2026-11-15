@@ -1,7 +1,7 @@
 ---
 smd: 2
 title: Welcome to the Semantic Markdown playground
-summary: Edit on the left. The **Preview**, **Agent view**, **Diagnostics** and **Markdown** tabs update as you type.
+summary: Edit on the left. The **Preview**, **Compare with .md**, **Agent view**, **Diagnostics** and **Markdown** tabs update as you type.
 status: draft
 owners: ["@you"]
 tags: [playground, example]

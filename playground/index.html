@@ -27,7 +27,7 @@
   </div>
 </header>
 <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
-<main class="layout">
+<main id="layout" class="layout">
   <section class="pane editor-pane" aria-label="Editor">
     <div class="editor">
       <pre id="gutter" class="gutter" aria-hidden="true"></pre>
@@ -38,12 +38,33 @@
   <section class="pane output-pane" aria-label="Output">
     <div class="tabs" role="tablist" aria-label="Views">
       <button type="button" role="tab" id="tab-preview" aria-controls="panel-preview" aria-selected="true">Preview</button>
+      <button type="button" role="tab" id="tab-compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1">Compare with .md</button>
       <button type="button" role="tab" id="tab-agent" aria-controls="panel-agent" aria-selected="false" tabindex="-1">Agent view <span id="agent-tokens" class="count"></span></button>
       <button type="button" role="tab" id="tab-diagnostics" aria-controls="panel-diagnostics" aria-selected="false" tabindex="-1">Diagnostics <span id="diagnostics-count" class="count"></span></button>
       <button type="button" role="tab" id="tab-markdown" aria-controls="panel-markdown" aria-selected="false" tabindex="-1">Markdown</button>
     </div>
     <div class="panel" role="tabpanel" id="panel-preview" aria-labelledby="tab-preview">
       <iframe id="preview" title="Preview" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div class="panel" role="tabpanel" id="panel-compare" aria-labelledby="tab-compare" hidden>
+      <div class="compare">
+        <figure class="compare-side">
+          <figcaption><strong>As .smd</strong> <span>Semantic Markdown</span></figcaption>
+          <iframe id="compare-smd" title="Preview as Semantic Markdown" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
+        </figure>
+        <figure class="compare-side">
+          <figcaption>
+            <label for="compare-mode"><strong>As .md</strong></label>
+            <select id="compare-mode">
+              <option value="exported">Exported (smd export --to md)</option>
+              <option value="plain">Unconverted text</option>
+            </select>
+          </figcaption>
+          <iframe id="compare-md" title="Preview as Markdown" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
+        </figure>
+      </div>
+      <p id="compare-note-exported" class="meta compare-note">What <code>smd export --to md</code> writes, drawn as GitHub draws a .md file (markdown-it, GitHub alerts, KaTeX, Mermaid and GitHub's stylesheet). Renderers without alerts, diagrams or math show quotes and code blocks instead.</p>
+      <p id="compare-note-plain" class="meta compare-note" hidden>The .smd text drawn as GitHub would draw it if the file were renamed to .md, with the same renderers as the export. Semantic Markdown blocks, roles and attributes show as plain text.</p>
     </div>
     <div class="panel" role="tabpanel" id="panel-agent" aria-labelledby="tab-agent" hidden>
       <p id="agent-meta" class="meta"></p>

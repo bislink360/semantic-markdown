@@ -15,7 +15,7 @@ import {
 } from '../../playground/src/frame';
 import { diagnosticsSummary, renderPanes } from '../../playground/src/panes';
 import { isParentOrigin, isPortHandshake, linkAction } from '../../playground/src/previewLinks';
-import { readStored, themeSetting, writeStored, type KeyValueStore } from '../../playground/src/storage';
+import { compareMode, readStored, themeSetting, writeStored, type KeyValueStore } from '../../playground/src/storage';
 import { appBundleOptions, indexHtml, playgroundAssets, scriptHash } from '../scripts/build-playground.mjs';
 
 const PLAYGROUND = join(__dirname, '..', '..', 'playground');
@@ -123,9 +123,79 @@ test('the playground reads no files: includes and code embeds show their fallbac
   assert.match(panes.agent.text, /secret\.smd/);
 });
 
+test('Compare: the unconverted side is the .smd text as GitHub draws a .md file', () => {
+  const panes = renderPanes(STARTER, { today: TODAY });
+  const plain = panes.plain.html;
+  assert.match(plain, /^<article class="markdown-body">/);
+  assert.equal(panes.plain.style, 'github');
+  assert.match(plain, /<h2>Try it<\/h2>/);
+  assert.match(plain, /:::tip Share what you write/, 'blocks stay as text');
+  assert.match(plain, /:badge\[Shipped\]\{color=green\}/, 'roles and attributes stay as text');
+  assert.doesNotMatch(plain, /smd-callout|smd-badge|smd-decision|smd-doc/, 'nothing of the .smd renderer');
+  assert.match(plain, /<div class="smd-diagram"><pre class="smd-mermaid">flowchart LR/, 'GitHub draws Mermaid fences');
+  assert.equal(panes.plain.mermaid, true);
+  assert.match(plain, /class="katex/, 'GitHub draws math');
+  assert.equal(panes.plain.lang, panes.preview.lang);
+});
+
+test('Compare: front matter is a table of its values, and task list items are GitHub checkboxes', () => {
+  const plain = renderPanes('---\ntitle: <b>Hi</b> & **bye**\ntags: [a, b]\nowner: {name: x}\n---\n\n- [x] done\n- [ ] todo\n- not a task\n\n~~old~~\n').plain.html;
+  assert.match(plain, /<thead><tr><th>title<\/th><th>tags<\/th><th>owner<\/th><\/tr><\/thead>/);
+  assert.match(plain, /<td>&lt;b&gt;Hi&lt;\/b&gt; &amp; \*\*bye\*\*<\/td>/, 'values are escaped text, not Markdown or HTML');
+  assert.match(plain, /<td><table><tbody><tr><td>a<\/td><td>b<\/td><\/tr><\/tbody><\/table><\/td>/);
+  assert.match(plain, /<th>name<\/th>/, 'mappings are nested tables');
+  assert.doesNotMatch(plain, /<hr>/, 'the front matter fences are not rules');
+  assert.match(plain, /<ul class="contains-task-list">/);
+  assert.match(plain, /<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled checked> done<\/li>/);
+  assert.match(plain, /<li class="task-list-item"><input type="checkbox" class="task-list-item-checkbox" disabled> todo<\/li>/);
+  assert.match(plain, /<li>not a task<\/li>/);
+  assert.match(plain, /<s>old<\/s>/);
+});
+
+test('Compare: broken front matter shows as YAML; unclosed front matter is ordinary text', () => {
+  assert.match(renderPanes('---\nkey: [unclosed\n---\n\nBody\n').plain.html, /<code class="language-yaml">key: \[unclosed\n<\/code>[\s\S]*<p>Body<\/p>/);
+  assert.match(renderPanes('---\nkey: value\n\nBody\n').plain.html, /<hr>/);
+});
+
+test('Compare: the exported side draws the Markdown export with GitHub\'s renderers, not the .smd one', () => {
+  const panes = renderPanes(STARTER, { today: TODAY });
+  const exported = panes.exported.html;
+  assert.equal(panes.exported.style, 'github');
+  assert.match(exported, /^<article class="markdown-body">\n<table><thead><tr><th>smd<\/th><th>title<\/th>/, 'front matter as a table');
+  assert.match(exported, /<div class="markdown-alert markdown-alert-tip">/, 'the export\'s > [!TIP] is a GitHub alert');
+  assert.match(exported, /<code>Shipped<\/code>/, 'badges are code spans');
+  assert.match(exported, /<kbd>Ctrl<\/kbd>/);
+  assert.match(exported, /class="katex/, 'math is drawn');
+  assert.equal(panes.exported.mermaid, true, 'Mermaid diagrams are drawn');
+  assert.doesNotMatch(exported, /:::|:badge\[|smd-callout|smd-doc/, 'nothing of the .smd syntax or renderer');
+  assert.equal(panes.exported.lang, panes.preview.lang);
+});
+
+test('Compare: the .md mode is stored, and anything unknown means the export', () => {
+  assert.equal(compareMode('plain'), 'plain');
+  for (const value of ['exported', undefined, '', 'nope']) assert.equal(compareMode(value), 'exported', String(value));
+});
+
+test('Compare: the Markdown frame gets GitHub\'s stylesheet, scoped to the theme, and blocks scripts like the preview', async () => {
+  const { frame, hashes } = await assets();
+  assert.match(frame.githubCss, /:root:not\(\[data-smd-theme="dark"\]\) \.markdown-body \{/);
+  assert.match(frame.githubCss, /:root\[data-smd-theme="dark"\] \.markdown-body \{/);
+  assert.doesNotMatch(frame.githubCss, /(^|[^ ])\.markdown-body\b/m, 'every rule is scoped');
+  assert.doesNotMatch(frame.githubCss, /url\((?!["']?data:)/, 'nothing to load');
+  const plain = renderPanes('# Hi\n\n<script>parent.document.body.remove()</script>\n').plain;
+  const page = previewDocument(plain, 'auto', frame);
+  assert.ok(page.includes(frame.githubCss));
+  assert.ok(!previewDocument(renderPanes('# Hi').preview, 'auto', frame).includes(frame.githubCss), 'the preview keeps smd.css only');
+  const scripts = inlineScripts(page);
+  assert.equal(scripts.length, 3, 'the document script, the runtime and the link handler');
+  assert.equal(scripts.filter((s) => hashes.includes(scriptHash(s))).length, 2);
+});
+
 test('an empty document renders every pane', () => {
   const panes = renderPanes('');
   assert.match(panes.preview.html, /smd-doc/);
+  assert.match(panes.plain.html, /markdown-body/);
+  assert.match(panes.exported.html, /markdown-body/);
   assert.equal(panes.preview.mermaid, false);
   assert.equal(typeof panes.agent.text, 'string');
   assert.equal(typeof panes.markdown, 'string');
@@ -176,7 +246,9 @@ test('index.html gets the CSP and carries the preview sandbox, with no inline sc
   const meta = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(html);
   assert.equal(meta?.[1], (await assets()).csp);
   assert.ok(html.indexOf('Content-Security-Policy') < html.indexOf('<script'), 'the policy comes before any script');
-  assert.match(html, new RegExp(`<iframe id="preview"[^>]* sandbox="${PREVIEW_SANDBOX}"`));
+  const frames = html.match(/<iframe\b[^>]*>/g) ?? [];
+  assert.deepEqual(frames.map((f) => /id="([^"]+)"/.exec(f)?.[1]), ['preview', 'compare-smd', 'compare-md']);
+  for (const f of frames) assert.ok(f.includes(` sandbox="${PREVIEW_SANDBOX}"`), f);
   const scripts = html.match(/<script\b[^>]*>/g) ?? [];
   assert.ok(scripts.length > 0);
   for (const script of scripts) assert.match(script, /\ssrc="[^"]+"/, script);
@@ -208,7 +280,7 @@ test('Mermaid is inlined only for documents with diagrams, once it is loaded', a
   assert.match(page, /data-smd-theme-pref="dark"/);
 });
 
-test('the frame is rebuilt only for a new language or newly available Mermaid', () => {
+test('the frame is rebuilt only for a new language, a new stylesheet or newly available Mermaid', () => {
   const plain = { html: '', lang: 'en', mermaid: false };
   const diagram = { ...plain, mermaid: true };
   assert.equal(needsRebuild(undefined, plain, false), true);
@@ -217,6 +289,8 @@ test('the frame is rebuilt only for a new language or newly available Mermaid', 
   assert.equal(needsRebuild({ lang: 'en', mermaid: false }, diagram, false), false, 'still loading');
   assert.equal(needsRebuild({ lang: 'en', mermaid: false }, diagram, true), true);
   assert.equal(needsRebuild({ lang: 'en', mermaid: false }, { ...plain, lang: 'de' }, false), true);
+  assert.equal(needsRebuild({ lang: 'en', mermaid: false }, { ...plain, style: 'github' }, false), true, 'a new stylesheet');
+  assert.equal(needsRebuild({ lang: 'en', mermaid: false, github: true }, { ...plain, style: 'github' }, false), false);
   assert.deepEqual(updateMessage(plain, 'light'), { type: 'update', html: '', themePref: 'light' });
 });
 
@@ -235,20 +309,25 @@ test('links in the preview open in a new tab, scroll in place, or do nothing', (
   }
 });
 
+/** The page's own code: main.ts wires the DOM, previewFrame.ts drives every sandboxed preview frame. */
+const pageSource = (file: 'main.ts' | 'previewFrame.ts') => readFileSync(join(PLAYGROUND, 'src', file), 'utf8');
+
 test('the playground page never puts document text into its own markup', () => {
-  const main = readFileSync(join(PLAYGROUND, 'src', 'main.ts'), 'utf8');
-  for (const sink of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function']) {
-    assert.ok(!main.includes(sink), sink);
+  for (const file of ['main.ts', 'previewFrame.ts'] as const) {
+    for (const sink of ['innerHTML', 'outerHTML', 'insertAdjacentHTML', 'document.write', 'eval(', 'new Function']) {
+      assert.ok(!pageSource(file).includes(sink), `${file}: ${sink}`);
+    }
   }
-  assert.match(main, /frame\.setAttribute\('sandbox', PREVIEW_SANDBOX\)/);
+  assert.match(pageSource('previewFrame.ts'), /this\.frame\.setAttribute\('sandbox', PREVIEW_SANDBOX\)/);
+  assert.doesNotMatch(pageSource('main.ts'), /srcdoc|postMessage/, 'only PreviewFrame touches the frames');
 });
 
 test('preview updates go over a private port, never as window messages that could follow the frame away', () => {
-  const main = readFileSync(join(PLAYGROUND, 'src', 'main.ts'), 'utf8');
-  const windowPosts = [...main.matchAll(/contentWindow\?\.postMessage\(([^)]*)\)/g)].map((m) => m[1]);
+  const frameCode = pageSource('previewFrame.ts');
+  const windowPosts = [...frameCode.matchAll(/contentWindow\?\.postMessage\(([^)]*)\)/g)].map((m) => m[1]);
   assert.equal(windowPosts.length, 1, 'one window message: the handshake');
   assert.match(windowPosts[0], /^\{ type: 'smd-port' \}, '\*', \[channel\.port2\]$/);
-  assert.match(main, /previewPort\?\.postMessage\(updateMessage\(/);
+  assert.match(frameCode, /this\.previewPort\?\.postMessage\(updateMessage\(/);
   const { port1, port2 } = new MessageChannel();
   assert.equal(isPortHandshake({ type: 'smd-port' }, [port2], true), true);
   assert.equal(isPortHandshake({ type: 'smd-port' }, [port2], false), false, 'only from the playground page');
@@ -264,8 +343,7 @@ test('the preview takes its update port only from the playground page\'s origin'
   const preview = renderPanes('# Hi\n').preview;
   assert.match(previewDocument(preview, 'auto', frame, 'http://localhost:8767'), /data-smd-parent-origin="http:\/\/localhost:8767"/);
   assert.match(previewDocument(preview, 'auto', frame), /data-smd-parent-origin="null"/, 'defaults to the file:// origin');
-  const main = readFileSync(join(PLAYGROUND, 'src', 'main.ts'), 'utf8');
-  assert.match(main, /previewDocument\(preview, pref, assets, location\.origin\)/);
+  assert.match(pageSource('previewFrame.ts'), /previewDocument\(preview, pref, assets, location\.origin\)/);
   const links = readFileSync(join(PLAYGROUND, 'src', 'previewLinks.ts'), 'utf8');
   assert.match(links, /!isParentOrigin\(event\.origin, PARENT_ORIGIN\) \|\| event\.source !== window\.parent/);
   assert.equal(isParentOrigin('http://localhost:8767', 'http://localhost:8767'), true);

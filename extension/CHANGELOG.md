@@ -4,6 +4,7 @@
 
 ### Added
 - **Each command knows its options.** An option the command doesn't read now prints a warning on stderr, with a suggestion when one is close (`[smd] warning: Unknown option --strcit for smd validate (did you mean --strict?); it is ignored.`). The exit code and the output are unchanged, so JSON stays parseable. A later minor release will turn the warning into an error. `--name=value` now works for every option that takes a value, a value option followed by another option no longer swallows it, and `smd lsp` still accepts whatever options an editor passes.
+- **The playground compares .smd with .md side by side.** A new **Compare with .md** tab shows the Semantic Markdown preview next to the same document as Markdown. The Markdown side has two modes: **Exported**, the default, shows what `smd export --to md` writes, and **Unconverted text** shows the `.smd` text as if the file were renamed to `.md`. Both are drawn as GitHub draws a `.md` file, by open-source renderers and none of Semantic Markdown's own: markdown-it, markdown-it-github-alerts, @vscode/markdown-it-katex, Mermaid and github-markdown-css, bundled into the playground so it still loads nothing remote. Each side renders in its own sandboxed frame, under the same policy as the preview. The playground remembers the mode in the browser.
 - **`smd export --to html` and `--to pdf` take `--today YYYY-MM-DD`**, the date due dates and overdue tasks are shown against, as `smd validate`, `smd tasks` and `smd build` already did. Without it they use today's date, as before.
 
 ### Changed
