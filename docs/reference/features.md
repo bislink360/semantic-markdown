@@ -289,7 +289,7 @@ The callout shows its type as its title (alerts have none of their own). `smd ex
 | `style` | `italic` `underline` `strike` |
 | `align` (blocks) | `left` `center` `right` |
 
-Named colors are theme tokens tuned for light and dark mode. Only whitelisted values are rendered, so documents can't inject CSS. **Agent view:** plain text. **GitHub:** plain text (bold/italic/strike kept).
+Named colors are theme tokens tuned for light and dark mode. Only whitelisted values are rendered, so documents can't inject CSS. **Agent view:** plain text. **GitHub:** bold, italic and strike are kept, and a span with a `color` or `bg` but none of those is *italic*, so it stays set apart.
 
 - **Quotes in values:** a quoted value can hold its own quote with a backslash, `title="It's \"done\""` or `label='The team\'s share'` (since 1.10). Other backslashes are kept as written (`file="C:\docs\plan.smd"`), except that `\\` is one backslash in an `smd: 2` document.
 - **Case:** the values a block or directive takes from a list, and the front matter `status`, `audience` and `theme`, match in any case (`:::decision{status=Accepted}`, `:metric{trend=Up}`, `theme: Dark`) and render as the lower-case value. Style values and named colors match only as written: `color=Red` is an error, with a fix to `red`.

@@ -133,6 +133,19 @@ test('conversion to plain Markdown keeps meaning', () => {
   assert.match(md, /`Done` \*\*red\*\* \*\*hi\*\*/);
 });
 
+test('conversion to plain Markdown: colored spans are italic unless they have emphasis of their own', () => {
+  const md = (s: string) => smdToMarkdown(`---\nsmd: 2\n---\n\n${s}\n`).split('\n').at(-2);
+  assert.equal(md('[named colors]{color=blue}'), '*named colors*');
+  assert.equal(md('[marked]{bg=amber}'), '*marked*');
+  assert.equal(md('[both]{color=red bg=amber}'), '*both*');
+  assert.equal(md('[loud]{color=red weight=bold}'), '**loud**', 'bold is emphasis enough');
+  assert.equal(md('[gone]{color=red style=strike}'), '~~gone~~');
+  assert.equal(md('[slanted]{color=red style=italic}'), '*slanted*', 'never doubled');
+  assert.equal(md('[plain]{.note}'), 'plain', 'a class alone is not a color');
+  assert.equal(md('[ padded ]{color=red}'), ' padded ', '* x * would not be emphasis');
+  assert.equal(md(':custom[tag]{color=green}'), '*tag*', 'spec v2 unknown directives convert as spans');
+});
+
 test('conversion from Markdown adds front matter and callouts', () => {
   const smd = markdownToSmd('# Title\n\n> [!NOTE]\n> hello\n', 'fallback');
   assert.match(smd, /^---\nsmd: 2\ntitle: "Title"/);

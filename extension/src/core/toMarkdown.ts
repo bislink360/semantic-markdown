@@ -609,13 +609,21 @@ function convertText(
     .replace(/==(?=\S)([^=]+?)(?<=\S)==/g, '**$1**');
 }
 
-/** A styled span's text, bold, italic or struck through as its `weight` and `style` say. */
+/**
+ * A styled span's text, bold, italic or struck through as its `weight` and `style` say. Markdown has no colors, so a
+ * span with a `color` or `bg` and no emphasis of its own is italic, which keeps it set apart: bold is taken by
+ * `==highlights==` and priorities. Text with spaces at either end stays plain, since `* x *` is not emphasis.
+ */
 function spanMarkdown(content: string, values: Record<string, string>): string {
   let t = content;
   const style = values.style ?? '';
-  if (values.weight === 'bold') t = `**${t}**`;
-  if (style.includes('italic')) t = `*${t}*`;
-  if (style.includes('strike')) t = `~~${t}~~`;
+  const bold = values.weight === 'bold';
+  const italic = style.includes('italic');
+  const strike = style.includes('strike');
+  const colored = values.color !== undefined || values.bg !== undefined;
+  if (bold) t = `**${t}**`;
+  if (italic || (colored && !bold && !strike && t !== '' && t.trim() === t)) t = `*${t}*`;
+  if (strike) t = `~~${t}~~`;
   return t;
 }
 
