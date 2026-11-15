@@ -8,12 +8,10 @@
 import STARTER from '../starter.smd';
 import { canShare, documentFromHash, fragmentPayload, shareFragment, shareLinkWarning } from './codec';
 import { indent, lineNumbers, offsetOf, outdent, type Edit } from './editor';
-import {
-  PREVIEW_SANDBOX, needsRebuild, previewDocument, previewTheme, updateMessage, type FrameAssets, type FrameState,
-  type ThemeSetting,
-} from './frame';
-import { diagnosticsSummary, renderPanes, type Panes, type PreviewPane } from './panes';
-import { DRAFT_KEY, THEME_KEY, readStored, themeSetting, writeStored } from './storage';
+import { previewTheme, resolvedTheme, type FrameAssets, type ThemeSetting } from './frame';
+import { diagnosticsSummary, renderPanes, type Panes } from './panes';
+import { PreviewFrame } from './previewFrame';
+import { COMPARE_KEY, DRAFT_KEY, THEME_KEY, compareMode, readStored, themeSetting, writeStored, type CompareMode } from './storage';
 import { changedRange } from '../../extension/src/core/sourceEdit';
 import type { Diagnostic } from '../../extension/src/core/validate';
 
@@ -36,7 +34,7 @@ function byId<T extends HTMLElement>(id: string): T {
 
 const source = byId<HTMLTextAreaElement>('source');
 const gutter = byId<HTMLPreElement>('gutter');
-const frame = byId<HTMLIFrameElement>('preview');
+const layout = byId<HTMLElement>('layout');
 const agentOut = byId<HTMLPreElement>('agent');
 const agentMeta = byId<HTMLParagraphElement>('agent-meta');
 const agentCount = byId<HTMLSpanElement>('agent-tokens');
@@ -46,13 +44,18 @@ const markdownOut = byId<HTMLPreElement>('markdown');
 const notice = byId<HTMLParagraphElement>('notice');
 const themeSelect = byId<HTMLSelectElement>('theme');
 
+const compareSelect = byId<HTMLSelectElement>('compare-mode');
+let mode: CompareMode = compareMode(readStored(COMPARE_KEY));
+
+/** Each sandboxed frame, the panel it sits in, and which pane it shows. */
+const frames = [
+  { frame: new PreviewFrame(byId<HTMLIFrameElement>('preview'), assets), panel: byId('panel-preview'), pane: (p: Panes) => p.preview },
+  { frame: new PreviewFrame(byId<HTMLIFrameElement>('compare-smd'), assets), panel: byId('panel-compare'), pane: (p: Panes) => p.preview },
+  { frame: new PreviewFrame(byId<HTMLIFrameElement>('compare-md'), assets), panel: byId('panel-compare'), pane: (p: Panes) => (mode === 'plain' ? p.plain : p.exported) },
+];
+
 let theme: ThemeSetting = themeSetting(readStored(THEME_KEY));
 let latest: Panes | undefined;
-let built: FrameState | undefined;
-let frameReady = false;
-let expectingLoad = false;
-/** The private channel to the current preview document; updates go only through it (see openPreviewPort). */
-let previewPort: MessagePort | undefined;
 let loadedFromLink = false;
 let renderTimer: ReturnType<typeof setTimeout> | undefined;
 let draftTimer: ReturnType<typeof setTimeout> | undefined;
@@ -67,7 +70,7 @@ function applyTheme(setting: ThemeSetting): void {
   theme = setting;
   document.documentElement.dataset.theme = setting;
   themeSelect.value = setting;
-  if (latest) showPreview(latest.preview);
+  showPreviews();
 }
 
 let mermaidRequested = false;
@@ -80,56 +83,27 @@ function requestMermaid(): void {
   script.src = 'vendor/mermaid-source.js';
   script.addEventListener('load', () => {
     assets.mermaid = globalThis.SMD_PLAYGROUND_MERMAID;
-    if (latest) showPreview(latest.preview);
+    showPreviews();
   });
   document.head.append(script);
 }
 
-function showPreview(preview: PreviewPane): void {
-  const pref = previewTheme(theme, preview);
-  if (preview.mermaid && !assets.mermaid) requestMermaid();
-  if (needsRebuild(built, preview, Boolean(assets.mermaid))) {
-    built = { lang: preview.lang, mermaid: Boolean(preview.mermaid && assets.mermaid) };
-    closePreviewPort();
-    expectingLoad = true;
-    frame.setAttribute('sandbox', PREVIEW_SANDBOX);
-    frame.srcdoc = previewDocument(preview, pref, assets, location.origin);
-    return;
-  }
-  if (frameReady) previewPort?.postMessage(updateMessage(preview, pref));
-}
-
-function closePreviewPort(): void {
-  previewPort?.close();
-  previewPort = undefined;
-  frameReady = false;
-}
-
 /**
- * Hands the preview document that just loaded a private MessageChannel port; every update goes through it, never
- * through window.postMessage. A port is bound to the document that received it, so if the frame later navigates
- * away (a shared document may hold raw HTML such as a meta refresh), updates stop reaching it instead of following
- * it to another site, even when that site never finishes loading. The handshake itself carries only the port.
+ * Sends the latest panes to the frames that are on screen. Hidden frames catch up when their tab is selected, so
+ * typing doesn't re-render previews nobody is looking at.
  */
-function openPreviewPort(): void {
-  const channel = new MessageChannel();
-  previewPort = channel.port1;
-  // The frame has an opaque origin, so '*' is the only target origin that reaches it; the message holds no content.
-  frame.contentWindow?.postMessage({ type: 'smd-port' }, '*', [channel.port2]); // NOSONAR(typescript:S2819): see above
-}
+const systemDark = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
 
-frame.addEventListener('load', () => {
-  if (!expectingLoad) {
-    // The frame navigated away from the preview on its own: rebuild it on the next render.
-    built = undefined;
-    closePreviewPort();
-    return;
+function showPreviews(): void {
+  if (!latest) return;
+  // "System" is resolved here rather than in each frame: a frame reads prefers-color-scheme from its <iframe>
+  // element, and Chromium can report light for a frame that loads right after its panel is unhidden.
+  const pref = resolvedTheme(previewTheme(theme, latest.preview), Boolean(systemDark?.matches));
+  if (latest.preview.mermaid && !assets.mermaid) requestMermaid();
+  for (const { frame, panel, pane } of frames) {
+    if (!panel.hidden) frame.show(pane(latest), pref);
   }
-  expectingLoad = false;
-  openPreviewPort();
-  frameReady = true;
-  if (latest) showPreview(latest.preview);
-});
+}
 
 function diagnosticItem(text: string, d: Diagnostic): HTMLLIElement {
   const item = document.createElement('li');
@@ -170,7 +144,7 @@ function render(): void {
   const text = source.value;
   const panes = renderPanes(text);
   latest = panes;
-  showPreview(panes.preview);
+  showPreviews();
   agentOut.textContent = panes.agent.text;
   agentMeta.textContent = `≈ ${panes.agent.tokens.toLocaleString()} tokens for an agent, from ≈ ${panes.agent.originalTokens.toLocaleString()} in the source.`;
   agentCount.textContent = `≈${panes.agent.tokens.toLocaleString()}`;
@@ -264,6 +238,9 @@ function selectTab(index: number, focus: boolean): void {
     const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '');
     if (panel) panel.hidden = !selected;
   });
+  // Compare shows two previews side by side, so it gets more of the window than the editor.
+  layout.classList.toggle('comparing', tabs[index]?.id === 'tab-compare');
+  showPreviews();
   if (focus) tabs[index]?.focus();
 }
 
@@ -324,6 +301,21 @@ byId('example').addEventListener('click', () => {
   forgetLink();
   writeStored(DRAFT_KEY, STARTER);
 });
+systemDark?.addEventListener('change', showPreviews);
+
+function applyCompareMode(value: CompareMode): void {
+  mode = value;
+  compareSelect.value = value;
+  byId('compare-note-exported').hidden = value !== 'exported';
+  byId('compare-note-plain').hidden = value !== 'plain';
+  showPreviews();
+}
+
+compareSelect.addEventListener('change', () => {
+  const value = compareMode(compareSelect.value);
+  writeStored(COMPARE_KEY, value);
+  applyCompareMode(value);
+});
 themeSelect.addEventListener('change', () => {
   const setting = themeSetting(themeSelect.value);
   writeStored(THEME_KEY, setting);
@@ -345,6 +337,7 @@ window.addEventListener('hashchange', () => {
 
 async function start(): Promise<void> {
   applyTheme(theme);
+  applyCompareMode(mode);
   if (await loadFromHash()) return;
   setText(readStored(DRAFT_KEY) ?? STARTER);
 }

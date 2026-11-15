@@ -8,11 +8,14 @@ import { mermaidBlocks } from '../../extension/src/core/mermaid';
 import { renderSmd } from '../../extension/src/core/render';
 import { smdToMarkdown } from '../../extension/src/core/toMarkdown';
 import { validateSmd, type Diagnostic } from '../../extension/src/core/validate';
+import { renderGithubMarkdown } from '../../extension/src/core/githubMarkdown';
 
 export interface PreviewPane {
   /** The rendered `<article>`; only ever shown inside the sandboxed preview frame. */
   html: string;
   lang: string;
+  /** `github`: a Compare tab Markdown side, styled with github-markdown-css instead of smd.css. */
+  style?: 'github';
   /** The front matter `theme` when it is `light` or `dark`. */
   theme?: 'light' | 'dark';
   /** The document has Mermaid diagrams, so the frame loads Mermaid. */
@@ -28,6 +31,10 @@ export interface AgentPane {
 
 export interface Panes {
   preview: PreviewPane;
+  /** Compare tab, "Unconverted text": the .smd text as GitHub draws a .md file (githubMarkdown.ts). */
+  plain: PreviewPane;
+  /** Compare tab, "Exported": the Markdown export as GitHub draws it (githubMarkdown.ts). */
+  exported: PreviewPane;
   agent: AgentPane;
   /** Sorted by line, then column. */
   diagnostics: Diagnostic[];
@@ -59,6 +66,30 @@ export function previewPane(text: string, options: PaneOptions = {}): PreviewPan
   }
 }
 
+/**
+ * A Markdown side of the Compare tab. It takes the Semantic Markdown preview's language and theme, so the two
+ * sides differ only in what each renderer understands.
+ */
+function markdownSide(view: string, markdown: string, preview: Pick<PreviewPane, 'lang' | 'theme'>): PreviewPane {
+  const side = { lang: preview.lang, theme: preview.theme, style: 'github' as const };
+  try {
+    return { ...side, html: renderGithubMarkdown(markdown), mermaid: mermaidBlocks(markdown).length > 0 };
+  } catch (error) {
+    const message = failure(view, error).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+    return { ...side, html: `<article class="markdown-body"><p>${message}</p></article>`, mermaid: false };
+  }
+}
+
+/** The .smd text as GitHub draws a .md file: its Semantic Markdown syntax shows as the text it is. */
+export function plainPane(text: string, preview: Pick<PreviewPane, 'lang' | 'theme'>): PreviewPane {
+  return markdownSide('unconverted Markdown preview', text, preview);
+}
+
+/** The document's Markdown export (markdownPane) as GitHub draws it. */
+export function exportedPane(markdown: string, preview: Pick<PreviewPane, 'lang' | 'theme'>): PreviewPane {
+  return markdownSide('exported Markdown preview', markdown, preview);
+}
+
 export function agentPane(text: string, options: PaneOptions = {}): AgentPane {
   try {
     const view = agentView(text, { today: options.today });
@@ -88,13 +119,17 @@ export function markdownPane(text: string): string {
   }
 }
 
-/** All four panes for a document. */
+/** Every pane for a document. */
 export function renderPanes(text: string, options: PaneOptions = {}): Panes {
+  const preview = previewPane(text, options);
+  const markdown = markdownPane(text);
   return {
-    preview: previewPane(text, options),
+    preview,
+    plain: plainPane(text, preview),
+    exported: exportedPane(markdown, preview),
     agent: agentPane(text, options),
     diagnostics: diagnosticsPane(text, options),
-    markdown: markdownPane(text),
+    markdown,
   };
 }
 

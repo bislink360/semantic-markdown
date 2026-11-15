@@ -5,7 +5,8 @@
 //   app.js                       the editor and the engine, with the preview frame's assets embedded: smd.css,
 //                                KaTeX's stylesheet with its fonts as data: URLs, the page runtime, the link handler
 //   vendor/mermaid-source.js     Mermaid's source as a string, loaded only for documents with diagrams
-//   vendor/*.LICENSE             licenses of the bundled KaTeX and Mermaid
+//   vendor/*.LICENSE             licenses of the bundled KaTeX, Mermaid, github-markdown-css, markdown-it-github-alerts
+//                                and @vscode/markdown-it-katex (the Compare tab's Markdown side)
 //
 // The preview frame inlines its scripts (a sandboxed frame can't load files from file://), so their SHA-256
 // hashes go into the CSP; a script whose text changes without a rebuild simply doesn't run.
@@ -20,6 +21,30 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const playground = join(root, '..', 'playground');
 const katex = join(root, 'node_modules', 'katex');
 const mermaid = join(root, 'node_modules', 'mermaid');
+const githubCss = join(root, 'node_modules', 'github-markdown-css');
+
+/** Licenses copied to vendor/, by the name each gets there. */
+const LICENSES = {
+  'katex.LICENSE': join(katex, 'LICENSE'),
+  'mermaid.LICENSE': join(mermaid, 'LICENSE'),
+  'github-markdown-css.LICENSE': join(githubCss, 'license'),
+  'markdown-it-github-alerts.LICENSE': join(root, 'node_modules', 'markdown-it-github-alerts', 'LICENSE'),
+  'markdown-it-katex.LICENSE': join(root, 'node_modules', '@vscode', 'markdown-it-katex', 'LICENSE'),
+};
+
+/**
+ * github-markdown-css for the Compare tab's Markdown side: its light and dark files, each scoped to the theme the
+ * frame's runtime sets on <html data-smd-theme>, so the Markdown follows the playground's theme as the preview does.
+ */
+export function githubCssScoped() {
+  const scoped = (file, scope) => readFileSync(join(githubCss, file), 'utf8').replaceAll(/\.markdown-body\b(?!-)/g, `${scope} .markdown-body`);
+  const light = scoped('github-markdown-light.css', ':root:not([data-smd-theme="dark"])');
+  const dark = scoped('github-markdown-dark.css', ':root[data-smd-theme="dark"]');
+  const css = `${light}\n${dark}`;
+  if (/url\((?!["']?data:)/.test(css)) throw new Error('github-markdown-css references a file the playground build does not inline');
+  // The article sits in the frame's page like GitHub's file view: padded, and as wide as the readable column.
+  return `${css}\n#smd-root .markdown-body { box-sizing: border-box; max-width: 980px; margin: 0 auto; padding: 24px 32px 96px; }\n`;
+}
 
 /** @type {import('esbuild').BuildOptions} */
 const common = {
@@ -66,9 +91,11 @@ export async function playgroundAssets() {
   for (const [name, text] of [['runtime.js', runtime], ['the link handler', links], ['mermaid.min.js', mermaidJs]]) {
     assertInlinable(name, text, '</script');
   }
+  const github = githubCssScoped();
   assertInlinable('the preview stylesheet', css, '</style');
+  assertInlinable('github-markdown-css', github, '</style');
   const hashes = [runtime, links, mermaidJs].map(scriptHash);
-  return { frame: { css, runtime, links }, mermaid: mermaidJs, hashes, csp: appCsp(hashes) };
+  return { frame: { css, githubCss: github, runtime, links }, mermaid: mermaidJs, hashes, csp: appCsp(hashes) };
 }
 
 /**
@@ -101,8 +128,7 @@ export async function buildPlayground(outdir = join(root, 'dist', 'playground'))
   cpSync(join(playground, 'app.css'), join(outdir, 'app.css'));
   // Read by the app and inlined into the frame byte for byte, so the CSP hash of mermaid.min.js matches.
   writeFileSync(join(outdir, 'vendor', 'mermaid-source.js'), `globalThis.SMD_PLAYGROUND_MERMAID = ${JSON.stringify(assets.mermaid)};\n`);
-  cpSync(join(mermaid, 'LICENSE'), join(outdir, 'vendor', 'mermaid.LICENSE'));
-  cpSync(join(katex, 'LICENSE'), join(outdir, 'vendor', 'katex.LICENSE'));
+  for (const [name, file] of Object.entries(LICENSES)) cpSync(file, join(outdir, 'vendor', name));
   return outdir;
 }
 
