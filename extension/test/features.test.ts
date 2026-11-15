@@ -217,8 +217,8 @@ test('agent view and plain Markdown leave $inline math$ as written, as rendering
   has(md, String.raw`- [ ] Task $\sqrt[3]{t}$ ` + '`b`');
   has(md, String.raw`| $\sqrt[3]{c}$ **m** | $a ==b== c$ |`);
   has(md, String.raw`> **Title $\sqrt[3]{n}$ **t****`);
-  has(md, String.raw`Around **a $x=y$ b** and span $\sqrt[3]{s}$, not in ` + '`$a ==b==$`.');
-  has(md, String.raw`Money $5 and $10 **cheap**, or \$a **b** c\$ red.`);
+  has(md, String.raw`Around **a $x=y$ b** and *span $\sqrt[3]{s}$*, not in ` + '`$a ==b==$`.');
+  has(md, String.raw`Money $5 and $10 **cheap**, or \$a **b** c\$ *red*.`);
 
   // In included text too.
   const readFile = (p: string) => (p === 'part.smd' ? String.raw`Included $\sqrt[3]{i}$ ==m==.` + '\n' : undefined);
@@ -435,7 +435,7 @@ test('plain Markdown fallbacks for new syntax', () => {
 
 test('plain Markdown leaves indented code and display math as written', () => {
   const md = smdToMarkdown(AS_WRITTEN);
-  has(md, 'Text `top` **mark** red.');
+  has(md, 'Text `top` **mark** *red*.');
   has(md, '    code :badge[x] ==mark== [text]{color=red} ![alt](a.png) :ref[fig-a]');
   // Four spaces that continue a paragraph or a list item are text, and still convert.
   has(md, 'Paragraph', '    continued `lazy` **m**');
