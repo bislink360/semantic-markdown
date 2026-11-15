@@ -65,9 +65,10 @@ test('t-07: an unknown option warns with a suggestion, once, and is ignored', ()
 });
 
 test('t-07: an option another command reads still takes its value, so the file argument stays in place', () => {
-  const r = parse('export', '--today', '2026-01-01', 'a.smd', '--to', 'md');
+  const r = parse('decisions', '--today', '2026-01-01', 'a.smd', '--status', 'accepted');
   assert.deepEqual(r.positional, ['a.smd']);
-  assert.deepEqual(r.warnings, ['Unknown option --today for smd export; it is ignored.']);
+  assert.deepEqual(r.warnings, ['Unknown option --today for smd decisions; it is ignored.']);
+  assert.deepEqual(parse('export', '--today', '2026-01-01', 'a.smd', '--to', 'html').warnings, [], 'export reads --today (t-01)');
 });
 
 test('t-07: aliases have their own schemas: --json is --format json for validate, and to-md reads no --lang', () => {

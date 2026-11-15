@@ -43,6 +43,10 @@ jobs:
       - name: Build extension, CLI and npm package
         run: npm run build:npm
       - run: npm test
+      # Every output of the CLI over both corpora, against test/snapshots/corpus.json (improvement roadmap t-01).
+      # A difference fails here until it is approved: see test/snapshots/README.md.
+      - name: Output snapshots
+        run: node scripts/snapshots.mjs
       - name: Test samples and gallery validate
         run: node dist/cli.js validate test/samples ../docs/gallery
       - name: Test samples and gallery are formatted
