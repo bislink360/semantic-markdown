@@ -205,6 +205,23 @@ What they show.
 - **The rule chain stays small.** At 49 rounds, the longest chain the 50-block limit lets through, a section read takes 27 ms. From 10 to 49 rounds the time grows about as fast as the chain does at these sizes, so the quadratic cost of the rounds does not show yet (t-58).
 - **CLI startup is mostly loading.** `smd --version` takes about 57 ms more than Node alone, and `activate()` itself under 1 ms after a 52 ms load. The bundle load is where t-23 and t-43 can gain.
 
+## Parses within one references or rename request (t-20)
+
+t-20 asked that one find-references or rename request parse each document at most once, in VS Code and in the language server. Measured on the shared 40-document workspace with unsaved text in the open document, it already does, so no request-local cache was added.
+
+A temporary counter in `parseSmd` recorded each document it parsed during one request. A heading whose GitHub id differs from its own was added, so a request looks for two names.
+
+| Request | Language server | VS Code |
+|---|---|---|
+| References to a block id every document names | 40 parses of 40 documents | 40 of 40 |
+| Rename of that block id | 40 of 40 | 44 of 44 (its workspace also holds `test/samples`) |
+| References to a heading with a GitHub id | 6 of 6 | 5 of 5 |
+| Rename of that heading | 1 of 1 | 1 of 1 |
+
+No document was parsed twice within a request. Documents that don't contain the id are skipped before they are parsed. In VS Code, a repeated references request showed 3 documents parsed twice, but the counter sees every parse in the extension host, which was indexing and validating the new files for the Tasks view at the same time. `test/requestParses.test.ts` keeps the bound: a request parses at most as many documents as the workspace has, first time and repeated. Making the language server walk the workspace twice in one request fails it.
+
+What a request costs is the repeat. The parse cache keeps three documents, so a second identical request parses every document again and reads every file again. With the runner's numbers above, that is 40 parses, 39 file reads, 10 stats and 5 folder listings in 16 ms for 40 documents, and 200 parses and 199 reads in 62 ms for 200. Only a cache that outlives the request removes that, which is the workspace index t-49 decides on.
+
 ## Heading lookups from the cached parse (t-16)
 
 The editors' heading lookups rendered the whole document to HTML to read its headings (CL-09). That covers the outline (`documentSymbols`), the heading under the cursor (`headingAt`), the section and document previews hovers show (`sectionExcerpt`, `documentPreview`) and heading rename (`renameHeading`, which rendered the document twice). They now read `parseSmd(text).headings`, which is cached and updated in small pieces after an edit. The lookups that resolve includes keep rendering (`includeCheck.ts`, `toMarkdown.ts` with a reader).
