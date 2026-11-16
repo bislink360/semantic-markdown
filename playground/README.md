@@ -19,7 +19,7 @@ This writes `extension/dist/playground/`. Open `index.html` from there directly 
 | `index.html`, `app.css` | The page, with its Content Security Policy written in by the build |
 | `app.js` | The editor and the engine, with the preview's stylesheet (KaTeX fonts inlined), page runtime and link handler embedded |
 | `vendor/mermaid-source.js` | Mermaid (3.5 MB), loaded only when a document has a diagram |
-| `vendor/*.LICENSE` | Licenses of the bundled KaTeX, Mermaid, github-markdown-css, markdown-it-github-alerts and @vscode/markdown-it-katex |
+| `vendor/*.LICENSE` | Licenses of the bundled KaTeX, Mermaid, github-markdown-css, markdown-it-github-alerts, @vscode/markdown-it-katex, markdown-it-footnote and markdown-it-emoji |
 
 It is hosted at [bislink360.github.io/semantic-markdown/playground/](https://bislink360.github.io/semantic-markdown/playground/). The Pages workflow (`.github/workflows/pages.yml`) rebuilds it from `main` on every push, next to the homepage and the user guide. Each GitHub Release also attaches the built folder as `semantic-markdown-playground.zip`.
 
@@ -65,7 +65,7 @@ Tests: `extension/test/playground.test.ts` (sandbox flags, CSP, hashes matching 
 | `src/main.ts` | DOM wiring only: editor, tabs, buttons |
 | `src/previewFrame.ts` | Drives one sandboxed preview frame: builds it, hands it its port, sends updates (one per frame) |
 | `src/panes.ts` | `renderPanes(text)`: preview HTML, both Compare sides, agent view, diagnostics, Markdown |
-| `extension/src/core/compareMarkdown.ts` | The Compare tab's two Markdown renderers, built from open-source pieces only. GitHub: markdown-it, markdown-it-github-alerts, @vscode/markdown-it-katex and Mermaid fences, styled with github-markdown-css. Plain CommonMark: markdown-it's default rules only |
+| `extension/src/playground/compareMarkdown.ts` | The Compare tab's two Markdown renderers, built from open-source pieces only. GitHub: markdown-it, markdown-it-github-alerts, @vscode/markdown-it-katex, markdown-it-footnote, markdown-it-emoji and Mermaid fences, raw HTML filtered as GitHub filters it (`githubHtml.ts`), styled with github-markdown-css. Plain CommonMark: markdown-it's default rules only |
 | `plain-markdown.css` | The plain CommonMark renderer's neutral stylesheet, inlined into the frame by the build |
 | `src/codec.ts` | Share-by-URL encoding |
 | `src/frame.ts`, `src/csp.mjs` | The sandboxed preview frame and the CSP |

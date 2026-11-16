@@ -14,6 +14,7 @@ import {
   PREVIEW_SANDBOX, needsRebuild, previewDocument, previewTheme, updateMessage, type FrameAssets,
 } from '../../playground/src/frame';
 import { compareNote, diagnosticsSummary, renderPanes } from '../../playground/src/panes';
+import { githubHtml } from '../src/playground/githubHtml';
 import { isParentOrigin, isPortHandshake, linkAction } from '../../playground/src/previewLinks';
 import { compareMode, markdownRenderer, readStored, themeSetting, writeStored, type KeyValueStore } from '../../playground/src/storage';
 import { appBundleOptions, indexHtml, playgroundAssets, scriptHash } from '../scripts/build-playground.mjs';
@@ -204,11 +205,13 @@ test('Compare: the Markdown frame gets GitHub\'s stylesheet, scoped to the theme
   assert.match(frame.githubCss, /:root\[data-smd-theme="dark"\] \.markdown-body \{/);
   assert.doesNotMatch(frame.githubCss, /(^|[^ ])\.markdown-body\b/m, 'every rule is scoped');
   assert.doesNotMatch(frame.githubCss, /url\((?!["']?data:)/, 'nothing to load');
-  const plain = renderPanes('# Hi\n\n<script>parent.document.body.remove()</script>\n').compare.github.plain;
-  const page = previewDocument(plain, 'auto', frame);
+  const doc = '# Hi\n\n<script>parent.document.body.remove()</script>\n';
+  const page = previewDocument(renderPanes(doc).compare.github.plain, 'auto', frame);
   assert.ok(page.includes(frame.githubCss));
   assert.ok(!previewDocument(renderPanes('# Hi').preview, 'auto', frame).includes(frame.githubCss), 'the preview keeps smd.css only');
-  const scripts = inlineScripts(page);
+  assert.equal(inlineScripts(page).length, 2, 'GitHub drops the document script, as github.com does: the runtime and the link handler');
+  // A plain renderer keeps raw HTML, so the CSP is what stops the script there, as in the preview.
+  const scripts = inlineScripts(previewDocument(renderPanes(doc).compare.plain.plain, 'auto', frame));
   assert.equal(scripts.length, 3, 'the document script, the runtime and the link handler');
   assert.equal(scripts.filter((s) => hashes.includes(scriptHash(s))).length, 2);
 });
@@ -233,6 +236,41 @@ test('Compare: the note says what the .md side shows and how it is drawn', () =>
   assert.match(compareNote('plain', 'github'), /^The \.smd text as if the file were renamed to \.md/);
   assert.match(compareNote('exported', 'plain'), /plain CommonMark renderer[\s\S]*\[!TIP\] line/);
   assert.match(compareNote('plain', 'plain'), /renamed to \.md[\s\S]*plain CommonMark/);
+});
+
+test('Compare, GitHub: footnotes in GitHub\'s markup, emoji shortcodes without smileys', () => {
+  const doc = 'Note[^1] and again[^1], then[^two] :rocket: :)\n\n[^1]: First.\n[^two]: Second.\n';
+  const github = renderPanes(doc).compare.github.plain.html;
+  assert.match(github, /Note<sup><a href="#user-content-fn-1" id="user-content-fnref-1" data-footnote-ref aria-describedby="footnote-label">1<\/a><\/sup>/);
+  assert.match(github, /again<sup><a href="#user-content-fn-1" id="user-content-fnref-1-2"/, 'a second reference gets its own id');
+  assert.match(github, /then<sup><a href="#user-content-fn-2"[^>]*>2<\/a><\/sup>/, 'named footnotes are numbered');
+  assert.match(github, /<section data-footnotes class="footnotes"><h2 id="footnote-label" class="sr-only">Footnotes<\/h2>\n<ol>\n<li id="user-content-fn-1"><p>First\. <a href="#user-content-fnref-1" data-footnote-backref aria-label="Back to reference 1" class="data-footnote-backref">↩<\/a>/);
+  assert.doesNotMatch(github, /footnotes-sep|<hr/, 'no rule above the footnotes');
+  assert.match(github, /🚀 :\)/, 'shortcodes become emoji; :) stays text, as on GitHub');
+  const plain = renderPanes(doc).compare.plain.plain.html;
+  assert.match(plain, /Note<a href="First\.">\^1<\/a>/, 'CommonMark has no footnotes: [^1]: First. is a link definition');
+  assert.match(plain, /:rocket:/, 'or emoji shortcodes');
+});
+
+test('Compare, GitHub: raw HTML keeps only what GitHub keeps', () => {
+  assert.equal(githubHtml('<span style="color:red" onclick="x()" class="c">red</span>'), '<span>red</span>');
+  assert.equal(githubHtml('<a href="javascript:alert(1)" target="_blank">bad</a>'), '<a>bad</a>');
+  assert.equal(githubHtml('<a href="https://x.test" title="T">ok</a> <a href="#top">in</a> <a href="mailto:a@x.test">m</a>'), '<a href="https://x.test" title="T">ok</a> <a href="#top">in</a> <a href="mailto:a@x.test">m</a>');
+  assert.equal(githubHtml('<img src="a.png" width="20" onerror="x()"><img src="data:image/png;base64,AA">'), '<img src="a.png" width="20"><img>');
+  assert.equal(githubHtml('<p id="top" name="n">x</p>'), '<p id="user-content-top" name="user-content-n">x</p>');
+  assert.equal(githubHtml('<details open><summary>s</summary>d</details>'), '<details open><summary>s</summary>d</details>');
+  assert.equal(githubHtml('<script>alert(1)</script><style>p{}</style>after'), 'after', 'script and style go with their content');
+  assert.equal(githubHtml('<iframe src="https://x"></iframe><form><input value="v"></form>text'), 'text', 'unknown elements lose their tags, not their text');
+  assert.equal(githubHtml('<!-- note -->kept'), 'kept');
+  assert.equal(githubHtml('<kbd>Ctrl</kbd>+<kbd>S</kbd>'), '<kbd>Ctrl</kbd>+<kbd>S</kbd>', 'the export\'s keys survive');
+  assert.equal(githubHtml('<span title="a &quot;b&quot; <c>">t</span>'), '<span title="a &amp;quot;b&amp;quot; &lt;c&gt;">t</span>', 'values are escaped again');
+});
+
+test('Compare, GitHub: the renderer\'s own markup is not filtered as raw HTML', () => {
+  const html = renderPanes('- [x] done\n\n> [!NOTE]\n> n\n\n$x$\n').compare.github.plain.html;
+  assert.match(html, /<input type="checkbox" class="task-list-item-checkbox" disabled checked> done/);
+  assert.match(html, /markdown-alert-note/);
+  assert.match(html, /class="katex/);
 });
 
 test('Compare: the renderer is stored, and anything unknown means GitHub', () => {

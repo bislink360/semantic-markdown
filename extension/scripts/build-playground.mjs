@@ -5,8 +5,8 @@
 //   app.js                       the editor and the engine, with the preview frame's assets embedded: smd.css,
 //                                KaTeX's stylesheet with its fonts as data: URLs, the page runtime, the link handler
 //   vendor/mermaid-source.js     Mermaid's source as a string, loaded only for documents with diagrams
-//   vendor/*.LICENSE             licenses of the bundled KaTeX, Mermaid, github-markdown-css, markdown-it-github-alerts
-//                                and @vscode/markdown-it-katex (the Compare tab's Markdown side)
+//   vendor/*.LICENSE             licenses of the bundled KaTeX, Mermaid, github-markdown-css, markdown-it-github-alerts,
+//                                @vscode/markdown-it-katex, markdown-it-footnote and markdown-it-emoji (the Compare tab)
 //
 // The preview frame inlines its scripts (a sandboxed frame can't load files from file://), so their SHA-256
 // hashes go into the CSP; a script whose text changes without a rebuild simply doesn't run.
@@ -30,6 +30,8 @@ const LICENSES = {
   'github-markdown-css.LICENSE': join(githubCss, 'license'),
   'markdown-it-github-alerts.LICENSE': join(root, 'node_modules', 'markdown-it-github-alerts', 'LICENSE'),
   'markdown-it-katex.LICENSE': join(root, 'node_modules', '@vscode', 'markdown-it-katex', 'LICENSE'),
+  'markdown-it-footnote.LICENSE': join(root, 'node_modules', 'markdown-it-footnote', 'LICENSE'),
+  'markdown-it-emoji.LICENSE': join(root, 'node_modules', 'markdown-it-emoji', 'LICENSE'),
 };
 
 /**
@@ -43,7 +45,9 @@ export function githubCssScoped() {
   const css = `${light}\n${dark}`;
   if (/url\((?!["']?data:)/.test(css)) throw new Error('github-markdown-css references a file the playground build does not inline');
   // The article sits in the frame's page like GitHub's file view: padded, and as wide as the readable column.
-  return `${css}\n#smd-root .markdown-body { box-sizing: border-box; max-width: 980px; margin: 0 auto; padding: 24px 32px 96px; }\n`;
+  return `${css}\n#smd-root .markdown-body { box-sizing: border-box; max-width: 980px; margin: 0 auto; padding: 24px 32px 96px; }\n`
+    // GitHub hides the footnotes heading for sighted readers with Primer's sr-only, which github-markdown-css leaves out.
+    + '#smd-root .markdown-body .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }\n';
 }
 
 /** @type {import('esbuild').BuildOptions} */

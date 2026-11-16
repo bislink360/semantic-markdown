@@ -70,7 +70,7 @@ gantt
 ## Decisions
 
 :::decision{#D1 status=accepted date=2026-10-02 owner=@maya} Merge offline edits with CRDTs, not last-write-wins
-Two people editing the same day offline must both keep their changes. Last-write-wins lost an edit in 1 of 9 test sessions.
+Two people editing the same day offline must both keep their changes. Last-write-wins lost an edit in 1 of 9 test sessions.[^tests]
 :::
 
 :::decision{#D2 status=proposed owner=@maya} One payment provider for the US and the EU
@@ -113,6 +113,8 @@ An activity feed now shows who changed what, and testers stopped reporting lost 
 ## Background {agent=skip}
 
 Planners told us the same story in most interviews: one person plans, then pastes the trip into a group chat that nobody can edit. {{version}} is about the other people on the trip.
+
+[^tests]: Moderated sessions with 18 beta testers in October 2026.
 
 ## For agents
 

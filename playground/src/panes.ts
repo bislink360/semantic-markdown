@@ -8,7 +8,7 @@ import { mermaidBlocks } from '../../extension/src/core/mermaid';
 import { renderSmd } from '../../extension/src/core/render';
 import { smdToMarkdown } from '../../extension/src/core/toMarkdown';
 import { validateSmd, type Diagnostic } from '../../extension/src/core/validate';
-import { renderCommonMark, renderGithubMarkdown } from '../../extension/src/core/compareMarkdown';
+import { renderCommonMark, renderGithubMarkdown } from '../../extension/src/playground/compareMarkdown';
 
 export interface PreviewPane {
   /** The rendered `<article>`; only ever shown inside the sandboxed preview frame. */
@@ -91,7 +91,7 @@ export function compareNote(mode: CompareMode, renderer: MarkdownRenderer): stri
     ? 'What smd export --to md writes'
     : 'The .smd text as if the file were renamed to .md, so Semantic Markdown blocks, roles and attributes show as plain text';
   const how = renderer === 'github'
-    ? "drawn as GitHub draws a .md file, with alerts, math, Mermaid diagrams, task checkboxes and GitHub's stylesheet (close to GitLab and Obsidian too)."
+    ? "drawn as GitHub draws a .md file, with alerts, math, Mermaid diagrams, task checkboxes, footnotes and emoji, raw HTML filtered as GitHub filters it, and GitHub's stylesheet (close to GitLab and Obsidian too)."
     : "drawn by a plain CommonMark renderer with tables and strikethrough only, the baseline every Markdown tool supports: alerts stay quotes with their [!TIP] line, math stays text, diagrams stay code and front matter is hidden. VS Code's built-in preview adds math to this.";
   return `${what}, ${how}`;
 }
