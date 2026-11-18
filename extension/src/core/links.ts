@@ -81,7 +81,9 @@ export function findLinks(text: string): DocumentLinks {
       if (link && !definitions.has(label)) definitions.set(label, link);
       continue;
     }
-    for (const m of line.matchAll(INLINE_LINK)) add(m[1], i, m.index! + m[0].indexOf(m[1]), 'inline');
+    for (const m of line.matchAll(INLINE_LINK)) {
+      if (closesLinkText(line, m.index!)) add(m[1], i, m.index! + m[0].indexOf(m[1]), 'inline');
+    }
     for (const m of line.matchAll(HTML_LINK)) add(m[2], i, m.index! + m[0].lastIndexOf(m[2]), 'html');
     for (const m of line.matchAll(REFERENCE)) {
       // `:badge[x][y]` is a directive, and `[a][b][c]` is matched from its first bracket.
@@ -93,6 +95,36 @@ export function findLinks(text: string): DocumentLinks {
     }
   }
   return { links, references, definitions };
+}
+
+/** Whether the backslashes before `index` escape the character there (an odd run of them). */
+function isEscaped(line: string, index: number): boolean {
+  let n = 0;
+  for (let i = index - 1; i >= 0 && line[i] === '\\'; i--) n++;
+  return n % 2 === 1;
+}
+
+/**
+ * Whether the `]` at `close` can end link text, as CommonMark reads it. An escaped `\]` cannot, and
+ * neither can a `]` whose only opener on the line is an escaped `\[` (both are text, e.g.
+ * `\[label\](x)`). With no opener on the line at all, the text may have started on the line before.
+ */
+function closesLinkText(line: string, close: number): boolean {
+  if (isEscaped(line, close)) return false;
+  let depth = 0;
+  let escapedOpener = false;
+  for (let i = close - 1; i >= 0; i--) {
+    const c = line[i];
+    if (c !== '[' && c !== ']') continue;
+    if (isEscaped(line, i)) {
+      if (c === '[' && depth === 0) escapedOpener = true;
+      continue;
+    }
+    if (c === ']') depth++;
+    else if (depth === 0) return true;
+    else depth--;
+  }
+  return !escapedOpener;
 }
 
 /** The `file="…"` of every `:::include` (outside code), at the column it starts. */

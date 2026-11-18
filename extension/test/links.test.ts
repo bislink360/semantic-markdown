@@ -58,6 +58,25 @@ test('links in code are ignored', () => {
   assert.deepEqual(codes('`[a](gone.md)`\n\n```md\n[b](gone.md)\n[c][nope]\n```\n\n~~~\n```\n[d](gone.md)\n~~~'), []);
 });
 
+test('escaped brackets are text, not links (CommonMark, as the renderer reads them)', () => {
+  // Found in the PURE requirements dataset: "\[high power, interested people\](high)".
+  assert.deepEqual(codes('\\[label\\](gone)'), []);
+  assert.deepEqual(codes('[label\\](gone)'), []);
+  assert.deepEqual(codes('\\[label](gone)'), []);
+  assert.deepEqual(codes('!\\[alt\\](gone.png)'), []);
+  assert.deepEqual(codes('Escaped \\[a\\](gone) then a real [b](gone.md).').length, 1);
+  // An escaped backslash does not escape the bracket after it.
+  assert.deepEqual(codes('[label\\\\](gone.md)'), ['link/missing-file']);
+  assert.deepEqual(codes('\\\\[label](gone.md)'), ['link/missing-file']);
+  // Escaped brackets inside real link text keep the link.
+  assert.deepEqual(codes('[see \\[1\\]](gone.md)'), ['link/missing-file']);
+  assert.deepEqual(codes('[a [nested] b](gone.md)'), ['link/missing-file']);
+});
+
+test('link text may still wrap onto the line before the target', () => {
+  assert.deepEqual(codes('See [the long\nlabel](gone.md).'), ['link/missing-file']);
+});
+
 test('reference links need a definition, and definitions are checked', () => {
   assert.deepEqual(codes('See [the spec][spec] and [Other][].\n\n[spec]: other.smd#pricing-rules\n[other]: https://x.y'), []);
   assert.deepEqual(codes('See [the spec][nope].'), ['link/undefined-reference']);
