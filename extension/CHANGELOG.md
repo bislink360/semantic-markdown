@@ -11,6 +11,7 @@
 ### Deprecated
 
 ### Fixed
+- **Escaped brackets are no longer read as links.** `\[label\](high)`, `[label\](high)` and `\[label](high)` are text, as the preview and every Markdown renderer show them, but `smd validate` reported `link/missing-file` for `high`, and go to definition and link completion treated them as links. A `]` that is escaped, or whose only opener on the line is an escaped `\[`, no longer ends link text. Real links are unchanged, including link text with escaped brackets inside (`[see \[1\]](a.md)`) and link text that wraps onto the line before the target.
 
 ## Unreleased
 
