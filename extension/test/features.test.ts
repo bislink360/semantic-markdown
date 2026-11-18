@@ -115,8 +115,11 @@ test('brief mode condenses diagrams, details and completed tasks', () => {
   assert.match(r.text, /\[diagram: sequenceDiagram, \d+ lines — see L\d+-L\d+\]/);
   assert.match(r.text, /\(1 completed task omitted\)/);
   assert.doesNotMatch(r.text, /participant C as Checkout page/);
-  const withDetails = agentView(prd, { brief: true, includeHuman: true, sections: ['analytics'] });
+  const detailsDoc = ['---', 'smd: 2', '---', '', '## Notes', '', ':::details Full event list', '- one', '- two', ':::', ''].join('\n');
+  const withDetails = agentView(detailsDoc, { brief: true, sections: ['Notes'] });
   assert.match(withDetails.text, /\[details: Full event list — omitted, see L\d+\]/);
+  // The sample's details block sits in a section marked {agent=skip}: neither naming it nor --include-human unlocks it.
+  assert.doesNotMatch(agentView(prd, { brief: true, includeHuman: true, sections: ['analytics'] }).text, /Full event list/);
 });
 
 test('agent view can inline embedded source on request', () => {

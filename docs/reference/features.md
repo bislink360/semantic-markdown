@@ -1082,11 +1082,13 @@ People-only content anywhere in the document.
 
 | Construct | Preview | Agent view |
 |---|---|---|
-| `:::agent` | Collapsed "For agents" panel (configurable) | `<agent-instructions>`, **always included**, even when only one section is requested |
-| `:::human` | "For humans" panel | omitted (unless `--include-human`) |
-| `## … {agent=skip}` | "humans only" tag on the heading | whole section omitted |
+| `:::agent` | Collapsed "For agents" panel (configurable) | `<agent-instructions>`, included even when only one section is requested, unless it sits in an `{agent=skip}` section or a `:::human` block |
+| `:::human` | "For humans" panel | omitted (unless the explicit `--include-human`) |
+| `## … {agent=skip}` | "humans only" tag on the heading | whole section omitted, subsections included, whatever section, query or dependency asks for it |
 
-An `:::agent` block inside a section marked `{agent=skip}` is omitted with the section, so agents never read it; the validator warns about it (`container/agent-in-skip`).
+Audience marks come before everything else. Naming a skipped section (or a subsection of it) does not show it, a query never matches a block inside it or inside `:::human`, a task view cannot pin its lines, and a dependency walk never includes it. The view records the exclusion as an omission, also for a section the caller named, and offers no command to recover it. A visible requirement that depends on a hidden block reports the dependency as `hidden` and the read as incomplete (a visible constraint on the hidden block is still carried, marked `hidden-target`). Naming a skipped section alone adds no unsatisfied dependency. `--include-human` is the explicit way to show `:::human` blocks for a task about them; it never lifts `{agent=skip}`. This is a retrieval policy, not access control or a confidentiality boundary.
+
+An `:::agent` block inside a section marked `{agent=skip}` is omitted with the section, so agents never receive it; the validator warns about it (`container/agent-in-skip`). Keep what agents need outside the hidden region, and the background inside it.
 
 ## 11. Headings, links and anchors
 
@@ -1185,8 +1187,8 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | `[x]{colr=red}` | `attrs/unknown` | → `color` |
 | `:::api{method=POST}` | `attrs/required` | — |
 | unclosed `:::` | `container/unclosed` | adds the closing `:::` at the end |
-| `:::agent` under a `## … {agent=skip}` heading | `container/agent-in-skip` | — (move the block out, or drop `agent=skip`) |
-| A constraint, danger, requirement or accepted decision under `{agent=skip}` or in `:::human` | `audience/rule-in-skip` | — (move it out, or drop the mark) |
+| `:::agent` under a `## … {agent=skip}` heading | `container/agent-in-skip` | — (move the instructions agents need into visible content, or drop `agent=skip`) |
+| A constraint, danger, requirement or accepted decision under `{agent=skip}` or in `:::human` | `audience/rule-in-skip` | — (state what agents need in visible content, or drop the mark; nothing is moved for you) |
 | "Must not", "never" or "do not" in prose under `{agent=skip}` or in `:::human` (info) | `audience/normative-in-skip` | — (move the rule out, or write it as a `:::constraint`) |
 | unclosed ```` ``` ```` | `fence/unclosed` | adds the closing fence at the end |
 | ```` ```mermaid flowchat ```` | `mermaid/type` | → `flowchart` |

@@ -36,7 +36,7 @@ Tool (Node 22+, no install): `node <this-skill-dir>/scripts/smd.cjs <command>` (
 
 3. **Format, validate and fix:** `smd fmt docs/name.smd`, then `smd validate docs/name.smd --fix`. `fmt` changes only layout. `--fix` repairs what has one clear repair (typos in names and values, colors, `yes`/`no` booleans, date formats, unclosed `:::` or fences at the end). Fix the rest yourself from each error's line:column, message and rule code. **A document is done only at 0 errors.**
 
-4. **Check what agents will see:** `smd agent docs/name.smd --brief`. If it's long, move narrative into `{agent=skip}` sections or `:::human` blocks.
+4. **Check what agents will see:** `smd agent docs/name.smd --brief`, then a partial view of the sections an agent would read (`--section "Requirements"`). Look at what each view leaves out, and at any `Not satisfied … for people only` line: a required dependency that agents can't see. If it's long, move narrative into `{agent=skip}` sections or `:::human` blocks, never an instruction agents need.
 
 ## Spend tokens on meaning
 
@@ -60,8 +60,10 @@ Output tokens cost about 5× input tokens. Write meaning: decisions, risks, task
 `references/style-guide.md` covers this in depth. In short:
 
 - **Meaning over decoration.** Use `:::warning`, `:::danger` or `:::decision` for things that matter. Color must never be the only signal.
-- **Hard constraints for implementers go in one `:::agent` block** near the end. Agents always receive it, even when they read one section.
-- **Narrative, history and research go under `## Background {agent=skip}` or in `:::human`.** People still see it; agents skip it.
+- **Hard constraints for implementers go in one `:::agent` block** near the end. Agents receive an agent-visible one even when they read a single section. One inside an `{agent=skip}` section or a `:::human` block is hidden with it.
+- **Narrative, history and research go under `## Background {agent=skip}` or in `:::human`.** People still see it; agents never do, even when a read names that section. A `:::danger`, `:::constraint`, `:::requirement` or `:::agent` block inside it stays hidden too (`audience/rule-in-skip` and `container/agent-in-skip` warn), because the audience marker wins over the block kind.
+- **Never let token savings hide an instruction agents need.** Keep operative instructions, applicable constraints, prerequisites and agent-relevant dangers outside `{agent=skip}` and `:::human`. Split a short visible warning or rule from its long human-only rationale instead of exposing the whole background. Use the ids, `scope`, `applies-to` and `depends-on` the syntax already has; there is no severity syntax, and `agent=skip` has no other form (no `agent=skip true`).
+- **Keep what you hide on purpose.** A diagnostic only points at a hidden rule; you decide whether agents need it. Don't promote every hidden rule, and don't move content the user didn't ask you to change.
 - **Unresolved decisions go in `:::question`**, with who decides and by when; the interim fallback goes in the `:::agent` block.
 - **Requirements, constraints and acceptance criteria get their own blocks with ids** (`:::requirement{#R1}`, `:::constraint{#C1 scope=document}`, `:::acceptance{#AC1 verifies=R1}`), not tables. See `references/syntax/requirements.md`.
 - **When a document is under review, propose changes as suggestions** (`smd review suggest <file> <id> --text … --by …`) instead of editing reviewed text. See `references/syntax/review.md`.

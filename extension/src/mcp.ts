@@ -1,11 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { agentView, outline, parseSelector, queryView, SelectorError, type Diagnostic, type Selector } from './core';
+import { agentView, outline, parseSelector, queryView, SelectorError, withheldMatches, type Diagnostic, type Selector } from './core';
 import { loadRuleConfig, type LoadedConfig } from './config';
 import { loadMermaidParser } from './mermaidLoader';
 import { McpServer, serveLines, ToolError, type McpTool, type ToolInputSchema } from './mcpProtocol';
 import { revisionOf, suggestTool, writeTools } from './mcpWrite';
-import { contractSummary, contractText } from './queryCommand';
+import { contractSummary, contractText, withheldNote } from './queryCommand';
 import { readDocument, READ_BUDGET, READ_MODES, type ReadMode } from './readView';
 import { collect, diagnose, isInside, queryRows, querySummary, queryText, read, readerFor, taskLine, taskRows, taskSummary } from './workspace';
 
@@ -177,7 +177,7 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
       title: 'Read a whole .smd document',
       description: 'The compact agent view of a whole .smd file: styling, layout and human-only content removed, meaning kept; '
         + 'headings carry [L12] source line references. Same as "read" with mode "full".',
-      inputSchema: schema({ file: FILE, brief: BRIEF, includeHuman: { type: 'boolean', description: 'Keep :::human blocks (dropped by default).' } }, ['file']),
+      inputSchema: schema({ file: FILE, brief: BRIEF, includeHuman: { type: 'boolean', description: 'Keep :::human blocks (dropped by default), for a task about that content. Never lifts {agent=skip}.' } }, ['file']),
       run: (args) => agentTool(box, args),
     }),
   ];
@@ -237,8 +237,10 @@ function queryTool(box: Sandbox, args: Args): string {
   const selectors = selectorsOf(text(args, 'selector')!);
   const files = box.documents(list(args, 'paths'));
   if (flag(args, 'contract')) return contractQueryTool(box, text(args, 'selector')!, files, args);
-  const rows = queryRows(files, selectors, { brief: flag(args, 'brief') }, (f) => box.name(f));
-  return `${queryText(rows, flag(args, 'titles'))}${rows.length ? '\n' : ''}${querySummary(rows, files.length)}\n`;
+  // Content for people (an {agent=skip} section, a :::human block) is never a match; the result says how many were left out.
+  const rows = queryRows(files, selectors, { brief: flag(args, 'brief'), forAgents: true }, (f) => box.name(f));
+  const left = noPrefix(withheldNote(files.reduce((n, f) => n + withheldMatches(read(f), selectors), 0)));
+  return `${queryText(rows, flag(args, 'titles'))}${rows.length ? '\n' : ''}${querySummary(rows, files.length)}\n${left}`;
 }
 
 /**
@@ -251,9 +253,13 @@ function contractQueryTool(box: Sandbox, selector: string, files: string[], args
     const result = queryView(read(f), selector, { brief: flag(args, 'brief'), readFile: box.reader(f), file: box.name(f), ...box.view });
     return result ? [{ file: box.name(f), result }] : [];
   });
-  const summary = contractSummary(views, files.length).replace(/^\[smd\] /gm, '');
+  const withheld = files.reduce((n, f) => n + withheldMatches(read(f), selector), 0);
+  const summary = noPrefix(contractSummary(views, files.length) + withheldNote(withheld));
   return `${contractText(views)}${views.length ? '\n' : ''}${summary}`;
 }
+
+/** The CLI's `[smd]` lines as the tools return them, without the prefix. */
+const noPrefix = (lines: string) => lines.replace(/^\[smd\] /gm, '');
 
 function selectorsOf(selector: string): Selector[] {
   try {

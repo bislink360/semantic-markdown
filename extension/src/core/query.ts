@@ -74,6 +74,13 @@ export interface QueryOptions {
   lineRefs?: boolean;
   /** YYYY-MM-DD used for `today` and overdue tasks; defaults to the current date. */
   today?: string;
+  /**
+   * Leave out what agent views never show (strict audience filtering): a block inside a section marked {agent=skip}
+   * (subsections included) or a `:::human` block, those blocks themselves, and the text of such parts inside a match.
+   * `smd query`, `smd query --contract` and the MCP `query` tool set it. Reports and registers for people (risks,
+   * decisions) don't, and a match is never a way to unlock what a section read leaves out.
+   */
+  forAgents?: boolean;
 }
 
 export interface QueryMatch {
@@ -312,14 +319,35 @@ export function querySmd(text: string, selector: string | Selector[], options: Q
   const lines = text.split(/\r?\n/);
   const blocks = withStale(text, blocksOf(text, lines, today));
   const parents = ancestorBlocks(blocks);
-  const matched = blocks.filter((b) => selectors.some((s) => matches(s, b, parents, today)));
+  const people = options.forAgents ? peopleRanges(blocks) : [];
+  const matched = blocks.filter((b) => !withinAny(b.line, people) && selectors.some((s) => matches(s, b, parents, today)));
   return matched.map((b) => ({
     ...b,
     text: agentViewOfRange(lines, b.line, b.endLine, {
       brief: options.brief, lineRefs: options.lineRefs, today, includeHuman: b.type === 'human', includeReview: REVIEW_CONTAINERS.includes(b.type),
-    }),
+    }, people),
   }));
 }
+
+/**
+ * How many blocks `selector` matches that an agent-facing query leaves out (see QueryOptions.forAgents): the ones in a
+ * section marked {agent=skip} or a `:::human` block. For the line that says a result is shorter than the document's matches.
+ */
+export function withheldMatches(text: string, selector: string | Selector[], today = new Date().toISOString().slice(0, 10)): number {
+  const selectors = typeof selector === 'string' ? parseSelector(selector) : selector;
+  const blocks = blocksOf(text, text.split(/\r?\n/), today);
+  const people = peopleRanges(blocks);
+  if (!people.length) return 0;
+  const parents = ancestorBlocks(blocks);
+  return blocks.filter((b) => withinAny(b.line, people) && selectors.some((s) => matches(s, b, parents, today))).length;
+}
+
+/** The line ranges agent views leave out: sections marked {agent=skip} (subsections included) and `:::human` blocks. */
+function peopleRanges(blocks: readonly Block[]): Array<[number, number]> {
+  return blocks.filter((b) => b.type === 'human' || (b.type === 'heading' && b.attrs.agent === 'skip')).map((b) => [b.line, b.endLine]);
+}
+
+const withinAny = (line: number, ranges: ReadonlyArray<readonly [number, number]>) => ranges.some(([a, b]) => line >= a && line <= b);
 
 /** A review block's `stale`: "true" when its target changed since `rev`, else "false" (feedback loop RFC). */
 function withStale(text: string, blocks: Block[]): Block[] {

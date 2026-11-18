@@ -208,7 +208,7 @@ test('the survival check finds what each condition drops', () => {
   assert.equal(cell('S2', 'outage-duration').visible, false, '{agent=skip} is dropped');
   assert.equal(cell('S2.all-audiences', 'oncall-channel').visible, true);
   assert.equal(cell('S2.no-agent-block', 'hmac-signing').visible, false);
-  assert.equal(cell('S3-oracle', 'outage-duration', 'wh-09').visible, true, 'a skipped section shows when it is asked for');
+  assert.equal(cell('S3-oracle', 'outage-duration', 'wh-09').visible, false, 'a skipped section stays hidden when it is asked for (strict audience filtering)');
   assert.equal(cell('M2-outline', 'replay-open').found, 0);
   assert.equal(cell('M2-outline', 'replay-open').of, 3);
   const agg = new Map(report.aggregate.map((a) => [a.condition, a]));

@@ -476,6 +476,11 @@ export interface ClosureOptions {
   shown?: ReadonlySet<string>;
   /** Edges to leave alone, such as those written in content the caller hides. */
   ignore?: (edge: GraphEdge) => boolean;
+  /**
+   * Nodes the audience never sees (content for people): one that an edge reaches is not included and not walked
+   * further. It is reported as `hidden`, not `missing`, so the closure is incomplete and says why.
+   */
+  hidden?: (node: GraphNode) => boolean;
 }
 
 export interface ClosureBlock {
@@ -489,7 +494,7 @@ export interface ClosureBlock {
   tokens: number;
 }
 
-export type UnsatisfiedKind = 'missing' | 'ambiguous' | 'denied' | 'cycle' | 'depth' | 'limit';
+export type UnsatisfiedKind = 'missing' | 'ambiguous' | 'denied' | 'cycle' | 'depth' | 'limit' | 'hidden';
 
 /** A dependency the closure could not include (AF15, AF20). */
 export interface Unsatisfied {
@@ -563,6 +568,7 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
         continue;
       }
       if (contains(node, target)) continue;
+      if (options.hidden?.(target)) { report({ kind: 'hidden', edge, via: node, depth: depth + 1 }); continue; }
       const key = nodeKey(target);
       const on = path.findIndex((p) => nodeKey(p) === key);
       if (on >= 0) {

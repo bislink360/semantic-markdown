@@ -3,7 +3,8 @@ import {
   DocumentGraph, edgeTypes, followEdges, mandatoryClosure, MANDATORY_EDGES, nodeKey, normalizePath, CLOSURE_LIMITS,
   type ClosureBlock, type DocumentRead, type EdgeDirection, type GraphDocument, type GraphEdge, type GraphNode, type Neighbor, type Unsatisfied,
 } from './graph';
-import { documentBlocks, parseSelector, querySmd, type QueryMatch, type QueryOptions, type Selector } from './query';
+import { hiddenNodeTest } from './applicability';
+import { documentBlocks, parseSelector, querySmd, withheldMatches, type QueryMatch, type QueryOptions, type Selector } from './query';
 
 /**
  * `smd query` over several documents, with the options tree and graph filtering add (filtering S1, G3 to G5, S4):
@@ -58,6 +59,8 @@ export interface MatchGraph {
 
 export interface QueryDocumentsResult {
   matches: FileMatch[];
+  /** With `forAgents`: how many blocks matched in content for people ({agent=skip} sections, `:::human` blocks) and were left out. */
+  withheld: number;
   /** Documents with matches that have agent blocks or document constraints the matches don't show, in file order. */
   constraints: DocumentConstraints[];
   /** With `follow`: one per match, in the same order. */
@@ -79,11 +82,14 @@ export function queryDocuments(documents: readonly GraphDocument[], selector: st
   const today = options.today ?? new Date().toISOString().slice(0, 10);
   const docs = documents.map((d) => ({ path: d.path, text: d.text }));
   const viewOptions = { brief: options.brief, lineRefs: options.lineRefs, today };
+  const forAgents = !!options.forAgents;
 
   const matches: FileMatch[] = [];
   const constraints: DocumentConstraints[] = [];
+  let withheld = 0;
   for (const doc of docs) {
-    const found = querySmd(doc.text, selectors, viewOptions).map((m) => ({ file: doc.path, ...m }));
+    if (forAgents) withheld += withheldMatches(doc.text, selectors, today);
+    const found = querySmd(doc.text, selectors, { ...viewOptions, forAgents }).map((m) => ({ file: doc.path, ...m }));
     if (!found.length) continue;
     matches.push(...found);
     const blocks = documentConstraints(doc.text, found, viewOptions);
@@ -93,14 +99,20 @@ export function queryDocuments(documents: readonly GraphDocument[], selector: st
   let graph: MatchGraph[] | undefined;
   if (follow) {
     const g = new DocumentGraph(docs, { readDocument: options.readDocument, today });
+    // Dependency traversal never unlocks content for people: a dependency in it is reported as hidden, never shown, and
+    // an edge written in it is not followed.
+    const isHidden = forAgents ? hiddenNodeTest(g) : undefined;
+    const written = isHidden && ((e: GraphEdge) => isHidden(e.from));
     const shown = new Set(matches.map((m) => `${normalizePath(m.file)}:${m.line}`));
     if (options.constraints) for (const c of constraints) for (const b of c.blocks) shown.add(`${normalizePath(c.file)}:${b.line}`);
     const mandatory = follow.filter((t) => MANDATORY_EDGES.includes(t));
     graph = matches.map((m) => {
       const node = g.nodeAt(normalizePath(m.file), m.line)!;
-      const closure = mandatory.length ? mandatoryClosure(g, [node], { types: mandatory, shown }) : { blocks: [], unsatisfied: [] };
+      const closure = mandatory.length
+        ? mandatoryClosure(g, [node], { types: mandatory, shown, ...(isHidden ? { hidden: isHidden, ignore: written } : {}) })
+        : { blocks: [], unsatisfied: [] };
       for (const b of closure.blocks) shown.add(nodeKey(b.node));
-      const { neighbors, cut } = followEdges(g, node, { types: follow, direction, depth, shown });
+      const { neighbors, cut } = followEdges(g, node, { types: follow, direction, depth, shown, ...(written ? { ignore: written } : {}) });
       return { neighbors, dependencies: closure.blocks, unsatisfied: closure.unsatisfied, cut };
     });
   }
@@ -109,6 +121,7 @@ export function queryDocuments(documents: readonly GraphDocument[], selector: st
   const dependencies = (graph ?? []).flatMap((g) => g.dependencies).reduce((n, b) => n + b.tokens, 0);
   return {
     matches,
+    withheld,
     constraints,
     ...(graph ? { graph } : {}),
     complete: !(graph ?? []).some((g) => g.unsatisfied.length),
@@ -241,6 +254,7 @@ function unsatisfiedReason(u: Unsatisfied): string {
     case 'ambiguous': return `is the id of ${u.edge.lines?.length ?? 2} blocks (lines ${(u.edge.lines ?? []).map((l) => l + 1).join(', ')}), so it names none of them (ambiguous).`;
     case 'cycle': return `closes a cycle: ${(u.path ?? []).map(nodeName).join(' → ')}.`;
     case 'depth': return `is more than ${CLOSURE_LIMITS.depth} hops from the match (depth limit).`;
+    case 'hidden': return 'is for people only ({agent=skip} or :::human), so agents are not given it (hidden).';
     default: return `was left out: at most ${CLOSURE_LIMITS.blocks} dependencies are included (limit).`;
   }
 }

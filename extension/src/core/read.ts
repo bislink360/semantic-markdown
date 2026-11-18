@@ -200,7 +200,7 @@ const nodeRef = (n: GraphNode, file = n.file): FollowNodeRef => ({
 /**
  * Follow the edges of what a view shows: the whole document, or the selected sections. The view's own content
  * (selected sections, agent blocks, the constraints and dependencies it adds, includes it shows in place) is never
- * repeated, edges written in content the view hides ({agent=skip} sections it doesn't select, :::human blocks) are
+ * repeated, edges written in content the view hides ({agent=skip} sections, selected or not, and :::human blocks) are
  * left alone, and a dependency the view already reports as unsatisfied is not reported again.
  */
 function followView(text: string, result: AgentViewResult, shown: 'full' | 'sections', input: FollowInput): Followed {
@@ -218,9 +218,10 @@ function followView(text: string, result: AgentViewResult, shown: 'full' | 'sect
   const selected: Array<[number, number]> = shown === 'full'
     ? [[parseFrontMatter(text).bodyStartLine, lines.length - 1]]
     : (result.resolvedSections ?? []).flatMap((r) => r.headings).map((h) => sections.find((s) => s.start === h.line)).filter((s) => !!s).map((s) => [s!.start, s!.end]);
-  const chosen = new Set((result.resolvedSections ?? []).flatMap((r) => r.headings.map((h) => h.line)));
+  // Content for people stays hidden whatever the view selects: naming an {agent=skip} section does not unlock it, so the
+  // edges written in it or pointing into it are left alone here as for any other hidden section.
   const hidden: Array<[number, number]> = [
-    ...sections.filter((s) => s.heading.agent === 'skip' && !chosen.has(s.start)).map((s) => [s.start, s.end] as [number, number]),
+    ...sections.filter((s) => s.heading.agent === 'skip').map((s) => [s.start, s.end] as [number, number]),
     ...blocks.filter((b) => b.type === 'human').map((b) => [b.line, b.endLine] as [number, number]),
   ];
   // Other files keep their own {agent=skip} sections and :::human blocks for people.

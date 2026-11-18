@@ -72,7 +72,10 @@ Reading (token-efficient, for agents):
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
                        [--evidence]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
-      --section    only these sections (repeatable; agent instructions elsewhere are still included)
+      --section    only these sections (repeatable; agent instructions elsewhere are still included).
+                   Naming a section never shows {agent=skip} sections or :::human blocks
+      --include-human keep :::human blocks, for a task about that content. It never lifts {agent=skip},
+                   and no --section, query or view turns it on
       --exact      --section matches a heading's id or whole text only (by default a part of the text,
                    so "API" also selects "API details")
       --brief      also condense diagrams, long code, :::details and completed tasks

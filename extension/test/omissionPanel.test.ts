@@ -29,7 +29,9 @@ test('C10: one item per omission, with its lines, reason and where to go', () =>
   assert.deepEqual([human.start, human.end, human.own, human.file], [4, 6, true, 'doc.smd']);
   const skipped = items.find((i) => i.label.includes('skipped'))!;
   assert.equal(skipped.label, '$(eye-closed) Section skipped for agents: History');
-  assert.match(skipped.detail, /Shown by: smd agent doc\.smd --section "History"/);
+  // Naming the section would run the same read again, so no command is offered (strict audience filtering).
+  assert.doesNotMatch(skipped.detail, /Shown by:/);
+  assert.match(skipped.detail, /No command shows it: agent views never show it/);
   const include = items.find((i) => i.label.includes('Include'))!;
   assert.equal(include.description, 'L19');
   assert.match(include.detail, /parts\/missing\.smd was not shown/);

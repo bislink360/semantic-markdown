@@ -15,9 +15,9 @@ leave every output as it was, and fixes must change only what they mean to.
   - `smd validate <file> --format json --today 2026-01-15`
   - `smd export <file> --to md`
   - `smd export <file> --to html --today 2026-01-15`
-- **Requests.** 96 more cases read the fixtures in other ways, 792 cases in all:
+- **Requests.** 100 more cases read the fixtures in other ways, 796 cases in all:
   - The 26 requests in `fixtures/requests.json`: budgets, sections, outlines and a review list.
-  - Every request of the read-contract cases in `extension/test/conformance/cases`, 70 in all, run with the
+  - Every request of the read-contract cases in `extension/test/conformance/cases`, 74 in all, run with the
     arguments the conformance oracle gives the CLI. The oracle checks which rules and omissions a view has. The
     snapshot keeps its exact text.
 - **Records.** For each case, the exit status, stdout and stderr are kept apart. Each stream is stored as the first

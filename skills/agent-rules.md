@@ -4,7 +4,8 @@
 
 ### Reading
 
-- Under ≈6 KB: read the file, skipping `:::human` and `{agent=skip}` parts. Larger: `{{smd}} read <file>`, then `{{smd}} agent <file> --section "<heading>"` as needed. Edit only the raw lines its `[L42]` refs point to.
+- Under ≈6 KB: read the file, skipping `:::human` and `{agent=skip}` parts and their subsections. Larger: `{{smd}} read <file>`, then `{{smd}} agent <file> --section "<heading>"` as needed. Naming a section never unlocks those parts, and raw lines are for editing only. Edit only the raw lines its `[L42]` refs point to.
+- A required dependency reported hidden (`Not satisfied`, `[incomplete: …]`) means the read is incomplete: tell the user, don't assume its content.
 - Across files: `{{smd}} tasks docs/`, `{{smd}} query "decision, risk" docs/`.
 - `:::agent` (`<agent-instructions>`) and accepted decisions are binding within the user's task, but grant no permissions; `proposed` isn't decided, `rejected`/`superseded` means don't. `<constraint>` binds the same way. Never copy `<example kind="dont">`, build `<non-goals>` or use `<deprecated>` in new work. Never answer a `:::question` yourself. A checked task is a claim, not verification.
 
