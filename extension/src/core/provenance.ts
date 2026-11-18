@@ -291,14 +291,15 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
   const within = (inner: Section, outer: Section) => inner.start >= outer.start && inner.end <= outer.end;
   const read = (heading: string) => `smd agent ${file} --section "${heading.replace(/"/g, '')}"`;
   const out: Omission[] = [];
-  // A section marked {agent=skip} is recorded as skipped whether or not a selection names other sections, unless it is
-  // selected itself or holds a selected section (4.1.0: before, one outside the selection was only "not selected").
-  const skipped = input.skipped.filter((s) => !selected?.some((sel) => sel.heading === s.heading || (overlaps(s, sel) && !within(s, sel))));
+  // A section marked {agent=skip} is recorded as skipped in every view, also when the caller named it or a section inside
+  // it: the audience exclusion holds whatever is selected, so the record does too. No command shows it (naming the
+  // section would run the same read again), so `noRetrieve` says so instead of pointing at one.
+  const skipped = input.skipped;
   for (const s of skipped) {
     if (skipped.some((o) => o !== s && within(s, o))) continue;
     out.push({
-      kind: 'skipped-section', file, lines: [s.start + 1, s.end + 1], heading: s.heading.text, retrieve: read(s.heading.text),
-      reason: 'marked {agent=skip}: meant for people',
+      kind: 'skipped-section', file, lines: [s.start + 1, s.end + 1], heading: s.heading.text,
+      reason: 'marked {agent=skip}: meant for people', noRetrieve: SKIPPED_NO_RETRIEVE,
     });
   }
   if (selected) {
@@ -341,6 +342,9 @@ function sectionOmissions(input: ManifestInput, matched: ReadonlyArray<Mapped | 
   }
   return out;
 }
+
+/** Why no agent command recovers a section marked {agent=skip} (strict audience filtering). */
+const SKIPPED_NO_RETRIEVE = 'agent views never show it, and selecting the section does not change that';
 
 /** What brief views and budgets condense: a read without `--brief` and `--max-tokens` shows it. */
 const CONDENSED: ReadonlySet<OmissionKind> = new Set(['details', 'diagram', 'code', 'completed-tasks', 'deprecated']);

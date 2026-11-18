@@ -134,6 +134,25 @@ export function contains(outer: GraphNode, inner: GraphNode): boolean {
   return inner.line >= outer.line && inner.line <= (outer.endLine ?? outer.line);
 }
 
+/**
+ * For each line below `lineCount`, the index in `blocks` of the innermost block that holds it, or -1: of the blocks
+ * whose lines include it, the one that starts last, and of those the last in `blocks`. One sweep over the lines, with
+ * one number per line however deeply blocks nest.
+ */
+export function innermostBlocks(blocks: ReadonlyArray<{ line: number; endLine: number }>, lineCount: number): Int32Array {
+  const order = blocks.map((_, i) => i).sort((a, b) => blocks[a].line - blocks[b].line || a - b);
+  const table = new Int32Array(lineCount).fill(-1);
+  const open: number[] = [];
+  let next = 0;
+  for (let line = 0; line < lineCount; line++) {
+    while (next < order.length && blocks[order[next]].line <= line) open.push(order[next++]);
+    // Later entries start later, so the last one still open is the innermost. One that ended never holds a later line.
+    while (open.length && blocks[open[open.length - 1]].endLine < line) open.pop();
+    if (open.length) table[line] = open[open.length - 1];
+  }
+  return table;
+}
+
 interface Loaded {
   path: string;
   text: string;
@@ -143,12 +162,24 @@ interface Loaded {
   node: GraphNode;
   view?: (start: number, end: number) => string;
   edges?: GraphEdge[];
+  /** The block that starts on each line: the first in `blocks` when several do. */
+  starts?: Map<number, DocumentBlock>;
+}
+
+/** The edges of the given documents, by what they point at, in the order `allEdges` lists them. */
+interface EdgeIndex {
+  /** By the target's node key. */
+  incoming: Map<string, GraphEdge[]>;
+  /** `applies-to` edges to a block or heading, by the target's file. */
+  appliesTo: Map<string, GraphEdge[]>;
 }
 
 export class DocumentGraph {
   private readonly given: string[];
   private readonly loaded = new Map<string, Loaded | { status: 'missing' | 'denied' }>();
   private readonly today: string;
+  /** Built on first use. The given documents and their edges don't change, and documents reached later add no edges here. */
+  private edgeIndex?: EdgeIndex;
 
   constructor(documents: readonly GraphDocument[], private readonly options: GraphOptions = {}) {
     this.today = options.today ?? new Date().toISOString().slice(0, 10);
@@ -191,7 +222,7 @@ export class DocumentGraph {
   nodeAt(path: string, line: number): GraphNode | undefined {
     const doc = this.document(path);
     if (!('text' in doc)) return undefined;
-    const block = doc.blocks.find((b) => b.line === line);
+    const block = blockStartingAt(doc, line);
     return block ? toNode(path, block) : undefined;
   }
 
@@ -218,7 +249,7 @@ export class DocumentGraph {
   private blockOf(path: string, line: number, id: string): { status: TargetStatus; node?: GraphNode } {
     const doc = this.document(path);
     if (!('text' in doc)) return { status: doc.status };
-    const block = doc.blocks.find((b) => b.line === line);
+    const block = blockStartingAt(doc, line);
     if (block) return { status: 'resolved', node: toNode(path, block) };
     const section = doc.blocks.filter((b) => b.type === 'heading' && b.line < line).at(-1)?.title ?? null;
     return { status: 'resolved', node: { file: path, type: 'anchor', title: id, id, line, endLine: line, section } };
@@ -244,13 +275,29 @@ export class DocumentGraph {
 
   /** Edges in the given documents whose target is `node`. */
   incoming(node: GraphNode): GraphEdge[] {
-    const key = nodeKey(node);
-    return this.allEdges().filter((e) => e.to && nodeKey(e.to) === key);
+    return [...(this.edges().incoming.get(nodeKey(node)) ?? [])];
   }
 
   /** `applies-to` edges whose target is `node` or a heading or container that holds it: the constraints that bind it. */
   appliesTo(node: GraphNode): GraphEdge[] {
-    return this.allEdges().filter((e) => e.type === 'applies-to' && e.to && e.to.type !== 'document' && contains(e.to, node));
+    return (this.edges().appliesTo.get(node.file) ?? []).filter((e) => contains(e.to!, node));
+  }
+
+  private edges(): EdgeIndex {
+    if (this.edgeIndex) return this.edgeIndex;
+    const index: EdgeIndex = { incoming: new Map(), appliesTo: new Map() };
+    const add = (map: Map<string, GraphEdge[]>, key: string, edge: GraphEdge) => {
+      const list = map.get(key);
+      if (list) list.push(edge);
+      else map.set(key, [edge]);
+    };
+    for (const edge of this.allEdges()) {
+      if (!edge.to) continue;
+      add(index.incoming, nodeKey(edge.to), edge);
+      if (edge.type === 'applies-to' && edge.to.type !== 'document') add(index.appliesTo, edge.to.file, edge);
+    }
+    this.edgeIndex = index;
+    return index;
   }
 
   /** The agent view of a node: its lines, or a document's body. Empty for a node with no lines. */
@@ -269,10 +316,11 @@ export class DocumentGraph {
 
   private derive(doc: Loaded): GraphEdge[] {
     const edges: GraphEdge[] = [];
+    let innermost: Int32Array | undefined;
     const sourceAt = (line: number): GraphNode => {
       // The innermost block the line is in, or the document.
-      let best: DocumentBlock | undefined;
-      for (const b of doc.blocks) if (b.line <= line && line <= b.endLine && (!best || b.line >= best.line)) best = b;
+      innermost ??= innermostBlocks(doc.blocks, doc.lines.length);
+      const best = doc.blocks[innermost[line] ?? -1];
       return best ? toNode(doc.path, best) : doc.node;
     };
     const add = (type: string, from: GraphNode, line: number, target: string, file: string, found: { status: TargetStatus; node?: GraphNode; lines?: number[] }) => {
@@ -349,6 +397,15 @@ export class DocumentGraph {
     const node = found && this.nodeAt(file, found.start);
     return node ? { status: 'resolved', node } : { status: 'missing' };
   }
+}
+
+/** The block that starts on `line`, from an exact map of start lines. */
+function blockStartingAt(doc: Loaded, line: number): DocumentBlock | undefined {
+  if (!doc.starts) {
+    doc.starts = new Map();
+    for (const b of doc.blocks) if (!doc.starts.has(b.line)) doc.starts.set(b.line, b);
+  }
+  return doc.starts.get(line);
 }
 
 function toNode(file: string, b: DocumentBlock): GraphNode {
@@ -476,6 +533,11 @@ export interface ClosureOptions {
   shown?: ReadonlySet<string>;
   /** Edges to leave alone, such as those written in content the caller hides. */
   ignore?: (edge: GraphEdge) => boolean;
+  /**
+   * Nodes the audience never sees (content for people): one that an edge reaches is not included and not walked
+   * further. It is reported as `hidden`, not `missing`, so the closure is incomplete and says why.
+   */
+  hidden?: (node: GraphNode) => boolean;
 }
 
 export interface ClosureBlock {
@@ -489,7 +551,7 @@ export interface ClosureBlock {
   tokens: number;
 }
 
-export type UnsatisfiedKind = 'missing' | 'ambiguous' | 'denied' | 'cycle' | 'depth' | 'limit';
+export type UnsatisfiedKind = 'missing' | 'ambiguous' | 'denied' | 'cycle' | 'depth' | 'limit' | 'hidden';
 
 /** A dependency the closure could not include (AF15, AF20). */
 export interface Unsatisfied {
@@ -563,6 +625,7 @@ export function mandatoryClosure(graph: DocumentGraph, starts: readonly GraphNod
         continue;
       }
       if (contains(node, target)) continue;
+      if (options.hidden?.(target)) { report({ kind: 'hidden', edge, via: node, depth: depth + 1 }); continue; }
       const key = nodeKey(target);
       const on = path.findIndex((p) => nodeKey(p) === key);
       if (on >= 0) {

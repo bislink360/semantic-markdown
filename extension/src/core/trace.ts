@@ -121,11 +121,18 @@ export function traceRequirements(documents: readonly GraphDocument[], options: 
   }
   // Edges from every document: an acceptance criterion, task or record in another one names a requirement with its
   // path (`verifies=spec.smd#R1`, R19).
-  const edges = graph.allEdges().filter((e) => e.status === 'resolved' && e.to);
+  const pointingAt = new Map<string, GraphEdge[]>();
+  for (const e of graph.allEdges()) {
+    if (e.status !== 'resolved' || !e.to) continue;
+    const key = nodeKey(e.to);
+    const list = pointingAt.get(key);
+    if (list) list.push(e);
+    else pointingAt.set(key, [e]);
+  }
   const all: TraceRequirement[] = [];
   for (const doc of traced.values()) {
     for (const req of doc.blocks.filter((b) => b.type === 'requirement')) {
-      all.push(traceOne(doc, req, edges.filter((e) => nodeKey(e.to!) === `${doc.path}:${req.line}`), traced));
+      all.push(traceOne(doc, req, pointingAt.get(`${doc.path}:${req.line}`) ?? [], traced));
     }
   }
   const summary: TraceSummary = {

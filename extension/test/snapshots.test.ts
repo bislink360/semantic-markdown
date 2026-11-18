@@ -23,7 +23,7 @@ test('t-01: the corpus is the 41 compatibility and 125 research files and the 8 
   assert.equal(summary.compat, 41);
   assert.equal(summary.research, 125);
   assert.equal(summary.focused, 8);
-  assert.deepEqual(summary.requests, { focused: 26, conformance: 70 });
+  assert.deepEqual(summary.requests, { focused: 26, conformance: 74 });
   assert.ok(!files.some((f) => f.includes('/parts/')), 'included parts are read through the fixtures, not as corpus files');
   const inputs = inputFiles();
   for (const f of ['extension/test/snapshots/fixtures/parts/deep/nested-c.smd', 'extension/test/snapshots/fixtures/requests.json', `${CONFORMANCE}/08-rule-chains/case.json`]) {

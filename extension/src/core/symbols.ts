@@ -3,7 +3,8 @@ import { parseFenceInfo, sliceLines } from './fence';
 import { parseFrontMatter } from './frontmatter';
 import { aliasedHeading } from './headingAliases';
 import { anchorLine } from './links';
-import { renderSmd, type Heading } from './render';
+import { parseSmd } from './parse';
+import type { Heading } from './render';
 import { SEMANTIC_TAGS } from './semanticTags';
 
 /** Something worth jumping to from anywhere in a workspace. */
@@ -20,7 +21,8 @@ export interface SmdSymbol {
 
 /** Headings, decisions, risks, API endpoints and the semantic tags, in document order. */
 export function documentSymbols(text: string): SmdSymbol[] {
-  const symbols: SmdSymbol[] = renderSmd(text).headings.map((h) => ({
+  // The cached parse gives the headings renderSmd gives without a reader (t-16).
+  const symbols: SmdSymbol[] = parseSmd(text).headings.map((h) => ({
     kind: 'heading' as const, name: h.text || '(untitled)', detail: `H${h.level}`, line: h.line,
   }));
   const lines = text.split(/\r?\n/);
@@ -85,7 +87,7 @@ export interface Excerpt {
  */
 export function sectionExcerpt(text: string, id: string, maxLines = 20): Excerpt | undefined {
   const lines = text.split(/\r?\n/);
-  const headings = renderSmd(text).headings;
+  const headings = parseSmd(text).headings;
   // A heading's GitHub id (`#foo_bar` for `#foobar`) names it too.
   const slug = aliasedHeading(text, id)?.slug ?? id;
   const i = headings.findIndex((h) => h.slug === slug);
@@ -111,7 +113,7 @@ function excerpt(lines: string[], from: number, to: number, maxLines: number, he
 /** What a linked document is about: its title, summary and top-level sections. */
 export function documentPreview(text: string, maxSections = 8): { title?: string; summary?: string; status?: string; sections: string[] } {
   const fm = parseFrontMatter(text);
-  const headings = renderSmd(text).headings;
+  const headings = parseSmd(text).headings;
   const title = typeof fm.data.title === 'string' ? fm.data.title : headings.find((h) => h.level === 1)?.text;
   const top = Math.min(...headings.map((h) => h.level).filter((l) => l > 1), 6);
   return {

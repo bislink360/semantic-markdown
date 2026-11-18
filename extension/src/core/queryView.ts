@@ -37,7 +37,8 @@ export interface QueryViewResult extends AgentViewResult {
  * nothing matches. Throws SelectorError for a selector that can't be read.
  */
 export function queryView(text: string, selector: string, options: QueryViewOptions = {}): QueryViewResult | null {
-  const matches = querySmd(text, parseSelector(selector), { brief: options.brief, lineRefs: options.lineRefs, today: options.today });
+  // Blocks in content for people (an {agent=skip} section, a :::human block) are no matches: a query never unlocks them.
+  const matches = querySmd(text, parseSelector(selector), { brief: options.brief, lineRefs: options.lineRefs, today: options.today, forAgents: true });
   if (!matches.length) return null;
   const lines = text.split(/\r?\n/);
   const sections = sectionsOf(parseSmd(text).headings, lines.length);

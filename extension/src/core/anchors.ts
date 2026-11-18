@@ -1,6 +1,7 @@
 import { githubAliases, headingAlias } from './headingAliases';
 import { findLinks, splitTarget } from './links';
-import { HEADING_ATTRS, renderSmd } from './render';
+import { parseSmd } from './parse';
+import { HEADING_ATTRS } from './render';
 
 /** A heading's editable text on its line (without `#` markers, closing `#`s or `{…}` attributes). */
 export interface HeadingRange {
@@ -14,7 +15,8 @@ export interface HeadingRange {
 
 /** The heading on a zero-based line, or undefined when the line is not a heading. */
 export function headingAt(text: string, line: number): HeadingRange | undefined {
-  const heading = renderSmd(text).headings.find((h) => h.line === line);
+  // The cached parse gives the headings renderSmd gives without a reader (t-16): editors ask again on every hover and keystroke.
+  const heading = parseSmd(text).headings.find((h) => h.line === line);
   if (!heading) return undefined;
   const raw = text.split(/\r?\n/)[line] ?? '';
   const attrs = HEADING_ATTRS.exec(raw);
@@ -66,8 +68,8 @@ export function renameHeading(text: string, line: number, newText: string): { li
   const raw = lines[line];
   const lineText = raw.slice(0, heading.start) + newText.replace(/\r?\n/g, ' ') + raw.slice(heading.end);
   lines[line] = lineText;
-  const before = renderSmd(text).headings;
-  const after = renderSmd(lines.join(eol)).headings;
+  const before = parseSmd(text).headings;
+  const after = parseSmd(lines.join(eol)).headings;
   const changes: Array<{ from: string; to: string }> = [];
   // A single-line edit keeps every heading on its line, so they pair up by line.
   const next = new Map(after.map((h) => [h.line, h.slug]));

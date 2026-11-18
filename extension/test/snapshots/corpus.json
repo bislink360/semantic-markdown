@@ -2,7 +2,7 @@
  "format": 1,
  "generator": "extension/scripts/snapshots.mjs",
  "source": {
-  "commit": "2a82cfeef1564e61dc4ddd5085051b9411429ae8",
+  "commit": "6ab2b29edf67e40e67307783b7c630ef43637079",
   "dirty": true,
   "cli": "smd 4.1.0 (Semantic Markdown spec v2)"
  },
@@ -20,9 +20,9 @@
   "focused": 8,
   "requests": {
    "focused": 26,
-   "conformance": 70
+   "conformance": 74
   },
-  "digest": "d76da41e769f9ce1434003cd"
+  "digest": "dd8fc75eede1e02bc24aed09"
  },
  "commands": {
   "agent": [
@@ -956,28 +956,43 @@
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: brief section Later keeps them hidden": {
    "status": 0,
-   "stdout": "3cf1f93ce02f8df997650887:102",
-   "stderr": "811630c14452ec0ee05e0419:46"
+   "stdout": "ae5df3b797d2625a3d128c41:102",
+   "stderr": "be4d3669ebd4fa63c7e036ec:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: brief section Notes named explicitly is withheld as well": {
+   "status": 0,
+   "stdout": "a97cddd386f1ac1691f265d6:86",
+   "stderr": "30cb40d9344df3062561a457:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: budgeted section Notes named explicitly is withheld as well": {
+   "status": 0,
+   "stdout": "a97cddd386f1ac1691f265d6:86",
+   "stderr": "b2a78bd17fc57f540b8f3e86:101"
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: full view keeps them hidden and records the skipped section": {
    "status": 0,
-   "stdout": "ce2a6c8a8810bf70551c1417:109",
-   "stderr": "999b3e5e8bac6bffa4c83f71:46"
+   "stdout": "e91bf3464e149e6b21c7bbc3:109",
+   "stderr": "ecbd6f7f98b68474747640f2:46"
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: section Main keeps the skipped section and its protected blocks hidden": {
    "status": 0,
    "stdout": "727e0cea35efbdb8b6c58fc8:108",
-   "stderr": "db66fff6b7f93db3a5c5a1be:46"
+   "stderr": "1aae66afa6cd7e0e914ad283:46"
   },
-  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: section Notes named explicitly is shown with its agent block and danger": {
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: section Notes named explicitly stays withheld and records the audience exclusion": {
    "status": 0,
-   "stdout": "cdf74c4585b5a4470dc25076:445",
-   "stderr": "b35a27f08ab8e0b1c845220a:48"
+   "stdout": "a97cddd386f1ac1691f265d6:86",
+   "stderr": "30cb40d9344df3062561a457:46"
   },
-  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: sections Main and Notes together show both": {
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: sections Main and Notes together show Main and withhold Notes": {
    "status": 0,
-   "stdout": "028cf0d1c22a2530318d14e9:488",
-   "stderr": "ce537090352355834cd41fbd:48"
+   "stdout": "61d7e3a4940678be83013b9f:129",
+   "stderr": "98105ada4486de1b9ee01f4b:46"
+  },
+  "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: subsection Notes detail named alone is withheld with the section above it": {
+   "status": 0,
+   "stdout": "85776bdafe38f5b144ac59d3:79",
+   "stderr": "0375249da9af816aa0cabf86:46"
   },
   "extension/test/conformance/cases/05-failed-include/doc-rule.smd · conformance: with a rule: full view lists the unread include and is incomplete": {
    "status": 0,
@@ -1006,23 +1021,28 @@
   },
   "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: full view lists both hidden targets": {
    "status": 0,
-   "stdout": "89065ad815c950dbc6ba24ba:642",
-   "stderr": "849f91edf07c5504b8d280fe:146"
+   "stdout": "5bca6f46d9e7c1e741c427db:768",
+   "stderr": "d2a04b629fd3bf5a193a5687:146"
   },
   "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Mail withholds a target inside :::human": {
    "status": 0,
-   "stdout": "a2de147836b24d442bfb87ce:334",
-   "stderr": "0079f62d565874e548e31bc3:142"
+   "stdout": "cc85f5496c19366122429df6:397",
+   "stderr": "2a5aa0897cc79723eb358ad1:142"
+  },
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Notes named alone creates no unsatisfied dependency and records the exclusion": {
+   "status": 0,
+   "stdout": "80e9651606a2d2eede5964b6:47",
+   "stderr": "245c3e0e84d769ea0dec1331:46"
   },
   "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Work withholds R2, lists it as hidden and carries C2": {
    "status": 0,
-   "stdout": "2b16629ebe9257db83fb5faa:501",
-   "stderr": "d9336dcb02c3ea982e438dc3:144"
+   "stdout": "a727f3b79050ed875d74fa81:564",
+   "stderr": "29e874fa01a1eba883056313:144"
   },
-  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: sections Work and Notes named together resolve R2 and are complete": {
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: sections Work and Notes named together do not unlock R2: same result as Work": {
    "status": 0,
-   "stdout": "14b433012e69a45b1c2ddedc:418",
-   "stderr": "cddb3367a921cc43f0ad5b0e:46"
+   "stdout": "f9a0681302a20d78e5f64c99:571",
+   "stderr": "2be46e6f9c98e76319528839:144"
   },
   "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: full view adds R7 and lists both unreadable files": {
    "status": 0,
@@ -1171,8 +1191,8 @@
   },
   "extension/test/conformance/cases/14-contract-query/doc-frontier.smd · conformance: a query whose match needs a block hidden from agents withholds it and lists it as hidden": {
    "status": 0,
-   "stdout": "9fdfb8e206abed15359150c8:669",
-   "stderr": "3430ca87fa37d7d5d748d6cc:330"
+   "stdout": "7cb711d2422b277561076392:732",
+   "stderr": "4a2a261a23a37e252472be31:330"
   },
   "extension/test/conformance/cases/14-contract-query/doc.smd · conformance: a query matching blocks in two sections carries the rules of both": {
    "status": 0,
@@ -1856,7 +1876,7 @@
   },
   "research/data/corpus/_marker-comparison/p06-free-threading-pep/doc.smd · validate": {
    "status": 1,
-   "stdout": "6180b3b540d3b1f585c625bb:1218",
+   "stdout": "0068c8bcb9186c9a01bbb1bb:1295",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/_marker-comparison/p06-free-threading-pep/marking-log.md · agent": {
@@ -1936,7 +1956,7 @@
   },
   "research/data/corpus/_marker-comparison/s03-warehouse-scanner-spec/doc.smd · validate": {
    "status": 0,
-   "stdout": "e69d04a4b64423bd8c9b3bbc:675",
+   "stdout": "21da74807a85e9ff64d55797:752",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/_marker-comparison/s03-warehouse-scanner-spec/marking-log.md · agent": {
@@ -1976,7 +1996,7 @@
   },
   "research/data/corpus/_marker-comparison/s09-payments-oncall-runbook/doc.smd · validate": {
    "status": 0,
-   "stdout": "8a9ced4da3f7bca22b95bb9b:1791",
+   "stdout": "97cd2080dcc0a61aec1418d5:1945",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/_marker-comparison/s09-payments-oncall-runbook/marking-log.md · agent": {
@@ -2536,7 +2556,7 @@
   },
   "research/data/corpus/p06-free-threading-pep/doc.smd · validate": {
    "status": 1,
-   "stdout": "feaa233ccb253da7549e29ea:1199",
+   "stdout": "dcb19d2b76bc0783b789048f:1276",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/p06-free-threading-pep/marking-log.md · agent": {
@@ -3256,7 +3276,7 @@
   },
   "research/data/corpus/s03-warehouse-scanner-spec/doc.smd · validate": {
    "status": 0,
-   "stdout": "45aec2e41e59f95a7250f928:656",
+   "stdout": "369417540c5d04a74a2f1333:733",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/s03-warehouse-scanner-spec/marking-log.md · agent": {
@@ -3496,7 +3516,7 @@
   },
   "research/data/corpus/s06-tenant-isolation-rfc/doc.smd · validate": {
    "status": 0,
-   "stdout": "8a5321b02de93b9e5df94bad:612",
+   "stdout": "49886a84fe7bce4d6e6e4621:689",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/s06-tenant-isolation-rfc/marking-log.md · agent": {
@@ -3656,7 +3676,7 @@
   },
   "research/data/corpus/s08-db-failover-runbook/doc.smd · validate": {
    "status": 0,
-   "stdout": "9d7b15157a271dbe60f17921:990",
+   "stdout": "4f12b6042bbfb33e946c16b0:1067",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/s08-db-failover-runbook/marking-log.md · agent": {
@@ -3736,7 +3756,7 @@
   },
   "research/data/corpus/s09-payments-oncall-runbook/doc.smd · validate": {
    "status": 0,
-   "stdout": "c2df77b7df84fae3b48c5d3c:1772",
+   "stdout": "fb3fcc0a25c1a77a541b4b5d:1926",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "research/data/corpus/s09-payments-oncall-runbook/marking-log.md · agent": {

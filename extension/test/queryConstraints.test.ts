@@ -77,7 +77,8 @@ test('T7, S1: on the samples, output without the new options is the released out
     for (const titles of [false, true]) {
       const out = runQuery(selector, [samples], flags({ titles }));
       const without = out.stdout.replace(/\[smd\] [^\n]*not included\. Add --constraints to include them\.\n*/g, '');
-      const released = queryText(queryRows(files, parseSelector(selector), { today: TODAY }), titles);
+      // `smd query` is an agent-facing route: matches in content for people are left out (strict audience filtering).
+      const released = queryText(queryRows(files, parseSelector(selector), { today: TODAY, forAgents: true }), titles);
       assert.equal(without.trimEnd(), released.trimEnd(), `${selector} ${titles}`);
       assert.ok(without.endsWith('\n'));
     }

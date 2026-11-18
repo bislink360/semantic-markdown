@@ -204,3 +204,66 @@ What they show.
 - **Includes are read again within one call.** Validation reads the 3 included files 21 times, and the agent view misses the parse cache for included text even when the document is unchanged (CL-14, t-19 and t-21).
 - **The rule chain stays small.** At 49 rounds, the longest chain the 50-block limit lets through, a section read takes 27 ms. From 10 to 49 rounds the time grows about as fast as the chain does at these sizes, so the quadratic cost of the rounds does not show yet (t-58).
 - **CLI startup is mostly loading.** `smd --version` takes about 57 ms more than Node alone, and `activate()` itself under 1 ms after a 52 ms load. The bundle load is where t-23 and t-43 can gain.
+
+## Parses within one references or rename request (t-20)
+
+t-20 asked that one find-references or rename request parse each document at most once, in VS Code and in the language server. Measured on the shared 40-document workspace with unsaved text in the open document, it already does, so no request-local cache was added.
+
+A temporary counter in `parseSmd` recorded each document it parsed during one request. A heading whose GitHub id differs from its own was added, so a request looks for two names.
+
+| Request | Language server | VS Code |
+|---|---|---|
+| References to a block id every document names | 40 parses of 40 documents | 40 of 40 |
+| Rename of that block id | 40 of 40 | 44 of 44 (its workspace also holds `test/samples`) |
+| References to a heading with a GitHub id | 6 of 6 | 5 of 5 |
+| Rename of that heading | 1 of 1 | 1 of 1 |
+
+No document was parsed twice within a request. Documents that don't contain the id are skipped before they are parsed. In VS Code, a repeated references request showed 3 documents parsed twice, but the counter sees every parse in the extension host, which was indexing and validating the new files for the Tasks view at the same time. `test/requestParses.test.ts` keeps the bound: a request parses at most as many documents as the workspace has, first time and repeated. Making the language server walk the workspace twice in one request fails it.
+
+What a request costs is the repeat. The parse cache keeps three documents, so a second identical request parses every document again and reads every file again. With the runner's numbers above, that is 40 parses, 39 file reads, 10 stats and 5 folder listings in 16 ms for 40 documents, and 200 parses and 199 reads in 62 ms for 200. Only a cache that outlives the request removes that, which is the workspace index t-49 decides on.
+
+## Heading lookups from the cached parse (t-16)
+
+The editors' heading lookups rendered the whole document to HTML to read its headings (CL-09). That covers the outline (`documentSymbols`), the heading under the cursor (`headingAt`), the section and document previews hovers show (`sectionExcerpt`, `documentPreview`) and heading rename (`renameHeading`, which rendered the document twice). They now read `parseSmd(text).headings`, which is cached and updated in small pieces after an edit. The lookups that resolve includes keep rendering (`includeCheck.ts`, `toMarkdown.ts` with a reader).
+
+`test/headingParity.test.ts` checks that the parse gives the same headings as a render without a reader. That covers all 218 documents of both corpora, the focused fixtures, the samples and the docs, and none differ.
+
+The `heading-lookups` scenario measures each lookup on a composite of about 20k tokens (80 KB), and a heading rename through the language server on the shared 40-document workspace. The machine was busy, so the old and new code ran alternately from two worktrees, twice. These are the medians of the second round, in ms.
+
+| Lookup | Cold, before → after | Cached, before → after | After an edit, before → after |
+|---|---|---|---|
+| Outline symbols | 40.7 → 28.1 | 32.7 → 1.4 | 34.2 → 11.4 |
+| Heading under the cursor | 73.6 → 29.6 | 60.2 → 0.1 | 55.0 → 10.1 |
+| Section preview | 76.2 → 47.0 | 44.4 → 0.2 | 50.2 → 16.4 |
+| Document preview | 42.5 → 52.4 | 43.0 → 0.6 | 46.5 → 21.0 |
+| Rename a heading | 198.6 → 93.8 | 137.2 → 41.9 | 190.9 → 70.9 |
+| Language server heading rename, 40 documents | 13.8 → 9.6 | 14.0 → 8.1 | 16.0 → 10.9 |
+
+The gain is in repeated and edited lookups, which is what an editor does on every hover and keystroke. A cached lookup now takes well under 2 ms, about 2% of a render or less. After an edit it costs 17–50% of a render. Cold lookups mostly got faster too, but a cold parse can cost as much as a render, the runs were noisy, and the document preview was slower cold in one round, so no cold-path gain is claimed. The language server's workspace symbols, cached by modification time, were the same within noise.
+
+## Graph indexes (t-17)
+
+The document graph scanned every edge for each question it was asked (CL-11). `incoming` and `appliesTo` filtered all edges on each call, `nodeAt` searched the blocks, and finding the block a link sits in scanned every block for each link. `trace.ts` filtered all edges per requirement.
+
+| Lookup | Now | What it keeps |
+|---|---|---|
+| `incoming` | An index by target node, built once on first use | Edges of the given documents only, in the order `allEdges` lists them |
+| `appliesTo` | `applies-to` edges grouped by the target's file | A rule binds what its target holds, in the target's document |
+| `nodeAt` | An exact map from start line to block | Only the line a block starts on. When two blocks start on one line, such as a task underlined as a heading, the first listed |
+| The block a link sits in | A table with one number per line, built in one sweep | The innermost block: the one that starts last, and of those the last listed. Memory doesn't grow with nesting |
+| `trace.ts` | Edges grouped by target | The same order |
+
+`test/graphIndex.test.ts` compares each lookup with a plain scan on every document of the corpora and on 300 random block layouts.
+
+The `graph-traversal` scenario walks 20 linked documents of 40 requirements each. The old and new code ran alternately, twice. These are the medians of the second round, in ms, for a whole run, which also builds the graph and derives its edges.
+
+| Case | Before | After |
+|---|---:|---:|
+| Incoming edges of all 800 requirements | 364 | 139 |
+| Rules that apply to all 800 requirements | 206 | 136 |
+| Follow edges three hops from 20 requirements | 174 | 146 |
+| Mandatory closure of 20 requirements | 171 | 148 |
+| Requirement trace | 537 | 187 |
+| Deriving every edge | 62.9 | 63.6 |
+
+Timed alone on the same documents, 800 `incoming` calls went from 124 ms to 0.15 ms and 800 `appliesTo` calls from 34 ms to 0.08 ms. Building the index once takes 0.6 ms. The `rule-chain` scenario came out the same within noise.

@@ -225,10 +225,13 @@ test('t-58, R18 hidden-target probe: a visible rule on a target hidden from agen
   assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies, c.hiddenTargets]), [['C2', 'applies-to', ['R2']]]);
   // t-66: the rule says its target is hidden from agents, and its text is still shown.
   assert.match(r.text, /Constraints that apply here:\n<constraint id="C2" applies-to="R2" hidden-target="R2" level="must">[^\n]*\nC2_BODY/);
-  // Named together with the skipped section, the target is shown and the mark goes away.
+  // Named together with the skipped section, the target stays hidden and the mark stays: selection never unlocks it.
   const both = agentView(doc, { sections: ['Work', 'Basis'] });
-  assert.doesNotMatch(both.text, /hidden-target/);
-  assert.ok(!both.mandatory?.constraints.some((c) => c.hiddenTargets));
+  assert.match(both.text, /hidden-target="R2"/);
+  assert.doesNotMatch(both.text, /R2_BODY/);
+  assert.deepEqual(both.mandatory?.constraints.map((c) => [c.id, c.hiddenTargets]), [['C2', ['R2']]]);
+  assert.deepEqual(both.mandatory?.unsatisfied.map((u) => [u.kind, u.target, u.via]), [['hidden', 'R2', 'R1']]);
+  assert.equal(both.mandatory?.complete, false);
   assert.doesNotMatch(r.text, /R2_BODY/);
   assert.deepEqual(r.mandatory?.unsatisfied.map((u) => [u.kind, u.target, u.via]), [['hidden', 'R2', 'R1']]);
   assert.equal(r.mandatory?.complete, false);
