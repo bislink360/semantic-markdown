@@ -1,5 +1,17 @@
 # Changelog
 
+## 5.0.0 — 2026-11-18
+
+### ⚠️ Breaking changes
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Fixed
+
 ## Unreleased
 
 ### Added
