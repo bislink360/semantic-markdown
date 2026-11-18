@@ -182,7 +182,7 @@ All the documentation, grouped into guides, reference, reports, RFCs and require
 | [docs/guides/github-and-ci.md](docs/guides/github-and-ci.md) | The GitHub Action, pre-commit hooks, and making `.smd` documents readable on GitHub |
 | [docs/guides/editors.md](docs/guides/editors.md) | Using `.smd` in Neovim, Helix, Zed, JetBrains IDEs and other editors |
 | [docs/guides/spec-driven.md](docs/guides/spec-driven.md) | Spec → plan → tasks with an agent |
-| [docs/guides/upgrading.md](docs/guides/upgrading.md) | Moving from Styled Markdown and upgrading to 2.0 |
+| [docs/guides/upgrading.md](docs/guides/upgrading.md) | Upgrading to 5.0, moving from Styled Markdown and upgrading to 2.0 |
 | [docs/reports/tokens.md](docs/reports/tokens.md) | What the agent view saves, measured, and when it doesn't pay |
 | [docs/reference/spec.md](docs/reference/spec.md) | The formal specification (v2, with the v1 rules it keeps) and validation rules |
 | [docs/reference/compatibility.md](docs/reference/compatibility.md) | The stability promise: spec v2 is stable, what each release may change, deprecations, release cadence |

@@ -4,8 +4,25 @@ What changes when you move across a major release, and what to do about it. What
 
 ## Contents
 
+- [Upgrading to 5.0](#upgrading-to-50)
 - [Moving from Styled Markdown](#moving-from-styled-markdown) (3.0)
 - [Upgrading to 2.0](#upgrading-to-20)
+
+## Upgrading to 5.0
+
+5.0 has four breaking changes. Your documents keep their meaning, `smd: 2` is still the current spec version, the supported Node.js and VS Code versions are the same, and there is nothing to run through `smd migrate`.
+
+- **Exported pages block the document's scripts.** Export to HTML, `smd export --to html`, `smd render` and `smd build` write pages under a content security policy. The document's scripts, event attributes and `javascript:` links do nothing, and its `iframe`, `object`, `embed`, `meta` and `base` elements are inert. Styles, images, ordinary raw HTML, diagrams and math look as before. For a document whose embeds or scripts you trust, such as a video `iframe`, turn the policy off:
+  - on the command line, with `--no-content-policy` on `smd export --to html`, `smd render` or `smd build`;
+  - in VS Code, by setting `smd.export.contentPolicy` to `false`;
+  - in the npm package, with `contentPolicy: false` in `renderPage`, `renderStandaloneHtml` or `buildSite`.
+
+  PDF export always prints under the policy and has no such option.
+- **Links clicked in the preview and the Block Editor follow one rule.** `http`, `https` and `mailto` links open outside VS Code. A relative or `file:` link opens only when the file, with symbolic links resolved, is inside a workspace folder, or beside a document that is in none. Any other link, such as `command:` or `vscode:`, is not opened, and a message shows it. If a link stopped working, add the folder that holds the file to the workspace, use a web link, or run the command from the Command Palette or a keybinding.
+- **`smd validate` exits 2 when a path you name is missing.** It still checks every file it can read. Before, the run exited 0 when the other paths were clean, so a CI step could keep naming a deleted file without anyone noticing. Correct or remove the path. With `--format json` or `--json`, the missing paths are in a new `inputErrors` array.
+- **Audience marks take precedence over selection.** A section marked `{agent=skip}`, its subsections and every `:::human` block stay out of every agent view, even when a read names the section. That covers `smd agent --section`, `smd read --section`, `smd query`, `--follow`, task views and the MCP `read` and `query` tools, and it includes any `:::agent`, danger, constraint or requirement block inside them. `smd query` exits 1 when hidden blocks were its only matches, and says on stderr how many it left out. `--include-human` still keeps `:::human` blocks and never lifts `{agent=skip}`. Previews and exports for people are unchanged. Run `smd validate` to find what agents no longer receive (`container/agent-in-skip` and `audience/rule-in-skip`), move those instructions into visible content, and keep the background in the hidden part.
+
+Two smaller changes can show up in scripts. An option a command doesn't read now prints a warning on stderr, and a later major release will make it an error, so correct misspelt options now. A file command given a folder now exits 2 with a one-line message, where it used to crash with exit code 1.
 
 ## Moving from Styled Markdown
 

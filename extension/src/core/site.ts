@@ -53,7 +53,7 @@ export interface SiteOptions {
   /**
    * Load every page under the content policy (activeContent.ts), so the documents' scripts, event attributes,
    * frames and plug-ins do nothing and only the site's own scripts and the pinned diagram library run. Default
-   * on; `false` leaves the documents' raw HTML active, as before 4.2.
+   * on; `false` leaves the documents' raw HTML active, as before 5.0.
    */
   contentPolicy?: boolean;
 }
