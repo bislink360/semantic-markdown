@@ -1,16 +1,15 @@
 /**
- * Per-browser conveniences kept in localStorage: the draft, the theme setting and the Compare tab's .md mode. Storage can be missing or throw
+ * Per-browser conveniences kept in localStorage: the draft, the theme setting and the Compare tab's .md mode and renderer. Storage can be missing or throw
  * (private windows, blocked site data, file:// in some browsers), so every access is guarded and the playground
  * works without it.
  */
 import type { ThemeSetting } from './frame';
+import type { CompareMode, MarkdownRenderer } from './panes';
 
 export const DRAFT_KEY = 'smd-playground:draft';
 export const THEME_KEY = 'smd-playground:theme';
 export const COMPARE_KEY = 'smd-playground:compare';
-
-/** What the Compare tab's .md side shows: the Markdown export, or the text unconverted. */
-export type CompareMode = 'exported' | 'plain';
+export const RENDERER_KEY = 'smd-playground:compare-renderer';
 
 /** The subset of the Storage interface used here, so tests can pass a stand-in. */
 export interface KeyValueStore {
@@ -47,6 +46,10 @@ export function writeStored(key: string, value: string, store: KeyValueStore | u
 
 export function compareMode(value: string | undefined): CompareMode {
   return value === 'plain' ? 'plain' : 'exported';
+}
+
+export function markdownRenderer(value: string | undefined): MarkdownRenderer {
+  return value === 'plain' ? 'plain' : 'github';
 }
 
 export function themeSetting(value: string | undefined): ThemeSetting {

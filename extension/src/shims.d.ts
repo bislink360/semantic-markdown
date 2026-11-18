@@ -7,6 +7,20 @@ declare module '*.md' {
   export default content;
 }
 
+// markdown-it plugins without type definitions of their own, used by the playground's Compare tab.
+declare module 'markdown-it-footnote' {
+  import type MarkdownIt from 'markdown-it';
+  const footnote: (md: MarkdownIt) => void;
+  export default footnote;
+}
+declare module 'markdown-it-emoji' {
+  import type MarkdownIt from 'markdown-it';
+  type EmojiPlugin = (md: MarkdownIt, options?: { shortcuts?: Record<string, string | string[]>; defs?: Record<string, string> }) => void;
+  export const full: EmojiPlugin;
+  export const light: EmojiPlugin;
+  export const bare: EmojiPlugin;
+}
+
 /**
  * True only in a study build (`node scripts/build.mjs --study`, or SMD_STUDY_BUILD=1). Release builds define it as
  * false, so code behind `typeof __SMD_STUDY__ === 'boolean' && __SMD_STUDY__` is removed from the bundle. Undefined
