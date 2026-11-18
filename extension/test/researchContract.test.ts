@@ -228,7 +228,10 @@ test('audience exclusion: a :::agent block under an {agent=skip} heading stays o
     assert.doesNotMatch(view, /SKIP_AGENT/);
     assert.match(view, /Document-wide agent instructions:[\s\S]*KEPT_AGENT/, 'other agent blocks are still collected');
   }
-  assert.match(agentView(doc, { sections: ['Hidden'] }).text, /SKIP_AGENT/, 'selecting the skipped section still shows it');
+  // Naming the skipped section does not unlock it: the instruction stays out, the other agent blocks are still collected.
+  const named = agentView(doc, { sections: ['Hidden'] }).text;
+  assert.doesNotMatch(named, /SKIP_AGENT/, 'selecting the skipped section does not show it');
+  assert.match(named, /Document-wide agent instructions:[\s\S]*KEPT_AGENT/);
 });
 
 test('C04: a danger inside the selected sections is shown in place, not repeated in the head', () => {

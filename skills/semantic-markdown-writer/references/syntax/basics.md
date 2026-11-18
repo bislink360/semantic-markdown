@@ -53,7 +53,7 @@ content (any Markdown, including other blocks)
 ## Summary {.lead}
 ```
 
-`agent=skip` omits the section, up to the next heading of the same or higher level, from agent views. It's the only allowed `agent` value. Keep `:::agent` blocks out of such sections: they would be omitted too (`container/agent-in-skip` warns). The same goes for rules: a constraint, danger, requirement or accepted decision there, or in a `:::human` block, gets `audience/rule-in-skip`, and prose like "must not" or "never" there gets an `audience/normative-in-skip` hint.
+`agent=skip` omits the section, with its subsections up to the next heading of the same or higher level, from agent views. It's the only allowed `agent` value (write `{agent=skip}`, nothing else). Naming the section in a read doesn't show it: the audience marker beats selection, queries and dependencies. Keep `:::agent` blocks out of such sections: they are omitted too (`container/agent-in-skip` warns). The same goes for rules: a constraint, danger, requirement or accepted decision there, or in a `:::human` block, is hidden and gets `audience/rule-in-skip`, and prose like "must not" or "never" there gets an `audience/normative-in-skip` hint. Put what agents need in visible content and keep the background in the skipped section.
 
 ## Audience blocks: agent, human
 
@@ -67,4 +67,4 @@ Context for people only. Agents skip it.
 :::
 ```
 
-`:::agent` is collapsed for humans in the preview and **always** included in agent views, even when only one section is requested.
+`:::agent` is collapsed for humans in the preview and included in agent views even when only one section is requested, as long as it is agent-visible: an `:::agent` block inside an `{agent=skip}` section or a `:::human` block is hidden with it. `:::human` is never in an agent view, whatever section is requested.

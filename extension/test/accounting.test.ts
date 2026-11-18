@@ -50,9 +50,11 @@ test('t-67: a section read shows its own blocks, carries the rules and agent blo
   assert.deepEqual([at(blocks, 28).outcome, at(blocks, 28).omission?.kind], ['omitted', 'not-selected']);
   // A section for people outside the selection is recorded as skipped, not as merely unselected (4.1.0).
   assert.deepEqual([at(blocks, 30).outcome, at(blocks, 30).omission?.kind], ['omitted', 'skipped-section']);
-  // The include sits in a section for people: omitted with it, and unavailable once that section is named and read.
+  // The include sits in a section for people: omitted with it, also when that section is named. Naming it does not unlock
+  // it (strict audience filtering), so the include is not fetched or expanded and is recorded as skipped.
   assert.deepEqual([at(view({}).blocks, 34).outcome, at(view({}).blocks, 34).omission?.kind], ['omitted', 'skipped-section']);
-  assert.equal(at(view({ sections: ['Notes'] }).blocks, 34).outcome, 'unavailable');
+  const named = at(view({ sections: ['Notes'] }).blocks, 34);
+  assert.deepEqual([named.outcome, named.omission?.kind], ['omitted', 'skipped-section']);
 });
 
 test('t-67: the whole view puts a skipped section\'s blocks down as omitted for people, and shows the rest', () => {

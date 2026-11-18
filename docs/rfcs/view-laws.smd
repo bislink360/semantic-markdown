@@ -6,7 +6,7 @@ status: draft
 owners: ["@roshanmadhushanka"]
 tags: [rfc, research, agent-view, contract]
 created: 2026-11-10
-updated: 2026-11-12
+updated: 2026-11-17
 toc: true
 related:
   - research-contract.smd
@@ -32,7 +32,7 @@ A request $r$ names a route and its options. Its result depends on these inputs 
 
 - The source snapshot, which is the bytes of the document and of every file it includes or reaches through a dependency.
 - The requested scope, which is the selected sections, the selector of a query, the named task view, or none.
-- The audience settings, which are whether content for people is included and which skipped sections the caller named.
+- The audience settings, which are whether `:::human` content is explicitly included. Naming a section is not an audience setting: it never changes what is hidden.
 - The dependency resolution, which is the files the host lets the reader open and the containment root it checks them against.
 - The renderer version, meaning the `smd` package version and the spec version the document declares.
 - The tokenizer, the default estimate of characters divided by four or the encoding named with `--tokenizer`.
@@ -44,7 +44,7 @@ Two requests with equal inputs are the same request. A law that speaks of "the r
 
 Parsing a document $D$ yields a finite set of blocks $B(D)$. A block is a heading with its section, a fenced container such as a constraint or decision, or a run of ordinary Markdown. Every block has a kind, a source file, a line range, the section that contains it, and optional attributes such as an id, a status, `applies-to` and `depends-on`. Included files contribute their blocks at the position of the include.
 
-A block is **eligible** when no audience mark hides it. A `:::human` block and a section marked `{agent=skip}` hide what they contain, unless the caller named that section or asked for content for people. Naming a skipped section is an explicit choice by the caller and is honoured as one. $E(D)$ is the set of eligible blocks. Audience comes first. An instruction or danger inside a hidden region does not become visible because of its kind.
+A block is **eligible** when no audience mark hides it. A `:::human` block and a section marked `{agent=skip}` hide what they contain, subsections included. Only an explicit request for content for people (`--include-human`) shows `:::human` blocks, and never a skipped section. Naming a section, matching a block with a query, pinning lines in a task view and walking a dependency do not make hidden content eligible (strict audience filtering, 2026-11-17: before it, naming a skipped section showed it). $E(D)$ is the set of eligible blocks. Audience comes first. An instruction or danger inside a hidden region does not become visible because of its kind. This is a retrieval policy for agent views, not an access control: the file stays readable to anyone who can open it.
 
 Within $E(D)$ the laws use four sets. $A$ holds the `:::agent` blocks and non-goal lists, $G$ the dangers (a `:::danger` block or a CAUTION alert), $C$ the constraints and $R$ every other typed block.
 
@@ -126,7 +126,7 @@ Each row is a case a reviewer or a probe raised. The last column says what the r
 | A rule chain past the block limit       | The rounds stop at 50 blocks, the cut is listed as `limit`, and the view is incomplete                                                                                                                                                   |
 | The budget frontier                     | Required content is printed and overflow is reported (L5). Content that is not required is replaced by pointers, each an omission with a reason and a command                                                                            |
 | An include that cannot be read          | Its blocks are unavailable, the include is listed, and the view is incomplete                                                                                                                                                            |
-| A skipped section the caller named      | It is shown, and its agent blocks and dangers count for L1 in that request only                                                                                                                                                          |
+| A skipped section the caller named      | It stays hidden, as when it is not named: its blocks, agent blocks and dangers never count for L1. The exclusion is recorded as a `skipped-section` omission with no command, and naming it alone adds no unsatisfied dependency, so the read stays complete |
 | Text above the first heading            | A section read that leaves it out records a `not-selected` omission without a heading and with `smd agent <file>` as the command that shows it. Blank lines, comments and carried blocks are not text left out (t-60)                    |
 
 ## Status at HEAD {#status}

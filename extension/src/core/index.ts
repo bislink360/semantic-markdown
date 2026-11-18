@@ -35,7 +35,7 @@ export { outlineProvenance, PROVENANCE_SCHEMA } from './provenance';
 export type { Dependency, Omission, OmissionKind, Provenance, ProvenanceSettings, SourceSpan } from './provenance';
 export type { ConstraintPointer, ConstraintView } from './constraints';
 export type { AppliedConstraint, Completeness, IncludedDependency, MandatoryContext, MandatoryProblem, UnsatisfiedDependency } from './applicability';
-export { querySmd, parseSelector, SelectorError } from './query';
+export { querySmd, withheldMatches, parseSelector, SelectorError } from './query';
 export type { QueryMatch, QueryOptions, QueryAncestor, Selector, AttributeTest, QueryOperator } from './query';
 export {
   DocumentGraph, edgeTypes, EdgeTypeError, followEdges, mandatoryClosure, dependencyProblems, needs as edgeNeeds, MANDATORY_EDGES, CLOSURE_LIMITS,

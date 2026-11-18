@@ -107,7 +107,9 @@ test('C05: every omission has a kind, lines and a reason, and hidden text is not
   assert.deepEqual(human.lines, [lineOf(doc, ':::human'), lineOf(doc, 'SECRET_HUMAN_TEXT') + 1]);
   const skipped = p.omissions.find((o) => o.kind === 'skipped-section')!;
   assert.equal(skipped.heading, 'Background');
-  assert.match(skipped.retrieve!, /--section "Background"/);
+  // The same section command would still exclude it, so none is advertised (strict audience filtering).
+  assert.equal(skipped.retrieve, undefined);
+  assert.match(skipped.noRetrieve!, /never show it/);
   assert.deepEqual(p.omissions.find((o) => o.kind === 'comment')!.lines, [lineOf(doc, '<!--'), lineOf(doc, '<!--')]);
   const json = JSON.stringify(p);
   assert.doesNotMatch(json, /SECRET_HUMAN_TEXT|For reviewers|a note for the editor|Old history/);

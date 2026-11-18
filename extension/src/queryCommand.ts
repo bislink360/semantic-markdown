@@ -1,6 +1,6 @@
 import {
   constraintNote, EdgeTypeError, edgeTypes, formatQueryResult, parseSelector, queryDocuments, queryResultJson, queryResultSummary, queryView,
-  SelectorError, type Provenance, type QueryDocumentsResult, type QueryViewResult, type Selector,
+  SelectorError, withheldMatches, type Provenance, type QueryDocumentsResult, type QueryViewResult, type Selector,
 } from './core';
 import { completenessOf, incompleteLine } from './core/applicability';
 import { queryViewBlock } from './core/queryView';
@@ -58,19 +58,28 @@ export function runQuery(selector: string | undefined, targets: string[], flags:
   if (!files.length) return fail('No .smd files found.');
   if (flags.contract) return contractQuery(selector, files, flags);
   const result = queryDocuments(files.map((f) => ({ path: f, text: read(f) })), selectors, {
-    brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today, constraints: flags.constraints,
+    brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today, constraints: flags.constraints, forAgents: true,
     ...(flags.follow !== undefined ? { follow: flags.follow, direction, depth, readDocument: graphReader(roots) } : {}),
   });
   const extended = !!flags.constraints || flags.follow !== undefined;
   const code = result.matches.length ? 0 : 1;
+  const left = withheldNote(result.withheld);
   if (!extended) {
     const summary = `[smd] ${querySummary(result.matches, files.length)}\n`;
-    if (!flags.json) return { code, stdout: formatQueryResult(result, { titles: flags.titles }), stderr: summary };
+    if (!flags.json) return { code, stdout: formatQueryResult(result, { titles: flags.titles }), stderr: summary + left };
     const rows = result.matches.map(({ ancestors: _, ...m }) => m);
-    return { code, stdout: JSON.stringify(rows, null, 2) + '\n', stderr: notes(result) + summary };
+    return { code, stdout: JSON.stringify(rows, null, 2) + '\n', stderr: notes(result) + summary + left };
   }
   const stdout = flags.json ? JSON.stringify(queryResultJson(result), null, 2) + '\n' : formatQueryResult(result, { titles: flags.titles });
-  return { code, stdout, stderr: `[smd] ${queryResultSummary(result, files.length)}\n` };
+  return { code, stdout, stderr: `[smd] ${queryResultSummary(result, files.length)}\n${left}` };
+}
+
+/**
+ * The line that says a query's result is shorter than the document's matches: blocks in content for people (an
+ * {agent=skip} section or a `:::human` block) are never matches of an agent-facing query. Empty when none were left out.
+ */
+export function withheldNote(count: number): string {
+  return count ? `[smd] ${count} matching block(s) in content for people ({agent=skip} sections, :::human blocks) left out: a query does not unlock them.\n` : '';
 }
 
 /** `--follow`, `--direction` and `--depth` as written on the command line, as `smd query` and `smd read` take them. */
@@ -122,7 +131,8 @@ function contractQuery(selector: string, files: string[], flags: QueryFlags): Qu
   const code = views.length ? 0 : 1;
   const stdout = flags.json ? JSON.stringify(contractJson(views), null, 2) + '\n' : contractText(views);
   const manifests = flags.provenance ? views.map((v) => v.result.provenance!) : undefined;
-  return { code, stdout, stderr: contractSummary(views, files.length), ...(manifests ? { manifests } : {}) };
+  const withheld = files.reduce((n, f) => n + withheldMatches(read(f), selector, flags.today), 0);
+  return { code, stdout, stderr: contractSummary(views, files.length) + withheldNote(withheld), ...(manifests ? { manifests } : {}) };
 }
 
 /** The views as text: one as it is, several each after a `==> file <==` line. */

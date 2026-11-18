@@ -76,6 +76,8 @@ export interface OmissionExpectation {
   heading?: string | null;
   /** The retrieve command starts with this. */
   retrieve?: string;
+  /** True: the omission offers no command (R4, strict audience filtering: a command that would still exclude it is never advertised). */
+  noCommand?: boolean;
   /** A regular expression the reason matches (case-insensitive). */
   reason?: string;
   /** True: no omission matching the rest may be recorded. */
@@ -145,7 +147,7 @@ export interface LoadedCase {
 export interface Manifest {
   sourceMap: Array<{ output: Range; kind: 'source' | 'header' | 'synthesized'; file?: string; source?: Range }>;
   omissions: Array<{
-    kind: string; file: string; lines: Range; reason: string; heading?: string; retrieve?: string;
+    kind: string; file: string; lines: Range; reason: string; heading?: string; retrieve?: string; noRetrieve?: string;
     carried?: Array<{ lines: Range; output: Range }>;
   }>;
   budget: { fits: boolean } | null;
@@ -447,6 +449,7 @@ function checkOmission(fx: Fixture, obs: Observation, e: OmissionExpectation, in
     // A recorded omission contains the expected lines; an absent one may not even touch them.
     && (!e.lines || (e.absent ? overlaps(o.lines, e.lines) : o.lines[0] <= e.lines[0] && o.lines[1] >= e.lines[1]))
     && (!e.retrieve || (o.retrieve ?? '').startsWith(e.retrieve))
+    && (!e.noCommand || (o.retrieve === undefined && !!o.noRetrieve))
     && (!e.reason || new RegExp(e.reason, 'i').test(o.reason)));
   const what = `${kinds(e.kind).join('|')} ${file}${e.lines ? ` L${e.lines[0]}-${e.lines[1]}` : ''}${e.heading ? ` "${e.heading}"` : ''}${e.heading === null ? ' (no heading)' : ''}`;
   const name = `omission[${index}]`;

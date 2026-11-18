@@ -1381,7 +1381,7 @@ function skippedSection(raw: string, line: number, skipped: Section[]): Section 
 function agentInSkipped(raw: string, line: number, section: Section, push: Push): void {
   const column = raw.indexOf('agent');
   push(line, column, column + 'agent'.length, 'warning', 'container/agent-in-skip',
-    `This :::agent block is in the section "${section.heading.text}" (line ${section.start + 1}), whose heading has {agent=skip}, so agent views leave it out and agents never read these instructions. Move the block out of that section, or remove agent=skip from the heading.`);
+    `This :::agent block is in the section "${section.heading.text}" (line ${section.start + 1}), whose heading has {agent=skip}, so agent views leave it out and agents never receive these instructions, even when a read names the section. If agents need them, move the instructions into visible content and keep the background in the section, or remove agent=skip from the heading. Nothing is moved for you.`);
 }
 
 /** A part of the document that agent views leave out: a section marked {agent=skip} or a :::human block (zero-based). */
@@ -1414,7 +1414,7 @@ function checkRulesForPeople(text: string, lines: string[], bodyStart: number, p
     flagged.add(region);
     const column = Math.max(0, lines[b.line].indexOf(b.name));
     push(b.line, column, column + b.name.length, 'warning', 'audience/rule-in-skip',
-      `This :::${b.name}${b.id ? ` (${b.id})` : ''} is in ${region.what}, so agent views leave it out and agents never see the rule. Move it out, or remove the mark if agents should read this part.`);
+      `This :::${b.name}${b.id ? ` (${b.id})` : ''} is in ${region.what}, so agent views leave it out and agents never receive the rule, even when a read names the section. If agents need it, state it in visible content (keep the background here), or remove the mark if agents should read this part. Nothing is moved for you.`);
   }
   const inAgent = (line: number) => blocks.some((b) => b.name === 'agent' && line >= b.line && line <= b.endLine);
   for (const [i, fence] of outsideCode(lines, bodyStart, lines.length - 1)) {
@@ -1425,7 +1425,7 @@ function checkRulesForPeople(text: string, lines: string[], bodyStart: number, p
     if (!m) continue;
     flagged.add(region);
     push(i, m.index, m.index + m[0].length, 'info', 'audience/normative-in-skip',
-      `"${m[0]}" reads like a rule, but it is in ${region.what}, which agent views leave out. If agents must follow it, move it out or write it as a :::constraint outside that part.`);
+      `"${m[0]}" reads like a rule, but it is in ${region.what}, which agent views leave out, even when a read names the section. If agents must follow it, write it as a :::constraint or an :::agent instruction outside that part and keep the background here.`);
   }
 }
 

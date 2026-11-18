@@ -54,7 +54,11 @@ import { documentVariables, shownValues, substituteVariables, type Variables } f
  * What --brief additionally condenses:  diagrams, long code blocks, :::details, completed tasks.
  */
 export interface AgentViewOptions {
-  /** Only include these sections (heading text or id, case-insensitive; subsections included). */
+  /**
+   * Only include these sections (heading text or id, case-insensitive; subsections included). Naming a section does
+   * not unlock content meant for people: a section marked {agent=skip} and a `:::human` block stay out of the view
+   * (it records the exclusion, never the text). Include them only with the explicit options for that, never by selection.
+   */
   sections?: string[];
   /**
    * What a view does with `:::agent` blocks inside included files (4.1.0), a host's choice. `carry` (default) shows
@@ -75,7 +79,11 @@ export interface AgentViewOptions {
   exactSections?: boolean;
   /** Condense diagrams, long code, details blocks and completed tasks. */
   brief?: boolean;
-  /** Keep :::human blocks (dropped by default). */
+  /**
+   * Keep :::human blocks (dropped by default). The one explicitly human-inclusive option of a view, for a task about
+   * that content (`smd agent --include-human`). It does not lift {agent=skip}, and no selection, query or pinned range
+   * turns it on.
+   */
   includeHuman?: boolean;
   /**
    * Keep resolved, accepted, rejected and withdrawn comments and suggestions (left out by default, with one line
@@ -155,7 +163,7 @@ export interface AgentViewResult {
   missingSections: string[];
   /** When `sections` is given: the headings each query selected (more than one when it is ambiguous). */
   resolvedSections?: ResolvedSection[];
-  /** Headings omitted because they are marked {agent=skip}. */
+  /** Headings left out because they are marked {agent=skip}, selected or not: the audience exclusion holds either way. */
   skippedSections: string[];
   /** Counts by `tokenizer`, when one is given. */
   counted?: { tokenizer: string; tokens: number; originalTokens: number };
@@ -360,9 +368,11 @@ function viewScope(text: string, options: AgentViewOptions): ViewScope {
   // A task view with no sections still selects: only its pinned lines.
   const selected = chosen.selected ?? (pinned?.selects ? [] : null);
   const isPinned = (line: number) => !!pinned?.ranges.some(([a, b]) => line >= a && line <= b);
-  const inScope = (line: number) => isPinned(line) || (
-    (!selected || selected.some((s) => line >= s.start && line <= s.end)) &&
-    !skipped.some((s) => line >= s.start && line <= s.end && !(selected?.some((sel) => sel.heading === s.heading))));
+  // Audience exclusion comes first: no selection, query match or pinned range puts a line of a section marked
+  // {agent=skip} (subsections included) in the view. Naming the section changes what the view says it left out, not
+  // what it shows (strict audience filtering).
+  const inSkippedSection = (line: number) => skipped.some((s) => line >= s.start && line <= s.end);
+  const inScope = (line: number) => !inSkippedSection(line) && (isPinned(line) || !selected || selected.some((s) => line >= s.start && line <= s.end));
   const shown = shownValues(fm.data, text, specVersion(fm.data));
   return {
     data: fm.data, shown, unread: unreadFrontMatter(text, fm), bodyStart: fm.bodyStartLine, lines, sections, selected, skipped, missingSections, resolved, inScope,
@@ -1516,13 +1526,19 @@ function alertTags(
   };
 }
 
-/** The agent view of lines [start, end] (zero-based, inclusive) on their own, e.g. one block. */
-export function agentViewOfRange(lines: string[], start: number, end: number, options: AgentViewOptions = {}): string {
+/**
+ * The agent view of lines [start, end] (zero-based, inclusive) on their own, e.g. one block. `except` are line ranges the
+ * view leaves out even inside the range (sections marked {agent=skip}, for a match that holds one).
+ */
+export function agentViewOfRange(
+  lines: string[], start: number, end: number, options: AgentViewOptions = {}, except: ReadonlyArray<readonly [number, number]> = [],
+): string {
   const text = lines.join('\n');
   const variables = documentVariables(lines);
   const whole = { figures: expandedFigures(text, viewReader(options)), changelogs: changelogEntries(lines, 0, specVersion(variables)), variables, literalLines: literalLines(text), inlineMath: inlineMathLines(text),
     alerts: alertLines(text), inlineItems: inlineItemLines(text), taskLines: renderedTaskLines(text), review: reviewOf(lines) };
-  return transform(lines.slice(0, end + 1), start, () => true, { ...options, ...whole }).trim();
+  const inScope = except.length ? (line: number) => !except.some(([a, b]) => line >= a && line <= b) : () => true;
+  return transform(lines.slice(0, end + 1), start, inScope, { ...options, ...whole }).trim();
 }
 
 /** A heading's words; a changelog release in brief, `1.2.0 (2026-03-01)`, the version without its link. */

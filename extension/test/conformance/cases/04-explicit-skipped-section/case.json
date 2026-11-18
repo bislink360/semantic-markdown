@@ -1,43 +1,251 @@
 {
-  "description": "Explicit selection of a skipped section (eligibility, boundary table). Naming an {agent=skip} section shows it, and its agent block and danger count for L1 in that request only. Unnamed, the section and the protected blocks in it stay hidden in every view, and so does a scope=document constraint in it (hidden blocks are not in A, G or C).",
+  "description": "Audience exclusion beats selection (strict audience filtering, R1 to R4). A section marked {agent=skip}, with its subsections and every block in it, is withheld from every agent view whatever the request names: the section itself, a subsection under it, or both with a visible one. The agent block, danger, requirement and constraint in it stay hidden too, and an include in it is not fetched. The exclusion is recorded as a skipped-section omission even when the section was named, no command is offered to recover it (the same section read would exclude it again), and naming it alone creates no unsatisfied dependency, so the read stays complete.",
   "requests": [
     {
-      "name": "section Notes named explicitly is shown with its agent block and danger",
-      "route": { "sections": ["Notes"] },
-      "laws": ["L1"],
-      "mustAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
+      "name": "section Notes named explicitly stays withheld and records the audience exclusion",
+      "route": {
+        "sections": [
+          "Notes"
+        ]
+      },
+      "laws": [
+        "L1"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL",
+        "extra.smd~INCLUDED-FROM-SKIPPED"
+      ],
       "unsatisfied": [],
-      "complete": true
+      "complete": true,
+      "omissions": [
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ],
+          "noCommand": true
+        }
+      ]
     },
     {
-      "name": "sections Main and Notes together show both",
-      "route": { "sections": ["Main", "Notes"] },
-      "laws": ["L1"],
-      "mustAppear": ["~MAIN-TEXT", "~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"]
+      "name": "sections Main and Notes together show Main and withhold Notes",
+      "route": {
+        "sections": [
+          "Main",
+          "Notes"
+        ]
+      },
+      "laws": [
+        "L1"
+      ],
+      "mustAppear": [
+        "~MAIN-TEXT"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL",
+        "extra.smd~INCLUDED-FROM-SKIPPED"
+      ],
+      "unsatisfied": [],
+      "complete": true,
+      "omissions": [
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ],
+          "noCommand": true
+        }
+      ]
+    },
+    {
+      "name": "subsection Notes detail named alone is withheld with the section above it",
+      "route": {
+        "sections": [
+          "Notes detail"
+        ]
+      },
+      "laws": [
+        "L1"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL",
+        "extra.smd~INCLUDED-FROM-SKIPPED"
+      ],
+      "unsatisfied": [],
+      "complete": true,
+      "omissions": [
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ],
+          "noCommand": true
+        }
+      ]
     },
     {
       "name": "section Main keeps the skipped section and its protected blocks hidden",
-      "route": { "sections": ["Main"] },
-      "laws": ["L1"],
-      "mustAppear": ["~MAIN-TEXT"],
-      "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
+      "route": {
+        "sections": [
+          "Main"
+        ]
+      },
+      "laws": [
+        "L1"
+      ],
+      "mustAppear": [
+        "~MAIN-TEXT"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL"
+      ],
       "omissions": [
-        { "kind": "skipped-section", "heading": "Notes", "lines": [10, 29] }
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ]
+        }
       ]
     },
     {
       "name": "full view keeps them hidden and records the skipped section",
-      "route": { },
-      "laws": ["L1", "L6"],
-      "mustAppear": ["~MAIN-TEXT"],
-      "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"],
-      "omissions": [{"kind": "skipped-section", "heading": "Notes", "lines": [10, 29]}]
+      "route": {},
+      "laws": [
+        "L1",
+        "L6"
+      ],
+      "mustAppear": [
+        "~MAIN-TEXT"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL"
+      ],
+      "omissions": [
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ],
+          "noCommand": true
+        }
+      ]
+    },
+    {
+      "name": "brief section Notes named explicitly is withheld as well",
+      "route": {
+        "sections": [
+          "Notes"
+        ],
+        "brief": true
+      },
+      "laws": [
+        "L1"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL"
+      ],
+      "omissions": [
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ]
+        }
+      ]
+    },
+    {
+      "name": "budgeted section Notes named explicitly is withheld as well",
+      "route": {
+        "sections": [
+          "Notes"
+        ],
+        "maxTokens": 400
+      },
+      "laws": [
+        "L1",
+        "L5"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL"
+      ],
+      "omissions": [
+        {
+          "kind": "skipped-section",
+          "heading": "Notes",
+          "lines": [
+            10,
+            33
+          ]
+        }
+      ]
     },
     {
       "name": "brief section Later keeps them hidden",
-      "route": { "sections": ["Later"], "brief": true },
-      "laws": ["L1"],
-      "mustNotAppear": ["~NOTES-PROSE", "~AGENT-SKIPPED", "~DANGER-SKIPPED", "RS", "CSKIP"]
+      "route": {
+        "sections": [
+          "Later"
+        ],
+        "brief": true
+      },
+      "laws": [
+        "L1"
+      ],
+      "mustNotAppear": [
+        "~NOTES-PROSE",
+        "~AGENT-SKIPPED",
+        "~DANGER-SKIPPED",
+        "RS",
+        "CSKIP",
+        "~NOTES-DETAIL"
+      ]
     }
   ]
 }

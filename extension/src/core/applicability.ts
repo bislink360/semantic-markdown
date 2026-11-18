@@ -241,6 +241,9 @@ export function isRuleBlock(b: TagBlock): boolean {
 }
 const HIDING = new Set(['agent', 'danger']);
 
+/** Why a dependency the view can't show is reported as hidden, not missing. */
+const HIDDEN_REASON = 'the block is for people only ({agent=skip} or :::human), so agents are not given it, even when its section is selected';
+
 const within = (line: number, ranges: ReadonlyArray<readonly [number, number]>) => ranges.some(([a, b]) => line >= a && line <= b);
 
 /** Reasons an include was not read that are a choice of the caller or the host, not a failure to read it. */
@@ -264,6 +267,23 @@ export function peopleOnly(text: string, includeHuman = false): Array<[number, n
   return hidden;
 }
 
+/**
+ * Whether a graph node sits in content for people only ({agent=skip} sections and `:::human` blocks of its own file),
+ * for the views that walk dependencies without the section reader's plan: the walk reports such a node as hidden and
+ * never includes its text. Each file is read once.
+ */
+export function hiddenNodeTest(graph: DocumentGraph, includeHuman = false): (node: GraphNode) => boolean {
+  const ranges = new Map<string, Array<[number, number]>>();
+  return (node) => {
+    if (node.line === undefined) return false;
+    if (!ranges.has(node.file)) {
+      const doc = graph.document(node.file);
+      ranges.set(node.file, 'text' in doc ? peopleOnly(doc.text, includeHuman) : []);
+    }
+    return within(node.line, ranges.get(node.file)!);
+  };
+}
+
 /** Whether a block sits in a `:::human` block (unless they are shown), an include's fallback body, or a block shown elsewhere. */
 function parentHides(block: TagBlock, includeHuman: boolean): boolean {
   for (let p = block.parent; p; p = p.parent) {
@@ -283,10 +303,11 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const docs: ScannedDoc[] = [];
   const source = includeSource(input.readFile);
 
-  // The document's own hidden parts: skipped sections that are not selected, and :::human blocks.
+  // The document's own hidden parts: every section marked {agent=skip}, selected or not (naming a section never unlocks
+  // it), and :::human blocks.
   const rootBlocks = tagBlocks(text);
   const humans = input.includeHuman ? [] : rootBlocks.filter((b) => b.name === 'human').map((b) => [b.line, b.endLine] as [number, number]);
-  const skippedHidden = input.skipped.filter((s) => !selected?.some((sel) => sel.heading === s.heading)).map((s) => [s.start, s.end] as [number, number]);
+  const skippedHidden = input.skipped.map((s) => [s.start, s.end] as [number, number]);
   const rootHidden = [...skippedHidden, ...humans];
   docs.push({ path: GRAPH_ROOT, text, hidden: rootHidden });
 
@@ -585,7 +606,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     if (within(line, hiddenIn(b.node.file))) {
       unsatisfied({
         kind: 'hidden', target: b.edge.target, file: fileName(b.edge.from.file), line: b.edge.line + 1, via: name(b.via),
-        reason: 'the block is for people only ({agent=skip} or :::human)',
+        reason: HIDDEN_REASON,
       });
       continue;
     }
@@ -602,6 +623,7 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     cycle: (u) => `the chain returns to its start (${(u.path ?? []).map(name).join(' → ')})`,
     depth: () => `more than ${CLOSURE_LIMITS.depth} steps away`,
     limit: () => `more than ${CLOSURE_LIMITS.blocks} dependencies`,
+    hidden: () => HIDDEN_REASON,
   };
   for (const u of round.closure.unsatisfied) {
     unsatisfied({

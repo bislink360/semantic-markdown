@@ -27,6 +27,13 @@ Keep the archive read-only.
 Skipped rule SKIP-RULE.
 :::
 
+### Notes detail
+
+Detail prose NOTES-DETAIL.
+
+:::include{file=extra.smd}
+:::
+
 ## Later
 
 Later text.

@@ -42,7 +42,22 @@ How to write `.smd` that people enjoy reading and agents can use cheaply.
 
 - Put **every hard rule an implementer must follow** in a single `:::agent` block. Keep it short and imperative, and make each bullet checkable ("All prices are integer cents", not "be careful with money").
 - Give the **fallback for open questions** in that block ("If X is unresolved, do Y").
-- Put **narrative, history, research, thanks and meeting chatter** under a heading with `{agent=skip}` or in `:::human`. People still see it; agents don't pay for it.
+- Put **narrative, history, research, thanks and meeting chatter** under a heading with `{agent=skip}` or in `:::human`. People still see it; agents don't pay for it, and no section name or query makes them see it.
+- **Audience beats block kind.** A `:::danger`, `:::constraint`, `:::requirement`, accepted `:::decision` or `:::agent` block inside a skipped section or a `:::human` block is hidden with it, and agents never receive it. Keep operative instructions, applicable constraints, prerequisites and agent-relevant dangers outside those regions, and the explanation inside them.
+- **Split the warning from the rationale.** A short visible `:::danger` or `:::constraint` ("Don't re-run the migration after cutover") beside a long `{agent=skip}` background section ("How the 2025 migration failed") serves both audiences. Exposing the whole background to carry one rule costs tokens, and leaving the rule inside it loses the rule.
+
+  ```markdown
+  :::danger Don't re-run the migration after cutover
+  Re-running it duplicates every invoice. Restore from the snapshot instead.
+  :::
+
+  ## Migration history {agent=skip}
+
+  How the 2025 cutover went wrong, who was paged, and why we picked the date. For people only.
+  ```
+
+- **Wire a visible rule to what it governs** with the existing `{#id}`, `scope`, `applies-to` and `depends-on`. A visible requirement that `depends-on` a block in a hidden region makes every read of it incomplete, so either make that block visible or drop the dependency. A visible rule whose `applies-to` names a hidden block is still carried, marked `hidden-target`.
+- **Check partial views, not only the whole one.** Run `smd agent <file> --section "<heading>"` for the sections an agent is likely to read, with and without `--brief`, and read what each omits (every omission has a reason) and any `Not satisfied … for people only` line. A diagnostic (`audience/rule-in-skip`, `container/agent-in-skip`) is a prompt for your judgment: some hidden rules are for people on purpose, so don't promote them all.
 - Use `:::details` for long logs or lists. `--brief` agent views collapse them to one line.
 - Prefer **embedding code** (`file="…" lines="…"`) over pasting it. Agents get a pointer and can read the real file if they need it.
 - Don't hide requirements inside tabs labelled "Nice to have" if they are actually required. Agents read tab labels literally.
@@ -73,7 +88,8 @@ How to write `.smd` that people enjoy reading and agents can use cheaply.
 - [ ] Front matter has `smd: 2` (a new document; an existing one keeps its value), title, summary, status, owners and updated.
 - [ ] No template placeholders left (`—`, `@owner`, `YYYY-MM-DD`, or a `{{…}}` the front matter doesn't define: `smd validate` lists those as `variable/undefined`).
 - [ ] Every unresolved item is a `:::question` with an owner and a date.
-- [ ] Hard constraints are in one `:::agent` block.
-- [ ] Narrative sections are `{agent=skip}` or `:::human`.
+- [ ] Hard constraints are in one `:::agent` block, outside every `{agent=skip}` section and `:::human` block.
+- [ ] Narrative sections are `{agent=skip}` or `:::human`, and no rule, danger or prerequisite an agent needs sits inside them.
+- [ ] A partial `smd agent <file> --section …` view shows what an agent needs and reports no hidden required dependency.
 - [ ] `smd validate <file> --fix` reports 0 errors.
 - [ ] `smd agent <file> --brief` reads well on its own.

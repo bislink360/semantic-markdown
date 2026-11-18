@@ -1,4 +1,5 @@
 import { agentView, type AgentViewOptions, type AgentViewResult, type PinnedSelection } from './agentView';
+import { hiddenNodeTest } from './applicability';
 import { parseFrontMatter } from './frontmatter';
 import {
   DocumentGraph, mandatoryClosure, MANDATORY_EDGES, normalizePath, CLOSURE_LIMITS,
@@ -64,7 +65,10 @@ export interface TaskViewOptions extends Omit<AgentViewOptions, 'pinned'> {
 export interface ViewBlock { file: string; type: string; title: string; id?: string; line?: number; endLine?: number; section: string | null }
 
 export interface ViewUnsatisfied {
-  /** `query` for a selector that can't be read; a closure kind (missing, ambiguous, denied, cycle, depth, limit) otherwise. */
+  /**
+   * `query` for a selector that can't be read; a closure kind (missing, ambiguous, denied, cycle, depth, limit) otherwise.
+   * `hidden` is a block in content for people ({agent=skip} or :::human): the view names it, never shows it.
+   */
   kind: 'query' | Unsatisfied['kind'];
   /** What could not be satisfied: the id, the selector, or the target an edge names. */
   target: string;
@@ -88,10 +92,10 @@ export interface TaskViewReport {
   /** What the view was made with. */
   applied: { sections: string[]; maxTokens: number | null; brief: boolean; evidence: 'full' | 'pointers' };
   query: { selector: string; matches: ViewBlock[]; error?: string } | null;
-  mandatory: Array<{ id: string; status: 'resolved' | 'missing' | 'ambiguous'; block?: ViewBlock; lines?: number[]; unstable?: true }>;
+  mandatory: Array<{ id: string; status: 'resolved' | 'missing' | 'ambiguous' | 'hidden'; block?: ViewBlock; lines?: number[]; unstable?: true }>;
   /** Mandatory edges followed from the mandatory blocks, depth first. */
   paths: Array<{ from: ViewBlock; edge: string; line: number; to: ViewBlock; depth: number; shownInPlace: boolean }>;
-  optional: Array<{ id: string; status: 'resolved' | 'missing' | 'ambiguous'; block?: ViewBlock; shown: boolean; tokens: number; retrieve?: string }>;
+  optional: Array<{ id: string; status: 'resolved' | 'missing' | 'ambiguous' | 'hidden'; block?: ViewBlock; shown: boolean; tokens: number; retrieve?: string }>;
   unsatisfied: ViewUnsatisfied[];
   /** False when anything mandatory is unsatisfied, or the budget can't hold the required content. */
   complete: boolean;
@@ -153,6 +157,9 @@ export function findTaskView(text: string, name: string): TaskViewSpec {
   throw new TaskViewError(`No task view "${name}".${hint ? ` Did you mean "${hint}"?` : ''} Views: ${names.join(', ')}.`, names);
 }
 
+/** Why a block in content for people is named in a view and not shown (see ViewUnsatisfied `hidden`). */
+const HIDDEN_REASON = 'is for people only ({agent=skip} or :::human), so agents are not given it, even when its section is selected';
+
 const folderOf = (p: string) => p.slice(0, Math.max(0, p.lastIndexOf('/')));
 
 /** The view an author declared, as an agent view (see the module comment). Throws a TaskViewError for an unknown name. */
@@ -164,6 +171,9 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
   const sections = sectionsOf(parseSmd(text).headings, lines.length);
   const today = options.today;
   const graph = new DocumentGraph([{ path, text }], { readDocument: options.readDocument ?? readerOf(path, options.readFile), today });
+  // Content for people is never shown, whoever names it: a section, a query match, a mandatory or optional id, or a
+  // dependency reaching into it is reported as hidden and left out of the view's text.
+  const isHidden = hiddenNodeTest(graph, !!options.includeHuman);
   const block = (n: GraphNode): ViewBlock => ({
     file: n.file, type: n.type, title: n.title, ...(n.id ? { id: n.id } : {}),
     ...(n.line === undefined ? {} : { line: n.line + 1, endLine: (n.endLine ?? n.line) + 1 }), section: n.section,
@@ -181,7 +191,7 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
   const ranges: Array<readonly [number, number]> = [];
   if (spec.query) {
     try {
-      const found = querySmd(text, parseSelector(spec.query), { today });
+      const found = querySmd(text, parseSelector(spec.query), { today, forAgents: true });
       query = { selector: spec.query, matches: found.map((m) => ({ file: path, type: m.type, title: m.title, ...(typeof m.attrs.id === 'string' ? { id: m.attrs.id } : {}), line: m.line + 1, endLine: m.endLine + 1, section: m.section })) };
       for (const m of found) ranges.push([m.line, m.endLine]);
     } catch (e) {
@@ -197,7 +207,10 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
   for (const id of spec.mandatory) {
     const found = graph.resolve(path, id);
     const node = found.node;
-    if (found.status === 'resolved' && node && node.line !== undefined) {
+    if (found.status === 'resolved' && node && isHidden(node)) {
+      mandatory.push({ id, status: 'hidden' });
+      unsatisfied.push({ kind: 'hidden', target: id, via: 'mandatory', reason: HIDDEN_REASON });
+    } else if (found.status === 'resolved' && node && node.line !== undefined) {
       starts.push(node);
       const stable = resolveId(text, id);
       mandatory.push({ id, status: 'resolved', block: block(node), ...(stable.status === 'resolved' && !stable.stable ? { unstable: true as const } : {}) });
@@ -210,7 +223,7 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
       });
     }
   }
-  const closure = starts.length ? mandatoryClosure(graph, starts, { types: MANDATORY_EDGES }) : { blocks: [], unsatisfied: [], complete: true };
+  const closure = starts.length ? mandatoryClosure(graph, starts, { types: MANDATORY_EDGES, hidden: isHidden }) : { blocks: [], unsatisfied: [], complete: true };
   for (const u of closure.unsatisfied) unsatisfied.push(closureProblem(u));
   // An include in a mandatory block is shown in place when includes are on.
   const inPlace = (b: ClosureBlock) => b.node.file === path || (b.edge.type === 'include' && options.includes !== false && b.via.file === path);
@@ -231,6 +244,7 @@ export function taskView(text: string, name: string, options: TaskViewOptions = 
     const found = graph.resolve(path, id);
     if (found.status !== 'resolved' || !found.node) return { id, status: found.status === 'ambiguous' ? 'ambiguous' as const : 'missing' as const, shown: false, tokens: 0 };
     const node = found.node;
+    if (isHidden(node)) return { id, status: 'hidden' as const, shown: false, tokens: 0 };
     const shown = node.line !== undefined && shownAt(node.line);
     const retrieve = node.type === 'heading' ? `smd agent ${quoteArg(file)} --section "${id}"` : `smd query "*[id=${id}]" ${quoteArg(file)}`;
     return { id, status: 'resolved' as const, block: block(node), shown, tokens: shown ? 0 : graph.tokens(node), retrieve };
@@ -288,6 +302,7 @@ function closureProblem(u: Unsatisfied): ViewUnsatisfied {
     cycle: `closes a cycle: ${(u.path ?? []).map((n) => n.id ?? n.title).join(' → ')}`,
     depth: `is more than ${CLOSURE_LIMITS.depth} hops from the mandatory blocks`,
     limit: `was left out: at most ${CLOSURE_LIMITS.blocks} dependencies are included`,
+    hidden: HIDDEN_REASON,
   };
   return { kind: u.kind, target: u.edge.target, via: u.edge.type, line: u.edge.line + 1, reason: reasons[u.kind] };
 }
@@ -361,6 +376,7 @@ function appendix(
 
 /** `-> AC1  acceptance  Checkout succeeds  [L50]  §Acceptance  ≈60 tokens — smd query "*[id=AC1]" plan.smd` */
 function optionalLine(o: TaskViewReport['optional'][number], lineRefs: boolean): string {
+  if (o.status === 'hidden') return `-> ${o.id}  hidden: for people only, agents are not given it`;
   if (o.status !== 'resolved' || !o.block) return `-> ${o.id}  ${o.status}: ${o.status === 'missing' ? 'no block has this id' : 'two or more blocks have this id'}`;
   const b = o.block;
   const where = lineRefs && b.line !== undefined ? `[L${b.line}]` : '';
