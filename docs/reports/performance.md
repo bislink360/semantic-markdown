@@ -240,3 +240,30 @@ The `heading-lookups` scenario measures each lookup on a composite of about 20k 
 | Language server heading rename, 40 documents | 13.8 → 9.6 | 14.0 → 8.1 | 16.0 → 10.9 |
 
 The gain is in repeated and edited lookups, which is what an editor does on every hover and keystroke. A cached lookup now takes well under 2 ms, about 2% of a render or less. After an edit it costs 17–50% of a render. Cold lookups mostly got faster too, but a cold parse can cost as much as a render, the runs were noisy, and the document preview was slower cold in one round, so no cold-path gain is claimed. The language server's workspace symbols, cached by modification time, were the same within noise.
+
+## Graph indexes (t-17)
+
+The document graph scanned every edge for each question it was asked (CL-11). `incoming` and `appliesTo` filtered all edges on each call, `nodeAt` searched the blocks, and finding the block a link sits in scanned every block for each link. `trace.ts` filtered all edges per requirement.
+
+| Lookup | Now | What it keeps |
+|---|---|---|
+| `incoming` | An index by target node, built once on first use | Edges of the given documents only, in the order `allEdges` lists them |
+| `appliesTo` | `applies-to` edges grouped by the target's file | A rule binds what its target holds, in the target's document |
+| `nodeAt` | An exact map from start line to block | Only the line a block starts on. When two blocks start on one line, such as a task underlined as a heading, the first listed |
+| The block a link sits in | A table with one number per line, built in one sweep | The innermost block: the one that starts last, and of those the last listed. Memory doesn't grow with nesting |
+| `trace.ts` | Edges grouped by target | The same order |
+
+`test/graphIndex.test.ts` compares each lookup with a plain scan on every document of the corpora and on 300 random block layouts.
+
+The `graph-traversal` scenario walks 20 linked documents of 40 requirements each. The old and new code ran alternately, twice. These are the medians of the second round, in ms, for a whole run, which also builds the graph and derives its edges.
+
+| Case | Before | After |
+|---|---:|---:|
+| Incoming edges of all 800 requirements | 364 | 139 |
+| Rules that apply to all 800 requirements | 206 | 136 |
+| Follow edges three hops from 20 requirements | 174 | 146 |
+| Mandatory closure of 20 requirements | 171 | 148 |
+| Requirement trace | 537 | 187 |
+| Deriving every edge | 62.9 | 63.6 |
+
+Timed alone on the same documents, 800 `incoming` calls went from 124 ms to 0.15 ms and 800 `appliesTo` calls from 34 ms to 0.08 ms. Building the index once takes 0.6 ms. The `rule-chain` scenario came out the same within noise.
