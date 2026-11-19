@@ -177,7 +177,7 @@ export function smdTools(box: Sandbox, options: SmdToolOptions = {}): McpTool[] 
       title: 'Read a whole .smd document',
       description: 'The compact agent view of a whole .smd file: styling, layout and human-only content removed, meaning kept; '
         + 'headings carry [L12] source line references. Same as "read" with mode "full".',
-      inputSchema: schema({ file: FILE, brief: BRIEF, includeHuman: { type: 'boolean', description: 'Keep :::human blocks (dropped by default), for a task about that content. Never lifts {agent=skip}.' } }, ['file']),
+      inputSchema: schema({ file: FILE, brief: BRIEF, includeHuman: { type: 'boolean', description: 'Deprecated since 6.0.0 and ignored: :::human blocks never reach agents.' } }, ['file']),
       run: (args) => agentTool(box, args),
     }),
   ];
@@ -224,7 +224,8 @@ function sectionTool(box: Sandbox, args: Args): string {
 
 function agentTool(box: Sandbox, args: Args): string {
   const file = box.document(text(args, 'file')!);
-  return agentView(read(file), { brief: flag(args, 'brief'), includeHuman: flag(args, 'includeHuman'), readFile: box.reader(file), ...box.view }).text;
+  // `includeHuman` is accepted for old clients and ignored since 6.0.0: :::human blocks never reach agents.
+  return agentView(read(file), { brief: flag(args, 'brief'), readFile: box.reader(file), ...box.view }).text;
 }
 
 function tasksTool(box: Sandbox, args: Args): string {

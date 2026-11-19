@@ -3,12 +3,15 @@
 ## 6.0.0 — 2026-11-19
 
 ### ⚠️ Breaking changes
+- **No hidden targets: a rule on a block hidden from agents is not carried.** Before, a visible constraint or accepted decision whose `applies-to` named a block in a section marked `{agent=skip}` or a `:::human` block was carried into the reads that needed that block, with `hidden-target="R2"` on its tag. The author hid the block on purpose, so a read no longer brings back what binds it: such a rule is not carried, the `hidden-target` label is gone, and a manifest's carried constraints and decisions no longer have `hiddenTargets` (the library type `AppliedConstraint` loses the field). A visible requirement that depends on a hidden block still lists it as `hidden` under `Not satisfied`, and the read is still incomplete. *Migration:* keep a block visible when agents must follow the rules that target it, or move the rule's target into visible content.
+- **No command shows a `:::human` block to an agent.** `smd agent --include-human` (and the `--view` form) and the MCP `agent` tool's `includeHuman` no longer show `:::human` blocks. They are accepted and ignored, and the CLI prints a deprecation warning on stderr. A manifest no longer offers an `--include-human` command to recover a `:::human` block: the omission says why no command shows it (`noRetrieve`). The library option `includeHuman` stays for renderers for people, such as the site search index. *Migration:* drop `--include-human` from scripts. Content an agent must read goes outside `:::human`.
 
 ### Added
 
 ### Changed
 
 ### Deprecated
+- **`--include-human`** on `smd agent` and **`includeHuman`** on the MCP `agent` tool do nothing since 6.0.0 and will be removed in the next major release.
 
 ### Fixed
 

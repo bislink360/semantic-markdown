@@ -475,22 +475,10 @@ function applyingHead(scope: ViewScope, options: TransformOptions, trace?: Trace
   const parts = [pickedText(scope, options, plan.applying, trace)];
   // Constraints of a document read for a dependency, on that dependency: shown as the dependency is, by file.
   for (const extra of plan.applyingExtra) parts.push(extraText(extra, trace));
-  const text = markHiddenTargets(parts.filter(Boolean).join('\n'), plan.hiddenTargets);
+  const text = parts.filter(Boolean).join('\n');
   // Accepted decisions with applies-to are carried with the constraints (4.1.0); the head names them when there are any.
   const head = plan.context.decisions?.length ? 'Constraints and decisions that apply here:' : 'Constraints that apply here:';
   return text ? `${head}\n${text}\n\n` : '';
-}
-
-/**
- * A carried rule whose `applies-to` names a block hidden from agents says so on its tag, `hidden-target="R2"`, so an
- * agent knows the rule binds something it can't see (t-66). The rule's text is shown as it is.
- */
-function markHiddenTargets(text: string, hidden: ReadonlySet<string>): string {
-  if (!hidden.size) return text;
-  return text.replace(/^(<(?:constraint|decision)\b[^>\n]*?\sapplies-to="([^"]*)")/gm, (open, start: string, targets: string) => {
-    const names = idList(targets).filter((t) => hidden.has(t));
-    return names.length ? `${start} hidden-target="${names.join(',')}"` : open;
-  });
 }
 
 /**
@@ -1225,7 +1213,7 @@ function transform(lines: string[], from: number, inScope: (line: number) => boo
     const hides = (frame.drop && frame.name === 'human') || !!frame.condensed;
     const reachesView = hides && !frame.visible && Array.from({ length: at - frame.start }, (_, k) => frame.start + 1 + k).some(inScope);
     if (!frame.visible && !reachesView) return;
-    if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people (include-human shows it)' }, frame.start, at);
+    if (frame.drop && frame.name === 'human') omit({ kind: 'human', reason: 'a :::human block is for people' }, frame.start, at);
     if (frame.instructionsOff) {
       const sink = trace?.omissions ?? trace?.instructionOmissions;
       if (sink && trace) addOmission(sink, { kind: 'included-instructions', file: trace.file, lines: [frame.start + 1, at + 1], reason: 'agent instructions in an included file, which this host keeps out', noRetrieve: 'the host turned instructions from included files off' });
