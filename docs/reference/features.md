@@ -270,6 +270,8 @@ GitHub's alert syntax works too: a blockquote whose first line is only `[!NOTE]`
 | `[!WARNING]` | `warning` | `<warning>` |
 | `[!CAUTION]` | `danger` | `<danger>` |
 
+A `[!CAUTION]` alert is a danger for agents, carried into every section read like `:::danger`. Since 6.0.0 the validator suggests the container instead (`alert/caution`, info): `:::danger` for a hard constraint, `:::warning` for a caveat.
+
 The callout shows its type as its title (alerts have none of their own). `smd export --to md` keeps the alert as written, and the exports show it as the callout. Anything else stays a blockquote, as on GitHub: text after the marker on its line, an unknown kind, a quote with only the marker, or a quote inside a list item or another quote. Use `:::warning Title` when you want a title or `{collapsible}`. Since 1.10; earlier versions show the quote with its `[!WARNING]` line.
 
 ## 3. Text styling and colors
@@ -1190,6 +1192,7 @@ Problems appear as you type in the Problems panel and from `smd validate` in CI.
 | `:::agent` under a `## … {agent=skip}` heading | `container/agent-in-skip` | — (move the instructions agents need into visible content, or drop `agent=skip`) |
 | A constraint, danger, requirement or accepted decision under `{agent=skip}` or in `:::human` | `audience/rule-in-skip` | — (state what agents need in visible content, or drop the mark; nothing is moved for you) |
 | "Must not", "never" or "do not" in prose under `{agent=skip}` or in `:::human` (info) | `audience/normative-in-skip` | — (move the rule out, or write it as a `:::constraint`) |
+| `> [!CAUTION]` (info, since 6.0.0) | `alert/caution` | in the editor: convert the blockquote to `:::danger` (preferred) or `:::warning` |
 | unclosed ```` ``` ```` | `fence/unclosed` | adds the closing fence at the end |
 | ```` ```mermaid flowchat ```` | `mermaid/type` | → `flowchart` |
 | `A->>B hi` in a sequence diagram | `mermaid/syntax` (an error since 2.0) | — (reported on the line, with what was expected) |

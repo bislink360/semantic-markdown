@@ -14,7 +14,7 @@ Part of the syntax reference (`../syntax.md` lists the topics).
 
 Attributes: `title`, `collapsible` (`{collapsible}` starts closed, `{collapsible=open}` starts open).
 
-GitHub alerts render as callouts too: a blockquote whose first line is only `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` (`> [!WARNING]`) is the `note`, `tip`, `info`, `warning` or `danger` callout. Prefer `:::` callouts in `.smd`: they take a title and `{collapsible}`.
+GitHub alerts render as callouts too: a blockquote whose first line is only `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]` (`> [!WARNING]`) is the `note`, `tip`, `info`, `warning` or `danger` callout. Prefer `:::` callouts in `.smd`: they take a title and `{collapsible}`. Never write `[!CAUTION]` in `.smd`: it reads as a danger to agents, so write `:::danger` for a hard constraint or `:::warning` for a caveat (`alert/caution` flags it).
 
 ```markdown
 :::warning{collapsible} Breaking change in v2

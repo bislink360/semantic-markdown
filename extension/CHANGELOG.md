@@ -5,6 +5,7 @@
 ### ⚠️ Breaking changes
 
 ### Added
+- **`alert/caution` asks for `:::danger` or `:::warning` instead of a `[!CAUTION]` alert.** A `> [!CAUTION]` GitHub alert still renders and reaches agents as a danger, as before. The validator now gives an info on its marker, because the container says outright whether the text is a hard constraint or only a caveat. In VS Code two quick fixes rewrite the whole blockquote, as `:::danger` (preferred) or as `:::warning`. Turn the hint off with `"alert/caution": "off"` in the rule settings.
 
 ### Changed
 

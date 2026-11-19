@@ -239,7 +239,9 @@ test('alerts: their lines are known to the incremental parse, as to a full one',
 test('alerts: the corpus document is formatted and valid, and its blockquotes that are not alerts stay quotes', () => {
   const doc = corpus('github-alerts.smd');
   assert.equal(formatSmd(doc), doc);
-  assert.deepEqual(validateSmd(doc, { today: '2026-10-15' }), []);
+  // Since 6.0.0 each [!CAUTION] alert gets the alert/caution info, asking for :::danger or :::warning; nothing else.
+  const found = validateSmd(doc, { today: '2026-10-15' });
+  assert.ok(found.length > 0 && found.every((d) => d.code === 'alert/caution' && d.severity === 'info'), JSON.stringify(found));
   const page = html(doc);
   assert.equal(page.match(/<div class="smd-callout /g)?.length, 10);
   assert.equal(page.match(/<blockquote/g)?.length, 9);
