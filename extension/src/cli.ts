@@ -9,7 +9,7 @@ import {
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
   type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
 } from './core';
-import { incompleteLine } from './core/applicability';
+import { agentText, incompleteLine, peopleOnly } from './core/applicability';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
 import { followOptions, runQuery, type QueryFlags } from './queryCommand';
@@ -342,8 +342,21 @@ function main(argv: string[]): number | Promise<number> {
     case 'meta': {
       const file = requireFile(positional[0]);
       const rules = configFor(file, value('--config')).rules;
-      const info = getDocumentInfo(read(file), { fileExists: existsFrom(file), readFile: readerFor(file), today, rules, staleAfterDays });
+      const text = read(file);
+      const options = { fileExists: existsFrom(file), readFile: readerFor(file), today, rules, staleAfterDays };
+      // Agents get nothing written for people: the outline, tasks, decisions and risks come from the text with its
+      // {agent=skip} sections and :::human blocks blanked, and no diagnostic points into them (6.0.0).
+      const info = getDocumentInfo(agentText(text), options);
       if (flags.has('--no-diagnostics')) delete (info as Partial<typeof info>).diagnostics;
+      else {
+        const people = peopleOnly(text);
+        const items = getDocumentInfo(text, options).diagnostics.items.filter((d) => !people.some(([a, b]) => d.line >= a && d.line <= b));
+        info.diagnostics = {
+          errors: items.filter((d) => d.severity === 'error').length,
+          warnings: items.filter((d) => d.severity === 'warning').length,
+          items,
+        };
+      }
       process.stdout.write(JSON.stringify(info, null, 2) + '\n');
       return 0;
     }
@@ -626,7 +639,7 @@ function taskGantt(rows: TaskRow[], args: Args, out?: string): number {
 function trace(targets: string[], args: Args, today?: string): number {
   const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
-  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const documents = files.map((file) => ({ path: relativePath(file), text: agentText(read(file)) }));
   const result = traceRequirements(documents, { uncovered: args.flags.has('--uncovered'), today });
   if (args.flags.has('--json')) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
@@ -647,7 +660,7 @@ function risks(targets: string[], args: Args): number {
   if (unknown) return fail(`Unknown risk status "${unknown}". Statuses: ${RISK_STATUS.join(', ')}`);
   const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
-  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const documents = files.map((file) => ({ path: relativePath(file), text: agentText(read(file)) }));
   const options = { status, owner: args.values.get('--owner')?.[0], all: args.flags.has('--all') };
   const register = riskRegister(documents, options);
   console.error(`[smd] ${riskRegisterSummary(register, options)}`);
@@ -971,7 +984,7 @@ function decisions(targets: string[], args: Args): number {
   if (typeof status === 'string') return fail(status);
   const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
-  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const documents = files.map((file) => ({ path: relativePath(file), text: agentText(read(file)) }));
   const rows = decisionLog(documents, { status, owner: args.values.get('--owner')?.[0] });
   const out = args.values.get('-o')?.[0];
   console.error(`[smd] ${decisionSummary(rows, files.length)}`);

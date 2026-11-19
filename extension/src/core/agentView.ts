@@ -1,5 +1,6 @@
 import {
-  completenessOf, incompleteLine, keepsTies, mandatoryPlan, PART_OF, pickTest, ROOT_DOC, type ExtraBlock, type MandatoryContext, type MandatoryPlan,
+  agentText, completenessOf, incompleteLine, keepsTies, mandatoryPlan, PART_OF, peopleOnly, pickTest, ROOT_DOC, type ExtraBlock, type MandatoryContext,
+  type MandatoryPlan,
 } from './applicability';
 import { parseAttrs } from './attrs';
 import { changelogEntries, versionLabel, type ChangelogEntry } from './changelog';
@@ -1936,15 +1937,17 @@ function outlineOf(text: string, options: AgentViewOptions): string {
   if (typeof fm.data.summary === 'string') out.push(`summary: ${fm.data.summary}`);
   out.push('');
 
-  // Counted as `smd tasks` counts them: a task-shaped line in code is code.
-  const openTaskAt = openTaskLines(text);
-  const marked = sectionMarks(text, lines);
-  const rows = sectionCosts(text, options).map((s) => {
+  // Counted as `smd tasks` counts them: a task-shaped line in code is code. Content for people ({agent=skip}
+  // sections, :::human blocks) is neither listed nor counted: an agent never learns what it holds (6.0.0).
+  const shown = agentText(text);
+  const people = peopleOnly(text);
+  const openTaskAt = openTaskLines(shown);
+  const marked = sectionMarks(shown, shown.split(/\r?\n/));
+  const rows = sectionCosts(text, options).filter((s) => !people.some(([a, b]) => s.start >= a && s.start <= b)).map((s) => {
     const openTasks = openTaskAt.filter((l) => l >= s.start && l <= s.end).length;
     const notes = [
       openTasks ? `${openTasks} open task${openTasks > 1 ? 's' : ''}` : '',
       ...SECTION_MARKS.map((mark) => (marked(mark, s.start, s.end) ? mark.note : '')),
-      s.heading.agent === 'skip' ? 'skipped for agents' : '',
     ].filter(Boolean).join(', ');
     if (options.compactOutline) {
       return { range: `${s.start + 1}-${s.end + 1}`, head: `${'#'.repeat(s.heading.level)} ${s.heading.text}`, tokens: sectionCost(s), notes };

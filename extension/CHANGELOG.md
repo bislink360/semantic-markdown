@@ -3,6 +3,7 @@
 ## 6.0.0 — 2026-11-19
 
 ### ⚠️ Breaking changes
+- **Content for people never reaches an agent through any list.** Since 5.0.0 agent views and `smd query` never showed a section marked `{agent=skip}` or a `:::human` block. The other agent-facing outputs now follow the same rule, with no option to lift it. `smd tasks`, `smd risks`, `smd trace`, `smd decisions` and `smd meta`, and the MCP `tasks` tool, leave out the tasks, risks, requirements and decisions inside them, and `smd meta` gives no diagnostic that points into them. `smd outline` (and the outline `smd read` and the MCP `read` tool return) and `smd index` no longer list a skipped section or say what it holds, and their counts leave out what is in skipped sections and `:::human` blocks. A catalog entry's section no longer has `"agent": "skip"`, because such a section is not listed. `smd diff` no longer reports a change inside a skipped section. Line numbers in every list still point at the source. The preview, exports, `smd build`, `smd issues`, `smd report`, the editor's Tasks view and `smd validate` are unchanged and still show or check that content for its people and authors. *Migration:* move a task, risk, requirement or decision that agents must see out of the skipped section or `:::human` block (`audience/rule-in-skip` points at rules there). A script that read `"agent": "skip"` from `smd index` to skip those sections can drop that check.
 
 ### Added
 

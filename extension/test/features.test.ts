@@ -395,7 +395,9 @@ test('a `$$` line in indented code hides no {{name}} after it from the variable 
 test('outline lists sections with costs and markers', () => {
   const o = outline(prd, { today: TODAY });
   assert.match(o, /^Checkout Redesign — One-Page Checkout · approved · file ≈\d+ tokens/);
-  assert.match(o, /L21-38\s+## Background\s+≈\d+\s+skipped for agents/);
+  // Sections marked {agent=skip} are not listed at all since 6.0.0, so the outline says nothing of what they hold.
+  assert.doesNotMatch(o, /## Background|## Design|## Analytics|skipped for agents/);
+  assert.match(o, /L15-20\s+## Snapshot/);
   assert.match(o, /## Requirements\s+≈\d+\s+7 open tasks/);
   assert.match(o, /## Implementation notes\s+≈\d+\s+AGENT INSTRUCTIONS/);
   assert.ok(o.length / 4 < 400, 'outline stays small');
