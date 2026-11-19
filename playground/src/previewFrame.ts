@@ -26,7 +26,7 @@ export class PreviewFrame {
     this.latest = { preview, pref };
     const { assets } = this;
     if (needsRebuild(this.built, preview, Boolean(assets.mermaid))) {
-      this.built = { lang: preview.lang, mermaid: Boolean(preview.mermaid && assets.mermaid), github: preview.style === 'github' };
+      this.built = { lang: preview.lang, mermaid: Boolean(preview.mermaid && assets.mermaid), style: preview.style };
       this.closePreviewPort();
       this.expectingLoad = true;
       this.frame.setAttribute('sandbox', PREVIEW_SANDBOX);

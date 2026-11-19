@@ -9,9 +9,11 @@ import STARTER from '../starter.smd';
 import { canShare, documentFromHash, fragmentPayload, shareFragment, shareLinkWarning } from './codec';
 import { indent, lineNumbers, offsetOf, outdent, type Edit } from './editor';
 import { previewTheme, resolvedTheme, type FrameAssets, type ThemeSetting } from './frame';
-import { diagnosticsSummary, renderPanes, type Panes } from './panes';
+import { compareNote, diagnosticsSummary, renderPanes, type CompareMode, type MarkdownRenderer, type Panes } from './panes';
 import { PreviewFrame } from './previewFrame';
-import { COMPARE_KEY, DRAFT_KEY, THEME_KEY, compareMode, readStored, themeSetting, writeStored, type CompareMode } from './storage';
+import {
+  COMPARE_KEY, DRAFT_KEY, RENDERER_KEY, THEME_KEY, compareMode, markdownRenderer, readStored, themeSetting, writeStored,
+} from './storage';
 import { changedRange } from '../../extension/src/core/sourceEdit';
 import type { Diagnostic } from '../../extension/src/core/validate';
 
@@ -45,13 +47,16 @@ const notice = byId<HTMLParagraphElement>('notice');
 const themeSelect = byId<HTMLSelectElement>('theme');
 
 const compareSelect = byId<HTMLSelectElement>('compare-mode');
+const rendererSelect = byId<HTMLSelectElement>('compare-renderer');
+const compareNoteOut = byId<HTMLParagraphElement>('compare-note');
 let mode: CompareMode = compareMode(readStored(COMPARE_KEY));
+let renderer: MarkdownRenderer = markdownRenderer(readStored(RENDERER_KEY));
 
 /** Each sandboxed frame, the panel it sits in, and which pane it shows. */
 const frames = [
   { frame: new PreviewFrame(byId<HTMLIFrameElement>('preview'), assets), panel: byId('panel-preview'), pane: (p: Panes) => p.preview },
   { frame: new PreviewFrame(byId<HTMLIFrameElement>('compare-smd'), assets), panel: byId('panel-compare'), pane: (p: Panes) => p.preview },
-  { frame: new PreviewFrame(byId<HTMLIFrameElement>('compare-md'), assets), panel: byId('panel-compare'), pane: (p: Panes) => (mode === 'plain' ? p.plain : p.exported) },
+  { frame: new PreviewFrame(byId<HTMLIFrameElement>('compare-md'), assets), panel: byId('panel-compare'), pane: (p: Panes) => p.compare[renderer][mode] },
 ];
 
 let theme: ThemeSetting = themeSetting(readStored(THEME_KEY));
@@ -303,18 +308,25 @@ byId('example').addEventListener('click', () => {
 });
 systemDark?.addEventListener('change', showPreviews);
 
-function applyCompareMode(value: CompareMode): void {
-  mode = value;
-  compareSelect.value = value;
-  byId('compare-note-exported').hidden = value !== 'exported';
-  byId('compare-note-plain').hidden = value !== 'plain';
+/** Shows the Compare tab's .md side in this mode and renderer, and says what it is. */
+function applyCompare(nextMode: CompareMode, nextRenderer: MarkdownRenderer): void {
+  mode = nextMode;
+  renderer = nextRenderer;
+  compareSelect.value = mode;
+  rendererSelect.value = renderer;
+  compareNoteOut.textContent = compareNote(mode, renderer);
   showPreviews();
 }
 
 compareSelect.addEventListener('change', () => {
   const value = compareMode(compareSelect.value);
   writeStored(COMPARE_KEY, value);
-  applyCompareMode(value);
+  applyCompare(value, renderer);
+});
+rendererSelect.addEventListener('change', () => {
+  const value = markdownRenderer(rendererSelect.value);
+  writeStored(RENDERER_KEY, value);
+  applyCompare(mode, value);
 });
 themeSelect.addEventListener('change', () => {
   const setting = themeSetting(themeSelect.value);
@@ -337,7 +349,7 @@ window.addEventListener('hashchange', () => {
 
 async function start(): Promise<void> {
   applyTheme(theme);
-  applyCompareMode(mode);
+  applyCompare(mode, renderer);
   if (await loadFromHash()) return;
   setText(readStored(DRAFT_KEY) ?? STARTER);
 }

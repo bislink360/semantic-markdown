@@ -252,7 +252,7 @@ The JetBrains plugin runs the language server itself: [Semantic Markdown in othe
 
 ## Upgrading
 
-Moving from Styled Markdown and upgrading from 1.x to 2.0: [Upgrading](upgrading.md).
+Upgrading to 5.0, moving from Styled Markdown and upgrading from 1.x to 2.0: [Upgrading](upgrading.md).
 
 ## Build from source
 

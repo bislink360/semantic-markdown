@@ -262,7 +262,7 @@ export interface PagePolicy {
   /**
    * Load the page under the content policy (activeContent.ts): the page's own scripts carry a nonce, the
    * document's scripts and event attributes don't run, and its frames, plug-ins, `meta` and `base` elements are
-   * inert. On by default for standalone pages; `false` leaves the document's raw HTML active, as before 4.2.
+   * inert. On by default for standalone pages; `false` leaves the document's raw HTML active, as before 5.0.
    */
   contentPolicy?: boolean;
   /**

@@ -55,16 +55,20 @@
         <figure class="compare-side">
           <figcaption>
             <label for="compare-mode"><strong>As .md</strong></label>
-            <select id="compare-mode">
-              <option value="exported">Exported (smd export --to md)</option>
-              <option value="plain">Unconverted text</option>
+            <select id="compare-mode" aria-label="What the .md side shows">
+              <option value="exported">Exported</option>
+              <option value="plain">Unconverted</option>
+            </select>
+            <label for="compare-renderer">in</label>
+            <select id="compare-renderer">
+              <option value="github">GitHub</option>
+              <option value="plain">Plain CommonMark</option>
             </select>
           </figcaption>
           <iframe id="compare-md" title="Preview as Markdown" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
         </figure>
       </div>
-      <p id="compare-note-exported" class="meta compare-note">What <code>smd export --to md</code> writes, drawn as GitHub draws a .md file (markdown-it, GitHub alerts, KaTeX, Mermaid and GitHub's stylesheet). Renderers without alerts, diagrams or math show quotes and code blocks instead.</p>
-      <p id="compare-note-plain" class="meta compare-note" hidden>The .smd text drawn as GitHub would draw it if the file were renamed to .md, with the same renderers as the export. Semantic Markdown blocks, roles and attributes show as plain text.</p>
+      <p id="compare-note" class="meta compare-note" aria-live="polite"></p>
     </div>
     <div class="panel" role="tabpanel" id="panel-agent" aria-labelledby="tab-agent" hidden>
       <p id="agent-meta" class="meta"></p>

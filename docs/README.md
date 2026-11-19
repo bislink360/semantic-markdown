@@ -15,7 +15,7 @@ How to set something up or get a task done.
 | [guides/editors.md](guides/editors.md) | Neovim, Helix, Zed, JetBrains IDEs and other editors, with the language server and Tree-sitter highlighting |
 | [guides/github-and-ci.md](guides/github-and-ci.md) | The GitHub Action, `smd validate` in any CI, pre-commit hooks, and making `.smd` files readable on GitHub |
 | [guides/spec-driven.md](guides/spec-driven.md) | Spec → plan → tasks with an agent |
-| [guides/upgrading.md](guides/upgrading.md) | Moving from Styled Markdown (3.0) and upgrading to 2.0 |
+| [guides/upgrading.md](guides/upgrading.md) | Upgrading to 5.0, moving from Styled Markdown (3.0) and upgrading to 2.0 |
 
 ## Reference
 
