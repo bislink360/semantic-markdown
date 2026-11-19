@@ -54,11 +54,10 @@ test('indexEntry sections carry ids, line ranges and the same token costs as smd
     [2, 'Risks', 'risks', 26, 44],
     [3, 'Questions', 'questions', 40, 44],
     [2, 'API', 'api', 45, 54],
-    [2, 'Background', 'background', 55, 58],
     [2, 'Tasks', 'tasks', 59, 64],
   ]);
-  assert.equal(entry.sections.find((s) => s.id === 'background')?.agent, 'skip');
-  assert.equal(entry.sections.find((s) => s.id === 'risks')?.agent, undefined);
+  // A section marked {agent=skip} is not listed since 6.0.0, and no listed section carries an `agent` field.
+  assert.ok(entry.sections.every((s) => s.agent === undefined));
   // Each section costs what `smd outline` reports for it.
   const costs = outline(doc).split('\n').filter((l) => /^L\d/.test(l)).map((l) => Number(/≈(\d+)/.exec(l)?.[1]));
   assert.deepEqual(entry.sections.map((s) => s.tokens), costs);
