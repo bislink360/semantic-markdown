@@ -1,5 +1,17 @@
 # Changelog
 
+## 6.0.0 — 2026-11-19
+
+### ⚠️ Breaking changes
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Fixed
+
 ## 5.0.0 — 2026-11-18
 
 Four breaking changes, each with its migration below and in [Upgrading to 5.0](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/upgrading.md#upgrading-to-50). Documents, the spec version and the supported Node.js and VS Code versions stay the same.
