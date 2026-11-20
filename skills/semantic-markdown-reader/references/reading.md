@@ -19,7 +19,7 @@ A document with `smd: 2` in its front matter follows the spec v2 rules (no `smd`
 
 ## Many documents
 
-None of these lists, nor `smd outline`, `smd meta` or `smd diff`, shows or counts anything in a `{agent=skip}` section or a `:::human` block. A section you don't see in a list may exist for people; don't look for it in the raw file.
+None of these lists, nor `smd outline`, `smd meta`, `smd diff`, `smd updates` or the pointers `--follow` adds, shows or counts anything in a `{agent=skip}` section or a `:::human` block. A section you don't see in a list may exist for people; don't look for it in the raw file.
 
 - `smd index DIR` (or a committed catalog JSON) lists every document with title, summary, status, owners, tags, token costs (`tokens.agent`), sections (`id`, zero-based `line`/`endLine`, `tokens`) and counts of open tasks, decisions, risks, questions and APIs. Use it to pick which documents to read.
 - `smd tasks DIR` lists open tasks with priority, owner and due date, overdue first (`--mine @name` filters by owner).

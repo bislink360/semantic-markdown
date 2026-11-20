@@ -440,7 +440,10 @@ function viewHead(scope: ViewScope, options: TransformOptions, traces: HeadTrace
     if (options.constraints) ({ text: constraints, view: constraintView } = constraintsOutside(scope, { ...options, trace: traces.constraints }));
     else dangers = outsideDangers(scope, { ...options, trace: traces.dangers });
   }
-  const excerpt = options.pinned ? options.pinned.label : selected && `(excerpt — sections: ${selected.map((s) => s.heading.text).join(', ')})`;
+  // A selected section marked {agent=skip}, or inside one, is not shown, so the header doesn't name it (6.0.0).
+  const readable = selected && selected.filter((s) => !scope.skipped.some((k) => s.start >= k.start && s.start <= k.end));
+  const excerpt = options.pinned ? options.pinned.label
+    : readable && `(excerpt — ${readable.length ? `sections: ${readable.map((s) => s.heading.text).join(', ')}` : 'no section shown'})`;
   const head = [header(scope.data, scope.shown, excerpt), unreadBlock(scope.unread)].filter(Boolean).join('\n');
   const mandatory = scope.mandatory
     ? { applying: applyingHead(scope, options, traces.applying), dependencies: dependencyHead(scope, options, traces.dependencies) } : {};
