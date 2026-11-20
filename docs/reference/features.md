@@ -391,7 +391,7 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 - **Problems panel:** open tasks past their due date show a `task/overdue` notice.
 - **`smd tasks docs/`** lists open tasks across every document, overdue first, then by priority. `--mine @api-team` filters by owner, `--json` gives machine-readable output, `--csv` and `--gantt` export (below).
 - **`--order deps`** lists each task after the tasks its `:depends[…]` names by `{#id}`, in the same file or as `plan.smd#T1` in another listed file, and keeps the priority order otherwise. A task that waits for a requirement or a question doesn't move. Tasks in a dependency cycle keep their order among themselves. The default, `--order priority`, is the order above. It applies to the text, `--json` and `--csv`.
-- **Tasks are what the preview shows with a checkbox.** A task-shaped line in code, in raw HTML or display math, or one that continues a paragraph (`- [ ] x` indented four spaces under a line of text) is text in the preview and on GitHub, so `smd tasks`, `smd meta`, outlines, the Tasks view and `task/overdue` leave it out too.
+- **Tasks are what the preview shows with a checkbox.** A task-shaped line in code, in raw HTML or display math, or one that continues a paragraph (`- [ ] x` indented four spaces under a line of text) is text in the preview and on GitHub, so `smd tasks`, `smd meta`, outlines, the Tasks view and `task/overdue` leave it out too. Tasks in a section marked `{agent=skip}` or a `:::human` block are for people: since 6.0.0 the agent-facing lists (`smd tasks`, `smd meta`, outlines, `smd index` and the MCP `tasks` tool) leave them out as well, while the preview and the Tasks view show them.
 
 ```text
 docs/checkout.smd:61  [ ] [P1] Server-side validation returns all field errors @api-team (due 2026-09-25, OVERDUE)  — Requirements
@@ -1726,7 +1726,7 @@ Review the changes (git diff) before you commit them.
 - `path` is relative to the working directory, with `/` separators. Documents are sorted by path.
 - Each entry's `smd` is its document's spec version (1 or 2); the catalog's own `smd` is the newest spec version the tool knows (2 since 2.0), and `generator` the tool's version.
 - `title` comes from front matter, else the first `#` heading, else the file name. Missing metadata is `null` or `[]`.
-- `tokens.file` is the raw file, `tokens.agent` the full `smd agent` view. Each section's `tokens` is what `smd outline` shows for it (subsections included). `line` and `endLine` are zero-based, as in `smd meta` and `smd query --json`. A section marked `{agent=skip}` has `"agent": "skip"`.
+- `tokens.file` is the raw file, `tokens.agent` the full `smd agent` view. Each section's `tokens` is what `smd outline` shows for it (subsections included). `line` and `endLine` are zero-based, as in `smd meta` and `smd query --json`. Since 6.0.0 a section marked `{agent=skip}` (with its subsections) is not listed, and the counts leave out what it and every `:::human` block hold; older catalogs may still carry `"agent": "skip"`.
 - `counts.decisions` groups decisions by status. `openRisks` counts risks whose status is not `mitigated` or `closed`. `agentInstructions` counts `:::agent` blocks. `questions` counts every `:::question`, or only the open ones once a question of the document uses the lifecycle. `tags` counts the requirements, constraints, acceptance blocks, assumptions and evidence a document has, and is left out when it has none.
 - The output has no timestamps, so a committed catalog only changes when documents do. `overdueTasks` depends on the date: pass `--today YYYY-MM-DD` to pin it.
 - `--compact` prints one line instead of indented JSON.
@@ -1821,7 +1821,7 @@ Ship to 10% of EU traffic first, then 50%.
 
 - Sections are matched by heading id, then by content, so a renamed heading is a rename, not a removal and an addition.
 - A change is shown in the smallest section that contains it (a heading up to the next heading), so unchanged subsections stay out. Content before the first heading counts as a section.
-- Only changes an agent can see count: styling, comments and `:::human` content don't. Sections marked `{agent=skip}` are listed without their content.
+- Only changes an agent can see count: styling, comments and `:::human` content don't. Since 6.0.0 a section marked `{agent=skip}` is not listed at all, in either version.
 - Line refs point into the new version. stderr shows the token cost against the full agent view.
 - `--json` gives front-matter changes and sections (`change`, `heading`, `level`, `id`, `line`, `endLine`, `oldLine`, `oldEndLine`, `oldHeading`, `text`). The exit code is 0; with `--exit-code` it is 1 when something changed.
 
