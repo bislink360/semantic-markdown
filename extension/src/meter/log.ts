@@ -110,7 +110,7 @@ export const eventsFileFor = (dir: string, date: Date) => path.join(dir, `events
 export function eventFiles(dir: string): string[] {
   let names: string[];
   try { names = fs.readdirSync(dir); } catch { return []; }
-  return names.filter((n) => EVENTS_FILE.test(n)).sort().map((n) => path.join(dir, n));
+  return names.filter((n) => EVENTS_FILE.test(n)).sort((a, b) => a.localeCompare(b)).map((n) => path.join(dir, n));
 }
 
 /** Every event in the folder, oldest file first. Unreadable files and torn lines are skipped. */

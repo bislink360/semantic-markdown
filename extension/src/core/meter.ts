@@ -94,7 +94,8 @@ export interface MeterFilter {
 export function filterEvents(events: readonly MeterEvent[], filter: MeterFilter = {}): MeterEvent[] {
   const { since, until, paths } = filter;
   const under = (file: string) => paths!.some((p) => {
-    const prefix = p.replace(/\/+$/, '');
+    let prefix = p;
+    while (prefix.endsWith('/')) prefix = prefix.slice(0, -1);
     return prefix === '' || prefix === '.' || file === prefix || file.startsWith(`${prefix}/`);
   });
   return events.filter((e) => (!since || e.ts >= since) && (!until || e.ts < until)
