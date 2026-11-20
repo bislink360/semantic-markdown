@@ -17,6 +17,9 @@ npm/dist/
 ROADMAP.smd
 novelty-analysis.smd
 
+# Local agent that runs the research experiments (research/ is local too)
+.claude/agents/smd-experimenter.md
+
 # Local SonarQube gate (.claude/skills/sonarqube-scan)
 .scannerwork/
 extension/coverage/
