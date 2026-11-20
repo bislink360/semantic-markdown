@@ -167,7 +167,8 @@ test('task conditions read the sections holding the items; the ablations change 
   ]);
   const s3 = views.get('S3-oracle')!;
   assert.deepEqual(s3.transcript!.calls.map((c) => c.args), [{ file: 'doc.smd', mode: 'outline' }, { file: 'doc.smd', sections: ['retries'], exact: true }]);
-  assert.match(s3.transcript!.calls[0].result, /## Incident history\s+≈\d+\s+skipped for agents/);
+  // Since 6.0.0 the outline never lists a section marked {agent=skip}.
+  assert.doesNotMatch(s3.transcript!.calls[0].result, /Incident history|skipped for agents/);
   assert.match(s3.shown, /Document-wide agent instructions:/);
   assert.doesNotMatch(s3.shown, /^>>> /m, 'shown is the results only');
   assert.match(s3.text, /^>>> read /m);

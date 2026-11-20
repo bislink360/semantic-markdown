@@ -19,6 +19,8 @@ A document with `smd: 2` in its front matter follows the spec v2 rules (no `smd`
 
 ## Many documents
 
+None of these lists, nor `smd outline`, `smd meta` or `smd diff`, shows or counts anything in a `{agent=skip}` section or a `:::human` block. A section you don't see in a list may exist for people; don't look for it in the raw file.
+
 - `smd index DIR` (or a committed catalog JSON) lists every document with title, summary, status, owners, tags, token costs (`tokens.agent`), sections (`id`, zero-based `line`/`endLine`, `tokens`) and counts of open tasks, decisions, risks, questions and APIs. Use it to pick which documents to read.
 - `smd tasks DIR` lists open tasks with priority, owner and due date, overdue first (`--mine @name` filters by owner).
 - `smd risks DIR` is the risk register: every `:::risk` with its score (impact × likelihood, 1–16; `medium?` marks a level that was not set), owner, status, location and one-line mitigation, highest first, then an impact × likelihood matrix. Closed risks are left out unless `--all`; filter with `--status open,accepted` or `--owner @name`; `--json` for structured output.
@@ -77,7 +79,6 @@ If the `smd` MCP server is registered, use its tools instead of the shell. Paths
 | `<included file="shared/terms.smd" section="…">…</included>` | Text included from another document, part of this one. `[L…]` refs inside point into that file, so edit it there. |
 | `[include: shared/terms.smd § Pricing — …]` | An include that wasn't expanded (`--no-includes`, or it can't be read). Run `smd agent shared/terms.smd --section "Pricing"` if you need it. |
 | `[diagram: …]`, `[details: … omitted]` | Condensed by `--brief`. Read the given lines if you need them. |
-| `hidden-target="R2"` on a `<constraint>` | The rule binds a block meant for people, which you can't see. The rule applies as written; don't guess the block's content |
 | `Not satisfied: … for people only` and `[incomplete: coverage failed …]` | A required dependency sits in a section marked `{agent=skip}` or a `:::human` block. The read is incomplete: don't call that requirement satisfied or assume its content, tell the user before the dependent work |
 | `[section omitted: ## X, L90-L128, ≈231 tokens — smd agent …]` | Left out by `--max-tokens`. Run the given command if the question needs that section. `holds warning, question` after the tokens names cues inside it: read it if your task could touch them. |
 | `[budget: ≈437 of 300 tokens, required content does not fit]` | The last line of a `--max-tokens` view that is still over budget: what can never be left out (agent instructions, dangers, requested sections) did not fit. Nothing required is missing. |
@@ -91,4 +92,4 @@ Read the front matter and headings first (for example the first 20 lines, then s
 
 In an `smd: 2` document: `$$` math opens and closes only on a line of its own (`$$5 per seat` is text); a closing fence closes the container opened with as many colons; a heading's trailing `{word}` is part of its text (`{#id}`, `{.class}`, `{key=value}` are attributes); and any `:name[…]` is a directive whose content is the text (`\:name[…]` is literal).
 
-`:::human` blocks and `## … {agent=skip}` sections are left out of the agent view on purpose, and no section name, query or dependency changes that. `--include-human` is the one explicit option that shows `:::human` blocks (never `{agent=skip}` sections), for a task that is specifically about that content. Reading the raw lines of excluded content to edit or audit it, when the user asked for that, is a separate task from ordinary reading and doesn't redefine what an agent view contains.
+`:::human` blocks and `## … {agent=skip}` sections are left out of the agent view on purpose, and no section name, query or dependency changes that. No option shows them (`--include-human` is ignored since 6.0.0). Reading the raw lines of excluded content to edit or audit it, when the user asked for that, is a separate task from ordinary reading and doesn't redefine what an agent view contains.

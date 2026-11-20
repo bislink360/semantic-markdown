@@ -5,6 +5,7 @@ import {
   checkMermaid, extractTasks, orderByPrerequisites, querySmd, validateSmd, type DecisionEntry, type Diagnostic, type DocumentRead, type MermaidParse,
   type QueryMatch, type QueryOptions, type RuleSettings, type Selector, type StatusChanges, type TaskInfo,
 } from './core';
+import { agentText } from './core/applicability';
 import { compareTasks } from './taskGroups';
 
 /** Reading .smd files from disk, shared by the CLI and the MCP server. */
@@ -126,13 +127,14 @@ export interface TaskFilter {
 
 /**
  * Tasks in `files` (open ones unless `all`), overdue first, then by priority and due date; with `order: 'deps'`, each
- * after the tasks its `:depends[…]` names. `name` labels each file.
+ * after the tasks its `:depends[…]` names. `name` labels each file. Tasks in `{agent=skip}` sections and `:::human`
+ * blocks are for people and never listed (6.0.0).
  */
 export function taskRows(files: string[], filter: TaskFilter, name = (file: string) => file): TaskRow[] {
   const { all, mine, today } = filter;
   const rows: TaskRow[] = [];
   for (const file of files) {
-    for (const t of extractTasks(read(file), today)) {
+    for (const t of extractTasks(agentText(read(file)), today)) {
       if (!all && t.done) continue;
       if (mine && !t.assignees.some((a) => a.toLowerCase() === mine.toLowerCase())) continue;
       rows.push({ ...t, file: name(file) });

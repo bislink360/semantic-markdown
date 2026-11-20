@@ -75,10 +75,11 @@ test('diffSmd treats content before the first heading as a section', () => {
   assert.equal(removed.text, '[removed: content before the first heading, was L5-6]\n');
 });
 
-test('diffSmd leaves out the content of sections skipped for agents, and line refs on request', () => {
+test('diffSmd lists nothing of sections skipped for agents, and line refs on request', () => {
+  // Since 6.0.0 a change inside a section marked {agent=skip} is not listed at all, not even by its heading.
   const skipped = diffSmd(base, edit('History.', 'Older history.'));
-  assert.deepEqual(skipped.sections.map((s) => [s.change, s.skipped, s.text]), [['changed', true, undefined]]);
-  assert.equal(skipped.text, '[changed L23-25 ## Background (skipped for agents)]\n');
+  assert.deepEqual(skipped.sections, []);
+  assert.doesNotMatch(skipped.text, /Background|skipped for agents/);
   const plain = diffSmd(base, edit('p95 < 200ms', 'p95 < 150ms'), { lineRefs: false });
   assert.equal(plain.text, '[changed]\n### Metrics\n- p95 < 150ms\n');
 });

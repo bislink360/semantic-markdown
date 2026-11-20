@@ -2,8 +2,8 @@
  "format": 1,
  "generator": "extension/scripts/snapshots.mjs",
  "source": {
-  "commit": "0a2d04a7b6b4ab7a7610ab7913e10463d7f106c1",
-  "dirty": false,
+  "commit": "e9329dbf670fdebb744198bfeb99401c37526531",
+  "dirty": true,
   "cli": "smd 6.0.0 (Semantic Markdown spec v2)"
  },
  "options": {
@@ -22,7 +22,7 @@
    "focused": 26,
    "conformance": 74
   },
-  "digest": "dd8fc75eede1e02bc24aed09"
+  "digest": "ad5144320850337b5cc6623a"
  },
  "commands": {
   "agent": [
@@ -1034,15 +1034,15 @@
    "stdout": "80e9651606a2d2eede5964b6:47",
    "stderr": "245c3e0e84d769ea0dec1331:46"
   },
-  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Work withholds R2, lists it as hidden and carries C2": {
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Work withholds R2, lists it as hidden and does not carry C2": {
    "status": 0,
-   "stdout": "a727f3b79050ed875d74fa81:564",
-   "stderr": "29e874fa01a1eba883056313:144"
+   "stdout": "e8ffd021d3da1cbbd0624880:405",
+   "stderr": "3aba4f8194a94b70b6ffadc6:142"
   },
   "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: sections Work and Notes named together do not unlock R2: same result as Work": {
    "status": 0,
-   "stdout": "f9a0681302a20d78e5f64c99:571",
-   "stderr": "2be46e6f9c98e76319528839:144"
+   "stdout": "769fe3a89f7444137d6a7b93:412",
+   "stderr": "29e7c018cde93e230be10154:142"
   },
   "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: full view adds R7 and lists both unreadable files": {
    "status": 0,

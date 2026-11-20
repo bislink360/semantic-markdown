@@ -393,7 +393,7 @@ Version {{version}} ships on {{release.date}}. :badge[v{{version}}]{color=indigo
 - **Problems panel:** open tasks past their due date show a `task/overdue` notice.
 - **`smd tasks docs/`** lists open tasks across every document, overdue first, then by priority. `--mine @api-team` filters by owner, `--json` gives machine-readable output, `--csv` and `--gantt` export (below).
 - **`--order deps`** lists each task after the tasks its `:depends[…]` names by `{#id}`, in the same file or as `plan.smd#T1` in another listed file, and keeps the priority order otherwise. A task that waits for a requirement or a question doesn't move. Tasks in a dependency cycle keep their order among themselves. The default, `--order priority`, is the order above. It applies to the text, `--json` and `--csv`.
-- **Tasks are what the preview shows with a checkbox.** A task-shaped line in code, in raw HTML or display math, or one that continues a paragraph (`- [ ] x` indented four spaces under a line of text) is text in the preview and on GitHub, so `smd tasks`, `smd meta`, outlines, the Tasks view and `task/overdue` leave it out too.
+- **Tasks are what the preview shows with a checkbox.** A task-shaped line in code, in raw HTML or display math, or one that continues a paragraph (`- [ ] x` indented four spaces under a line of text) is text in the preview and on GitHub, so `smd tasks`, `smd meta`, outlines, the Tasks view and `task/overdue` leave it out too. Tasks in a section marked `{agent=skip}` or a `:::human` block are for people: since 6.0.0 the agent-facing lists (`smd tasks`, `smd meta`, outlines, `smd index` and the MCP `tasks` tool) leave them out as well, while the preview and the Tasks view show them.
 
 ```text
 docs/checkout.smd:61  [ ] [P1] Server-side validation returns all field errors @api-team (due 2026-09-25, OVERDUE)  — Requirements
@@ -1085,10 +1085,10 @@ People-only content anywhere in the document.
 | Construct | Preview | Agent view |
 |---|---|---|
 | `:::agent` | Collapsed "For agents" panel (configurable) | `<agent-instructions>`, included even when only one section is requested, unless it sits in an `{agent=skip}` section or a `:::human` block |
-| `:::human` | "For humans" panel | omitted (unless the explicit `--include-human`) |
+| `:::human` | "For humans" panel | omitted, always (`--include-human` is ignored since 6.0.0) |
 | `## … {agent=skip}` | "humans only" tag on the heading | whole section omitted, subsections included, whatever section, query or dependency asks for it |
 
-Audience marks come before everything else. Naming a skipped section (or a subsection of it) does not show it, a query never matches a block inside it or inside `:::human`, a task view cannot pin its lines, and a dependency walk never includes it. The view records the exclusion as an omission, also for a section the caller named, and offers no command to recover it. A visible requirement that depends on a hidden block reports the dependency as `hidden` and the read as incomplete (a visible constraint on the hidden block is still carried, marked `hidden-target`). Naming a skipped section alone adds no unsatisfied dependency. `--include-human` is the explicit way to show `:::human` blocks for a task about them; it never lifts `{agent=skip}`. This is a retrieval policy, not access control or a confidentiality boundary.
+Audience marks come before everything else. Naming a skipped section (or a subsection of it) does not show it, a query never matches a block inside it or inside `:::human`, a task view cannot pin its lines, and a dependency walk never includes it. The view records the exclusion as an omission, also for a section the caller named, and offers no command to recover it. A visible requirement that depends on a hidden block reports the dependency as `hidden` and the read as incomplete. Since 6.0.0 a constraint whose `applies-to` names the hidden block is not carried, and nothing lifts the marks: `--include-human` is deprecated and ignored. Naming a skipped section alone adds no unsatisfied dependency. This is a retrieval policy, not access control or a confidentiality boundary.
 
 An `:::agent` block inside a section marked `{agent=skip}` is omitted with the section, so agents never receive it; the validator warns about it (`container/agent-in-skip`). Keep what agents need outside the hidden region, and the background inside it.
 
@@ -1577,7 +1577,7 @@ Rendered pages (the preview, `smd export --to html`, `smd build` sites and `smd 
 smd read <file> [--max-tokens <n>]                   one call for agents: the whole agent view if it fits n tokens
                  (default 2000), else the outline and how to read sections with smd agent --section
 smd outline <file> [--related] [--compact] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs; --compact as smd read returns it
-smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
+smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--embed] [--no-includes] [--no-lines]
                  [--max-tokens <n>] [--tokenizer <name>]   fit the view into n tokens; exact counts
                  --no-includes: a pointer per :::include instead of the included text
                  --included-instructions off: a pointer per :::agent block of an included file
@@ -1729,7 +1729,7 @@ Review the changes (git diff) before you commit them.
 - `path` is relative to the working directory, with `/` separators. Documents are sorted by path.
 - Each entry's `smd` is its document's spec version (1 or 2); the catalog's own `smd` is the newest spec version the tool knows (2 since 2.0), and `generator` the tool's version.
 - `title` comes from front matter, else the first `#` heading, else the file name. Missing metadata is `null` or `[]`.
-- `tokens.file` is the raw file, `tokens.agent` the full `smd agent` view. Each section's `tokens` is what `smd outline` shows for it (subsections included). `line` and `endLine` are zero-based, as in `smd meta` and `smd query --json`. A section marked `{agent=skip}` has `"agent": "skip"`.
+- `tokens.file` is the raw file, `tokens.agent` the full `smd agent` view. Each section's `tokens` is what `smd outline` shows for it (subsections included). `line` and `endLine` are zero-based, as in `smd meta` and `smd query --json`. Since 6.0.0 a section marked `{agent=skip}` (with its subsections) is not listed, and the counts leave out what it and every `:::human` block hold; older catalogs may still carry `"agent": "skip"`.
 - `counts.decisions` groups decisions by status. `openRisks` counts risks whose status is not `mitigated` or `closed`. `agentInstructions` counts `:::agent` blocks. `questions` counts every `:::question`, or only the open ones once a question of the document uses the lifecycle. `tags` counts the requirements, constraints, acceptance blocks, assumptions and evidence a document has, and is left out when it has none.
 - The output has no timestamps, so a committed catalog only changes when documents do. `overdueTasks` depends on the date: pass `--today YYYY-MM-DD` to pin it.
 - `--compact` prints one line instead of indented JSON.
@@ -1747,7 +1747,7 @@ How an agent routes with it: read the catalog, pick documents by `summary`, `sta
 | `query` | `selector`, `paths[]?`, `brief?`, `titles?` | `smd query` |
 | `validate` | `paths[]?` | `smd validate --json` |
 
-These four are what `tools/list` shows (under 500 tokens with the server's instructions). The tools of earlier versions, `outline` (`file`), `section` (`file`, `sections[]`, `brief?`) and `agent` (`file`, `brief?`, `includeHuman?`), still answer when called, and `smd mcp --legacy-tools` lists them again. They are still served in 3.x.
+These four are what `tools/list` shows (under 500 tokens with the server's instructions). The tools of earlier versions, `outline` (`file`), `section` (`file`, `sections[]`, `brief?`) and `agent` (`file`, `brief?`, `includeHuman?`, ignored since 6.0.0), still answer when called, and `smd mcp --legacy-tools` lists them again. They are still served in 3.x.
 
 With `--allow-write`, three tools change documents. Each checks the result with the validator and stays inside the root:
 
@@ -1824,7 +1824,7 @@ Ship to 10% of EU traffic first, then 50%.
 
 - Sections are matched by heading id, then by content, so a renamed heading is a rename, not a removal and an addition.
 - A change is shown in the smallest section that contains it (a heading up to the next heading), so unchanged subsections stay out. Content before the first heading counts as a section.
-- Only changes an agent can see count: styling, comments and `:::human` content don't. Sections marked `{agent=skip}` are listed without their content.
+- Only changes an agent can see count: styling, comments and `:::human` content don't. Since 6.0.0 a section marked `{agent=skip}` is not listed at all, in either version.
 - Line refs point into the new version. stderr shows the token cost against the full agent view.
 - `--json` gives front-matter changes and sections (`change`, `heading`, `level`, `id`, `line`, `endLine`, `oldLine`, `oldEndLine`, `oldHeading`, `text`). The exit code is 0; with `--exit-code` it is 1 when something changed.
 

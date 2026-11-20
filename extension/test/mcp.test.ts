@@ -138,7 +138,8 @@ test('outline, section and agent return the agent view', async () => {
   const agent = await run('agent', { file: 'docs/plan.smd' });
   assert.match(agent, /<agent-instructions>/);
   assert.doesNotMatch(agent, /Only for people|TOP SECRET/);
-  assert.match(await run('agent', { file: 'docs/plan.smd', includeHuman: true }), /Only for people/);
+  // includeHuman is accepted and ignored since 6.0.0: :::human blocks never reach agents.
+  assert.doesNotMatch(await run('agent', { file: 'docs/plan.smd', includeHuman: true }), /Only for people|TOP SECRET/);
   const section = await run('section', { file: 'docs/plan.smd', sections: ['decisions'] });
   assert.match(section, /Ship in the EU first/);
   assert.match(section, /Keep answers short/); // agent instructions always come along
