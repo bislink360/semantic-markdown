@@ -8,6 +8,7 @@
 - **No command shows a `:::human` block to an agent.** `smd agent --include-human` (and the `--view` form) and the MCP `agent` tool's `includeHuman` no longer show `:::human` blocks. They are accepted and ignored, and the CLI prints a deprecation warning on stderr. A manifest no longer offers an `--include-human` command to recover a `:::human` block: the omission says why no command shows it (`noRetrieve`). The library option `includeHuman` stays for renderers for people, such as the site search index. *Migration:* drop `--include-human` from scripts. Content an agent must read goes outside `:::human`.
 
 ### Added
+- **`alert/caution` asks for `:::danger` or `:::warning` instead of a `[!CAUTION]` alert.** A `> [!CAUTION]` GitHub alert still renders and reaches agents as a danger, as before. The validator now gives an info on its marker, because the container says outright whether the text is a hard constraint or only a caveat. In VS Code two quick fixes rewrite the whole blockquote, as `:::danger` (preferred) or as `:::warning`. Turn the hint off with `"alert/caution": "off"` in the rule settings.
 
 ### Changed
 

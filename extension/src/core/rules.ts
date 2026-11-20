@@ -25,6 +25,7 @@ export const RULE_CODES: Record<string, string> = {
   'container/agent-in-skip': '`:::agent` block inside a section marked `{agent=skip}`, which agent views leave out even when a read selects the section',
   'audience/rule-in-skip': 'A constraint, danger, requirement or accepted decision inside a section marked `{agent=skip}` or a `:::human` block, so agents never receive the rule (selecting the section does not change that)',
   'audience/normative-in-skip': 'Prose that reads like a rule ("must not", "never", "do not") in a section marked `{agent=skip}` or a `:::human` block, which agent views leave out',
+  'alert/caution': 'A `> [!CAUTION]` GitHub alert, which renders and reaches agents as a danger: write `:::danger` for a hard constraint or `:::warning` for a caveat, so the kind is explicit',
   'attrs/syntax': 'Malformed `{…}` attribute list',
   'attrs/unknown': 'Attribute not accepted in this position',
   'attrs/value': 'Invalid attribute value',

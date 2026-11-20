@@ -2,7 +2,7 @@
  "format": 1,
  "generator": "extension/scripts/snapshots.mjs",
  "source": {
-  "commit": "a799d6b4d2e01042899fa75af8ce053ae57a31ff",
+  "commit": "e9329dbf670fdebb744198bfeb99401c37526531",
   "dirty": true,
   "cli": "smd 6.0.0 (Semantic Markdown spec v2)"
  },
@@ -156,7 +156,7 @@
   },
   "extension/test/compat/corpus/github-alerts.smd · validate": {
    "status": 0,
-   "stdout": "e36d2de956505a40d04fdbd3:153",
+   "stdout": "d005400498554c1a46ac8c12:759",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "extension/test/compat/corpus/glossary-typography.smd · agent": {
