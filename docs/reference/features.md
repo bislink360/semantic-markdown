@@ -1083,10 +1083,10 @@ People-only content anywhere in the document.
 | Construct | Preview | Agent view |
 |---|---|---|
 | `:::agent` | Collapsed "For agents" panel (configurable) | `<agent-instructions>`, included even when only one section is requested, unless it sits in an `{agent=skip}` section or a `:::human` block |
-| `:::human` | "For humans" panel | omitted (unless the explicit `--include-human`) |
+| `:::human` | "For humans" panel | omitted, always (`--include-human` is ignored since 6.0.0) |
 | `## … {agent=skip}` | "humans only" tag on the heading | whole section omitted, subsections included, whatever section, query or dependency asks for it |
 
-Audience marks come before everything else. Naming a skipped section (or a subsection of it) does not show it, a query never matches a block inside it or inside `:::human`, a task view cannot pin its lines, and a dependency walk never includes it. The view records the exclusion as an omission, also for a section the caller named, and offers no command to recover it. A visible requirement that depends on a hidden block reports the dependency as `hidden` and the read as incomplete (a visible constraint on the hidden block is still carried, marked `hidden-target`). Naming a skipped section alone adds no unsatisfied dependency. `--include-human` is the explicit way to show `:::human` blocks for a task about them; it never lifts `{agent=skip}`. This is a retrieval policy, not access control or a confidentiality boundary.
+Audience marks come before everything else. Naming a skipped section (or a subsection of it) does not show it, a query never matches a block inside it or inside `:::human`, a task view cannot pin its lines, and a dependency walk never includes it. The view records the exclusion as an omission, also for a section the caller named, and offers no command to recover it. A visible requirement that depends on a hidden block reports the dependency as `hidden` and the read as incomplete. Since 6.0.0 a constraint whose `applies-to` names the hidden block is not carried, and nothing lifts the marks: `--include-human` is deprecated and ignored. Naming a skipped section alone adds no unsatisfied dependency. This is a retrieval policy, not access control or a confidentiality boundary.
 
 An `:::agent` block inside a section marked `{agent=skip}` is omitted with the section, so agents never receive it; the validator warns about it (`container/agent-in-skip`). Keep what agents need outside the hidden region, and the background inside it.
 
@@ -1574,7 +1574,7 @@ Rendered pages (the preview, `smd export --to html`, `smd build` sites and `smd 
 smd read <file> [--max-tokens <n>]                   one call for agents: the whole agent view if it fits n tokens
                  (default 2000), else the outline and how to read sections with smd agent --section
 smd outline <file> [--related] [--compact] [--tokenizer <name>]  sections, line ranges, token costs, markers; --related adds related docs; --compact as smd read returns it
-smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--include-human] [--embed] [--no-includes] [--no-lines]
+smd agent <file> [--section "<heading>"]… [--exact] [--brief] [--embed] [--no-includes] [--no-lines]
                  [--max-tokens <n>] [--tokenizer <name>]   fit the view into n tokens; exact counts
                  --no-includes: a pointer per :::include instead of the included text
                  --included-instructions off: a pointer per :::agent block of an included file
@@ -1744,7 +1744,7 @@ How an agent routes with it: read the catalog, pick documents by `summary`, `sta
 | `query` | `selector`, `paths[]?`, `brief?`, `titles?` | `smd query` |
 | `validate` | `paths[]?` | `smd validate --json` |
 
-These four are what `tools/list` shows (under 500 tokens with the server's instructions). The tools of earlier versions, `outline` (`file`), `section` (`file`, `sections[]`, `brief?`) and `agent` (`file`, `brief?`, `includeHuman?`), still answer when called, and `smd mcp --legacy-tools` lists them again. They are still served in 3.x.
+These four are what `tools/list` shows (under 500 tokens with the server's instructions). The tools of earlier versions, `outline` (`file`), `section` (`file`, `sections[]`, `brief?`) and `agent` (`file`, `brief?`, `includeHuman?`, ignored since 6.0.0), still answer when called, and `smd mcp --legacy-tools` lists them again. They are still served in 3.x.
 
 With `--allow-write`, three tools change documents. Each checks the result with the validator and stays inside the root:
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { agentView, queryDocuments, queryView, querySmd, readSmd, renderSmd, taskView, validateSmd, withheldMatches } from '../src/core';
 import { runQuery } from '../src/queryCommand';
 
@@ -106,11 +107,26 @@ test('naming a skipped section alone creates no unsatisfied dependency: its excl
   assert.ok(view.provenance!.omissions.some((o) => o.kind === 'skipped-section'));
 });
 
-test('a requirement that depends on a block inside :::human is hidden too, and --include-human is the explicit way to show it', () => {
+test('a requirement that depends on a block inside :::human is hidden too, and no agent command shows it (6.0.0)', () => {
   const view = agentView(DOC, { sections: ['Later'], readFile: asked([]) });
   assert.deepEqual(view.mandatory?.unsatisfied.map((u) => [u.kind, u.target]), [['hidden', 'RH']]);
   assert.doesNotMatch(view.text, /RH-BODY|HUMAN-TEXT/);
-  // The explicit human-inclusive option keeps its documented contract: it shows :::human blocks, and nothing else.
+  // The CLI ignores --include-human since 6.0.0 and says so on stderr.
+  const cli = path.join(__dirname, '..', 'dist', 'cli.js');
+  if (fs.existsSync(cli)) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'smd-include-human-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'a.smd'), DOC);
+      const run = spawnSync(process.execPath, [cli, 'agent', 'a.smd', '--section', 'Later', '--include-human'], { cwd: dir, encoding: 'utf8' });
+      assert.equal(run.status, 0, run.stderr);
+      assert.doesNotMatch(run.stdout, /RH-BODY|HUMAN-TEXT/);
+      assert.match(run.stderr, /--include-human is deprecated since 6\.0\.0 and does nothing/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  // The library option stays for renderers for people, such as the site search index: it shows :::human blocks, and
+  // nothing else. No agent-facing command or tool passes it.
   const human = agentView(DOC, { sections: ['Later'], readFile: asked([]), includeHuman: true });
   assert.match(human.text, /RH-BODY/);
   assert.equal(human.mandatory?.unsatisfied.some((u) => u.target === 'RH'), false);

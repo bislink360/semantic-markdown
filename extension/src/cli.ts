@@ -68,14 +68,13 @@ Reading (token-efficient, for agents):
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost
       --compact    one unpadded row per heading, as smd read returns the outline
-  smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
+  smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--embed] [--no-includes]
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
                        [--evidence]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
       --section    only these sections (repeatable; agent instructions elsewhere are still included).
-                   Naming a section never shows {agent=skip} sections or :::human blocks
-      --include-human keep :::human blocks, for a task about that content. It never lifts {agent=skip},
-                   and no --section, query or view turns it on
+                   Naming a section never shows {agent=skip} sections or :::human blocks, and no option does
+                   (--include-human is deprecated since 6.0.0 and ignored)
       --exact      --section matches a heading's id or whole text only (by default a part of the text,
                    so "API" also selects "API details")
       --brief      also condense diagrams, long code, :::details and completed tasks
@@ -830,6 +829,17 @@ function writeProvenance(target: string, manifest: Provenance): void {
   fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
 }
 
+/**
+ * `--include-human` is deprecated since 6.0.0 and ignored: a :::human block never reaches an agent, whatever it asks
+ * for. The option is still accepted, with a warning, and goes in the next major release. Always false.
+ */
+function deprecatedIncludeHuman(args: Args): false {
+  if (args.flags.has('--include-human')) {
+    console.error('[smd] warning: --include-human is deprecated since 6.0.0 and does nothing: :::human blocks never reach agents.');
+  }
+  return false;
+}
+
 /** `smd query --contract --provenance <file>`: the manifests of the views, one per document with matches, as an array. */
 function writeProvenanceList(target: string, manifests: Provenance[]): void {
   const tool = `smd ${pkg.version}`;
@@ -845,7 +855,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
     sections,
     exactSections: args.flags.has('--exact'),
     brief: args.flags.has('--brief'),
-    includeHuman: args.flags.has('--include-human'),
+    includeHuman: deprecatedIncludeHuman(args),
     embed: args.flags.has('--embed'),
     includes: !args.flags.has('--no-includes'),
     lineRefs: !args.flags.has('--no-lines'),
@@ -877,7 +887,7 @@ function printTaskView(file: string, args: Args, extra: Pick<AgentViewOptions, '
     sections: args.values.get('--section'),
     exactSections: args.flags.has('--exact'),
     brief: args.flags.has('--brief'),
-    includeHuman: args.flags.has('--include-human'),
+    includeHuman: deprecatedIncludeHuman(args),
     embed: args.flags.has('--embed'),
     includes: !args.flags.has('--no-includes'),
     lineRefs: !args.flags.has('--no-lines'),

@@ -302,7 +302,7 @@ test('t-61: lines an include in the omitted range brings are named by their file
   assert.match(r.text.split('\n').slice(carried[1].output[0] - 1, carried[1].output[1]).join('\n'), /INC_DANGER/);
 });
 
-test('t-65: human and condensed omissions carry the command that shows them, and the rest say why none does', () => {
+test('t-65: condensed omissions carry the command that shows them, and the rest (a :::human block since 6.0.0) say why none does', () => {
   const text = [
     '---', 'smd: 2', '---', '', '## Work', '',
     ':::human', 'People only.', ':::', '',
@@ -313,7 +313,8 @@ test('t-65: human and condensed omissions carry the command that shows them, and
   ].join('\n');
   const brief = agentView(text, { sections: ['Work'], brief: true, provenance: true, file: 'plan.smd', readFile: () => undefined }).provenance!;
   const by = (kind: string) => brief.omissions.find((o) => o.kind === kind)!;
-  assert.equal(by('human').retrieve, 'smd agent plan.smd --section "Work" --brief --include-human');
+  assert.equal(by('human').retrieve, undefined);
+  assert.match(by('human').noRetrieve!, /agent views never show it/);
   assert.equal(by('details').retrieve, 'smd agent plan.smd --section "Work"');
   assert.match(by('comment').noRetrieve!, /in no agent view/);
   assert.match(by('include').noRetrieve!, /could not be read/);

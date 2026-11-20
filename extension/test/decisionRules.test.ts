@@ -56,7 +56,7 @@ test('a linked decision whose target is mistyped is unplaced: shown in every rea
   assert.ok(r.mandatory?.unsatisfied.some((u) => u.kind === 'unresolved-target' && u.via === 'D2' && /decision is shown in every read/.test(u.reason)));
 });
 
-test('a linked decision on a target hidden from agents is carried with the hidden-target mark', () => {
+test('a linked decision on a target hidden from agents is not carried (6.0.0)', () => {
   const text = [
     '---', 'smd: 2', '---', '',
     '## Work', '', ':::requirement{#R1 depends-on=R2} Work', 'R1_BODY', ':::', '',
@@ -64,8 +64,10 @@ test('a linked decision on a target hidden from agents is carried with the hidde
     '## Rules', '', ':::decision{#D2 status=accepted applies-to=R2} Choice on the base', 'D2_BODY', ':::', '',
   ].join('\n');
   const r = agentView(text, { sections: ['Work'] });
-  assert.match(r.text, /<decision id="D2" status="accepted" applies-to="R2" hidden-target="R2">/);
-  assert.deepEqual(r.mandatory?.decisions?.map((d) => d.hiddenTargets), [['R2']]);
+  assert.doesNotMatch(r.text, /D2_BODY|hidden-target/);
+  assert.deepEqual(r.mandatory?.decisions ?? [], []);
+  // The hidden dependency is still reported, so the read says it is incomplete.
+  assert.deepEqual(r.mandatory?.unsatisfied.map((u) => [u.kind, u.target]), [['hidden', 'R2']]);
 });
 
 test('the validator accepts applies-to on a decision and checks the ids it names', () => {

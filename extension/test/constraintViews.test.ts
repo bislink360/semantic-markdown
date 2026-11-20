@@ -213,7 +213,7 @@ test('AF15: a dependency in an {agent=skip} section is not shown and is unsatisf
   assert.ok(r.mandatory?.unsatisfied.some((u) => u.kind === 'hidden' && u.target === 'R2'));
 });
 
-test('t-58, R18 hidden-target probe: a visible rule on a target hidden from agents is carried, and the target is listed as hidden', () => {
+test('t-58, R18 hidden-target probe (6.0.0): a rule on a target hidden from agents is not carried, and the target is listed as hidden', () => {
   const doc = [
     '---', 'smd: 2', '---', '',
     '## Work', '', ':::requirement{#R1 depends-on=R2} Work item', 'R1_BODY', ':::', '',
@@ -221,15 +221,13 @@ test('t-58, R18 hidden-target probe: a visible rule on a target hidden from agen
     '## Rules', '', ':::constraint{#C2 applies-to=R2} Rule on the hidden base', 'C2_BODY', ':::', '',
   ].join('\n');
   const r = agentView(doc, { sections: ['Work'] });
-  // The rule is agent-visible text, so carrying it breaks no audience mark. The target itself stays out.
-  assert.deepEqual(r.mandatory?.constraints.map((c) => [c.id, c.applies, c.hiddenTargets]), [['C2', 'applies-to', ['R2']]]);
-  // t-66: the rule says its target is hidden from agents, and its text is still shown.
-  assert.match(r.text, /Constraints that apply here:\n<constraint id="C2" applies-to="R2" hidden-target="R2" level="must">[^\n]*\nC2_BODY/);
-  // Named together with the skipped section, the target stays hidden and the mark stays: selection never unlocks it.
+  // The author hid R2 on purpose, so a read does not bring back what binds it: C2 stays out, with no hidden-target mark.
+  assert.deepEqual(r.mandatory?.constraints ?? [], []);
+  assert.doesNotMatch(r.text, /C2_BODY|hidden-target|Constraints that apply here/);
+  // Named together with the skipped section, R2 stays hidden and C2 stays out: selection never unlocks either.
   const both = agentView(doc, { sections: ['Work', 'Basis'] });
-  assert.match(both.text, /hidden-target="R2"/);
-  assert.doesNotMatch(both.text, /R2_BODY/);
-  assert.deepEqual(both.mandatory?.constraints.map((c) => [c.id, c.hiddenTargets]), [['C2', ['R2']]]);
+  assert.doesNotMatch(both.text, /R2_BODY|C2_BODY|hidden-target/);
+  assert.deepEqual(both.mandatory?.constraints ?? [], []);
   assert.deepEqual(both.mandatory?.unsatisfied.map((u) => [u.kind, u.target, u.via]), [['hidden', 'R2', 'R1']]);
   assert.equal(both.mandatory?.complete, false);
   assert.doesNotMatch(r.text, /R2_BODY/);

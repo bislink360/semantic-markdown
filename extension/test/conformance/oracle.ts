@@ -93,7 +93,7 @@ export interface Completeness {
   budget: boolean;
 }
 
-export type ScalarCheck = 'unsatisfied' | 'complete' | 'completeness' | 'budgetFits' | 'hiddenTargets';
+export type ScalarCheck = 'unsatisfied' | 'complete' | 'completeness' | 'budgetFits';
 
 export interface RequestSpec {
   name: string;
@@ -113,11 +113,6 @@ export interface RequestSpec {
   unsatisfied?: UnsatisfiedExpectation[];
   complete?: boolean;
   completeness?: Completeness;
-  /**
-   * The carried constraints, by id, that name a target hidden from agents, and those targets: exactly these, and no
-   * other carried constraint marked (boundary table, t-66).
-   */
-  hiddenTargets?: Record<string, string[]>;
   /**
    * L4: a block's tag as the view must print it, matched as the start of one of the output lines the source map ties to
    * the block, so the check needs no knowledge of how other kinds render.
@@ -155,7 +150,7 @@ export interface Manifest {
   blocks?: Array<{ kind: string; lines: Range; outcome: string; placement: string }>;
   mandatory?: {
     unsatisfied: Array<{ kind: string; target: string }>;
-    constraints?: Array<{ id?: string; hiddenTargets?: string[] }>;
+    constraints?: Array<{ id?: string }>;
     complete: boolean;
     completeness?: Completeness;
   };
@@ -512,12 +507,6 @@ export function evaluate(caseName: string, dir: string, request: RequestSpec, ob
     const e = request.completeness;
     const ok = !!got && got.coverage === e.coverage && got.resolution === e.resolution && got.budget === e.budget;
     checks.push({ name: 'completeness', ok, detail: `expected ${JSON.stringify(e)}, reported ${JSON.stringify(got ?? null)}`, expectedFailure: xf.completeness });
-  }
-  if (request.hiddenTargets) {
-    const got = Object.fromEntries((m.mandatory?.constraints ?? []).filter((c) => c.hiddenTargets?.length).map((c) => [c.id ?? '?', [...c.hiddenTargets!].sort()]));
-    const want = Object.fromEntries(Object.entries(request.hiddenTargets).map(([id, t]) => [id, [...t].sort()]));
-    const ok = JSON.stringify(Object.entries(got).sort()) === JSON.stringify(Object.entries(want).sort());
-    checks.push({ name: 'hiddenTargets', ok, detail: `expected ${JSON.stringify(want)}, reported ${JSON.stringify(got)}`, expectedFailure: xf.hiddenTargets });
   }
   for (const { ref, tag } of request.labels ?? []) {
     const block = resolveRef(fx, ref);
