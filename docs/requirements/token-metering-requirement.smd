@@ -1,0 +1,203 @@
+---
+smd: 2
+title: Token metering requirements
+summary: What the token meter must do. It records, on the user's machine only, every time an AI agent (Claude Code, Codex, Cursor, Copilot) reads a .smd file through smd, compares the tokens served with what reading the raw file would cost, and shows the savings and the most-read sections in VS Code. Off until the user turns it on.
+status: review
+owners: ["@roshanmadhushanka"]
+updated: 2026-11-19
+tags: [token-metering, extension, mcp, cli, requirements]
+toc: true
+---
+
+## Problem
+
+Semantic Markdown says agents read fewer tokens through the agent view. Today the only proof is an estimate for one file. The status bar shows the raw file against its agent view, and `smd savings` does the same for a folder. Neither knows whether an agent actually read the file through smd, which sections it read, how often, or what it would have cost without smd.
+
+Users want three answers.
+
+1. **Is smd saving tokens in my project?** Measured from real agent reads, not from a formula on one file.
+2. **Which agents go through smd, and which bypass it?** An agent that opens the `.smd` file with its own file tool saves nothing.
+3. **What do agents read?** The most-read sections, the sections never read, and which sections are read together.
+
+The design is in [token-metering-design.smd](../rfcs/token-metering-design.smd) and the screens are in [token-metering-mocks.smd](../rfcs/token-metering-mocks.smd).
+
+## Users
+
+| Who                       | Wants                                                               |
+| ------------------------- | ------------------------------------------------------------------- |
+| Author of specs and plans | To see which sections agents use, to cut or split the rest          |
+| Developer using an agent  | To know smd is wired up and working, per agent                      |
+| Team lead or evaluator    | A defensible savings number for the project, with its method stated |
+
+## Scope
+
+The meter covers four access paths. Every agent reaches `.smd` content through one of them.
+
+| Path          | Example                                                                                                           | Measured how                                                    |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| MCP server    | Claude Code, Cursor, Copilot and Codex calling the `read`, `section`, `query`, `outline`, `agent` or `tasks` tool | Recorded by `smd mcp`                                           |
+| CLI           | An agent running `smd read`, `smd agent` or `smd query` through its shell, as the reader skill teaches            | Recorded by the CLI                                             |
+| Raw file read | An agent opening the `.smd` file with its own read tool                                                           | Recorded only where the agent offers a hook (Claude Code first) |
+| Editor        | A person copying the agent view in VS Code                                                                        | Recorded by the extension                                       |
+
+:::non-goals
+- No network. Nothing is sent anywhere, and there is no telemetry to the project or a vendor.
+- No prices or currency. Token counts only, as `smd savings` decided when `--price` was removed.
+- No billing reconciliation. The meter does not claim to match a provider's invoice, because prompt caching and system prompts are outside its view.
+- No content in the log. No document text, query results or prompts are stored.
+- No team server or shared dashboard in this version.
+:::
+
+## Requirements
+
+### Recording
+
+::::requirement{#R1 priority=P0 status=proposed} Every read through smd is recorded once, with the tokens it served
+An access through the MCP server or the CLI adds one event with the file, the operation, the sections or ids it returned, the tokens it served and the tokens of the baseline (see R7). A read that fails is recorded with its outcome and zero tokens served.
+
+:::acceptance{#AC1}
+Given metering is on in a workspace
+When an MCP client calls `section` with sections `["Requirements"]` on `docs/prd.smd`
+Then exactly one event is appended with `op` `section`, file `docs/prd.smd`, section slug `requirements`, and served tokens equal to the tokens of the tool result text
+:::
+
+:::acceptance{#AC2}
+Given metering is on
+When an agent runs `smd read docs/prd.smd --section Risks` in a shell
+Then one event is appended with `via` `cli` and section slug `risks`
+:::
+::::
+
+::::requirement{#R2 priority=P0 status=proposed} Recording never changes or slows a read
+The tool result is byte-for-byte the same with metering on or off. Writing an event adds less than 5 ms to a read at the 95th percentile. If the log can't be written (read-only folder, disk full, locked file), the read still succeeds and the failure is reported at most once per process on stderr.
+
+:::acceptance{#AC3}
+Given the meter folder is read-only
+When an agent calls the MCP `read` tool
+Then the result equals the result with metering off, and the exit or response status is success
+:::
+::::
+
+:::requirement{#R3 priority=P0 status=proposed} Each event says which agent made it
+An event names the client and how it came in. Over MCP, the client name and version come from the MCP `initialize` request. From the CLI, a known environment marker of the calling agent sets the client, otherwise it is `unknown`. Events from one MCP connection share a session id. CLI events are grouped into sessions by the agent's session id when the agent provides one (Claude Code gives its shell commands and its hooks the same id, so both land in one session), otherwise by an idle gap of 30 minutes.
+:::
+
+:::requirement{#R4 priority=P1 status=proposed} Raw reads of .smd files are recorded where the agent offers a hook
+For Claude Code, `smd init --agent claude --meter` adds a hook that records an event with `op` `raw-read` when the agent reads a `.smd` file with its own read tool. Other agents get the same when they offer an equivalent hook. Without a hook, raw reads are unknown, and the UI says so instead of showing zero.
+:::
+
+### Storage
+
+:::requirement{#R5 priority=P0 status=proposed} Metering is off until the user turns it on, and its data stays on the machine
+No event is written until the user turns metering on for the workspace. The one switch is `"meter": true` in the workspace `.smdrc`, which agents outside VS Code read too. The status bar card, the command **Turn On Token Metering** and `smd meter on` each write it, the card and the command after asking. `SMD_METER=off` in the environment turns it off for one process whatever the settings say. Events are stored only in local files, which the user can open, read and delete.
+:::
+
+:::requirement{#R6 priority=P1 status=proposed} The log is bounded and safe to share a folder with Git
+The meter folder carries its own `.gitignore` that ignores everything in it, so events are never committed by accident. Files older than the retention period (90 days by default) are deleted, and writing stops with one warning when the folder exceeds its size cap (20 MB by default). `smd meter clear` deletes all events for the workspace.
+:::
+
+### Measuring savings
+
+::::requirement{#R7 priority=P0 status=proposed} Savings are measured against a stated baseline
+The baseline for an access is what the same agent would have read without smd, the whole raw file plus every file the view included. The primary savings figure is **session net savings**. Within one session each file's baseline counts once, because an agent that read the raw file would keep it in context, while every smd read of that file in the session counts. Per-access savings, which count the baseline on every read and so overstate the effect, are shown only as a secondary figure and are labelled as such.
+
+:::acceptance{#AC4}
+Given a session that reads sections A and B of a 6,000-token file through smd, 900 and 1,100 tokens served
+When the meter computes savings for that session
+Then the baseline is 6,000, served is 2,000, and session net savings are 4,000 tokens (67%)
+:::
+
+:::acceptance{#AC5}
+Given a session that reads the same 6,000-token file through smd five times at 1,500 tokens each
+When the meter computes savings for that session
+Then served is 7,500, and session net savings are reported as −1,500 tokens, not hidden or clamped to zero
+:::
+::::
+
+:::requirement{#R8 priority=P0 status=proposed} Every number says how it was counted
+Each token count records its tokenizer, `estimate` (about 4 characters per token, as `smd outline` counts) or an exact encoding such as `o200k_base` when js-tiktoken is installed. The UI shows the method next to every savings figure. Counts include everything the tool returns, headers, outlines, manifests and JSON wrapping included, not only the document text.
+:::
+
+:::requirement{#R9 priority=P1 status=proposed} The meter reports a fixed set of KPIs
+The KPIs, their formulas and their limits are defined once in the design (section KPIs) and computed by one shared function used by the extension and `smd meter report`. Both show the same numbers for the same log.
+:::
+
+### Section access
+
+:::requirement{#R10 priority=P1 status=proposed} Section reads are counted per section and survive heading edits
+For each section the meter keeps read count, distinct sessions, tokens served and last read. Sections are keyed by heading slug and, when the section or a block in it has an id, by that id, so renaming a heading keeps its history when an id is present. Counts for slugs that no longer exist are shown as unmatched, not dropped.
+:::
+
+:::requirement{#R11 priority=P2 status=proposed} Sections read together are shown as a graph next to the declared links
+Two sections read in the same session form a co-read edge weighted by the number of sessions. Dependencies an agent followed (`--follow`) form traversal edges. The graph overlays the document's declared links (`depends-on`, `applies-to`, `:ref`) so a reader sees links that are declared but never followed and sections often read together but not linked.
+:::
+
+### Showing it
+
+:::requirement{#R12 priority=P0 status=proposed} The status bar card shows the active file's estimate and its measured use
+The card keeps today's estimate (raw file, agent view, brief view) and, when metering is on, adds the measured figures for the active file over the last 7 days, with reads per agent and the three most-read sections. With metering off it offers to turn metering on.
+:::
+
+:::requirement{#R13 priority=P1 status=proposed} A meter panel shows the workspace view
+A panel shows workspace KPIs over a chosen period, files ranked by tokens saved, the most and least read sections, reads per agent, and the section graph from R11. Choosing a section opens it in the editor.
+:::
+
+:::requirement{#R14 priority=P2 status=proposed} Editors show section heat on demand
+When the user turns it on, each heading of a `.smd` file shows a short line with its read count and sessions in the last 7 days. It is off by default.
+:::
+
+:::requirement{#R15 priority=P1 status=proposed} The CLI reports the same numbers
+`smd meter report [path] [--since DATE] [--json]` prints the KPIs, the most-read sections and the per-agent split for the workspace or a path, from the same log and the same function as the extension.
+:::
+
+## Constraints
+
+:::constraint{#C1 scope=document} No document text in the log
+Events hold paths, slugs, ids, counts, hashes and client names only.
+:::
+
+:::constraint{#C2 scope=document} No new runtime dependency
+smd has none today. Storage and aggregation use Node's standard library only, and an exact tokenizer stays optional as it is for `--tokenizer`.
+:::
+
+:::constraint{#C3 scope=document} The core stays browser-safe
+Recording touches the file system, so it lives in the Node hosts (CLI, MCP server, extension). The shared aggregation and KPI code takes events as input and runs in the core.
+:::
+
+:::constraint{#C4 scope=document} Works in VS Code 1.97 and Node 22
+The extension's engine floor stays `^1.97.0`, whose extension host runs Node 20, so storage can't rely on `node:sqlite`.
+:::
+
+## Success metrics
+
+| Metric                                                            | Target     |
+| ----------------------------------------------------------------- | ---------- |
+| Recording overhead per read, p95                                  | under 5 ms |
+| Events lost under concurrent writers (4 agents, 1,000 reads each) | 0          |
+| Extension and CLI KPIs for the same log                           | identical  |
+| Status bar card update after a new event                          | under 2 s  |
+
+## Open questions
+
+::::question{#Q1 status=answered owner=@roshanmadhushanka due=2026-11-26} Which release ships it?
+Phase 1 (status bar card) could join 6.0.0. The event log and panel are larger and fit a 6.1.0 train better.
+
+:::comment{for=Q1 author=@roshanmadhushanka date=2026-11-20 kind=answer}
+Not with 6.0.0. The whole feature is built on its own branch, `feat/token-meter`, and ships separately. The version and tag are chosen later.
+:::
+::::
+
+::::question{#Q2 status=answered owner=@roshanmadhushanka due=2026-11-26} Should raw-read hooks be offered at all?
+A hook edits the agent's own settings file. It is the only way to measure bypass (R4), but some users won't want it. The proposal is to offer it only behind `--meter` and say what it changes.
+
+:::comment{for=Q2 date=2026-11-20 kind=answer}
+Built as proposed when the maintainer asked to complete the work. The hook is added only by `smd init --agent claude --meter`, which prints the file it changed and turns metering on. Reopen to change.
+:::
+::::
+
+:::agent
+- Requirement statuses are set by the maintainer. The work is built on `feat/token-meter`, but no requirement here is marked implemented or verified until a person does it.
+- Never write document text, query results or prompts to the meter log (C1).
+- Never send meter data over the network.
+- Show the counting method next to every savings number (R8), and report negative savings as they are (AC5).
+:::

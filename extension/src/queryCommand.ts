@@ -5,6 +5,7 @@ import {
 import { completenessOf, incompleteLine } from './core/applicability';
 import { queryViewBlock } from './core/queryView';
 import { collect, graphReader, querySummary, read, readerFor } from './workspace';
+import { metering, noteAccess } from './meter/record';
 
 /** `smd query`'s options. `follow`, `direction` and `depth` are as written on the command line. */
 export interface QueryFlags extends FollowFlags {
@@ -61,6 +62,7 @@ export function runQuery(selector: string | undefined, targets: string[], flags:
     brief: flags.brief, lineRefs: flags.lineRefs, today: flags.today, constraints: flags.constraints, forAgents: true,
     ...(flags.follow !== undefined ? { follow: flags.follow, direction, depth, readDocument: graphReader(roots) } : {}),
   });
+  if (metering()) noteQueryMatches(result, selector);
   const extended = !!flags.constraints || flags.follow !== undefined;
   const code = result.matches.length ? 0 : 1;
   const left = withheldNote(result.withheld);
@@ -72,6 +74,20 @@ export function runQuery(selector: string | undefined, targets: string[], flags:
   }
   const stdout = flags.json ? JSON.stringify(queryResultJson(result), null, 2) + '\n' : formatQueryResult(result, { titles: flags.titles });
   return { code, stdout, stderr: `[smd] ${queryResultSummary(result, files.length)}\n${left}` };
+}
+
+/** For the token meter: each match's document, section, id and text, and the dependencies following reached. */
+function noteQueryMatches(result: QueryDocumentsResult, selector: string): void {
+  result.matches.forEach((m, i) => {
+    const id = m.attrs.id;
+    const deps = result.graph?.[i]?.dependencies ?? [];
+    noteAccess({
+      file: m.file, op: 'query', query: selector, served: m.text,
+      ...(m.section ? { sectionTitles: [m.section] } : {}),
+      ...(typeof id === 'string' ? { ids: [id] } : {}),
+      follow: deps.filter((d) => d.node.file === d.via.file).map((d) => ({ from: d.via.section, to: d.node.section })),
+    });
+  });
 }
 
 /**
@@ -127,6 +143,9 @@ function contractQuery(selector: string, files: string[], flags: QueryFlags): Qu
       ...(flags.includedInstructions ? { includedInstructions: flags.includedInstructions } : {}),
     });
     if (result) views.push({ file, result });
+  }
+  for (const v of views) {
+    noteAccess({ file: v.file, op: 'query', query: selector, served: v.result.text, sectionTitles: v.result.matches.map((m) => m.section).filter((s): s is string => !!s) });
   }
   const code = views.length ? 0 : 1;
   const stdout = flags.json ? JSON.stringify(contractJson(views), null, 2) + '\n' : contractText(views);

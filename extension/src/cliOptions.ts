@@ -55,10 +55,11 @@ export const COMMAND_OPTIONS: Readonly<Record<string, CommandOptions>> = {
   pdf: { flags: ['--comments', '--landscape'], values: ['-o', '--lang', '--format', '--browser', '--today'] },
   docx: { flags: ['--comments', '--html-only'], values: ['-o', '--lang', '--reference-doc', '--pandoc', '--engine'] },
   'from-md': { values: ['--from', '-o', '--today'] },
-  init: { flags: ['--no-mcp'], values: ['--template', '--title', '--today', '--agent', '--dir'] },
+  init: { flags: ['--no-mcp', '--meter'], values: ['--template', '--title', '--today', '--agent', '--dir'] },
   templates: {},
   mcp: { flags: ['--allow-write', '--allow-suggest', '--legacy-tools'], values: ['--root', '--included-instructions'] },
   lsp: { flags: ['--stdio'], open: true },
+  meter: { flags: ['--json'], values: ['--root', '--since', '--until'] },
   skills: { flags: ['--global'], values: ['--target', '--only', '--dir'] },
 };
 

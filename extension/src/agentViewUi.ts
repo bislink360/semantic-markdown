@@ -4,6 +4,8 @@ import { agentView, parseSmd, type AgentViewOptions } from './core';
 import { readerFor } from './files';
 import { briefOnlyItems, omissionItems, omissionSummary, type OmissionItem } from './omissionPanel';
 import { studyRecord } from './study/session';
+import type { TokenMeterUi } from './meterPanel';
+import { tokenMeter, type TokenMeter } from './tokenMeter';
 
 const SCHEME = 'smd-agent';
 
@@ -38,11 +40,16 @@ class AgentViewProvider implements vscode.TextDocumentContentProvider {
   }
 }
 
-export function registerAgentView(context: vscode.ExtensionContext): void {
+export function registerAgentView(context: vscode.ExtensionContext, meterUi?: TokenMeterUi): void {
   const provider = new AgentViewProvider();
-  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  const status = vscode.window.createStatusBarItem('smd.tokenMeter', vscode.StatusBarAlignment.Right, 100);
+  status.name = 'Semantic Markdown Token Meter';
   status.command = 'smd.showAgentView';
   let timer: ReturnType<typeof setTimeout> | undefined;
+  /** What the status bar shows, or undefined while hidden; for integration tests. */
+  let meter: TokenMeter | undefined;
+  /** The active document's sizes, by uri and version, so a new meter event doesn't recompute two agent views. */
+  let sizes: { key: string; raw: number; agent: number; brief: number } | undefined;
 
   const activeSmd = (): vscode.TextDocument | undefined => {
     const doc = vscode.window.activeTextEditor?.document;
@@ -53,13 +60,22 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
 
   const updateStatus = () => {
     const doc = vscode.window.activeTextEditor?.document;
-    if (!doc || doc.languageId !== 'smd') { status.hide(); return; }
-    const full = agentView(doc.getText(), { readFile: readerFor(doc) });
-    const brief = agentView(doc.getText(), { brief: true, readFile: readerFor(doc) });
-    const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
-    status.text = `$(hubot) ≈${k(full.tokens)} tok`;
-    status.tooltip = new vscode.MarkdownString(
-      `**Agent token estimate**\n\n| View | ≈ tokens |\n|---|---:|\n| Raw file | ${full.originalTokens} |\n| Agent view | ${full.tokens} |\n| Agent view, brief | ${brief.tokens} |\n\nClick to open the agent view.`);
+    if (!doc || doc.languageId !== 'smd') { meter = undefined; status.hide(); return; }
+    const key = `${doc.uri.toString()}@${doc.version}`;
+    if (sizes?.key !== key) {
+      const full = agentView(doc.getText(), { readFile: readerFor(doc) });
+      const brief = agentView(doc.getText(), { brief: true, readFile: readerFor(doc) });
+      sizes = { key, raw: full.originalTokens, agent: full.tokens, brief: brief.tokens };
+    }
+    const metering = meterUi?.enabledFor(doc.uri);
+    const measured = metering ? meterUi?.measuredFor(doc.uri) : undefined;
+    meter = tokenMeter({ raw: sizes.raw, agent: sizes.agent, brief: sizes.brief, ...(metering === undefined ? {} : { metering }), ...(measured ? { measured } : {}) });
+    status.command = meter.command;
+    const tooltip = new vscode.MarkdownString(meter.tooltip, true);
+    tooltip.supportHtml = true;
+    tooltip.isTrusted = { enabledCommands: meter.commands };
+    status.text = meter.text;
+    status.tooltip = tooltip;
     status.show();
   };
 
@@ -77,6 +93,7 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
     if (!doc) return;
     const result = agentView(doc.getText(), { ...options, readFile: readerFor(doc) });
     await vscode.env.clipboard.writeText(result.text);
+    meterUi?.recordCopy(doc.uri, result.text);
     vscode.window.setStatusBarMessage(`$(check) Copied ${what} (≈${result.tokens} tokens)`, 4000);
   };
 
@@ -138,6 +155,7 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('smd.showAgentView', () => show(false)),
     vscode.commands.registerCommand('smd.showAgentViewBrief', () => show(true)),
     vscode.commands.registerCommand('smd.showAgentViewOmissions', showOmissions),
+    vscode.commands.registerCommand('smd._tokenMeter', () => (meter ? { visible: true, ...meter } : { visible: false })),
     vscode.commands.registerCommand('smd.copyAgentView', () => copy({}, 'agent view')),
     vscode.commands.registerCommand('smd.copyAgentSections', async () => {
       const doc = activeSmd();
@@ -150,6 +168,7 @@ export function registerAgentView(context: vscode.ExtensionContext): void {
       if (picks?.length) await copy({ sections: picks.map((p) => p.slug) }, `${picks.length} section(s)`);
     }),
     vscode.window.onDidChangeActiveTextEditor(updateStatus),
+    ...(meterUi ? [meterUi.onDidChange(() => updateStatus())] : []),
     vscode.workspace.onDidChangeTextDocument((e) => {
       if (e.document.languageId !== 'smd') return;
       clearTimeout(timer);

@@ -1,0 +1,280 @@
+---
+smd: 2
+title: "Design: Token metering"
+summary: How the token meter works. The CLI and the MCP server append one JSON line per agent read to a local, self-ignored log in the workspace, agent hooks add raw reads, and one shared function turns the log into KPIs (session net savings first) and a section graph that the VS Code extension and `smd meter report` both show.
+status: review
+owners: ["@roshanmadhushanka"]
+updated: 2026-11-19
+tags: [token-metering, design, extension, mcp, cli]
+toc: true
+---
+
+## Overview
+
+Requirements are in [token-metering-requirement.smd](../requirements/token-metering-requirement.smd) and screens in [token-metering-mocks.smd](token-metering-mocks.smd). This document answers four questions.
+
+1. How agents' reads reach the meter (Access paths).
+2. Where the numbers are kept (Storage).
+3. How savings are counted so the number holds up (KPIs).
+4. How section use and relationships are measured and drawn (Section access).
+
+The extension can't see inside an agent. Claude Code, Codex, Cursor and Copilot each run `smd` in their own process, so the meter can't be a VS Code feature alone. **Every process that serves `.smd` content to an agent writes what it served to a shared local log, and the extension reads that log.**
+
+```mermaid
+flowchart LR
+  accTitle: How agent reads reach the token meter
+  accDescr: MCP, CLI and hook paths all call recordAccess, which appends to a local log that the extension and smd meter report read.
+  subgraph Agents
+    CC[Claude Code]
+    CX[Codex]
+    CU[Cursor]
+    CP[Copilot]
+  end
+  CC -- MCP --> MCP[smd mcp<br/>one process per connection]
+  CU -- MCP --> MCP
+  CP -- MCP --> MCP
+  CX -- MCP --> MCP
+  CC -- shell --> CLI[smd read / agent / query]
+  CX -- shell --> CLI
+  CC -. Read hook .-> HOOK[smd meter hook]
+  MCP --> REC[recordAccess]
+  CLI --> REC
+  HOOK --> REC
+  REC -->|append one line| LOG[(.smd/meter/<br/>events-YYYY-MM.jsonl)]
+  LOG -->|watch + tail| EXT[VS Code extension<br/>MeterStore in memory]
+  LOG --> REP[smd meter report]
+  EXT --> UI[Status bar card · Panel · Heading hints]
+```
+
+## Access paths
+
+### MCP server
+
+Each client starts its own `smd mcp` process (`smd init --agent claude|cursor|copilot` writes the config today, and Codex users add the same command to their Codex MCP config). That makes the process a natural session.
+
+- At start the server creates a random session id.
+- The `initialize` request carries `clientInfo.name` and `clientInfo.version`, which name the agent (for example `claude-code`, `cursor-vscode`, `codex-mcp-client`). The exact names are **to verify** per client, and the meter stores whatever the client sends.
+- Each reading tool call (`read`, `section`, `query`, `outline`, `agent`, `tasks`) records events after the result is built, with served tokens counted on the full result text the server returns. `validate` and the write tools are not recorded.
+- A `read` is recorded by what it showed: `outline`, `section`, or `agent` (`brief` with `brief`). A read whose sections all fail to match is recorded with `outcome` `not-found` and nothing served.
+- A `query` records one event per document with matches, each serving the text of its own matches, with the sections and ids of the matches. `tasks` records one event that names the documents it listed and has no baseline, so it counts towards tokens served and targeted reads but not towards savings.
+- Whether metering is on is read from the root config on every call, so `smd meter on` takes effect without restarting the agent.
+
+### CLI
+
+Agents that follow the reader skill run `node .claude/skills/semantic-markdown-reader/scripts/smd.cjs read …` in a shell. The CLI records the reading commands only, `read`, `agent`, `query`, `outline`, `tasks` and `section` forms. Commands for people (`validate`, `export`, `build`, `fmt`) are never recorded.
+
+The CLI has no connection to tie calls together, so it names the client and session from what the calling agent leaves in the environment.
+
+| Agent           | Client marker                                                               | Session id                                                                                                                     |
+| --------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Claude Code     | `CLAUDECODE=1` in its shell (checked 2026-11-20 in Claude Code's own shell) | `CLAUDE_CODE_SESSION_ID`, the same id its hooks receive as `session_id`, so CLI reads and raw reads share a `claude-…` session |
+| Codex           | A `CODEX_*` variable (**to verify**)                                        | Idle-gap rule                                                                                                                  |
+| Cursor, Copilot | None known (**to verify**)                                                  | Idle-gap rule                                                                                                                  |
+| Anyone          | `SMD_CLIENT=name` and `SMD_SESSION=id`, set by the user or a wrapper        | As given                                                                                                                       |
+
+The idle-gap rule starts a new CLI session for a client after 30 minutes without an event from it in the workspace.
+
+### Raw reads through hooks
+
+A raw read is invisible to smd unless the agent reports it. Claude Code runs project hooks after a tool call, with the tool name, its input and a session id on stdin. `smd init --agent claude --meter` adds a `PostToolUse` hook with matcher `Read` that runs `smd meter hook`. The hook ignores files that aren't `.smd`, records `op` `raw-read` with the file's whole token count as served, and exits 0 within 100 ms so it never blocks the agent.
+
+Other agents are added when they offer an equivalent hook (Cursor's file-read hook is **to verify**). Until then their bypass rate shows as "not measured", never as 0%.
+
+### Editor
+
+The extension records `op` `copy` when a person uses Copy agent view or Copy sections for agent, with client `vscode`. Opening the agent view to look at it is not recorded, because no agent read it.
+
+## Storage
+
+:::decision{#D1 status=proposed} An append-only JSON Lines log in the workspace, aggregated in memory
+Events go to `<workspace>/.smd/meter/events-YYYY-MM.jsonl`, one JSON object per line, written with a single append per event. The extension keeps the aggregates in memory and rebuilds them from the files on start. No database.
+:::
+
+Why this and not the alternatives.
+
+| Option                                    | Verdict                                                                                                                                                                                                                                  |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JSON Lines in the workspace**           | Chosen. Every host can find it (the CLI and MCP server know the root, the extension knows the workspace folders). Appends from several processes are safe for small lines. Plain text the user can read, grep and delete. No dependency. |
+| VS Code global or workspace storage       | Rejected. The CLI and MCP server run outside VS Code and can't find that folder reliably.                                                                                                                                                |
+| OS cache folder keyed by a workspace hash | Kept as a fallback for read-only workspaces. Harder for users to find and delete, and breaks when the folder moves.                                                                                                                      |
+| SQLite (`node:sqlite`)                    | Rejected. The VS Code 1.97 extension host runs Node 20, which lacks it (C4), and a native SQLite package breaks the no-dependency rule (C2).                                                                                             |
+| In memory only                            | Rejected. MCP and CLI processes end with the agent session, so their numbers would be lost.                                                                                                                                              |
+
+### Layout
+
+```text
+<workspace>/.smd/
+  .gitignore            "*" , so nothing here is ever committed
+  meter/
+    events-2026-11.jsonl
+    events-2026-12.jsonl
+```
+
+The `.gitignore` is written the first time metering writes, if it isn't there. Monthly files keep retention a matter of deleting whole files.
+
+### Writing
+
+- One `fs.appendFileSync(path, line + "\n", { flag: "a" })` per event, each line well under 4 KB. On POSIX the `O_APPEND` flag makes concurrent appends of small writes land whole. On Windows each append is one `WriteFile` with append access. A reader still skips a line that doesn't parse, so a torn line costs one event, never the file.
+- The writer checks the folder size at most once a minute per process. Over the cap (20 MB) it stops writing and reports once on stderr.
+- On start, a writer deletes monthly files older than the retention period (90 days).
+- Any error is caught. The read that triggered it is never affected (R2).
+
+### Reading in the extension
+
+`MeterStore` reads every events file on activation, then watches the folder. For each file it remembers the byte offset it has read and on change reads only the new bytes, parsing complete lines. Aggregates are kept per file, per section, per session and per client. A month of heavy use (50,000 events of about 300 bytes each) is about 15 MB of text and parses in well under a second, which is acceptable on activation and avoids a second store.
+
+### Turning it on
+
+Metering is on when any of these is true and `SMD_METER` isn't `off`.
+
+1. `"meter": true` (or a `meter` object without `"enabled": false`) in the workspace config, `.smdrc`, `smd.config.json` or `.smdrc.json`, the first that exists at the root. The workspace is the nearest folder with one of those files or `.git`.
+2. That is the only switch. The CLI, the MCP server and the extension all read it, so VS Code has no setting of its own that could disagree with what agents see. The status bar card and **Turn On Token Metering** write it after asking, `smd meter on` and `smd init --agent claude --meter` write it directly.
+
+The `meter` object also takes `retentionDays`, `maxMegabytes`, `tokenizer` (for example `o200k_base`, used when js-tiktoken is installed) and `dir` (a folder for the log instead of `.smd/meter`).
+
+## Event schema
+
+```json
+{
+  "v": 1,
+  "ts": "2026-11-19T10:22:31.120Z",
+  "session": "mcp-7f3a9c01",
+  "client": { "name": "claude-code", "version": "2.1.0", "via": "mcp" },
+  "op": "section",
+  "file": "docs/prd.smd",
+  "fileHash": "3f2a9c1b",
+  "sections": ["requirements", "risks"],
+  "ids": ["R1", "R4"],
+  "follow": [{ "from": "requirements", "to": "constraints" }],
+  "tokens": { "served": 812, "file": 6312, "includes": 0, "tokenizer": "estimate" },
+  "outcome": "ok"
+}
+```
+
+| Field                            | Meaning                                                                                                                                                              |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v`                              | Schema version. Readers skip versions they don't know.                                                                                                               |
+| `session`                        | `mcp-…` per MCP connection, `claude-…` from Claude Code's session id (CLI and hook), `cli-…` from `SMD_SESSION` or the idle-gap rule, `editor-…` per VS Code window. |
+| `client.via`                     | `mcp` · `cli` · `hook` · `editor`                                                                                                                                    |
+| `op`                             | `outline` · `section` · `query` · `agent` · `brief` · `tasks` · `raw-read` · `copy`                                                                                  |
+| `file`                           | Path relative to the workspace root, forward slashes.                                                                                                                |
+| `fileHash`                       | First 8 hex characters of the SHA-256 of the file text. Tells counts for an old version of the file from the current one.                                            |
+| `sections`                       | Slugs of the sections the result contained. Empty for a whole-file read.                                                                                             |
+| `ids`                            | Block ids of query matches.                                                                                                                                          |
+| `follow`                         | Dependency edges the read followed, as section slugs, within one file (`smd read --follow`, `smd query --follow`).                                                   |
+| `files`                          | The documents a `tasks` call listed (it has no `file`).                                                                                                              |
+| `query`                          | The selector of a query, as written.                                                                                                                                 |
+| `tokens.served`                  | Tokens of the whole result the agent received.                                                                                                                       |
+| `tokens.file`, `tokens.includes` | Tokens of the raw file and of the files it included, for the baseline.                                                                                               |
+| `outcome`                        | `ok` · `not-found` · `error`                                                                                                                                         |
+
+No field holds document text, query results or prompts (C1). A query selector such as `decision[status=accepted]` is kept, because it is the user's own vocabulary and helps explain a read, but its matches are not.
+
+## KPIs
+
+All KPIs come from one pure function, `meterReport(events, { since, until, paths })` in the core, used by the extension and `smd meter report` (R9). For a session *s* and file *f*, let *served(s,f)* be the sum of served tokens of its smd reads and *base(f)* the file's tokens plus its includes at the latest `fileHash` in that session.
+
+| KPI                                   | Formula                                                             | What it says                                              | Limit                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **K1 Session net savings** (headline) | Σ over (s,f) of base(f) − served(s,f), and as a share of Σ base(f)  | Tokens saved against reading each file once per session   | Assumes a raw reader reads the whole file once. Can be negative and is shown so. |
+| K2 Per-read savings                   | Σ over reads of base − served                                       | Savings if every read would otherwise load the whole file | Overstates. Secondary, labelled.                                                 |
+| K3 Tokens served                      | Σ served                                                            | What agents received through smd                          | —                                                                                |
+| K4 smd share                          | smd reads ÷ (smd reads + raw reads) of `.smd` files                 | How often agents use smd instead of bypassing it          | Only for clients with a hook. "Not measured" for others.                         |
+| K5 Targeted reads                     | `section` + `query` + `outline` reads ÷ all smd reads               | Whether agents read only what they need                   | —                                                                                |
+| K6 Re-reads                           | Reads of a section already read in the same session ÷ section reads | Context loss or poor targeting                            | —                                                                                |
+| K7 Withheld content                   | base − agent view tokens, for whole-file reads                      | Human-only content agents never received                  | Not a saving the agent chose. Shown apart.                                       |
+
+### Accuracy
+
+- **Count what was sent.** Served tokens come from the exact text the tool returned, wrapping included, not from the agent view alone (R8).
+- **Say how it was counted.** Each event stores its tokenizer. With js-tiktoken installed, the meter uses `o200k_base` for both served and baseline, so their ratio is consistent even though no public tokenizer matches current Claude models. Mixed tokenizers in one period are reported as such and the savings share is computed per tokenizer.
+- **Same text, same count.** Baseline and served text are counted by the same tokenizer in the same event, so a systematic error in the estimate cancels out of the savings share.
+- **Show the uncertain part.** The card and panel show K1 with its method ("≈4 chars/token, session net"). K4 is hidden for clients without a hook.
+- **Not research evidence by itself.** Numbers for the paper or a benchmark come from the experiments under `research/experiment`, recorded in the evidence runbook. The meter is a product feature and its log is personal data.
+
+## Section access
+
+### Counting
+
+Each event's `sections` give per-section reads, keyed by `file#slug`. Counts for slugs that match no heading of the current file are listed as "Unmatched" in the Sections tab until their events expire.
+
+:::limitation{#L1 status=open affects=../requirements/token-metering-requirement.smd#R10} A renamed heading starts a new history
+Sections are keyed by slug only. R10 also asks to follow a section through a rename by the ids of its blocks, which is not built yet. The old slug's counts stay visible as unmatched.
+:::
+
+Whole-file reads (`agent`, `read` without sections, `raw-read`) count as a read of the file and are not spread over its sections, because nothing says the agent used every section.
+
+### Relationships
+
+Three edge kinds, drawn together.
+
+| Edge     | Source                                                                                               | Weight               |
+| -------- | ---------------------------------------------------------------------------------------------------- | -------------------- |
+| Co-read  | Two sections read in the same session within 10 minutes                                              | Number of sessions   |
+| Followed | `follow` entries, a dependency the agent traversed                                                   | Number of traversals |
+| Declared | `depends-on`, `applies-to`, `:ref` and `verifies` from the parsed document (the existing graph code) | —                    |
+
+The panel draws the sections of the chosen file, or the top sections of the workspace, as nodes sized by reads, with co-read edges thick by weight and declared edges dashed. Two findings are listed beside the graph.
+
+- **Declared, never followed.** A declared edge with no followed or co-read weight in the period.
+- **Read together, not linked.** A co-read edge above a threshold with no declared edge, a hint that a `:ref` or `depends-on` is missing.
+
+The graph is drawn as inline SVG in the panel webview from a small layout routine, with no graph library (C2), and the panel also offers it as a Mermaid `flowchart` for pasting into a document.
+
+## Components
+
+All paths are under `extension/src/`.
+
+| Component                     | Where                                                                         | Does                                                                                                                          |
+| ----------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Settings and log              | `meter/log.ts`                                                                | Whether metering is on and where the log is (`meterSettings`), appending, reading, retention, the size cap, `.smd/.gitignore` |
+| Recording                     | `meter/record.ts`                                                             | Collects notes during one metered call, counts tokens, names the client and session, builds events; never throws              |
+| KPIs and graph                | `core/meter.ts`                                                               | `meterReport`, `sectionGraph`, `declaredSectionEdges`, `sectionGraphMermaid`; pure and browser-safe                           |
+| MCP recording                 | `mcp.ts`, `mcpProtocol.ts`                                                    | `clientInfo` from `initialize`, a meter hook around every tool call, notes in the reading tools                               |
+| CLI recording                 | `meterCommand.ts` (`meteredCli`), `cli.ts`, `queryCommand.ts`, `workspace.ts` | Captures what a reading command writes to stdout; notes in the commands; the document reader counts includes                  |
+| `smd meter`                   | `meterCommand.ts`                                                             | `status`, `on`, `off`, `report`, `clear`, `hook`, and the Claude Code hook setup                                              |
+| Log store                     | `meterStore.ts`                                                               | Extension side, reads the log once, then tails appended lines; follows config changes                                         |
+| Status bar card               | `agentViewUi.ts`, `tokenMeter.ts`                                             | Estimate plus measured figures for the active file; records copies                                                            |
+| Meter panel and heading hints | `meterPanel.ts`, `meterPanelHtml.ts`, `media/token-meter.js`                  | Webview with Overview, Sections, Graph and Agents tabs; CodeLens above headings; the commands                                 |
+
+## Rollout
+
+All five phases are built on `feat/token-meter` (2026-11-20) and ship together, separately from 6.0.0 (Q1 in the requirements). The version is chosen later.
+
+| Phase | Ships                                                                                          |
+| ----- | ---------------------------------------------------------------------------------------------- |
+| 1     | Status bar card with the estimate and actions                                                  |
+| 2     | Event log, recording in MCP and CLI, `smd meter` with `report`, `clear`, `on`, `off`, `status` |
+| 3     | `MeterStore`, measured figures in the card, meter panel                                        |
+| 4     | Claude Code raw-read hook (`smd init --agent claude --meter`), K4                              |
+| 5     | Section graph with its findings and Mermaid copy, heading hints                                |
+
+- [ ] Accept or change D1 and the KPI definitions :priority[P0] @roshanmadhushanka :due[2026-11-26]
+- [ ] Verify the MCP client names of Claude Code, Codex, Cursor and Copilot, and the CLI markers of Codex, Cursor and Copilot (Claude Code's `CLAUDECODE` and `CLAUDE_CODE_SESSION_ID` were checked 2026-11-20) :priority[P1] @roshanmadhushanka :due[2026-11-28]
+- [ ] Verify Claude Code hook input fields with a real hook run, and Cursor's file-read hook :priority[P1] @roshanmadhushanka :due[2026-11-28]
+- [ ] Follow a section through a heading rename by its block ids (L1) :priority[P3] @roshanmadhushanka
+
+## Risks
+
+:::risk{#K-R1 impact=medium likelihood=medium} Users read session net savings as an invoice figure
+Mitigation: the method label on every number, the non-goal on billing, and a short "How this is counted" link in the card.
+:::
+
+:::risk{#K-R2 impact=medium likelihood=low} Concurrent appends tear lines on some file systems
+Network drives and some sync folders don't honour append semantics. Mitigation: readers skip unparsable lines, and the fallback OS cache folder can be chosen in `.smdrc`.
+:::
+
+:::risk{#K-R3 impact=low likelihood=medium} The log becomes a record of what someone worked on
+It holds file paths, section names and times. Mitigation: off by default, local only, self-ignored by Git, retention, `smd meter clear`, and no document text (C1).
+:::
+
+:::risk{#K-R4 impact=medium likelihood=medium} Agents change their client names, markers or hook formats
+Mitigation: the meter stores what it receives and maps names in one table, so a change shows up as a new client rather than lost events.
+:::
+
+:::agent
+- Recording lives in the Node hosts, aggregation in `src/core/meter.ts`. Don't import `node:fs` from the core.
+- `recordAccess` must catch every error and must not change the tool result.
+- Count served tokens on the full text returned to the agent.
+- Mark anything labelled **to verify** as unverified until it has been checked against the agent's documentation or a real run.
+:::

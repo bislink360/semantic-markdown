@@ -23,7 +23,9 @@ import { EXPORT_HELP, runExport } from './exportCommand';
 import { type Args, parseArgs, reads } from './cliOptions';
 import { fail, langOption, LANG_USAGE, reportCrash, requireFile, write } from './cliIo';
 import { loadRuleConfig, readConfigFile, type LoadedConfig } from './config';
-import { runMcpServer } from './mcp';
+import { runMcpServer, slugsOf, viewOp } from './mcp';
+import { installMeterHook, meteredCli, METER_HELP, runMeter } from './meterCommand';
+import { noteAccess } from './meter/record';
 import { readDocument, READ_BUDGET, type ReadMode, type ReadResult } from './readView';
 import { MCP_SERVER_NAME, McpConfigError, mcpConfigFor, mergeMcpConfig, type McpConfigSpec } from './agentSetup';
 import { runSavings } from './savings';
@@ -271,6 +273,10 @@ Agent integration:
                       included files
       Register it, e.g.: claude mcp add smd -- npx -y -p semantic-markdown smd mcp
 
+Token meter:
+  ${METER_HELP.split('\n').join('\n  ')}
+  smd init --agent claude --meter also adds a Claude Code hook that records its own reads of .smd files.
+
 Editor integration:
   smd lsp [--stdio]
       Language server (LSP) over stdio for Neovim, Helix, Zed and other editors: diagnostics with quick
@@ -293,7 +299,12 @@ Agent skills:
 
 const SKILLS_USAGE = 'Usage: smd skills install [--dir <dir>] [--global] [--only reader|writer] [--target claude|cursor|copilot|agents]';
 
+/** The token meter wraps the commands that serve content to agents; it does nothing while metering is off. */
 function main(argv: string[]): number | Promise<number> {
+  return meteredCli(argv[0], () => runCommand(argv));
+}
+
+function runCommand(argv: string[]): number | Promise<number> {
   const args = parseArgs(argv, (message) => console.error(`[smd] warning: ${message}`));
   const { command, positional, flags } = args;
   const value = (name: string) => args.values.get(name)?.[0];
@@ -409,6 +420,11 @@ function main(argv: string[]): number | Promise<number> {
       if (included === null) return fail(INCLUDED_USAGE);
       return mcp(value('--root'), { allowWrite: flags.has('--allow-write'), allowSuggest: flags.has('--allow-suggest'), legacyTools: flags.has('--legacy-tools'), ...(included ? { includedInstructions: included } : {}) });
     }
+    case 'meter':
+      return runMeter({
+        sub: positional[0], positional: positional.slice(1), root: value('--root'), since: value('--since'), until: value('--until'),
+        json: flags.has('--json'), stdin: () => fs.readFileSync(0, 'utf8'),
+      });
     case 'lsp':
       return lsp(flags);
     case 'skills':
@@ -606,6 +622,7 @@ function tasks(targets: string[], args: Args, today?: string): number {
   const order = args.values.get('--order')?.[0] ?? 'priority';
   if (order !== 'priority' && order !== 'deps') return fail(`--order is priority (the default) or deps, not "${order}".`);
   const rows = taskRows(files, { all, mine: args.values.get('--mine')?.[0], today, order });
+  for (const file of new Set(files)) noteAccess({ file, op: 'tasks' });
   const out = args.values.get('-o')?.[0];
   if (format === '--json') return write(out, JSON.stringify(rows, null, 2) + '\n');
   if (format === '--gantt') return taskGantt(rows, args, out);
@@ -695,6 +712,7 @@ async function lsp(flags: Set<string>): Promise<number> {
 function outlineFile(file: string, related: boolean, today?: string, tokenizerName?: string, compactOutline = false): number {
   return withTokenizer(tokenizerName, (tokenizer) => {
     const text = read(file);
+    noteAccess({ file, op: 'outline' });
     process.stdout.write(outline(text, { readFile: readerFor(file), today, tokenizer, compactOutline }));
     if (related) process.stdout.write(relatedBlock(file, text, today));
     return 0;
@@ -782,9 +800,13 @@ function readCommand(file: string, args: Args, today?: string): number {
     });
     if (result.missingSections.length) {
       console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd read ${file} --outline" to list sections.`);
-      if (result.missingSections.length === sections?.length) return 1;
+      if (result.missingSections.length === sections?.length) { noteAccess({ file, op: 'section', outcome: 'not-found' }); return 1; }
     }
     if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
+    noteAccess({
+      file, op: viewOp(result.shown, flags.has('--brief')), sections: slugsOf(result.resolvedSections),
+      follow: (result.follow?.dependencies ?? []).filter((d) => d.node.file === d.via.file).map((d) => ({ from: d.via.section, to: d.node.section })),
+    });
     process.stdout.write(result.text);
     const exact = result.counted ? ` (${result.counted.tokens} ${result.counted.tokenizer})` : '';
     console.error(`[smd] ${result.shown} · agent view ≈${result.fullTokens} tokens${exact} · file ≈${result.fileTokens} tokens`);
@@ -868,9 +890,11 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
   });
   if (result.missingSections.length) {
     console.error(`No section matching: ${result.missingSections.join(', ')}. Run "smd outline ${file}" to list sections.`);
-    if (result.missingSections.length === (sections?.length ?? 0)) return 1;
+    if (result.missingSections.length === (sections?.length ?? 0)) { noteAccess({ file, op: 'section', outcome: 'not-found' }); return 1; }
   }
   if (manifest && result.provenance) writeProvenance(manifest, result.provenance);
+  const brief = args.flags.has('--brief');
+  noteAccess({ file, op: sections?.length ? 'section' : brief ? 'brief' : 'agent', sections: slugsOf(result.resolvedSections) });
   process.stdout.write(result.text);
   console.error(sizeLine(result));
   if (result.budget) for (const line of budgetLines(result.budget, result.counted?.tokenizer, !!result.resolvedSections)) console.error(line);
@@ -1135,6 +1159,10 @@ function initAgents(args: Args): number {
       const spec = mcpConfigFor(target);
       if (spec && !writeMcpConfig(spec, root)) return 1;
     }
+  }
+  if (args.flags.has('--meter')) {
+    if (!targets.includes('claude')) return fail('--meter installs a Claude Code hook: use it with --agent claude.');
+    if (installMeterHook(path.resolve(root))) return 1;
   }
   console.log(`Done. Restart the agent (or reload its MCP servers) to pick up the "${MCP_SERVER_NAME}" tools; agents can also run the CLI directly.`);
   return 0;

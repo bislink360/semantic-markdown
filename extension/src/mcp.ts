@@ -1,9 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { agentView, outline, parseSelector, queryView, SelectorError, withheldMatches, type Diagnostic, type Selector } from './core';
+import {
+  agentView, outline, parseSelector, queryView, SelectorError, withheldMatches, type Diagnostic, type MeterOp, type ResolvedSection, type Selector,
+} from './core';
 import { loadRuleConfig, type LoadedConfig } from './config';
 import { loadMermaidParser } from './mermaidLoader';
-import { McpServer, serveLines, ToolError, type McpTool, type ToolInputSchema } from './mcpProtocol';
+import { meterSettings } from './meter/log';
+import { beginMeterCall, endMeterCall, newSessionId, noteAccess, recordCall } from './meter/record';
+import { McpServer, serveLines, ToolError, type McpMeter, type McpTool, type ToolInputSchema } from './mcpProtocol';
 import { revisionOf, suggestTool, writeTools } from './mcpWrite';
 import { contractSummary, contractText, withheldNote } from './queryCommand';
 import { readDocument, READ_BUDGET, READ_MODES, type ReadMode } from './readView';
@@ -197,6 +201,10 @@ function readTool(box: Sandbox, args: Args, allowWrite = false): string {
   const result = readDocument(source, {
     mode, sections, exactSections: flag(args, 'exact'), maxTokens, brief: flag(args, 'brief'), readFile: box.reader(file), ...box.view,
   });
+  noteAccess({
+    file, op: viewOp(result.shown, flag(args, 'brief')), sections: slugsOf(result.resolvedSections),
+    ...(noneFound(result.missingSections, sections) ? { op: 'section' as const, outcome: 'not-found' as const } : {}),
+  });
   const view = withMissing(result.text, result.missingSections, sections?.length ?? 0);
   // With the write tools on: the revision they take, so a write is refused if the file changed since this read.
   return allowWrite ? `${view.trimEnd()}\n\n[revision ${revisionOf(source)}]\n` : view;
@@ -212,6 +220,7 @@ function withMissing(view: string, missing: string[], asked: number): string {
 
 function outlineTool(box: Sandbox, args: Args): string {
   const file = box.document(text(args, 'file')!);
+  noteAccess({ file, op: 'outline' });
   return outline(read(file), { readFile: box.reader(file) });
 }
 
@@ -219,18 +228,22 @@ function sectionTool(box: Sandbox, args: Args): string {
   const file = box.document(text(args, 'file')!);
   const sections = list(args, 'sections')!;
   const result = agentView(read(file), { sections, brief: flag(args, 'brief'), readFile: box.reader(file), ...box.view });
+  noteAccess({ file, op: 'section', sections: slugsOf(result.resolvedSections), ...(noneFound(result.missingSections, sections) ? { outcome: 'not-found' as const } : {}) });
   return withMissing(result.text, result.missingSections, sections.length);
 }
 
 function agentTool(box: Sandbox, args: Args): string {
   const file = box.document(text(args, 'file')!);
   // `includeHuman` is accepted for old clients and ignored since 6.0.0: :::human blocks never reach agents.
+  noteAccess({ file, op: flag(args, 'brief') ? 'brief' : 'agent' });
   return agentView(read(file), { brief: flag(args, 'brief'), readFile: box.reader(file), ...box.view }).text;
 }
 
 function tasksTool(box: Sandbox, args: Args): string {
   const all = flag(args, 'all');
-  const rows = taskRows(box.documents(list(args, 'paths')), { all, mine: text(args, 'mine') }, (f) => box.name(f));
+  const files = box.documents(list(args, 'paths'));
+  for (const file of files) noteAccess({ file, op: 'tasks' });
+  const rows = taskRows(files, { all, mine: text(args, 'mine') }, (f) => box.name(f));
   return [...rows.map(taskLine), taskSummary(rows, all)].join('\n') + '\n';
 }
 
@@ -240,6 +253,13 @@ function queryTool(box: Sandbox, args: Args): string {
   if (flag(args, 'contract')) return contractQueryTool(box, text(args, 'selector')!, files, args);
   // Content for people (an {agent=skip} section, a :::human block) is never a match; the result says how many were left out.
   const rows = queryRows(files, selectors, { brief: flag(args, 'brief'), forAgents: true }, (f) => box.name(f));
+  for (const r of rows) {
+    const id = r.attrs.id;
+    noteAccess({
+      file: path.resolve(box.root, r.file), op: 'query', query: text(args, 'selector'), served: r.text,
+      ...(r.section ? { sectionTitles: [r.section] } : {}), ...(typeof id === 'string' ? { ids: [id] } : {}),
+    });
+  }
   const left = noPrefix(withheldNote(files.reduce((n, f) => n + withheldMatches(read(f), selectors), 0)));
   return `${queryText(rows, flag(args, 'titles'))}${rows.length ? '\n' : ''}${querySummary(rows, files.length)}\n${left}`;
 }
@@ -252,11 +272,28 @@ function contractQueryTool(box: Sandbox, selector: string, files: string[], args
   if (flag(args, 'titles')) throw new ToolError('"contract" shows each match with what it needs, so it does not go with "titles".');
   const views = files.flatMap((f) => {
     const result = queryView(read(f), selector, { brief: flag(args, 'brief'), readFile: box.reader(f), file: box.name(f), ...box.view });
+    if (result) noteAccess({ file: f, op: 'query', query: selector, served: result.text, sectionTitles: result.matches.flatMap((m) => (m.section ? [m.section] : [])) });
     return result ? [{ file: box.name(f), result }] : [];
   });
   const withheld = files.reduce((n, f) => n + withheldMatches(read(f), selector), 0);
   const summary = noPrefix(contractSummary(views, files.length) + withheldNote(withheld));
   return `${contractText(views)}${views.length ? '\n' : ''}${summary}`;
+}
+
+/** The meter's op for what a read showed. */
+export function viewOp(shown: 'full' | 'outline' | 'sections', brief: boolean): MeterOp {
+  if (shown === 'outline') return 'outline';
+  if (shown === 'sections') return 'section';
+  return brief ? 'brief' : 'agent';
+}
+
+/** True when sections were asked for and none matched: the read fails. */
+const noneFound = (missing: string[], asked: string[] | undefined) => !!asked?.length && missing.length === asked.length;
+
+/** The slugs of the headings a section read selected. */
+export function slugsOf(resolved: ResolvedSection[] | undefined): string[] | undefined {
+  const slugs = [...new Set((resolved ?? []).flatMap((r) => r.headings.map((h) => h.id)))];
+  return slugs.length ? slugs : undefined;
 }
 
 /** The CLI's `[smd]` lines as the tools return them, without the prefix. */
@@ -299,13 +336,42 @@ export function serverInstructions(options: SmdToolOptions = {}): string {
   return base + write + suggest;
 }
 
+/**
+ * The token meter for one MCP connection (one session): each reading tool call becomes events, with the client named
+ * by `initialize`. Off unless the root folder's config turns metering on; read again on every call, so turning it on
+ * or off takes effect without restarting the agent.
+ */
+export function mcpMeter(box: Sandbox): McpMeter {
+  const session = newSessionId('mcp');
+  return {
+    begin: (tool) => { if (METERED_TOOLS.has(tool)) beginMeterCall(); },
+    end: (tool, args, result, client) => {
+      const call = endMeterCall();
+      if (!METERED_TOOLS.has(tool) || !call) return;
+      const settings = meterSettings(box.root);
+      if (!settings.enabled) return;
+      // A read that failed (no such section) is recorded with its outcome.
+      if (result.isError && !call.notes.length && typeof args.file === 'string') {
+        try { call.notes.push({ file: box.document(args.file), op: tool === 'outline' ? 'outline' : 'section', outcome: 'not-found' }); } catch { return; }
+      }
+      const served = result.content.map((c) => c.text).join('\n');
+      const name = client?.name || 'unknown';
+      recordCall(call, { settings, session, served, client: { name, ...(client?.version ? { version: client.version } : {}), via: 'mcp' } });
+    },
+  };
+}
+
+const METERED_TOOLS = new Set(['read', 'outline', 'section', 'agent', 'query', 'tasks']);
+
 /** Serves the tools over stdio until the input ends. Only protocol messages go to stdout. */
 export async function runMcpServer(settings: McpServerSettings): Promise<void> {
   // Anything else that logs (e.g. Mermaid) must not corrupt the protocol stream.
   console.log = console.info = console.debug = console.warn = console.error;
   const box = new Sandbox(settings.root, settings.includedInstructions ? { includedInstructions: settings.includedInstructions } : {});
   const tools = smdTools(box, settings);
-  const server = new McpServer({ name: 'semantic-markdown', version: settings.version, tools, instructions: serverInstructions(settings) });
+  const server = new McpServer({
+    name: 'semantic-markdown', version: settings.version, tools, instructions: serverInstructions(settings), meter: mcpMeter(box),
+  });
   const write = (settings.allowWrite ? ', write tools on' : '') + (settings.allowSuggest ? ', suggest on' : '');
   console.error(`[smd mcp] serving ${box.root} over stdio${write}`);
   await serveLines(server, process.stdin, (line) => process.stdout.write(line));

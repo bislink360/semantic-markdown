@@ -1,0 +1,238 @@
+---
+smd: 2
+title: "Mocks: Token metering"
+summary: Text mocks of every token meter surface, the status bar item, the hover card with metering off and on, the meter panel (Overview, Sections, Graph, Agents), heading hints and `smd meter report`, with their empty and partial states.
+status: review
+owners: ["@roshanmadhushanka"]
+updated: 2026-11-19
+tags: [token-metering, mocks, ux, extension]
+toc: true
+---
+
+## How to read these mocks
+
+Each mock is the content and layout, not the final pixels. Numbers are made up but consistent with each other. Requirement ids point at [token-metering-requirement.smd](../requirements/token-metering-requirement.smd), and the data behind each screen is in [token-metering-design.smd](token-metering-design.smd).
+
+The hover card follows the VS Code status bar hover, as the Copilot status card does. A status bar hover can show Markdown, theme icons, links to commands and coloured text, but no buttons, inputs or charts, so bars are coloured block characters and actions are links. The panel is a webview and has none of those limits.
+
+## Status bar item
+
+| State                                 | Text                                  | Click                 |
+| ------------------------------------- | ------------------------------------- | --------------------- |
+| `.smd` file active, metering off      | `$(hubot) 6.3k → 2.1k tok`            | Opens the agent view  |
+| Metering on, reads in the last 7 days | `$(hubot) 6.3k → 2.1k tok · 14 reads` | Opens the meter panel |
+| Metering on, no reads yet             | `$(hubot) 6.3k → 2.1k tok · 0 reads`  | Opens the meter panel |
+| Any other file                        | Hidden                                | —                     |
+
+The arrow reads as "without smd → with smd". The part before the arrow is the raw file and the part after it is the agent view, both estimates for the active file (R12).
+
+## Hover card
+
+### Metering off
+
+This is the phase 1 card, already prototyped on `feat/token-meter`.
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ 🤖 Agent token meter                                 │
+│                                                      │
+│ 67% fewer tokens with smd                            │
+│ ──────────────────────────────────────────────────── │
+│ Without smd · raw file          ≈6,312 tok           │
+│ ████████████████████████                    (red)    │
+│ With smd · agent view           ≈2,104 tok · 67% fewer│
+│ ████████░░░░░░░░░░░░░░░░                    (blue)   │
+│ With smd · brief view           ≈1,204 tok · 81% fewer│
+│ █████░░░░░░░░░░░░░░░░░░░                    (green)  │
+│ ──────────────────────────────────────────────────── │
+│ 👁 Agent view · ⚡ Brief · ☰ Left out · ⧉ Copy        │
+│ ──────────────────────────────────────────────────── │
+│ Measure real agent reads?  ▸ Turn on metering         │
+│ Estimates at ≈4 characters per token.                │
+└──────────────────────────────────────────────────────┘
+```
+
+"Turn on metering" asks once, in a modal, before it writes `"meter": true` to `.smdrc` (R5).
+
+```text
+Turn on token metering for this workspace?
+
+smd will record which .smd files and sections agents read and how many tokens they
+received, in .smd/meter/ in this folder. Nothing leaves your machine. No document
+text is stored. The folder is ignored by Git. You can turn it off or clear it at any time.
+
+                                 [ Turn on ]  [ Cancel ]
+```
+
+### Metering on
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ 🤖 Agent token meter                  last 7 days    │
+│                                                      │
+│ Measured  · 61% saved (session net)                  │
+│ 9 sessions · 14 reads · 31.4k tok served             │
+│ ████████████████████░░░░░░░░░░░░  51.2k → 19.8k      │
+│ ──────────────────────────────────────────────────── │
+│ Estimate for this file                               │
+│ Without smd · raw file          ≈6,312 tok           │
+│ ████████████████████████                             │
+│ With smd · agent view           ≈2,104 tok · 67% fewer│
+│ ████████░░░░░░░░░░░░░░░░                             │
+│ ──────────────────────────────────────────────────── │
+│ Agents          Claude Code 9 · Codex 4 · Cursor 1   │
+│ Bypassed smd    Claude Code 2 raw reads · others n/m │
+│ Most read       Requirements 8 · Risks 5 · API 3     │
+│ ──────────────────────────────────────────────────── │
+│ 📊 Open meter · 👁 Agent view · ☰ Left out · ⧉ Copy   │
+│ ≈4 chars/token · session net savings · How counted?  │
+└──────────────────────────────────────────────────────┘
+```
+
+- "n/m" means not measured. It is shown for agents without a raw-read hook, never 0 (R4).
+- The period in the card is fixed at the last 7 days. The panel has the period picker.
+- Negative session net savings show in the warning colour with the text "used more tokens than reading the file once", not hidden (AC5).
+
+## Meter panel
+
+Opened from the card, the status bar item or **Semantic Markdown: Open Token Meter**. It has four tabs and one period picker shared by all of them (R13).
+
+::::tabs
+:::tab Overview
+```text
+Token meter · workspace               Period: [ Last 30 days ▾ ]   Method: ≈4 chars/token
+
+┌ Session net savings ─┐ ┌ Tokens served ──┐ ┌ smd share ──────┐ ┌ Targeted reads ┐
+│ 412k  (63%)          │ │ 241k            │ │ 88%  Claude Code│ │ 72%            │
+│ vs 653k baseline     │ │ 1,284 reads     │ │ n/m  others     │ │ section+query  │
+└──────────────────────┘ └─────────────────┘ └─────────────────┘ └────────────────┘
+
+Per-read savings (overstates, see How counted): 1.9M (89%)
+
+Files                          Reads  Sessions  Baseline  Served  Saved
+docs/requirements/prd.smd        412       61    184k     52k     72%  ████████▌
+docs/rfcs/view-laws.smd          233       40    121k     49k     60%  ███████
+architecture.smd                 190       35    150k     88k     41%  ████▊
+editor.smd                        12        4     9.1k    11.2k   −23%  ▏ used more
+…
+```
+:::
+
+:::tab Sections
+```text
+Sections · docs/requirements/prd.smd ▾        Sort: [ Reads ▾ ]
+
+Section               Reads  Sessions  Served   Re-reads  Last read
+Requirements            98      52     21.0k      12%     today 10:22   ▓▓▓▓▓▓▓▓▓▓
+  Recording             41      30      6.2k       5%     today 10:22   ▓▓▓▓
+Risks                   55      38      8.8k       3%     yesterday     ▓▓▓▓▓▓
+API                     31      17      9.4k      19%     Nov 17        ▓▓▓
+Background               0       0         0        —     never         (agent=skip)
+Rollout                  0       0         0        —     never         never read
+Unmatched: "Old scope" 6 reads (heading renamed or removed)
+```
+
+Choosing a row opens the file at that heading.
+:::
+
+:::tab Graph
+```text
+Section graph · docs/requirements/prd.smd ▾    [x] co-read  [x] followed  [x] declared
+
+        (Requirements 98) ━━━━━━━━ 34 ━━━━━━━━ (Risks 55)
+              ┃  ╲                                 ┊
+             21   ╲ 9 followed R1→C2              ┊ declared, never followed
+              ┃     ╲                              ┊
+          (API 31)  (Constraints 22)          (Rollout 0)
+
+Findings
+• Declared, never followed: Risks → Rollout (depends-on)
+• Read together, not linked: Requirements ↔ API (21 sessions) — add a :ref?
+
+[ Copy as Mermaid ]
+```
+
+Node size is reads, solid edges are co-reads (thicker means more sessions), arrows are followed dependencies and dashed edges are declared links (R11).
+:::
+
+:::tab Agents
+```text
+Agents                         Sessions  smd reads  Raw reads  smd share  Served
+Claude Code 2.1 (mcp, cli)         41        802        96         89%     151k
+Codex (cli)                        12        301        n/m        n/m      58k
+Cursor (mcp)                        6        170        n/m        n/m      29k
+VS Code copy                        —         11         —          —        3k
+unknown (cli)                       2          0         —          —        0
+
+n/m: not measured. Install the raw-read hook with `smd init --agent claude --meter`.
+```
+:::
+::::
+
+### Empty states
+
+| State                          | Panel shows                                                                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Metering off                   | A short explanation, the same consent text as the modal and a **Turn on metering** button                                                    |
+| On, no events                  | "No agent reads yet. Agents that read `.smd` files through the smd MCP server or CLI show up here." with links to `smd init --agent …` setup |
+| Log over its size cap          | A warning bar, "Metering paused, the log reached 20 MB", with **Clear old events**                                                           |
+| Mixed tokenizers in the period | A note under the KPIs naming both methods, with savings shown per method                                                                     |
+
+## Heading hints
+
+Off by default, turned on with `smd.meter.headingHints` (R14).
+
+```text
+   👁 98 reads · 52 sessions · last 7 days
+12 ## Requirements
+   👁 41 reads · 30 sessions
+20 ### Recording
+   👁 never read by agents
+88 ## Rollout
+```
+
+## CLI report
+
+`smd meter report` prints the same KPIs as the panel (R15).
+
+```text
+$ smd meter report --since 2026-11-01
+
+Token meter · 2026-11-01 to 2026-11-19 · ≈4 chars/token
+
+Session net savings   412,310 tokens (63%) vs 653,004 baseline
+Tokens served         241,120 in 1,284 reads, 159 sessions
+Per-read savings      1,902,775 (89%), overstates
+smd share             89% Claude Code · not measured: Codex, Cursor
+Targeted reads        72%   Re-reads 9%
+
+Most read sections
+  98  docs/requirements/prd.smd#requirements
+  55  docs/requirements/prd.smd#risks
+  41  docs/requirements/prd.smd#recording
+
+Agents
+  claude-code   41 sessions   802 reads   151,004 served
+  codex         12 sessions   301 reads    58,210 served
+  cursor         6 sessions   170 reads    29,020 served
+```
+
+`--json` prints the object `meterReport` returns, so CI or a notebook can read it.
+
+## Open questions
+
+::::question{#Q3 status=answered owner=@roshanmadhushanka due=2026-11-26} Should the status bar item open the panel or the agent view once metering is on?
+The mock opens the panel, because the card already links to the agent view. People used to clicking for the agent view would lose that.
+
+:::comment{for=Q3 date=2026-11-20 kind=answer}
+Built as the mock shows when the maintainer asked to complete the work: with metering on the item opens the panel, and the card keeps its Agent view link. With metering off it opens the agent view as before. Reopen to change.
+:::
+::::
+
+::::question{#Q4 status=answered owner=@roshanmadhushanka due=2026-11-26} Is the graph worth phase 5, or should the findings list ship alone first?
+The two findings carry most of the value and need no layout code.
+
+:::comment{for=Q4 date=2026-11-20 kind=answer}
+Both were built: the findings list and a small inline SVG graph (nodes on a circle, no layout library), plus Copy as Mermaid. Reopen to drop the drawing.
+:::
+::::

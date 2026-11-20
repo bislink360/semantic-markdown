@@ -74,6 +74,16 @@ export interface McpServerOptions {
   instructions?: string;
   /** Where to report unexpected errors (default: stderr via console.error). */
   log?: (message: string) => void;
+  /** Called around every tool call, for the token meter. */
+  meter?: McpMeter;
+}
+
+/** The client as `initialize` named it. */
+export interface McpClientInfo { name: string; version?: string }
+
+export interface McpMeter {
+  begin(tool: string): void;
+  end(tool: string, args: Record<string, unknown>, result: ToolResult, client: McpClientInfo | undefined): void;
 }
 
 type Id = string | number | null;
@@ -95,6 +105,8 @@ class RpcError extends Error {
 export class McpServer {
   private readonly tools: Map<string, McpTool>;
   private readonly log: (message: string) => void;
+  /** From `initialize`, for the token meter. */
+  private client: McpClientInfo | undefined;
 
   constructor(private readonly options: McpServerOptions) {
     this.tools = new Map(options.tools.map((t) => [t.name, t]));
@@ -154,6 +166,10 @@ export class McpServer {
 
   private initialize(params: unknown) {
     const requested = isObject(params) ? params.protocolVersion : undefined;
+    const info = isObject(params) && isObject(params.clientInfo) ? params.clientInfo : undefined;
+    if (info && typeof info.name === 'string') {
+      this.client = { name: info.name.slice(0, 80), ...(typeof info.version === 'string' ? { version: info.version.slice(0, 40) } : {}) };
+    }
     const protocolVersion = typeof requested === 'string' && PROTOCOL_VERSIONS.includes(requested) ? requested : PROTOCOL_VERSIONS[0];
     const { name, version, instructions } = this.options;
     return { protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: { name, version }, ...(instructions ? { instructions } : {}) };
@@ -170,12 +186,22 @@ export class McpServer {
     const args = params.arguments ?? {};
     const problem = isObject(args) ? checkArguments(tool.inputSchema, args) : 'arguments must be an object.';
     if (problem) return errorResult(`Invalid arguments for ${tool.name}: ${problem}`);
+    const meter = this.options.meter;
+    meter?.begin(tool.name);
+    let result: ToolResult;
     try {
-      return { content: [{ type: 'text', text: await tool.run(args as Record<string, unknown>) }] };
+      result = { content: [{ type: 'text', text: await tool.run(args as Record<string, unknown>) }] };
     } catch (e) {
       if (!(e instanceof ToolError)) this.log(`[smd mcp] ${tool.name} failed: ${(e as Error).stack ?? e}`);
-      return errorResult((e as Error).message);
+      result = errorResult((e as Error).message);
     }
+    // The meter never changes the result or fails the call.
+    try {
+      meter?.end(tool.name, args as Record<string, unknown>, result, this.client);
+    } catch (e) {
+      this.log(`[smd mcp] token meter: ${(e as Error).message}`);
+    }
+    return result;
   }
 }
 

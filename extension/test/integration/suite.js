@@ -581,6 +581,52 @@ const checks = {
     await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
   },
 
+  async 'the token meter reads agent events from the log, shows them on the status bar card and in its panel'() {
+    const config = path.join(samples, '.smdrc');
+    const smdDir = path.join(samples, '.smd');
+    assert.ok(!fs.existsSync(config) && !fs.existsSync(smdDir), 'the samples folder starts without a meter config or log');
+    const doc = await vscode.workspace.openTextDocument(path.join(samples, 'feature-spec.smd'));
+    await vscode.window.showTextDocument(doc);
+    const meter = () => vscode.commands.executeCommand('smd._tokenMeter');
+    const state = () => vscode.commands.executeCommand('smd._meterState', doc.uri);
+    try {
+      const off = await waitFor(async () => { const m = await meter(); return m?.visible ? m : undefined; }, 'the token meter item');
+      assert.equal(off.command, 'smd.showAgentView', 'metering off: the item opens the agent view');
+      assert.match(off.tooltip, /Turn on metering/);
+
+      // Turned on the way `smd meter on` does it: the store sees the config change.
+      fs.writeFileSync(config, '{ "meter": true }\n');
+      const root = (await waitFor(async () => { const s = await state(); return s?.enabled ? s : undefined; }, 'metering on')).root;
+      assert.equal(fs.realpathSync(root), fs.realpathSync(samples));
+
+      // An agent's read, appended as the CLI or the MCP server appends it.
+      const month = new Date().toISOString().slice(0, 7);
+      fs.mkdirSync(path.join(smdDir, 'meter'), { recursive: true });
+      const event = {
+        v: 1, ts: new Date().toISOString(), session: 'mcp-test', client: { name: 'claude-code', via: 'mcp' }, op: 'section',
+        file: 'feature-spec.smd', sections: ['requirements'], tokens: { served: 400, file: 3000, tokenizer: 'estimate' }, outcome: 'ok',
+      };
+      fs.appendFileSync(path.join(smdDir, 'meter', `events-${month}.jsonl`), JSON.stringify(event) + '\n');
+      const on = await waitFor(async () => { const m = await meter(); return m?.text.endsWith('· 1 read') ? m : undefined; }, 'the read on the status bar', 15000);
+      assert.equal(on.command, 'smd.openTokenMeter');
+      assert.match(on.tooltip, /\*\*87%\*\* saved \(session net\)/);
+      assert.match(on.tooltip, /Most read &nbsp; requirements 1/);
+
+      // Copying the agent view for a chat is recorded as the editor's own event.
+      await vscode.commands.executeCommand('smd.copyAgentView');
+      await waitFor(async () => (await state())?.events === 2, 'the copy event');
+
+      await vscode.commands.executeCommand('smd.openTokenMeter');
+      const panel = (await state()).panel;
+      assert.deepEqual([panel.visible, panel.file], [true, 'feature-spec.smd']);
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+      fs.rmSync(config, { force: true });
+      // The store watches .smd/meter; on Windows the folder can be busy for a moment after the last event.
+      fs.rmSync(smdDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+    }
+  },
+
   async 'the built-in Markdown preview renders .smd syntax in .md files that opt in with smd'() {
     const ext = vscode.extensions.getExtension('bislink360.semantic-markdown');
     const contributes = ext.packageJSON.contributes;

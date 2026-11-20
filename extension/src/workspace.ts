@@ -7,6 +7,7 @@ import {
 } from './core';
 import { agentText } from './core/applicability';
 import { compareTasks } from './taskGroups';
+import { trackReads } from './meter/record';
 
 /** Reading .smd files from disk, shared by the CLI and the MCP server. */
 
@@ -66,14 +67,15 @@ export function isInside(root: string, target: string): boolean {
 export function readerFor(file: string, roots = embedRoots(file)) {
   const dir = path.dirname(path.resolve(file));
   const realRoots = roots.map(realPath);
-  return (rel: string): string | undefined => {
+  // A metered call counts what the view reads besides the document, for the token meter's baseline.
+  return trackReads(file, (rel: string): string | undefined => {
     const target = path.resolve(dir, rel);
     if (!roots.some((r) => isInside(r, target))) return undefined;
     let real: string;
     try { real = fs.realpathSync.native(target); } catch { return undefined; }
     if (!realRoots.some((r) => isInside(r, real))) return undefined;
     try { return fs.readFileSync(real, 'utf8'); } catch { return undefined; }
-  };
+  });
 }
 
 /**

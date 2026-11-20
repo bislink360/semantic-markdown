@@ -94,6 +94,7 @@ The short version of this guide; each item is described in full in the sections 
 | `smd init --agent claude|cursor|copilot|agents` | Set up an agent in a project in one command: skills or rules, the CLI at `.smd/smd.cjs`, the MCP server config and the `AGENTS.md` snippet |
 | `smd skills install [--global] [--target …]` | Install the agent skills, or rules for Cursor, Copilot and `AGENTS.md` |
 | `smd savings <dirs> [--json]` | Repo-wide token report: raw files vs agent view vs `--brief`, and the saving in tokens and as a percentage per full read of every document |
+| `smd meter report [--since …] [--json]` | Measured savings from real agent reads, recorded locally once `smd meter on` turns the token meter on: session net savings, tokens served, smd share, most-read sections and reads per agent ([details](#14-vs-code-agent-view-and-token-counter)) |
 
 **Publish a docs site:** `smd build docs --out site` turns a folder of `.smd` files (and `.md` with `--md`) into a static site in the same folder structure, with links between documents rewritten to pages, a sidebar, previous/next links, backlinks, a search box that works offline, and a dashboard of open tasks, decisions and risks. Open `site/index.html` from disk or upload the folder to any static host (`--base /docs/` for absolute links). It only writes to a new, empty or previously built folder, and `--clean` removes only files of the previous build. See the [feature guide](#publish-a-docs-site-smd-build).
 
@@ -1174,7 +1175,13 @@ An optional editor for `.smd` files (since 1.8): the document as the preview ren
 | **What the Agent View Leaves Out…** | Each omission of the agent view and the brief view with its reason; choose one to select its lines in the source |
 | **Copy Agent View to Clipboard** | Right-click menu. Paste into any chat tool. |
 | **Copy Sections for an Agent…** | Pick sections; agent instructions are included automatically |
-| **Token counter** | The status bar shows `🤖 ≈1.5k tok`; hover to compare raw, agent-view and brief sizes |
+| **Token meter** | The status bar shows `🤖 6.3k → 2.1k tok`, the raw file against its agent view. Hover for a card with the raw, agent and brief sizes as bars and links to the agent view, the brief view, what is left out and Copy. With metering on it adds what agents actually read of the file in the last 7 days, and a click opens the meter panel |
+| **Open Token Meter** | With metering on: a panel with the workspace KPIs (session net savings, tokens served, smd share, targeted reads), files ranked by tokens saved, the sections of a file with their reads (never-read ones too), a graph of sections read together against the document's declared links, and reads per agent |
+| **Turn On Token Metering** | Asks first, then writes `"meter": true` to `.smdrc`. **Turn Off** and **Clear Token Meter Events…** undo it. `smd.meter.headingHints` shows read counts above each heading |
+
+**Token metering** records, on this machine only, each time an agent reads a `.smd` file through smd: the MCP server's reading tools and the CLI's `read`, `agent`, `outline`, `query` and `tasks`. Each event names the file, the sections, the agent (from the MCP handshake, or Claude Code's environment for the CLI) and the tokens it received, next to the raw file's size. Events go to `.smd/meter/events-YYYY-MM.jsonl`, which `.smd/.gitignore` keeps out of Git. No document text is stored and nothing is sent anywhere. It is off until `"meter": true` is in the workspace `.smdrc` (or `smd meter on`), and `SMD_METER=off` turns it off for one process.
+
+The headline is **session net savings**: in each agent session, each file's raw size (plus the files its view included) counts once, against every token smd sent for that file in the session. An agent that read the raw file would keep it in context, so this is the fair comparison, and it is negative when an agent reads more sections than the file holds. Per-read savings, which count the whole file on every read, are shown too, labelled as overstating. Counts are ≈4 characters per token, or exact with `"meter": { "tokenizer": "o200k_base" }` and js-tiktoken installed. Raw reads, an agent opening the file with its own tool, are counted only where the agent reports them: `smd init --agent claude --meter` adds a Claude Code hook for that. Elsewhere the panel says "not measured", never 0%.
 
 ## 15. Validation and quick fixes
 
@@ -1629,6 +1636,9 @@ smd init --agent claude|cursor|copilot|agents [--dir <project>]   set up an agen
 smd templates
 smd savings <files|dirs> [--json]   tokens saved, as a number and a percentage, per full read of every
                  document: raw file vs agent view vs --brief
+smd meter [status|on|off|report|clear|hook] [--root <dir>]   token meter: what agents read through smd, recorded
+                 locally (off until "smd meter on"); report [paths] [--since D] [--until D] [--json] prints the KPIs
+smd init --agent claude --meter   also add a Claude Code hook that records its own reads of .smd files
 smd skills install [--dir <path>] [--global] [--only reader|writer]
 smd mcp [--root <dir>] [--allow-write] [--allow-suggest] [--legacy-tools] [--included-instructions off]   MCP server over stdio (tools below)
 smd lsp [--stdio]                                    language server over stdio for other editors (below); also smd-language-server

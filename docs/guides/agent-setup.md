@@ -14,6 +14,7 @@ Agents read `.smd` documents through the CLI or the MCP server instead of readin
 - [Claude API and Claude Agent SDK](#claude-api-and-claude-agent-sdk)
 - [GitHub Copilot, Cursor, Codex, Windsurf and other agents](#github-copilot-cursor-codex-windsurf-and-other-agents)
 - [Verify the skills work](#verify-the-skills-work)
+- [Measure what agents read: the token meter](#measure-what-agents-read-the-token-meter)
 - [Writing documents that stay cheap to read](#writing-documents-that-stay-cheap-to-read)
 - [Update or remove](#update-or-remove)
 
@@ -248,6 +249,18 @@ Try these prompts in a new session in a repository that contains `.smd` files (t
 | *"Which high-impact risks are still open, and what did we decide about payments?"* | It runs `smd query "risk[impact>=high][status!=closed], decision[title*=pay]" docs/` and reads only those blocks. |
 | *"Which of our docs covers refunds, and what does it say about retries?"* | It runs `smd index docs/`, picks the document by title, summary and tags, then reads only the matching section with `smd agent … --section …`. |
 | *"The spec changed since last week. What's different?"* | It runs `smd diff docs/spec.smd --since "HEAD@{1.week.ago}"` (or a commit) and reads only the changed sections. |
+
+## Measure what agents read: the token meter
+
+To see whether agents really read your documents through smd, and what that saves, turn the token meter on in the project:
+
+```bash
+smd meter on
+```
+
+From then on the MCP server and the CLI record each read in `.smd/meter/` (ignored by Git, never sent anywhere, no document text). In VS Code the token counter in the status bar shows the reads of the open file, and **Semantic Markdown: Open Token Meter** shows the workspace: session net savings, tokens served, the most and least read sections, which sections agents read together, and reads per agent. Without VS Code, `smd meter report` prints the same numbers.
+
+For Claude Code, `smd init --agent claude --meter` also adds a hook to `.claude/settings.json` that records when Claude reads a `.smd` file with its own Read tool instead of smd, so the report can say how often smd was bypassed. `smd meter off` stops recording and `smd meter clear` deletes what was recorded.
 
 ## Writing documents that stay cheap to read
 

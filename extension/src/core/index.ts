@@ -107,3 +107,10 @@ export {
   resolveComment, reopenItem, rebaseItem, CLOSED_STATES,
 } from './review';
 export type { ReviewItem, ReviewResult, ReviewActor, ReviewWrite, ReviewType } from './review';
+export {
+  meterReport, sectionGraph, sectionGraphMermaid, declaredSectionEdges, parseMeterLines, isMeterEvent, filterEvents, shortTokens, methodLabel, METER_OPS, METER_SCHEMA_VERSION,
+} from './meter';
+export type {
+  MeterEvent, MeterOp, MeterVia, MeterFilter, MeterReport, Savings, FileStat, SectionStat, ClientStat, SectionGraph, SectionNode, SectionEdge,
+  SectionEdgeKind, SectionGraphOptions,
+} from './meter';

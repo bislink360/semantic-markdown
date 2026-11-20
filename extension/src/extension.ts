@@ -5,6 +5,7 @@ import { markdownToSmd, notionRequests, renderStandaloneHtml, smdToConfluence, s
 import { registerLanguageFeatures } from './language';
 import { readerFor } from './files';
 import { registerAgentView } from './agentViewUi';
+import { registerTokenMeter } from './meterPanel';
 import { registerBlockEditor } from './blockEditor';
 import { registerEditorFeatures } from './editorFeatures';
 import { extendMarkdownIt } from './markdownPreview';
@@ -33,7 +34,7 @@ export function activate(context: vscode.ExtensionContext): SmdExtensionApi {
   if (oldExtensionIsActive()) return { extendMarkdownIt: (md) => md };
   const previews = new PreviewManager(context);
   const diagnostics = registerLanguageFeatures(context);
-  registerAgentView(context);
+  registerAgentView(context, registerTokenMeter(context));
   registerEditorFeatures(context);
   registerTasksView(context);
   registerStatusWorkflow(context);

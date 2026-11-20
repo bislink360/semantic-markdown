@@ -246,6 +246,32 @@
         "category": "Semantic Markdown"
       },
       {
+        "command": "smd.openTokenMeter",
+        "title": "Open Token Meter",
+        "category": "Semantic Markdown",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "smd.meter.turnOn",
+        "title": "Turn On Token Metering",
+        "category": "Semantic Markdown"
+      },
+      {
+        "command": "smd.meter.turnOff",
+        "title": "Turn Off Token Metering",
+        "category": "Semantic Markdown"
+      },
+      {
+        "command": "smd.meter.clear",
+        "title": "Clear Token Meter Events…",
+        "category": "Semantic Markdown"
+      },
+      {
+        "command": "smd.meter.howCounted",
+        "title": "How the Token Meter Counts",
+        "category": "Semantic Markdown"
+      },
+      {
         "command": "smd.copyAgentView",
         "title": "Copy Agent View to Clipboard",
         "category": "Semantic Markdown"
@@ -575,6 +601,11 @@
           "type": "boolean",
           "default": true,
           "description": "When the document status is changed from the status bar (Set Document Status), also set the front matter \"updated\" date to today. Only documents that already have an \"updated\" key are changed."
+        },
+        "smd.meter.headingHints": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Show above each heading of a `.smd` file how often agents read that section in the last 7 days, from the token meter log. Needs token metering to be on for the workspace (`\"meter\": true` in `.smdrc`, or **Semantic Markdown: Turn On Token Metering**)."
         },
         "smd.review.author": {
           "type": "string",
