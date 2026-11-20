@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { feedbackUpdates, formatFeedbackUpdates, revisionOfText, UPDATES_NOTE } from './core';
+import { agentText } from './core/applicability';
 import { git, gitPath } from './workspace';
 
 /**
@@ -38,7 +39,11 @@ export function runUpdates(file: string | undefined, since: string | undefined, 
   const head = top ? git(['-C', top, 'rev-parse', '--short', 'HEAD'])?.trim() : undefined;
   const headText = head ? show('HEAD') : undefined;
   const next = { revision, ...(head && headText !== undefined && sameText(headText, text) ? { commit: head } : {}) };
-  const updates = feedbackUpdates(found.text, text, { file: rel ?? file, today: flags.today });
+  // 6.0.0: content for people ({agent=skip} sections, :::human blocks) never reaches an agent, so neither does a change in
+  // it. Both versions are compared as agents read them. The revisions stay those of the whole file, so a later
+  // --since rev:<revision> finds this checkpoint as before.
+  const compared = feedbackUpdates(agentText(found.text), agentText(text), { file: rel ?? file, today: flags.today });
+  const updates = { ...compared, revision: { before: revisionOfText(found.text), after: revisionOfText(text) } };
   if (flags.json) {
     const out = {
       file, since: { checkpoint: since, ...(found.commit ? { commit: found.commit } : {}), revision: updates.revision.before },

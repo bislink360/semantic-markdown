@@ -95,11 +95,9 @@ test('CLI: tasks, risks, trace, decisions, meta, outline, index and read never s
       'agent --section Notes': run('agent', file, '--section', 'Notes'),
       'query task': run('query', 'task', file),
     };
-    for (const [name, out] of Object.entries(outputs)) {
-      // A section read echoes the name the caller asked for in its header, and nothing of what the section holds.
-      const hidden = name.includes('--section') ? /HUMAN-|SKIPPED-|NESTED-|Deeper|Old (call|risk|requirement)/ : HIDDEN;
-      assert.doesNotMatch(out, hidden, `${name} shows content for people`);
-    }
+    // A section read names no skipped section, not even the one the caller asked for: its header says none is shown.
+    for (const [name, out] of Object.entries(outputs)) assert.doesNotMatch(out, HIDDEN, `${name} shows content for people`);
+    assert.match(outputs['agent --section Notes'], /\(excerpt — no section shown\)/);
     assert.match(outputs.tasks, /VISIBLE-TASK/);
     assert.match(outputs.risks, /VISIBLE-RISK/);
     assert.match(outputs.trace, /VISIBLE-REQ/);
