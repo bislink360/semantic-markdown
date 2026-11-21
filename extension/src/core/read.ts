@@ -200,8 +200,9 @@ const nodeRef = (n: GraphNode, file = n.file): FollowNodeRef => ({
 /**
  * Follow the edges of what a view shows: the whole document, or the selected sections. The view's own content
  * (selected sections, agent blocks, the constraints and dependencies it adds, includes it shows in place) is never
- * repeated, edges written in content the view hides ({agent=skip} sections, selected or not, and :::human blocks) are
- * left alone, and a dependency the view already reports as unsatisfied is not reported again.
+ * repeated, edges written in content the view hides ({agent=skip} sections, selected or not, and :::human blocks), and
+ * since 6.0.0 edges that point into it, are left alone, and a dependency the view already reports as unsatisfied is
+ * not reported again.
  */
 function followView(text: string, result: AgentViewResult, shown: 'full' | 'sections', input: FollowInput): Followed {
   const display = input.file ?? '<file>';
@@ -236,7 +237,7 @@ function followView(text: string, result: AgentViewResult, shown: 'full' | 'sect
   };
   const hiddenAt = (file: string, line: number | undefined) => line !== undefined && within(line, hiddenOf(file));
   const written = (e: GraphEdge) => hiddenAt(e.from.file, e.line);
-  const toHidden = (e: GraphEdge) => e.type !== 'applies-to' && !!e.to && hiddenAt(e.to.file, e.to.line);
+  const toHidden = (e: GraphEdge) => !!e.to && hiddenAt(e.to.file, e.to.line);
 
   // The view's content: the selection, then what it shows from elsewhere.
   const shownRanges: Array<[number, number]> = [...selected];
@@ -258,7 +259,7 @@ function followView(text: string, result: AgentViewResult, shown: 'full' | 'sect
   if (shown === 'full' && 'node' in loaded) shownKeys.add(nodeKey(loaded.node));
   // Includes the view shows in place: their targets are shown.
   if (input.readFile) {
-    for (const e of graph.edgesOf(path)) if (e.type === 'include' && e.to && within(e.line, selected) && !written(e)) shownKeys.add(nodeKey(e.to));
+    for (const e of graph.edgesOf(path)) if (e.type === 'include' && e.to && within(e.line, selected) && !written(e) && !toHidden(e)) shownKeys.add(nodeKey(e.to));
   }
 
   const mandatory = input.types.filter((t) => MANDATORY_EDGES.includes(t));
@@ -267,7 +268,7 @@ function followView(text: string, result: AgentViewResult, shown: 'full' | 'sect
     : { blocks: [], unsatisfied: [] };
   for (const b of closure.blocks) shownKeys.add(nodeKey(b.node));
   const { neighbors, cut } = starts.length
-    ? followEdges(graph, starts, { types: input.types, direction: input.direction, depth: input.depth, shown: shownKeys, ignore: written })
+    ? followEdges(graph, starts, { types: input.types, direction: input.direction, depth: input.depth, shown: shownKeys, ignore: (e) => written(e) || toHidden(e) })
     : { neighbors: [], cut: 0 };
   // The view reports its own unsatisfied dependencies; each is reported once.
   const reported = result.mandatory?.unsatisfied ?? [];

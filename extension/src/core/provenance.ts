@@ -353,21 +353,22 @@ const CONDENSED: ReadonlySet<OmissionKind> = new Set(['details', 'diagram', 'cod
 const NO_RETRIEVE: Partial<Record<OmissionKind, string>> = {
   comment: 'HTML comments are in no agent view: read the source lines',
   dependency: 'it names something the reader could not show, for the reason given',
+  // Since 6.0.0 no agent command shows a :::human block (`--include-human` is ignored).
+  human: 'a :::human block is for people: agent views never show it',
 };
 
 /**
  * Give each omission without a command the one that shows it: the view's own command with the option that hid it
- * changed (`--include-human` for a :::human block, no `--brief` or `--max-tokens` for what they condense, `--embed`
- * for a code embed, no `--no-includes` for an include). An omission no command can show says why instead (t-65).
+ * changed (no `--brief` or `--max-tokens` for what they condense, `--embed` for a code embed, no `--no-includes` for an
+ * include). An omission no command can show, such as a :::human block, says why instead (t-65).
  */
 function addRecovery(omissions: Omission[], input: ManifestInput): void {
   const s = input.settings;
-  const command = (change: { human?: boolean; condensed?: boolean; embed?: boolean; includes?: boolean }) => [
+  const command = (change: { condensed?: boolean; embed?: boolean; includes?: boolean }) => [
     `smd agent ${input.file}`,
     ...(s.sections ?? []).map((q) => `--section "${q.replace(/"/g, '')}"`),
     ...(s.exactSections ? ['--exact'] : []),
     ...(s.brief && !change.condensed ? ['--brief'] : []),
-    ...(s.includeHuman || change.human ? ['--include-human'] : []),
     ...(s.embed || change.embed ? ['--embed'] : []),
     ...(!s.includes && !change.includes ? ['--no-includes'] : []),
     ...(s.maxTokens !== null && !change.condensed ? [`--max-tokens ${s.maxTokens}`] : []),
@@ -375,8 +376,7 @@ function addRecovery(omissions: Omission[], input: ManifestInput): void {
   ].join(' ');
   for (const o of omissions) {
     if (o.retrieve || o.noRetrieve) continue;
-    if (o.kind === 'human') o.retrieve = command({ human: true });
-    else if (CONDENSED.has(o.kind)) o.retrieve = command({ condensed: true });
+    if (CONDENSED.has(o.kind)) o.retrieve = command({ condensed: true });
     else if (o.kind === 'embed') o.retrieve = command({ embed: true });
     else if (o.kind === 'include' && !s.includes) o.retrieve = command({ includes: true });
     else if (o.kind === 'include') o.noRetrieve = 'the included file could not be read, so no command shows it';

@@ -9,7 +9,7 @@ import {
   statusChanges, statusReportMarkdown, suggest, tasksToCsv, tasksToGantt, type AgentViewOptions, type AgentViewResult,
   type BudgetResult, type Diagnostic, type DiffResult, type Provenance, type ReportDocument, type Tokenizer,
 } from './core';
-import { incompleteLine } from './core/applicability';
+import { agentText, incompleteLine, peopleOnly } from './core/applicability';
 import { MIGRATE_HELP, runMigrate } from './migrateCommand';
 import { MERGE_HELP, runMerge } from './mergeCommand';
 import { followOptions, runQuery, type QueryFlags } from './queryCommand';
@@ -68,14 +68,13 @@ Reading (token-efficient, for agents):
       Sections with line ranges and token costs, open tasks, where agent instructions are.
       --related    also list the front matter "related:" documents: title, status, summary and cost
       --compact    one unpadded row per heading, as smd read returns the outline
-  smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--include-human] [--embed] [--no-includes]
+  smd agent <file.smd> [--section "<heading>"]... [--exact] [--brief] [--embed] [--no-includes]
                        [--no-lines] [--max-tokens <n>] [--tokenizer <name>] [--constraints] [--provenance <file.json>]
                        [--evidence]
       Compact agent view: styling, layout and human-only content removed; meaning kept.
       --section    only these sections (repeatable; agent instructions elsewhere are still included).
-                   Naming a section never shows {agent=skip} sections or :::human blocks
-      --include-human keep :::human blocks, for a task about that content. It never lifts {agent=skip},
-                   and no --section, query or view turns it on
+                   Naming a section never shows {agent=skip} sections or :::human blocks, and no option does
+                   (--include-human is deprecated since 6.0.0 and ignored)
       --exact      --section matches a heading's id or whole text only (by default a part of the text,
                    so "API" also selects "API details")
       --brief      also condense diagrams, long code, :::details and completed tasks
@@ -342,8 +341,21 @@ function main(argv: string[]): number | Promise<number> {
     case 'meta': {
       const file = requireFile(positional[0]);
       const rules = configFor(file, value('--config')).rules;
-      const info = getDocumentInfo(read(file), { fileExists: existsFrom(file), readFile: readerFor(file), today, rules, staleAfterDays });
+      const text = read(file);
+      const options = { fileExists: existsFrom(file), readFile: readerFor(file), today, rules, staleAfterDays };
+      // Agents get nothing written for people: the outline, tasks, decisions and risks come from the text with its
+      // {agent=skip} sections and :::human blocks blanked, and no diagnostic points into them (6.0.0).
+      const info = getDocumentInfo(agentText(text), options);
       if (flags.has('--no-diagnostics')) delete (info as Partial<typeof info>).diagnostics;
+      else {
+        const people = peopleOnly(text);
+        const items = getDocumentInfo(text, options).diagnostics.items.filter((d) => !people.some(([a, b]) => d.line >= a && d.line <= b));
+        info.diagnostics = {
+          errors: items.filter((d) => d.severity === 'error').length,
+          warnings: items.filter((d) => d.severity === 'warning').length,
+          items,
+        };
+      }
       process.stdout.write(JSON.stringify(info, null, 2) + '\n');
       return 0;
     }
@@ -626,7 +638,7 @@ function taskGantt(rows: TaskRow[], args: Args, out?: string): number {
 function trace(targets: string[], args: Args, today?: string): number {
   const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
-  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const documents = files.map((file) => ({ path: relativePath(file), text: agentText(read(file)) }));
   const result = traceRequirements(documents, { uncovered: args.flags.has('--uncovered'), today });
   if (args.flags.has('--json')) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
@@ -647,7 +659,7 @@ function risks(targets: string[], args: Args): number {
   if (unknown) return fail(`Unknown risk status "${unknown}". Statuses: ${RISK_STATUS.join(', ')}`);
   const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
-  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const documents = files.map((file) => ({ path: relativePath(file), text: agentText(read(file)) }));
   const options = { status, owner: args.values.get('--owner')?.[0], all: args.flags.has('--all') };
   const register = riskRegister(documents, options);
   console.error(`[smd] ${riskRegisterSummary(register, options)}`);
@@ -817,6 +829,17 @@ function writeProvenance(target: string, manifest: Provenance): void {
   fs.writeFileSync(target, JSON.stringify({ ...manifest, settings: { tool: `smd ${pkg.version}`, ...manifest.settings } }, null, 2) + '\n');
 }
 
+/**
+ * `--include-human` is deprecated since 6.0.0 and ignored: a :::human block never reaches an agent, whatever it asks
+ * for. The option is still accepted, with a warning, and goes in the next major release. Always false.
+ */
+function deprecatedIncludeHuman(args: Args): false {
+  if (args.flags.has('--include-human')) {
+    console.error('[smd] warning: --include-human is deprecated since 6.0.0 and does nothing: :::human blocks never reach agents.');
+  }
+  return false;
+}
+
 /** `smd query --contract --provenance <file>`: the manifests of the views, one per document with matches, as an array. */
 function writeProvenanceList(target: string, manifests: Provenance[]): void {
   const tool = `smd ${pkg.version}`;
@@ -832,7 +855,7 @@ function printAgentView(file: string, args: Args, extra: Pick<AgentViewOptions, 
     sections,
     exactSections: args.flags.has('--exact'),
     brief: args.flags.has('--brief'),
-    includeHuman: args.flags.has('--include-human'),
+    includeHuman: deprecatedIncludeHuman(args),
     embed: args.flags.has('--embed'),
     includes: !args.flags.has('--no-includes'),
     lineRefs: !args.flags.has('--no-lines'),
@@ -864,7 +887,7 @@ function printTaskView(file: string, args: Args, extra: Pick<AgentViewOptions, '
     sections: args.values.get('--section'),
     exactSections: args.flags.has('--exact'),
     brief: args.flags.has('--brief'),
-    includeHuman: args.flags.has('--include-human'),
+    includeHuman: deprecatedIncludeHuman(args),
     embed: args.flags.has('--embed'),
     includes: !args.flags.has('--no-includes'),
     lineRefs: !args.flags.has('--no-lines'),
@@ -971,7 +994,7 @@ function decisions(targets: string[], args: Args): number {
   if (typeof status === 'string') return fail(status);
   const files = (targets.length ? targets : ['.']).flatMap((t) => collect(t));
   if (!files.length) return fail('No .smd files found.');
-  const documents = files.map((file) => ({ path: relativePath(file), text: read(file) }));
+  const documents = files.map((file) => ({ path: relativePath(file), text: agentText(read(file)) }));
   const rows = decisionLog(documents, { status, owner: args.values.get('--owner')?.[0] });
   const out = args.values.get('-o')?.[0];
   console.error(`[smd] ${decisionSummary(rows, files.length)}`);

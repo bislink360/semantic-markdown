@@ -143,6 +143,10 @@ class QuickFixProvider implements vscode.CodeActionProvider {
   provideCodeActions(document: vscode.TextDocument, _range: vscode.Range, context: vscode.CodeActionContext): vscode.CodeAction[] {
     const actions: vscode.CodeAction[] = [];
     for (const diag of context.diagnostics) {
+      if (diag.code === 'alert/caution') {
+        actions.push(...cautionFixes(document, diag));
+        continue;
+      }
       const fix = fixes.get(diag);
       if (!fix) continue;
       const action = new vscode.CodeAction(fix.title, vscode.CodeActionKind.QuickFix);
@@ -154,6 +158,25 @@ class QuickFixProvider implements vscode.CodeActionProvider {
     }
     return actions;
   }
+}
+
+/**
+ * The two fixes of `alert/caution`: the whole `> [!CAUTION]` blockquote as a `:::danger` container (preferred: it is
+ * what the alert already means) or as a `:::warning` when the text is only a caveat (6.0.0).
+ */
+function cautionFixes(document: vscode.TextDocument, diag: vscode.Diagnostic): vscode.CodeAction[] {
+  const quote = blockquoteToCallout(document.getText(), diag.range.start.line);
+  if (!quote) return [];
+  const eol = document.eol === vscode.EndOfLine.CRLF ? '\r\n' : '\n';
+  const range = new vscode.Range(quote.edit.startLine, 0, quote.edit.endLine, document.lineAt(quote.edit.endLine).text.length);
+  return (['danger', 'warning'] as const).map((type) => {
+    const action = new vscode.CodeAction(`Convert the [!CAUTION] alert to :::${type}`, vscode.CodeActionKind.QuickFix);
+    action.edit = new vscode.WorkspaceEdit();
+    action.edit.replace(document.uri, range, [`:::${type}`, ...quote.edit.lines.slice(1)].join(eol));
+    action.diagnostics = [diag];
+    action.isPreferred = type === 'danger';
+    return action;
+  });
 }
 
 // Refactorings: wrap in a block, change a callout's type, blockquote → callout

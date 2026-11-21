@@ -56,7 +56,7 @@ How to write `.smd` that people enjoy reading and agents can use cheaply.
   How the 2025 cutover went wrong, who was paged, and why we picked the date. For people only.
   ```
 
-- **Wire a visible rule to what it governs** with the existing `{#id}`, `scope`, `applies-to` and `depends-on`. A visible requirement that `depends-on` a block in a hidden region makes every read of it incomplete, so either make that block visible or drop the dependency. A visible rule whose `applies-to` names a hidden block is still carried, marked `hidden-target`.
+- **Wire a visible rule to what it governs** with the existing `{#id}`, `scope`, `applies-to` and `depends-on`. A visible requirement that `depends-on` a block in a hidden region makes every read of it incomplete, so either make that block visible or drop the dependency. A rule whose `applies-to` names only a hidden block is not carried either, so keep the target visible when agents must follow the rule.
 - **Check partial views, not only the whole one.** Run `smd agent <file> --section "<heading>"` for the sections an agent is likely to read, with and without `--brief`, and read what each omits (every omission has a reason) and any `Not satisfied … for people only` line. A diagnostic (`audience/rule-in-skip`, `container/agent-in-skip`) is a prompt for your judgment: some hidden rules are for people on purpose, so don't promote them all.
 - Use `:::details` for long logs or lists. `--brief` agent views collapse them to one line.
 - Prefer **embedding code** (`file="…" lines="…"`) over pasting it. Agents get a pointer and can read the real file if they need it.

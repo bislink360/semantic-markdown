@@ -100,9 +100,10 @@ export function queryDocuments(documents: readonly GraphDocument[], selector: st
   if (follow) {
     const g = new DocumentGraph(docs, { readDocument: options.readDocument, today });
     // Dependency traversal never unlocks content for people: a dependency in it is reported as hidden, never shown, and
-    // an edge written in it is not followed.
+    // an edge written in it is not followed. Since 6.0.0 no pointer leads into it either: a neighbor there is not listed.
     const isHidden = forAgents ? hiddenNodeTest(g) : undefined;
     const written = isHidden && ((e: GraphEdge) => isHidden(e.from));
+    const pointer = isHidden && ((e: GraphEdge) => isHidden(e.from) || (!!e.to && isHidden(e.to)));
     const shown = new Set(matches.map((m) => `${normalizePath(m.file)}:${m.line}`));
     if (options.constraints) for (const c of constraints) for (const b of c.blocks) shown.add(`${normalizePath(c.file)}:${b.line}`);
     const mandatory = follow.filter((t) => MANDATORY_EDGES.includes(t));
@@ -112,7 +113,7 @@ export function queryDocuments(documents: readonly GraphDocument[], selector: st
         ? mandatoryClosure(g, [node], { types: mandatory, shown, ...(isHidden ? { hidden: isHidden, ignore: written } : {}) })
         : { blocks: [], unsatisfied: [] };
       for (const b of closure.blocks) shown.add(nodeKey(b.node));
-      const { neighbors, cut } = followEdges(g, node, { types: follow, direction, depth, shown, ...(written ? { ignore: written } : {}) });
+      const { neighbors, cut } = followEdges(g, node, { types: follow, direction, depth, shown, ...(pointer ? { ignore: pointer } : {}) });
       return { neighbors, dependencies: closure.blocks, unsatisfied: closure.unsatisfied, cut };
     });
   }
@@ -299,26 +300,29 @@ export function queryResultSummary(result: QueryDocumentsResult, fileCount: numb
 
 const nodeJson = (n: GraphNode) => ({ file: n.file, type: n.type, title: n.title, ...(n.line === undefined ? {} : { line: n.line, endLine: n.endLine }), ...(n.id ? { id: n.id } : {}), section: n.section });
 
-/** An edge for JSON output. Lines are zero-based, as in matches. */
-export function edgeJson(e: GraphEdge) {
+/**
+ * An edge for JSON output. Lines are zero-based, as in matches. An edge to content for people (`hidden`) keeps its
+ * target as written but not the block it reaches: since 6.0.0 nothing an agent receives names what is there.
+ */
+export function edgeJson(e: GraphEdge, hidden = false) {
   return {
     type: e.type, kind: e.kind, from: nodeJson(e.from), line: e.line, target: e.target, file: e.file, status: e.status,
-    ...(e.to ? { to: nodeJson(e.to) } : {}), ...(e.lines ? { lines: e.lines } : {}),
+    ...(e.to && !hidden ? { to: nodeJson(e.to) } : {}), ...(e.lines ? { lines: e.lines } : {}),
   };
 }
 
 /** The result as `smd query --json` prints it when a new option is given: matches with ancestors, then what the options added. */
 export function queryResultJson(result: QueryDocumentsResult) {
   const edges = new Map<string, ReturnType<typeof edgeJson>>();
-  const keep = (e: GraphEdge) => { edges.set(`${e.from.file}:${e.line}|${e.type}|${e.target}`, edgeJson(e)); };
+  const keep = (e: GraphEdge, hidden = false) => { edges.set(`${e.from.file}:${e.line}|${e.type}|${e.target}`, edgeJson(e, hidden)); };
   const graph = result.graph?.map((g) => {
     g.neighbors.forEach((n) => keep(n.edge));
     g.dependencies.forEach((d) => keep(d.edge));
-    g.unsatisfied.forEach((u) => keep(u.edge));
+    g.unsatisfied.forEach((u) => keep(u.edge, u.kind === 'hidden'));
     return {
       neighbors: g.neighbors.map((n) => ({ direction: n.direction, depth: n.depth, edge: edgeJson(n.edge), via: nodeJson(n.via), node: n.node ? nodeJson(n.node) : null, shown: n.shown, tokens: n.tokens })),
       dependencies: g.dependencies.map((d) => ({ depth: d.depth, edge: edgeJson(d.edge), via: nodeJson(d.via), node: nodeJson(d.node), tokens: d.tokens, text: d.text })),
-      unsatisfied: g.unsatisfied.map((u) => ({ kind: u.kind, depth: u.depth, edge: edgeJson(u.edge), via: nodeJson(u.via), ...(u.path ? { path: u.path.map(nodeJson) } : {}) })),
+      unsatisfied: g.unsatisfied.map((u) => ({ kind: u.kind, depth: u.depth, edge: edgeJson(u.edge, u.kind === 'hidden'), via: nodeJson(u.via), ...(u.path ? { path: u.path.map(nodeJson) } : {}) })),
       cut: g.cut,
     };
   });

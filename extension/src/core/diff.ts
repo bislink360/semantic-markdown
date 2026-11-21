@@ -80,9 +80,10 @@ export function diffSmd(oldText: string, newText: string, options: DiffOptions =
   const after = sectionsOf(newText, agentViewRanges(newText, viewOptions));
   const pairs = matchSections(before, after);
   const shown = agentViewRanges(newText, { ...viewOptions, lineRefs: options.lineRefs ?? true });
+  // A section marked {agent=skip}, in either version, is for people: its changes are not listed at all (6.0.0).
   const sections = [
-    ...after.map((s) => compare(pairs.get(s), s, shown)).filter((c): c is SectionChange => c !== null),
-    ...before.filter((s) => ![...pairs.values()].includes(s)).map((s) => ({ ...describe(s), change: 'removed' as const, ...oldRange(s) })),
+    ...after.filter((s) => !s.skipped).map((s) => compare(pairs.get(s), s, shown)).filter((c): c is SectionChange => c !== null),
+    ...before.filter((s) => !s.skipped && ![...pairs.values()].includes(s)).map((s) => ({ ...describe(s), change: 'removed' as const, ...oldRange(s) })),
   ];
   const frontMatter = frontMatterChanges(parseFrontMatter(oldText).data, parseFrontMatter(newText).data);
   const text = diffText(frontMatter, sections, options.lineRefs ?? true);

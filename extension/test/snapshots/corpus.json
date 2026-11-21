@@ -2,9 +2,9 @@
  "format": 1,
  "generator": "extension/scripts/snapshots.mjs",
  "source": {
-  "commit": "6ab2b29edf67e40e67307783b7c630ef43637079",
+  "commit": "14795934f23b720d18c307382cc2b1fda5f32ed0",
   "dirty": true,
-  "cli": "smd 4.1.0 (Semantic Markdown spec v2)"
+  "cli": "smd 6.0.0 (Semantic Markdown spec v2)"
  },
  "options": {
   "today": "2026-01-15",
@@ -22,7 +22,7 @@
    "focused": 26,
    "conformance": 74
   },
-  "digest": "dd8fc75eede1e02bc24aed09"
+  "digest": "ad5144320850337b5cc6623a"
  },
  "commands": {
   "agent": [
@@ -156,7 +156,7 @@
   },
   "extension/test/compat/corpus/github-alerts.smd · validate": {
    "status": 0,
-   "stdout": "e36d2de956505a40d04fdbd3:153",
+   "stdout": "d005400498554c1a46ac8c12:759",
    "stderr": "e3b0c44298fc1c149afbf4c8:0"
   },
   "extension/test/compat/corpus/glossary-typography.smd · agent": {
@@ -961,13 +961,13 @@
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: brief section Notes named explicitly is withheld as well": {
    "status": 0,
-   "stdout": "a97cddd386f1ac1691f265d6:86",
-   "stderr": "30cb40d9344df3062561a457:46"
+   "stdout": "ff0768e48514283011ede96a:73",
+   "stderr": "12cba87daed293a4ea3b2953:46"
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: budgeted section Notes named explicitly is withheld as well": {
    "status": 0,
-   "stdout": "a97cddd386f1ac1691f265d6:86",
-   "stderr": "b2a78bd17fc57f540b8f3e86:101"
+   "stdout": "ff0768e48514283011ede96a:73",
+   "stderr": "90e21f583ffbe49086f524cb:101"
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: full view keeps them hidden and records the skipped section": {
    "status": 0,
@@ -981,18 +981,18 @@
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: section Notes named explicitly stays withheld and records the audience exclusion": {
    "status": 0,
-   "stdout": "a97cddd386f1ac1691f265d6:86",
-   "stderr": "30cb40d9344df3062561a457:46"
+   "stdout": "ff0768e48514283011ede96a:73",
+   "stderr": "12cba87daed293a4ea3b2953:46"
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: sections Main and Notes together show Main and withhold Notes": {
    "status": 0,
-   "stdout": "61d7e3a4940678be83013b9f:129",
-   "stderr": "98105ada4486de1b9ee01f4b:46"
+   "stdout": "727e0cea35efbdb8b6c58fc8:108",
+   "stderr": "1aae66afa6cd7e0e914ad283:46"
   },
   "extension/test/conformance/cases/04-explicit-skipped-section/doc.smd · conformance: subsection Notes detail named alone is withheld with the section above it": {
    "status": 0,
-   "stdout": "85776bdafe38f5b144ac59d3:79",
-   "stderr": "0375249da9af816aa0cabf86:46"
+   "stdout": "ff0768e48514283011ede96a:73",
+   "stderr": "12cba87daed293a4ea3b2953:46"
   },
   "extension/test/conformance/cases/05-failed-include/doc-rule.smd · conformance: with a rule: full view lists the unread include and is incomplete": {
    "status": 0,
@@ -1031,18 +1031,18 @@
   },
   "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Notes named alone creates no unsatisfied dependency and records the exclusion": {
    "status": 0,
-   "stdout": "80e9651606a2d2eede5964b6:47",
+   "stdout": "081763c96ac14511c9f8575c:48",
    "stderr": "245c3e0e84d769ea0dec1331:46"
   },
-  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Work withholds R2, lists it as hidden and carries C2": {
+  "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: section Work withholds R2, lists it as hidden and does not carry C2": {
    "status": 0,
-   "stdout": "a727f3b79050ed875d74fa81:564",
-   "stderr": "29e874fa01a1eba883056313:144"
+   "stdout": "e8ffd021d3da1cbbd0624880:405",
+   "stderr": "3aba4f8194a94b70b6ffadc6:142"
   },
   "extension/test/conformance/cases/06-hidden-targets/doc.smd · conformance: sections Work and Notes named together do not unlock R2: same result as Work": {
    "status": 0,
-   "stdout": "f9a0681302a20d78e5f64c99:571",
-   "stderr": "2be46e6f9c98e76319528839:144"
+   "stdout": "e8ffd021d3da1cbbd0624880:405",
+   "stderr": "3aba4f8194a94b70b6ffadc6:142"
   },
   "extension/test/conformance/cases/07-external-documents/doc.smd · conformance: full view adds R7 and lists both unreadable files": {
    "status": 0,

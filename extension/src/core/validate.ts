@@ -23,7 +23,9 @@ import { duplicateIds } from './ids';
 import { dependencyProblems } from './graph';
 import { checkSemanticTags } from './semanticCheck';
 import { taskViewProblems } from './taskViews';
-import { codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines } from './parse';
+import {
+  alertLines, codeLines, idOwners, inlineItemLines, inlineMathLines, lazyLineSet, literalLines, mathOnLine, parseSmd, type IdBlock, type InlineMathLines,
+} from './parse';
 import { openTaskLines } from './taskLines';
 import { isUnknownValue, progressBasis } from './progress';
 import { evidenceRecords, isAcceptance, recordName, supportFor, verifies, type EvidenceRecord } from './evidence';
@@ -249,6 +251,7 @@ export function validateSmd(text: string, options: ValidateOptions = {}): Diagno
   for (const quote of findQuotes(lines, fm.bodyStartLine, spec)) checkQuote(quote, lines[quote.line], push);
   checkVariables(lines, fm.bodyStartLine, fm.data, pushText, inCode);
   checkAgentInSkipped(text, lines, fm.bodyStartLine, push);
+  checkCautionAlerts(text, lines, push);
   checkRulesForPeople(text, lines, fm.bodyStartLine, push);
 
   let result = applySuppressions(text, diagnostics);
@@ -1356,6 +1359,22 @@ function explicitIds(raw: string): string[] {
   const fromAttrs = [...line.matchAll(/\{([^{}]*)\}/g)].flatMap((m) => [...m[1].matchAll(/(?:^|\s)#([^\s{}]+)/g)].map((id) => id[1]));
   const fromHtml = line.includes('<') ? [...line.matchAll(/\s(?:id|name)=["']([^"']+)["']/g)].map((m) => m[1]) : [];
   return [...fromAttrs, ...fromHtml];
+}
+
+/**
+ * `alert/caution` (6.0.0): a `> [!CAUTION]` alert is GitHub's spelling of a danger. It renders as `:::danger` and agent
+ * views carry it like one (spec §3.8), so the hint asks for the container, which says outright whether the text is a
+ * hard constraint (`:::danger`) or only a caveat (`:::warning`). The editor's quick fixes convert the blockquote. An
+ * info only: the alert keeps working.
+ */
+function checkCautionAlerts(text: string, lines: string[], push: Push): void {
+  for (const alert of alertLines(text)) {
+    if (alert.callout !== 'danger') continue;
+    const marker = /\[!caution\]/i.exec(lines[alert.marker] ?? '');
+    if (!marker) continue;
+    push(alert.marker, marker.index, marker.index + marker[0].length, 'info', 'alert/caution',
+      'A `[!CAUTION]` alert reaches agents as a danger. Write `:::danger` for a hard constraint or `:::warning` for a caveat.');
+  }
 }
 
 /**

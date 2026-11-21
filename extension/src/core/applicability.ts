@@ -66,8 +66,6 @@ export interface AppliedConstraint {
    * the reader can find, so the constraint is shown in every read until an author fixes it.
    */
   applies: 'document' | 'section' | 'applies-to' | 'unplaced';
-  /** The `applies-to` targets that are hidden from agents ({agent=skip} or :::human), so the view shows the rule without them (t-66). */
-  hiddenTargets?: string[];
 }
 
 export interface IncludedDependency {
@@ -184,8 +182,6 @@ export interface MandatoryPlan {
   applyingLines: Set<number>;
   /** The document or a file it includes has a `:::constraint` block. */
   hasConstraints: boolean;
-  /** Ids that carried constraints name in `applies-to` and that are hidden from agents (t-66). */
-  hiddenTargets: Set<string>;
 }
 
 export interface ScopeInput {
@@ -265,6 +261,21 @@ export function peopleOnly(text: string, includeHuman = false): Array<[number, n
     .filter((s) => s.heading.agent === 'skip').map((s) => [s.start, s.end]);
   if (!includeHuman) hidden.push(...tagBlocks(text).filter((b) => b.name === 'human').map((b) => [b.line, b.endLine] as [number, number]));
   return hidden;
+}
+
+/**
+ * The text an agent-facing list reads (`smd tasks`, `risks`, `trace`, `decisions`, `meta`, and the counts of the
+ * outline and the index): every line for people only, its `{agent=skip}` sections and `:::human` blocks, is blanked,
+ * so nothing written for people reaches an agent through any command. Lines keep their numbers, so file:line
+ * references still point at the source (6.0.0).
+ */
+export function agentText(text: string): string {
+  const hidden = peopleOnly(text);
+  if (!hidden.length) return text;
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = text.split(/\r?\n/);
+  for (const [start, end] of hidden) for (let i = start; i <= end && i < lines.length; i++) lines[i] = '';
+  return lines.join(eol);
 }
 
 /**
@@ -548,11 +559,12 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   // depends on is a dependency in turn. The dependencies of every round count (one that becomes a carried constraint
   // leaves the closure and is still content of the view), so the constraints only grow. Each round that goes on adds
   // one, and there are finitely many (the closure includes at most CLOSURE_LIMITS.blocks blocks and reports the
-  // rest), so this ends.
+  // rest), so this ends. A dependency hidden from agents is no content of the view: it is reported as hidden below and
+  // brings no rule, so a rule whose target an author hid on purpose is not carried either (6.0.0, no hidden targets).
   let round = run([]);
   const added = new Map<string, ClosureBlock>();
   for (;;) {
-    for (const b of round.closure.blocks) added.set(nodeKey(b.node), b);
+    for (const b of round.closure.blocks) if (!within(b.node.line!, hiddenIn(b.node.file))) added.set(nodeKey(b.node), b);
     if (!added.size) break;
     const next = run([...added.values()]);
     if (next.head.length + next.far.length <= round.head.length + round.far.length) break;
@@ -562,23 +574,14 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
   const plan: MandatoryPlan = {
     context: { constraints: [], dependencies: [], unsatisfied: [], complete: true, completeness: completenessOf([]) },
     applying: emptyPicks(), dependencies: emptyPicks(), extra: [], applyingExtra: [], unsatisfied: [], ties: [],
-    constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints, hiddenTargets: new Set(),
+    constraintAt: constraints.map((c) => c.pos), applyingLines: new Set(), hasConstraints,
   };
 
-  /** The applies-to targets of a constraint that resolve to blocks hidden from agents, as written. */
-  const hiddenTargetsOf = (file: string, line: number): string[] => [...new Set(graph.edgesOf(file)
-    .filter((e) => e.type === 'applies-to' && e.from.line === line && e.status === 'resolved' && e.to?.line !== undefined && within(e.to.line, hiddenIn(e.to.file)))
-    .map((e) => e.target))];
   /** Where a carried rule is listed: a decision under `decisions`, a constraint under `constraints`. */
   const ruleList = (b: TagBlock): AppliedConstraint[] => (b.name === 'decision' ? (plan.context.decisions ??= []) : plan.context.constraints);
-  const hiddenMark = (targets: string[]) => {
-    for (const t of targets) plan.hiddenTargets.add(t);
-    return targets.length ? { hiddenTargets: targets } : {};
-  };
   for (const { c, why } of round.head) {
     addPick(plan.applying, c.doc, c.block.line, c.block.endLine);
-    const hidden = hiddenTargetsOf(c.doc === ROOT_DOC ? GRAPH_ROOT : c.doc, c.block.line);
-    ruleList(c.block).push({ ...(c.block.id ? { id: c.block.id } : {}), title: c.block.title, file: fileName(c.doc), line: c.block.line + 1, applies: why!, ...hiddenMark(hidden) });
+    ruleList(c.block).push({ ...(c.block.id ? { id: c.block.id } : {}), title: c.block.title, file: fileName(c.doc), line: c.block.line + 1, applies: why! });
     if (c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
   }
   for (const c of constraints) if (c.inPlace && c.doc === ROOT_DOC) plan.applyingLines.add(c.block.line);
@@ -586,7 +589,6 @@ export function mandatoryPlan(input: ScopeInput): MandatoryPlan | undefined {
     plan.applyingExtra.push({ file: rule.file, text: graph.content(rule.node), line: rule.block.line, end: rule.block.endLine });
     ruleList(rule.block).push({
       ...(rule.block.id ? { id: rule.block.id } : {}), title: rule.block.title, file: rule.file, line: rule.block.line + 1, applies: rule.why,
-      ...hiddenMark(hiddenTargetsOf(rule.file, rule.block.line)),
     });
   }
 

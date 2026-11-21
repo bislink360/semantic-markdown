@@ -1,8 +1,8 @@
 {
-  "description": "Hidden targets (L3, strict audience filtering). A dependency in an {agent=skip} section or a :::human block is withheld and listed as hidden, and the view is incomplete. A visible constraint on the hidden target is still carried, because the constraint is visible text. Naming the skipped section does not make the target eligible: Work and Notes together give the same mandatory result as Work alone, and Notes alone creates no unsatisfied dependency, so its exclusion is recorded as an omission apart from completeness. Completeness parts: coverage fails, resolution and budget hold.",
+  "description": "Hidden targets (L3, strict audience filtering). A dependency in an {agent=skip} section or a :::human block is withheld and listed as hidden, and the view is incomplete. Since 6.0.0 a constraint whose applies-to names the hidden target is not carried: the author hid the target on purpose, so a read does not bring back what binds it. Naming the skipped section does not make the target eligible: Work and Notes together give the same mandatory result as Work alone, and Notes alone creates no unsatisfied dependency, so its exclusion is recorded as an omission apart from completeness. Completeness parts: coverage fails, resolution and budget hold.",
   "requests": [
     {
-      "name": "section Work withholds R2, lists it as hidden and carries C2",
+      "name": "section Work withholds R2, lists it as hidden and does not carry C2",
       "route": {
         "sections": [
           "Work"
@@ -13,11 +13,11 @@
         "L3"
       ],
       "mustAppear": [
-        "R1",
-        "C2"
+        "R1"
       ],
       "mustNotAppear": [
-        "~HIDDEN-R2"
+        "~HIDDEN-R2",
+        "C2"
       ],
       "unsatisfied": [
         {
@@ -30,11 +30,6 @@
         "coverage": false,
         "resolution": true,
         "budget": true
-      },
-      "hiddenTargets": {
-        "C2": [
-          "R2"
-        ]
       }
     },
     {
@@ -74,11 +69,11 @@
         "L3"
       ],
       "mustAppear": [
-        "R1",
-        "C2"
+        "R1"
       ],
       "mustNotAppear": [
-        "~HIDDEN-R2"
+        "~HIDDEN-R2",
+        "C2"
       ],
       "unsatisfied": [
         {
@@ -91,11 +86,6 @@
         "coverage": false,
         "resolution": true,
         "budget": true
-      },
-      "hiddenTargets": {
-        "C2": [
-          "R2"
-        ]
       },
       "omissions": [
         {

@@ -1,4 +1,5 @@
 import { agentView, sectionCosts, type SectionCost } from './agentView';
+import { agentText, peopleOnly } from './applicability';
 import { asStringList, parseFrontMatter } from './frontmatter';
 import { getDocumentInfo, type SmdDocumentInfo } from './meta';
 import { hasAnswer, isLifecycleQuestion, questionStatus, SEMANTIC_TAGS, tagContext } from './semanticTags';
@@ -29,7 +30,10 @@ export interface SmdIndexSection {
   endLine: number;
   /** Approximate tokens of reading the section (subsections included) through the agent view. */
   tokens: number;
-  /** `skip` when the heading is marked {agent=skip}. */
+  /**
+   * @deprecated Never written since 6.0.0: a section marked {agent=skip} is not listed at all. Kept so readers of
+   * older catalogs still type-check.
+   */
   agent?: string;
 }
 
@@ -89,7 +93,11 @@ const CLOSED_RISK = new Set(['mitigated', 'closed']);
 /** The catalog entry of one document. */
 export function indexEntry(text: string, path: string, options: IndexOptions = {}): SmdIndexEntry {
   const data = parseFrontMatter(text).data;
-  const info = getDocumentInfo(text, { today: options.today });
+  // The catalog is for agents: sections for people ({agent=skip}, subsections included) are not listed, and nothing in
+  // them or in :::human blocks is counted (6.0.0).
+  const shown = agentText(text);
+  const people = peopleOnly(text);
+  const info = getDocumentInfo(shown, { today: options.today });
   const view = agentView(text, { today: options.today });
   return {
     path,
@@ -103,8 +111,8 @@ export function indexEntry(text: string, path: string, options: IndexOptions = {
     updated: scalar(data.updated),
     related: asStringList(data.related),
     tokens: { file: view.originalTokens, agent: view.tokens },
-    counts: countsOf(info, text),
-    sections: sectionCosts(text, { today: options.today }).map(indexSection),
+    counts: countsOf(info, shown),
+    sections: sectionCosts(text, { today: options.today }).filter((s) => !people.some(([a, b]) => s.start >= a && s.start <= b)).map(indexSection),
   };
 }
 
@@ -158,7 +166,7 @@ function semanticCounts(info: SmdDocumentInfo): { tags?: Record<string, number> 
 
 function indexSection(s: SectionCost): SmdIndexSection {
   const h = s.heading;
-  return { level: h.level, text: h.text, id: h.slug, line: s.start, endLine: s.end, tokens: s.tokens, ...(h.agent ? { agent: h.agent } : {}) };
+  return { level: h.level, text: h.text, id: h.slug, line: s.start, endLine: s.end, tokens: s.tokens };
 }
 
 /** How often each value occurs, keys sorted so the output is stable. */
