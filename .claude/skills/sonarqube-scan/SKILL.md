@@ -18,7 +18,7 @@ GitHub CI runs typecheck, tests and the compatibility check, but **no static ana
 
 | Moment | Command | Must pass? |
 |---|---|---|
-| Before opening a feature PR into `release/vX.Y.Z` | `sonar-scan.mjs` | Yes: fix or justify new findings in the PR |
+| Before opening a feature PR into `release/vX.Y.Z` | `sonar-scan.mjs --changed origin/release/vX.Y.Z` | Yes: nothing new on the lines the branch changed |
 | On the release branch, before `release-check.mjs` and before tagging (smd-release §4–5) | `sonar-scan.mjs` | **Yes, mandatory** |
 | Quick look while developing | `sonar-scan.mjs --no-coverage` | No |
 | Hardening pass | `sonar-scan.mjs --strict` | Optional |
@@ -49,8 +49,18 @@ A finding **blocks** unless it is listed in `baseline.json`:
 - any open **security** issue, whatever its severity
 - any **security hotspot** still "to review"
 - with `--strict`, **Medium** (Major) issues too
+- with `--changed <base>`, every open issue of **any** severity and every **duplicated block** on a line the checkout adds or edits since it left `<base>` (the branch or tag the work started from)
 
-Lower-severity code smells, duplication and coverage are reported as **non-blocking**. Still mention them in the release summary.
+Lower-severity code smells, duplication and coverage elsewhere are reported as **non-blocking**. Still mention them in the release summary.
+
+### Changed code (`--changed <base>`)
+
+This is the gate for a feature branch: the change must not add a bug, a code smell or a copy of existing code, while the debt that was already in the repository stays out of the way.
+
+- Changed lines come from `git diff` between the working tree and the merge base with `<base>`, so uncommitted work counts. Untracked files count as changed in full.
+- An issue belongs to the change when its own location, or one of its secondary locations in the same file, is on a changed line. So a new branch that pushes a function over the cognitive complexity limit blocks, though the issue is reported on the function's first line.
+- An issue that was already on a line the branch edits blocks too. Fix it when the fix is small and safe. Otherwise report it.
+- It can't be combined with `--update-baseline`: findings on changed code are fixed, not accepted.
 
 SonarQube's own quality gate (Sonar way) is shown as **informational**. Its "new code" is measured against whatever this local server analysed earlier, so it differs between machines. The committed baseline is what makes the gate repeatable. If the Sonar way gate fails, look at the conditions it lists (for example coverage on new code) and mention them in the summary.
 

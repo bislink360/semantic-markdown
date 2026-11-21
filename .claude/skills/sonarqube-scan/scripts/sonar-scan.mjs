@@ -3,7 +3,7 @@
 // bugs, vulnerabilities, unreviewed security hotspots and severe code smells.
 //
 //   node .claude/skills/sonarqube-scan/scripts/sonar-scan.mjs
-//        [--strict] [--no-coverage] [--update-baseline] [--out <file>] [--port 9000] [--down] [--reset]
+//        [--strict] [--changed <base>] [--no-coverage] [--update-baseline] [--out <file>] [--port 9000] [--down] [--reset]
 //
 // Steps:
 //   1. start SonarQube + Postgres (docker-compose.yml next to this folder) and wait until UP
@@ -15,6 +15,8 @@
 //        - open issues of severity Blocker/High (Critical); Medium (Major) too with --strict
 //        - any open security issue (vulnerability), whatever its severity
 //        - security hotspots still "to review"
+//        - with --changed <base>: every open issue, whatever its severity, and every duplicated
+//          block on a line this checkout adds or edits since it left <base> (a branch or tag)
 //      Findings listed in baseline.json (existing debt, accepted by a maintainer) are reported
 //      but don't block. --update-baseline rewrites that file from the current results.
 //      SonarQube's own quality gate is only reported: its "new code" depends on what this local
@@ -33,11 +35,11 @@ import { fileURLToPath } from 'node:url';
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(n);
 const option = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
-const KNOWN = new Set(['--strict', '--no-coverage', '--update-baseline', '--out', '--port', '--down', '--reset', '--help']);
-const unknown = argv.filter((a, i) => a.startsWith('--') && !KNOWN.has(a) && !['--out', '--port'].includes(argv[i - 1]));
+const KNOWN = new Set(['--strict', '--changed', '--no-coverage', '--update-baseline', '--out', '--port', '--down', '--reset', '--help']);
+const unknown = argv.filter((a, i) => a.startsWith('--') && !KNOWN.has(a) && !['--out', '--port', '--changed'].includes(argv[i - 1]));
 if (flag('--help') || unknown.length) {
   if (unknown.length) console.error(`Unknown option(s): ${unknown.join(' ')}`);
-  console.error('Usage: sonar-scan.mjs [--strict] [--no-coverage] [--update-baseline] [--out <file>] [--port 9000] [--down] [--reset]');
+  console.error('Usage: sonar-scan.mjs [--strict] [--changed <base>] [--no-coverage] [--update-baseline] [--out <file>] [--port 9000] [--down] [--reset]');
   process.exit(unknown.length ? 2 : 0);
 }
 
@@ -51,6 +53,7 @@ const STATE_DIR = join(homedir(), '.smd-sonar');
 const STATE_FILE = join(STATE_DIR, 'state.json');
 const OUT = option('--out') ?? join(ROOT, '.scannerwork', 'sonar-report.md');
 const STRICT = flag('--strict');
+const CHANGED_BASE = option('--changed');
 
 const props = Object.fromEntries(readFileSync(join(ROOT, 'sonar-project.properties'), 'utf8')
   .split(/\r?\n/).filter((l) => /^\s*[\w.]+\s*=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]));
@@ -60,6 +63,9 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'extension', 'package.json'),
 const log = (msg) => console.log(`[sonar] ${msg}`);
 const die = (msg) => { console.error(`[sonar] ${msg}`); process.exit(2); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+if (flag('--changed') && (!CHANGED_BASE || CHANGED_BASE.startsWith('--'))) die('--changed needs the branch or tag the work started from, for example --changed origin/main');
+if (CHANGED_BASE && flag('--update-baseline')) die('--changed cannot be combined with --update-baseline: findings on changed code are fixed, never accepted');
 
 function compose(args, env = {}) {
   const r = spawnSync('docker', ['compose', '-f', COMPOSE, ...args], { // NOSONAR(javascript:S4036): developer tool, docker comes from the maintainer's PATH
@@ -181,6 +187,68 @@ const fileOf = (component) => component.slice(component.indexOf(':') + 1);
 const issueKey = (i) => `issue|${i.rule}|${fileOf(i.component)}|${i.hash ?? i.message}`;
 const hotspotKey = (h) => `hotspot|${h.ruleKey ?? h.securityCategory}|${fileOf(h.component)}|${h.message}`;
 
+// ── changed code (--changed <base>) ──
+const git = (args) => execFileSync('git', ['-c', 'core.quotePath=false', ...args], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28 }); // NOSONAR(javascript:S4036): developer tool, git comes from the maintainer's PATH
+
+function mergeBaseWith(base) {
+  try { return git(['merge-base', base, 'HEAD']).trim(); } catch { return die(`--changed: no common history with "${base}". Fetch it, or name another branch or tag.`); }
+}
+
+// Line ranges the working tree adds or edits since the merge base, by repo-relative path.
+// Untracked files count as changed from their first line to their last.
+function changedLines(base) {
+  const ranges = new Map();
+  let file;
+  let inHeader = false;
+  for (const line of git(['diff', '--unified=0', '--no-color', '--no-ext-diff', mergeBaseWith(base), '--']).split('\n')) {
+    if (line.startsWith('diff --git ')) { inHeader = true; file = undefined; continue; }
+    if (inHeader && line.startsWith('+++ b/')) file = line.slice(6).replace(/\t$/, '');
+    const hunk = /^@@ -\S+ \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (!hunk) continue;
+    inHeader = false;
+    const first = Number(hunk[1]);
+    const count = Number(hunk[2] ?? 1);
+    if (file && count > 0) ranges.set(file, [...(ranges.get(file) ?? []), [first, first + count - 1]]);
+  }
+  for (const untracked of git(['ls-files', '--others', '--exclude-standard']).split('\n').filter(Boolean)) ranges.set(untracked, [[1, Infinity]]);
+  return ranges;
+}
+
+const overlaps = (ranges, { startLine, endLine }) => ranges.some(([first, last]) => startLine <= last && endLine >= first);
+
+// An issue belongs to the change when its own range, or a secondary location in the same file
+// (each branch that adds to a function's cognitive complexity, for example), is on a changed line.
+function onChangedCode(issue, changed) {
+  const ranges = changed.get(fileOf(issue.component));
+  if (!ranges) return false;
+  const located = [issue, ...(issue.flows ?? []).flatMap((flow) => flow.locations ?? [])]
+    .filter((place) => place.textRange && place.component === issue.component);
+  return located.length === 0 || located.some((place) => overlaps(ranges, place.textRange));
+}
+
+function duplicatesIn(component, { duplications = [], files = {} }, ranges) {
+  const place = (block) => `${fileOf(files[block._ref].key)}:${block.from}`;
+  const isChanged = (block) => files[block._ref].key === component && overlaps(ranges, { startLine: block.from, endLine: block.from + block.size - 1 });
+  return duplications.flatMap(({ blocks }) => blocks.filter(isChanged).map((block) => ({
+    kind: 'duplication',
+    component,
+    line: block.from,
+    message: `${block.size} lines duplicate ${blocks.filter((other) => other !== block).map(place).join(', ')}`,
+  })));
+}
+
+async function duplicatesOnChangedCode(auth, changed) {
+  const query = `component=${PROJECT}&metricKeys=duplicated_blocks&qualifiers=FIL&s=metric&metricSort=duplicated_blocks&metricSortFilter=withMeasuresOnly`;
+  const duplicated = (await paged(`/api/measures/component_tree?${query}`, 'components', auth))
+    .filter((c) => Number(c.measures?.[0]?.value) > 0 && changed.has(fileOf(c.key)));
+  const found = [];
+  for (const { key } of duplicated) {
+    const shown = await api(`/api/duplications/show?key=${encodeURIComponent(key)}`, { auth });
+    found.push(...duplicatesIn(key, shown, changed.get(fileOf(key))));
+  }
+  return found;
+}
+
 async function paged(path, field, auth) {
   const all = [];
   for (let p = 1; ; p++) {
@@ -230,11 +298,12 @@ function metricRows({ m, known, hotspots, coverageOn }) {
   ].filter((r) => r[1] != null).map(([k, v]) => `| ${k} | ${v} |`);
 }
 
-function findingLine(f) {
-  return f.kind === 'hotspot'
-    ? `- 🔥 hotspot (${f.vulnerabilityProbability}) ${loc(f)} ${f.message} — \`${f.ruleKey ?? f.securityCategory}\``
-    : `- ${ICON[f.severity]} ${f.severity} ${f.qualities.join('/')} ${loc(f)} ${f.message} — \`${f.rule}\``;
-}
+const FINDING_LINE = {
+  hotspot: (f) => `- 🔥 hotspot (${f.vulnerabilityProbability}) ${loc(f)} ${f.message} — \`${f.ruleKey ?? f.securityCategory}\``,
+  issue: (f) => `- ${ICON[f.severity]} ${f.severity} ${f.qualities.join('/')} ${loc(f)} ${f.message} — \`${f.rule}\``,
+  duplication: (f) => `- 📑 duplication ${loc(f)} ${f.message}`,
+};
+const findingLine = (f) => FINDING_LINE[f.kind](f);
 
 function warningTable(warnings) {
   const byRule = new Map();
@@ -244,13 +313,15 @@ function warningTable(warnings) {
     ...groups.map((g) => `| \`${g.rule}\` | ${g.severity} | ${g.n} | ${loc(g)} ${g.message.replaceAll('|', String.raw`\|`)} |`)];
 }
 
+const CHANGED_MODE = CHANGED_BASE ? `, plus every finding and duplicate on code changed since \`${CHANGED_BASE}\`` : '';
+
 function report({ gate, blocking, warnings, ...counts }) {
   const failed = (gate.conditions ?? []).filter((c) => c.status === 'ERROR');
   const lines = [
     `# SonarQube gate — ${PROJECT} ${VERSION}`,
     '',
     `**Result:** ${blocking.length ? `❌ BLOCKED (${blocking.length})` : '✅ PASS'}  `,
-    `**Mode:** ${STRICT ? 'strict (Medium blocks)' : 'default (Blocker/High, security, hotspots block)'}  `,
+    `**Mode:** ${STRICT ? 'strict (Medium blocks)' : 'default (Blocker/High, security, hotspots block)'}${CHANGED_MODE}  `,
     `**SonarQube quality gate (informational):** ${gate.status}  `,
     `**Dashboard:** ${HOST}/dashboard?id=${PROJECT}`,
     '',
@@ -301,11 +372,14 @@ const hotspots = (await paged(`/api/hotspots/search?project=${PROJECT}&status=TO
   .map((h) => ({ ...h, kind: 'hotspot' }));
 
 const threshold = STRICT ? SEV_RANK.MEDIUM : SEV_RANK.HIGH;
+const changed = CHANGED_BASE ? changedLines(CHANGED_BASE) : new Map();
 const gating = [
   ...hotspots,
-  ...issues.filter((i) => SEV_RANK[i.severity] >= threshold || i.qualities.includes('SECURITY')),
+  ...issues.filter((i) => SEV_RANK[i.severity] >= threshold || i.qualities.includes('SECURITY') || onChangedCode(i, changed)),
+  ...(CHANGED_BASE ? await duplicatesOnChangedCode(auth, changed) : []),
 ];
-const keyOf = (f) => (f.kind === 'hotspot' ? hotspotKey(f) : issueKey(f));
+const KEY_OF = { issue: issueKey, hotspot: hotspotKey, duplication: (d) => `duplication|${fileOf(d.component)}|${d.line}` };
+const keyOf = (f) => KEY_OF[f.kind](f);
 
 if (flag('--update-baseline')) {
   const accepted = gating.map(keyOf).sort((a, b) => a.localeCompare(b));
