@@ -1,6 +1,8 @@
 # Changelog
 
-## 6.0.0 — 2026-11-19
+## 6.0.0 — 2026-11-21
+
+Three breaking changes, all in what agents receive, each with its migration below and in [Upgrading to 6.0](https://github.com/bislink360/semantic-markdown/blob/main/docs/guides/upgrading.md#upgrading-to-60). Documents, the spec version and the supported Node.js and VS Code versions stay the same.
 
 ### ⚠️ Breaking changes
 - **Content for people never reaches an agent through any list.** Since 5.0.0 agent views and `smd query` never showed a section marked `{agent=skip}` or a `:::human` block. The other agent-facing outputs now follow the same rule, with no option to lift it. `smd tasks`, `smd risks`, `smd trace`, `smd decisions` and `smd meta`, and the MCP `tasks` tool, leave out the tasks, risks, requirements and decisions inside them, and `smd meta` gives no diagnostic that points into them. `smd outline` (and the outline `smd read` and the MCP `read` tool return) and `smd index` no longer list a skipped section or say what it holds, and their counts leave out what is in skipped sections and `:::human` blocks. A catalog entry's section no longer has `"agent": "skip"`, because such a section is not listed. `smd diff` no longer reports a change inside a skipped section, and `smd updates` no change made in content for people. `--follow` on `smd read`, `smd agent` and `smd query` lists no pointer into it, and a dependency on a hidden block is reported by its id without the block's title or section (in `--json`, a `hidden` dependency's edge has no `to`). A section read that names only skipped sections says `(excerpt — no section shown)` instead of their headings. Line numbers in every list still point at the source. The preview, exports, `smd build`, `smd issues`, `smd report`, the editor's Tasks view and `smd validate` are unchanged and still show or check that content for its people and authors. *Migration:* move a task, risk, requirement or decision that agents must see out of the skipped section or `:::human` block (`audience/rule-in-skip` points at rules there). A script that read `"agent": "skip"` from `smd index` to skip those sections can drop that check.
@@ -10,12 +12,8 @@
 ### Added
 - **`alert/caution` asks for `:::danger` or `:::warning` instead of a `[!CAUTION]` alert.** A `> [!CAUTION]` GitHub alert still renders and reaches agents as a danger, as before. The validator now gives an info on its marker, because the container says outright whether the text is a hard constraint or only a caveat. In VS Code two quick fixes rewrite the whole blockquote, as `:::danger` (preferred) or as `:::warning`. Turn the hint off with `"alert/caution": "off"` in the rule settings.
 
-### Changed
-
 ### Deprecated
 - **`--include-human`** on `smd agent` and **`includeHuman`** on the MCP `agent` tool do nothing since 6.0.0 and will be removed in the next major release.
-
-### Fixed
 
 ## 5.0.0 — 2026-11-18
 
