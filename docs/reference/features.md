@@ -1175,7 +1175,7 @@ An optional editor for `.smd` files (since 1.8): the document as the preview ren
 | **What the Agent View Leaves Out…** | Each omission of the agent view and the brief view with its reason; choose one to select its lines in the source |
 | **Copy Agent View to Clipboard** | Right-click menu. Paste into any chat tool. |
 | **Copy Sections for an Agent…** | Pick sections; agent instructions are included automatically |
-| **Token meter** | The status bar shows `🤖 6.3k → 2.1k tok`, the raw file against its agent view. Hover for a card with the raw, agent and brief sizes as bars and links to the agent view, the brief view, what is left out and Copy. With metering on it adds what agents actually read of the file in the last 7 days, and a click opens the meter panel |
+| **Token meter** | The status bar shows `🤖 6.3k → 2.1k tok`, the raw file against its agent view. Hover for a card that leads with the share saved as a thin coloured bar, then the raw, agent and brief sizes as thin bars to one scale, and links to the agent view, the brief view, what is left out and Copy. With metering on it adds what agents actually read of the file in the last 7 days, and a click opens the meter panel |
 | **Open Token Meter** | With metering on: a panel with the workspace KPIs (session net savings, tokens served, smd share, targeted reads), files ranked by tokens saved, the sections of a file with their reads (never-read ones too), a graph of sections read together against the document's declared links, and reads per agent |
 | **Turn On Token Metering** | Asks first, then writes `"meter": true` to `.smdrc`. **Turn Off** and **Clear Token Meter Events…** undo it. `smd.meter.headingHints` shows read counts above each heading |
 

@@ -13,7 +13,7 @@ toc: true
 
 Each mock is the content and layout, not the final pixels. Numbers are made up but consistent with each other. Requirement ids point at [token-metering-requirement.smd](../requirements/token-metering-requirement.smd), and the data behind each screen is in [token-metering-design.smd](token-metering-design.smd).
 
-The hover card follows the VS Code status bar hover, as the Copilot status card does. A status bar hover can show Markdown, theme icons, links to commands and coloured text, but no buttons, inputs or charts, so bars are coloured block characters and actions are links. The panel is a webview and has none of those limits.
+The hover card follows the VS Code status bar hover, as the Copilot status card does. A status bar hover can show Markdown, theme icons, links to commands and coloured text, but no buttons, inputs or charts. Its renderer does allow `data:` images, so each bar is a thin SVG (4 px high, fixed colours since an image cannot read theme variables), and actions are links. The ASCII mocks below show the bars as blocks. The panel is a webview and has none of those limits.
 
 ## Status bar item
 

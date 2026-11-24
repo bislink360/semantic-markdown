@@ -40,8 +40,22 @@ export interface TokenMeter {
   command: string;
 }
 
-/** Cells in each bar. */
-const WIDTH = 24;
+/** Size of each bar, in CSS pixels: thin, like the progress bars of VS Code's own status popovers. */
+export const BAR_WIDTH = 240;
+export const BAR_HEIGHT = 4;
+
+/**
+ * Bar colours. A hover's SVG image can't read theme variables, so these are fixed mid-tone colours that read on light
+ * and dark themes, close to VS Code's chart colours.
+ */
+export const BAR_COLORS = {
+  raw: '#f14c4c',
+  agent: '#3794ff',
+  brief: '#4ec9b0',
+  saved: '#4ec9b0',
+  warn: '#cca700',
+} as const;
+export type BarColor = keyof typeof BAR_COLORS;
 
 /** Links in the card: icon, label, command, hover title. */
 const VIEW_ACTIONS: [string, string, string, string][] = [
@@ -61,14 +75,31 @@ export function savedPercent(part: number, raw: number): number {
   return raw > 0 ? Math.round((1 - part / raw) * 100) : 0;
 }
 
+/** Filled width of a bar, in pixels: `value` of `max`, at least the bar's height so a tiny value still shows. */
+export function barFill(value: number, max: number): number {
+  if (!(max > 0) || !(value > 0)) return 0;
+  return Math.min(BAR_WIDTH, Math.max(BAR_HEIGHT, Math.round((value / max) * BAR_WIDTH)));
+}
+
 /**
- * A bar of `WIDTH` cells, `value` of `max` filled. Hovers allow only `color` and `background-color` styles, as hex or
- * `var(--vscode-…)`, in that order, so the bar is block characters coloured with theme variables.
+ * A thin bar, `value` of `max` filled, as a Markdown image of an inline SVG. Hover HTML can't size a span, but VS
+ * Code's hover renderer allows `data:` images, so the bar is drawn instead of typed. `label` is the alt text.
  */
-export function bar(value: number, max: number, fill: string): string {
-  const filled = max > 0 ? Math.min(WIDTH, Math.max(value > 0 ? 1 : 0, Math.round((value / max) * WIDTH))) : 0;
-  const cells = (n: number, color: string) => (n ? `<span style="color:var(${color});">${'█'.repeat(n)}</span>` : '');
-  return cells(filled, fill) + cells(WIDTH - filled, '--vscode-editorWidget-border');
+export function bar(value: number, max: number, color: BarColor, label: string): string {
+  const fill = barFill(value, max);
+  const rect = (width: number, paint: string) => `<rect width="${width}" height="${BAR_HEIGHT}" rx="${BAR_HEIGHT / 2}" ${paint}/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${BAR_WIDTH}" height="${BAR_HEIGHT}" viewBox="0 0 ${BAR_WIDTH} ${BAR_HEIGHT}">`
+    + rect(BAR_WIDTH, 'fill="#808080" fill-opacity="0.25"')
+    + (fill ? rect(fill, `fill="${BAR_COLORS[color]}"`) : '')
+    + '</svg>';
+  return `![${label.replaceAll(/[[\]]/g, '')}](data:image/svg+xml;base64,${btoa(svg)})`;
+}
+
+/** The share saved as a bar: filled to the percentage, or a full warning bar when smd sent more than the file. */
+export function savingsBar(percent: number): string {
+  return percent >= 0
+    ? bar(Math.min(percent, 100), 100, 'saved', `${percent}% saved`)
+    : bar(100, 100, 'warn', `${-percent}% more`);
 }
 
 const thousands = (n: number) => n.toLocaleString('en-US');
@@ -92,9 +123,9 @@ function measuredBlock(m: MeasuredUse): string[] {
       : `**Measured** · ${m.period} · <span style="color:var(--vscode-editorWarning-foreground);">used ${-net.percent}% more than reading the file once</span>`
     : `**Measured** · ${m.period}`;
   const lines = [
-    headline,
+    headline + (net.baseline ? `  \n${savingsBar(net.percent)}` : ''),
     `${kpis.sessions} session${kpis.sessions === 1 ? '' : 's'} · ${kpis.reads} read${kpis.reads === 1 ? '' : 's'} · ≈${thousands(kpis.served)} tok served`
-      + (net.baseline ? `  \n${bar(net.served, Math.max(net.baseline, net.served), '--vscode-progressBar-background')} &nbsp; ${shortTokens(net.baseline)} → ${shortTokens(net.served)}` : ''),
+      + (net.baseline ? ` · ${shortTokens(net.baseline)} → ${shortTokens(net.served)}` : ''),
   ];
   const agents = clients.filter((c) => c.smdReads || c.rawReads).map((c) => `${c.name} ${c.smdReads}`).join(' · ');
   if (agents) lines.push(`Agents &nbsp; ${agents}`);
@@ -109,12 +140,12 @@ export function tokenMeter(input: TokenMeterInput): TokenMeter {
   const { raw, agent, brief, metering, measured } = input;
   const max = Math.max(raw, agent, brief);
   const pct = savedPercent(agent, raw);
-  const row = (label: string, value: number, fill: string, note = '') =>
-    `${label} &nbsp; **≈${thousands(value)}** tok${note}  \n${bar(value, max, fill)}`;
+  const row = (label: string, value: number, color: BarColor, note = '') =>
+    `${label} &nbsp; **≈${thousands(value)}** tok${note}  \n${bar(value, max, color, `${thousands(value)} tokens`)}`;
   const estimate = [
-    row('Without smd · raw file', raw, '--vscode-charts-red'),
-    row('With smd · agent view', agent, '--vscode-progressBar-background', savings(agent, raw)),
-    row('With smd · brief view', brief, '--vscode-charts-green', savings(brief, raw)),
+    row('Without smd · raw file', raw, 'raw'),
+    row('With smd · agent view', agent, 'agent', savings(agent, raw)),
+    row('With smd · brief view', brief, 'brief', savings(brief, raw)),
   ];
   const actions = metering ? [OPEN_METER, ...VIEW_ACTIONS] : VIEW_ACTIONS;
   const parts = ['**$(hubot) Agent token meter**'];
@@ -122,7 +153,7 @@ export function tokenMeter(input: TokenMeterInput): TokenMeter {
     parts.push(...measuredBlock(measured), '---', '**Estimate for this file**', ...estimate.slice(0, 2));
   } else {
     const headline = pct > 0 ? `### ${pct}% fewer tokens with smd` : pct < 0 ? `### ${-pct}% more tokens with smd` : '### Same tokens with smd';
-    parts.push(headline, '---', ...estimate);
+    parts.push(`${headline}\n\n${savingsBar(pct)}`, '---', ...estimate);
   }
   parts.push('---', actions.map(link).join(' &nbsp;·&nbsp; '));
   if (metering === false) parts.push('---', `Measure real agent reads? &nbsp; ${link(TURN_ON)}`);

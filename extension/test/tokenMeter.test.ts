@@ -1,12 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { meterReport } from '../src/core';
-import { bar, savedPercent, shortCount, tokenMeter } from '../src/tokenMeter';
+import { BAR_COLORS, BAR_HEIGHT, BAR_WIDTH, bar, barFill, savedPercent, savingsBar, shortCount, tokenMeter } from '../src/tokenMeter';
 
-/** Filled cells of a bar, by colour variable. */
-const cells = (html: string) => Object.fromEntries(
-  [...html.matchAll(/<span style="color:var\((--vscode-[\w-]+)\);">(█+)<\/span>/g)].map((m) => [m[1], m[2].length]),
-);
+/** The bars in a card or a line: alt text, and the SVG decoded. */
+const bars = (markdown: string) => [...markdown.matchAll(/!\[([^\]]*)\]\(data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)\)/g)]
+  .map((m) => ({ alt: m[1], svg: atob(m[2]) }));
+/** The filled rectangle of a bar's SVG: its width and colour, or undefined for an empty bar. */
+const fillOf = (svg: string) => {
+  const m = [...svg.matchAll(/<rect width="(\d+)"[^>]*fill="(#[0-9a-f]+)"\/>/g)];
+  return m.length ? { width: Number(m[0][1]), color: m[0][2] } : undefined;
+};
 
 test('short counts for the status bar', () => {
   assert.equal(shortCount(0), '0');
@@ -22,15 +26,24 @@ test('saved percent is rounded and negative when the view is larger', () => {
   assert.equal(savedPercent(5, 0), 0, 'an empty file saves nothing');
 });
 
-test('bars use only the styles hovers allow', () => {
-  const html = bar(6, 24, '--vscode-charts-green');
-  assert.deepEqual(cells(html), { '--vscode-charts-green': 6, '--vscode-editorWidget-border': 18 });
-  // VS Code's hover sanitizer keeps a span style only when it matches this pattern.
-  for (const [, style] of html.matchAll(/style="([^"]*)"/g)) {
-    assert.match(style, /^(color:(#[0-9a-fA-F]+|var\(--vscode(-[a-zA-Z0-9]+)+\));)?(background-color:(#[0-9a-fA-F]+|var\(--vscode(-[a-zA-Z0-9]+)+\));)?$/);
-  }
-  assert.deepEqual(cells(bar(1, 10_000, '--vscode-charts-red')), { '--vscode-charts-red': 1, '--vscode-editorWidget-border': 23 }, 'a tiny value still shows');
-  assert.deepEqual(cells(bar(0, 0, '--vscode-charts-red')), { '--vscode-editorWidget-border': 24 });
+test('bars are thin SVG images, which the hover renderer allows as data: URIs', () => {
+  const [b] = bars(bar(60, 240, 'brief', '60 tokens'));
+  assert.equal(b.alt, '60 tokens');
+  assert.match(b.svg, new RegExp(`^<svg xmlns="http://www.w3.org/2000/svg" width="${BAR_WIDTH}" height="${BAR_HEIGHT}"`));
+  assert.match(b.svg, /fill="#808080" fill-opacity="0.25"/, 'a faint track under the fill');
+  assert.deepEqual(fillOf(b.svg), { width: 60, color: BAR_COLORS.brief });
+  assert.equal(barFill(1, 10_000), BAR_HEIGHT, 'a tiny value still shows');
+  assert.equal(barFill(500, 100), BAR_WIDTH, 'never past the end');
+  assert.equal(barFill(0, 0), 0);
+  assert.equal(fillOf(bars(bar(0, 100, 'raw', 'none'))[0].svg), undefined, 'an empty bar is the track alone');
+  assert.equal(bars(bar(1, 2, 'raw', 'a [b] c'))[0].alt, 'a b c', 'brackets would end the alt text');
+});
+
+test('the savings bar fills to the percentage, and warns when smd sent more', () => {
+  assert.deepEqual(fillOf(bars(savingsBar(67))[0].svg), { width: Math.round(0.67 * BAR_WIDTH), color: BAR_COLORS.saved });
+  assert.equal(bars(savingsBar(67))[0].alt, '67% saved');
+  assert.deepEqual(fillOf(bars(savingsBar(-20))[0].svg), { width: BAR_WIDTH, color: BAR_COLORS.warn });
+  assert.equal(bars(savingsBar(-20))[0].alt, '20% more');
 });
 
 test('the meter compares the raw file with the agent and brief views', () => {
@@ -40,9 +53,13 @@ test('the meter compares the raw file with the agent and brief views', () => {
   assert.match(meter.tooltip, /Without smd · raw file &nbsp; \*\*≈6,312\*\* tok/);
   assert.match(meter.tooltip, /With smd · agent view &nbsp; \*\*≈2,104\*\* tok · \*\*67%\*\* fewer/);
   assert.match(meter.tooltip, /With smd · brief view &nbsp; \*\*≈1,204\*\* tok · \*\*81%\*\* fewer/);
-  // The raw file fills its bar; the views are drawn to the same scale.
-  const bars = meter.tooltip.split('\n').filter((l) => l.includes('█')).map(cells);
-  assert.deepEqual(bars.map((b) => Object.values(b)[0]), [24, 8, 5]);
+  // First the share saved, then the raw file filling its bar and the views drawn to the same scale.
+  assert.deepEqual(bars(meter.tooltip).map((b) => fillOf(b.svg)), [
+    { width: Math.round(0.67 * BAR_WIDTH), color: BAR_COLORS.saved },
+    { width: BAR_WIDTH, color: BAR_COLORS.raw },
+    { width: Math.round((2104 / 6312) * BAR_WIDTH), color: BAR_COLORS.agent },
+    { width: Math.round((1204 / 6312) * BAR_WIDTH), color: BAR_COLORS.brief },
+  ]);
 });
 
 test('every link in the card runs a trusted command', () => {
@@ -55,6 +72,7 @@ test('every link in the card runs a trusted command', () => {
 test('an agent view larger than the file says so', () => {
   const meter = tokenMeter({ raw: 100, agent: 150, brief: 100 });
   assert.match(meter.tooltip, /### 50% more tokens with smd/);
+  assert.equal(bars(meter.tooltip)[0].alt, '50% more', 'the headline bar warns');
   assert.match(meter.tooltip, /agent view &nbsp; \*\*≈150\*\* tok · 50% more \(includes\)/);
   assert.doesNotMatch(meter.tooltip, /brief view[^\n]*·/, 'no note when the brief view is the same size');
 });
@@ -77,6 +95,7 @@ test('with metering on the card shows measured use and opens the meter', () => {
   assert.equal(meter.text, '$(hubot) 6.3k → 2.1k tok · 2 reads');
   assert.equal(meter.command, 'smd.openTokenMeter');
   assert.match(meter.tooltip, /\*\*Measured\*\* · last 7 days · \*\*67%\*\* saved \(session net\)/);
+  assert.equal(bars(meter.tooltip)[0].alt, '67% saved', 'the measured saving leads with its own bar');
   assert.match(meter.tooltip, /Bypassed smd &nbsp; claude-code 1 raw read/);
   assert.match(meter.tooltip, /Most read &nbsp; requirements 2/);
   assert.equal(meter.commands[0], 'smd.openTokenMeter');
@@ -84,6 +103,8 @@ test('with metering on the card shows measured use and opens the meter', () => {
   assert.deepEqual(linked, meter.commands, 'every link is trusted and nothing else');
 
   const worse = meterReport([ev('s1', 5000), ev('s1', 5000)]);
-  assert.match(tokenMeter({ raw: 6000, agent: 2000, brief: 1000, metering: true, measured: { period: 'last 7 days', report: worse } }).tooltip, /used 67% more than reading the file once/);
+  const worseCard = tokenMeter({ raw: 6000, agent: 2000, brief: 1000, metering: true, measured: { period: 'last 7 days', report: worse } }).tooltip;
+  assert.match(worseCard, /used 67% more than reading the file once/);
+  assert.equal(bars(worseCard)[0].alt, '67% more');
   assert.match(tokenMeter({ raw: 6000, agent: 2000, brief: 1000, metering: true, measured: { period: 'last 7 days', report: meterReport([]) } }).tooltip, /No agent reads of this file yet/);
 });
